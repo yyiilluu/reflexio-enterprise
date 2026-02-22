@@ -121,7 +121,7 @@ function ProfileRow({
   const expiringSoon = isExpiringSoon(profile.expiration_timestamp)
 
   return (
-    <div className="border border-slate-200 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 bg-white">
+    <div className="hover:bg-slate-50/50 transition-colors">
       <div
         className={`p-4 cursor-pointer hover:bg-slate-50 transition-colors ${expired ? "opacity-60" : ""}`}
         onClick={() => setExpanded(!expanded)}
@@ -131,16 +131,16 @@ function ProfileRow({
             {/* Status Icon */}
             <div className="flex-shrink-0">
               {expired ? (
-                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-red-500 to-rose-500 flex items-center justify-center shadow-lg">
-                  <XCircle className="h-5 w-5 text-white" />
+                <div className="h-8 w-8 rounded-lg bg-red-100 flex items-center justify-center">
+                  <XCircle className="h-4 w-4 text-red-600" />
                 </div>
               ) : expiringSoon ? (
-                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg">
-                  <AlertCircle className="h-5 w-5 text-white" />
+                <div className="h-8 w-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                  <AlertCircle className="h-4 w-4 text-amber-600" />
                 </div>
               ) : (
-                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
-                  <FileText className="h-5 w-5 text-white" />
+                <div className="h-8 w-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                  <FileText className="h-4 w-4 text-purple-600" />
                 </div>
               )}
             </div>
@@ -232,7 +232,7 @@ function ProfileRow({
 
       {/* Expanded Details */}
       {expanded && (
-        <div className="border-t border-slate-100 bg-slate-50 p-4 space-y-4">
+        <div className="border-t border-slate-100 p-4 space-y-4">
           {isEditing && editedProfile ? (
             /* Edit Mode */
             <div className="space-y-6">
@@ -303,7 +303,7 @@ function ProfileRow({
 
                   <div>
                     <h4 className="text-sm font-semibold mb-3 text-slate-700">Read-Only Details</h4>
-                    <div className="space-y-2 bg-white p-3 rounded-lg border border-slate-200">
+                    <div className="space-y-2 bg-slate-50 p-3 rounded-lg">
                       <div className="flex justify-between text-sm">
                         <span className="text-slate-500">Profile ID:</span>
                         <span className="font-mono text-xs text-slate-700">{editedProfile.profile_id}</span>
@@ -336,7 +336,7 @@ function ProfileRow({
               <div className="space-y-4">
                 <div>
                   <h4 className="text-sm font-semibold mb-2 text-slate-800">Profile Content</h4>
-                  <p className="text-sm text-slate-600 leading-relaxed bg-white p-3 rounded-lg border border-slate-200">
+                  <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-lg">
                     {profile.profile_content}
                   </p>
                 </div>
@@ -359,7 +359,7 @@ function ProfileRow({
               <div className="space-y-4">
                 <div>
                   <h4 className="text-sm font-semibold mb-3 text-slate-800">Details</h4>
-                  <div className="space-y-2 bg-white p-3 rounded-lg border border-slate-200">
+                  <div className="space-y-2 bg-slate-50 p-3 rounded-lg">
                     <div className="flex justify-between text-sm">
                       <span className="text-slate-500">Profile ID:</span>
                       <span className="font-mono text-xs text-slate-700">{profile.profile_id}</span>
@@ -1240,9 +1240,7 @@ export default function ProfilesPage() {
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg">
-                    <Filter className="h-5 w-5 text-white" />
-                  </div>
+                  <Filter className="h-4 w-4 text-slate-400" />
                   <div>
                     <CardTitle className="text-lg font-semibold text-slate-800">Search & Filters</CardTitle>
                     <CardDescription className="text-xs mt-1 text-slate-500">
@@ -1426,59 +1424,53 @@ export default function ProfilesPage() {
           </Card>
 
           {/* Results */}
-          <Card className="border-slate-200 bg-white overflow-hidden hover:shadow-lg transition-all duration-300">
-            <CardHeader className="pb-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-lg font-semibold text-slate-800">Profile Results</CardTitle>
-                  <CardDescription className="text-xs mt-1 text-slate-500">
-                    Showing {filteredProfiles.length} of {totalProfiles} profiles
-                  </CardDescription>
-                </div>
+          <div>
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold text-slate-800">Profile Results</h2>
+              <p className="text-xs mt-1 text-slate-500">
+                Showing {filteredProfiles.length} of {totalProfiles} profiles
+              </p>
+            </div>
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-3 border-transparent border-t-purple-500 border-r-purple-500 mx-auto mb-4"></div>
+                <h3 className="text-lg font-semibold text-slate-800 mb-2">Loading profiles...</h3>
+                <p className="text-sm text-slate-500">
+                  Fetching data from the API
+                </p>
               </div>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="text-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-3 border-transparent border-t-purple-500 border-r-purple-500 mx-auto mb-4"></div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-2">Loading profiles...</h3>
-                  <p className="text-sm text-slate-500">
-                    Fetching data from the API
-                  </p>
-                </div>
-              ) : filteredProfiles.length === 0 ? (
-                <div className="text-center py-12">
-                  <Calendar className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-slate-800 mb-2">No profiles found</h3>
-                  <p className="text-sm text-slate-500">
-                    {profiles.length === 0
-                      ? "No profiles available. Try creating some profiles first."
-                      : "Try adjusting your filters or search query"}
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {filteredProfiles.map((profile) => (
-                    <ProfileRow
-                      key={profile.profile_id}
-                      profile={profile}
-                      onEdit={startEdit}
-                      onDelete={handleDeleteClick}
-                      isEditing={editingProfileId === profile.profile_id}
-                      editedProfile={editedProfile}
-                      onSave={saveEdit}
-                      onCancel={cancelEdit}
-                      onUpdateField={updateEditedField}
-                      customFeaturesJson={customFeaturesJson}
-                      setCustomFeaturesJson={setCustomFeaturesJson}
-                      jsonError={jsonError}
-                      setJsonError={setJsonError}
-                    />
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+            ) : filteredProfiles.length === 0 ? (
+              <div className="text-center py-12">
+                <Calendar className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-slate-800 mb-2">No profiles found</h3>
+                <p className="text-sm text-slate-500">
+                  {profiles.length === 0
+                    ? "No profiles available. Try creating some profiles first."
+                    : "Try adjusting your filters or search query"}
+                </p>
+              </div>
+            ) : (
+              <div className="border border-slate-200 rounded-xl bg-white overflow-hidden divide-y divide-slate-100">
+                {filteredProfiles.map((profile) => (
+                  <ProfileRow
+                    key={profile.profile_id}
+                    profile={profile}
+                    onEdit={startEdit}
+                    onDelete={handleDeleteClick}
+                    isEditing={editingProfileId === profile.profile_id}
+                    editedProfile={editedProfile}
+                    onSave={saveEdit}
+                    onCancel={cancelEdit}
+                    onUpdateField={updateEditedField}
+                    customFeaturesJson={customFeaturesJson}
+                    setCustomFeaturesJson={setCustomFeaturesJson}
+                    jsonError={jsonError}
+                    setJsonError={setJsonError}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

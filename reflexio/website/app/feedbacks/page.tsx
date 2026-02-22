@@ -112,7 +112,7 @@ function RawFeedbackRow({ feedback, onDelete }: RawFeedbackRowProps) {
   const [expanded, setExpanded] = useState(false)
 
   return (
-    <div className="border border-slate-200 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 bg-white">
+    <div className="hover:bg-slate-50/50 transition-colors">
       <div
         className="p-4 cursor-pointer hover:bg-slate-50 transition-colors"
         onClick={() => setExpanded(!expanded)}
@@ -121,8 +121,8 @@ function RawFeedbackRow({ feedback, onDelete }: RawFeedbackRowProps) {
           <div className="flex items-center gap-3 flex-1 min-w-0">
             {/* Icon */}
             <div className="flex-shrink-0">
-              <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-lg">
-                <FileText className="h-5 w-5 text-white" />
+              <div className="h-8 w-8 rounded-lg bg-orange-100 flex items-center justify-center">
+                <FileText className="h-4 w-4 text-orange-600" />
               </div>
             </div>
 
@@ -178,13 +178,13 @@ function RawFeedbackRow({ feedback, onDelete }: RawFeedbackRowProps) {
 
       {/* Expanded Details */}
       {expanded && (
-        <div className="border-t border-slate-100 bg-slate-50 p-4 space-y-4">
+        <div className="border-t border-slate-100 p-4 space-y-4">
           <div className="grid gap-6 md:grid-cols-2">
             {/* Left Column */}
             <div className="space-y-4">
               <div>
                 <h4 className="text-sm font-semibold mb-2 text-slate-800">Feedback Content</h4>
-                <p className="text-sm text-slate-600 leading-relaxed bg-white p-3 rounded-lg border border-slate-200 whitespace-pre-wrap">
+                <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-lg whitespace-pre-wrap">
                   {formatFeedbackContent(feedback)}
                 </p>
               </div>
@@ -194,7 +194,7 @@ function RawFeedbackRow({ feedback, onDelete }: RawFeedbackRowProps) {
             <div className="space-y-4">
               <div>
                 <h4 className="text-sm font-semibold mb-3 text-slate-800">Details</h4>
-                <div className="space-y-2 bg-white p-3 rounded-lg border border-slate-200">
+                <div className="space-y-2 bg-slate-50 p-3 rounded-lg">
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-500">Feedback ID:</span>
                     <span className="font-mono text-slate-700">#{feedback.raw_feedback_id}</span>
@@ -245,11 +245,19 @@ function FeedbackRow({ feedback, onUpdateStatus, onDelete, isUpdating = false }:
   const [expanded, setExpanded] = useState(false)
   const StatusIcon = getStatusIcon(feedback.feedback_status)
 
-  const getStatusGradient = () => {
+  const getStatusBg = () => {
     switch (feedback.feedback_status) {
-      case "approved": return "bg-gradient-to-br from-emerald-500 to-teal-500"
-      case "rejected": return "bg-gradient-to-br from-red-500 to-rose-500"
-      case "pending": return "bg-gradient-to-br from-amber-500 to-orange-500"
+      case "approved": return "bg-emerald-100"
+      case "rejected": return "bg-red-100"
+      case "pending": return "bg-amber-100"
+    }
+  }
+
+  const getStatusIconColor = () => {
+    switch (feedback.feedback_status) {
+      case "approved": return "text-emerald-600"
+      case "rejected": return "text-red-600"
+      case "pending": return "text-amber-600"
     }
   }
 
@@ -262,7 +270,7 @@ function FeedbackRow({ feedback, onUpdateStatus, onDelete, isUpdating = false }:
   }
 
   return (
-    <div className="border border-slate-200 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 bg-white">
+    <div className="hover:bg-slate-50/50 transition-colors">
       <div
         className="p-4 cursor-pointer hover:bg-slate-50 transition-colors"
         onClick={() => setExpanded(!expanded)}
@@ -271,8 +279,8 @@ function FeedbackRow({ feedback, onUpdateStatus, onDelete, isUpdating = false }:
           <div className="flex items-center gap-3 flex-1 min-w-0">
             {/* Status Icon */}
             <div className="flex-shrink-0">
-              <div className={`h-9 w-9 rounded-xl ${getStatusGradient()} flex items-center justify-center shadow-lg`}>
-                <StatusIcon className="h-5 w-5 text-white" />
+              <div className={`h-8 w-8 rounded-lg ${getStatusBg()} flex items-center justify-center`}>
+                <StatusIcon className={`h-4 w-4 ${getStatusIconColor()}`} />
               </div>
             </div>
 
@@ -332,13 +340,13 @@ function FeedbackRow({ feedback, onUpdateStatus, onDelete, isUpdating = false }:
 
       {/* Expanded Details */}
       {expanded && (
-        <div className="border-t border-slate-100 bg-slate-50 p-4 space-y-4">
+        <div className="border-t border-slate-100 p-4 space-y-4">
           <div className="grid gap-6 md:grid-cols-2">
             {/* Left Column */}
             <div className="space-y-4">
               <div>
                 <h4 className="text-sm font-semibold mb-2 text-slate-800">Aggregated Feedback Content</h4>
-                <p className="text-sm text-slate-600 leading-relaxed bg-white p-3 rounded-lg border border-slate-200 whitespace-pre-wrap">
+                <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-lg whitespace-pre-wrap">
                   {formatFeedbackContent(feedback)}
                 </p>
               </div>
@@ -346,7 +354,7 @@ function FeedbackRow({ feedback, onUpdateStatus, onDelete, isUpdating = false }:
               {feedback.feedback_metadata && (
                 <div>
                   <h4 className="text-sm font-semibold mb-2 text-slate-800">Metadata</h4>
-                  <div className="bg-white p-3 rounded-lg border border-slate-200">
+                  <div className="bg-slate-50 p-3 rounded-lg">
                     <pre className="text-xs font-mono whitespace-pre-wrap text-slate-700">
                       {(() => {
                         try {
@@ -365,7 +373,7 @@ function FeedbackRow({ feedback, onUpdateStatus, onDelete, isUpdating = false }:
             <div className="space-y-4">
               <div>
                 <h4 className="text-sm font-semibold mb-3 text-slate-800">Details</h4>
-                <div className="space-y-2 bg-white p-3 rounded-lg border border-slate-200">
+                <div className="space-y-2 bg-slate-50 p-3 rounded-lg">
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-500">Feedback ID:</span>
                     <span className="font-mono text-slate-700">#{feedback.feedback_id}</span>
@@ -1505,9 +1513,7 @@ export default function FeedbacksPage() {
           <Card className="border-slate-200 bg-white overflow-hidden hover:shadow-lg transition-all duration-300">
             <CardHeader className="pb-4">
               <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg">
-                  <Filter className="h-5 w-5 text-white" />
-                </div>
+                <Filter className="h-4 w-4 text-slate-400" />
                 <div>
                   <CardTitle className="text-lg font-semibold text-slate-800">Filters</CardTitle>
                   <CardDescription className="text-xs mt-1 text-slate-500">Refine feedback results</CardDescription>
@@ -1625,68 +1631,64 @@ export default function FeedbacksPage() {
           </Card>
 
           {/* Results */}
-          <Card className="border-slate-200 bg-white overflow-hidden hover:shadow-lg transition-all duration-300">
-            <CardHeader className="pb-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-lg font-semibold text-slate-800">
-                    {activeTab === "aggregated" ? "Aggregated" :
-                     activeTab === "current" ? "Current Raw" :
-                     activeTab === "pending" ? "Pending Raw" : "Archived Raw"} Feedback Results
-                  </CardTitle>
-                  <CardDescription className="text-xs mt-1 text-slate-500">
-                    Showing {isRawTab ? filteredRawFeedbacks.length : filteredFeedbacks.length} of{" "}
-                    {isRawTab ? rawFeedbackCounts[activeTab as "current" | "pending" | "archived"] : totalAggregated} feedbacks
-                  </CardDescription>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isLoading} className="border-slate-200 hover:bg-slate-50 text-slate-700">
-                    <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
-                    Refresh
-                  </Button>
-                </div>
+          <div>
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-800">
+                  {activeTab === "aggregated" ? "Aggregated" :
+                   activeTab === "current" ? "Current Raw" :
+                   activeTab === "pending" ? "Pending Raw" : "Archived Raw"} Feedback Results
+                </h2>
+                <p className="text-xs mt-1 text-slate-500">
+                  Showing {isRawTab ? filteredRawFeedbacks.length : filteredFeedbacks.length} of{" "}
+                  {isRawTab ? rawFeedbackCounts[activeTab as "current" | "pending" | "archived"] : totalAggregated} feedbacks
+                </p>
               </div>
-            </CardHeader>
-            <CardContent>
-              {isRawTab ? (
-                filteredRawFeedbacks.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Calendar className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-slate-800 mb-2">No {activeTab} raw feedbacks found</h3>
-                    <p className="text-sm text-slate-500">
-                      Try adjusting your search or filter criteria
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {filteredRawFeedbacks.map((feedback) => (
-                      <RawFeedbackRow key={feedback.raw_feedback_id} feedback={feedback} onDelete={handleDeleteRawFeedbackClick} />
-                    ))}
-                  </div>
-                )
-              ) : filteredFeedbacks.length === 0 ? (
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isLoading} className="border-slate-200 hover:bg-slate-50 text-slate-700">
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
+                  Refresh
+                </Button>
+              </div>
+            </div>
+            {isRawTab ? (
+              filteredRawFeedbacks.length === 0 ? (
                 <div className="text-center py-12">
                   <Calendar className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-slate-800 mb-2">No aggregated feedbacks found</h3>
+                  <h3 className="text-lg font-semibold text-slate-800 mb-2">No {activeTab} raw feedbacks found</h3>
                   <p className="text-sm text-slate-500">
                     Try adjusting your search or filter criteria
                   </p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {filteredFeedbacks.map((feedback) => (
-                    <FeedbackRow
-                      key={feedback.feedback_id}
-                      feedback={feedback}
-                      onUpdateStatus={updateFeedbackStatus}
-                      onDelete={handleDeleteFeedbackClick}
-                      isUpdating={updatingFeedbackId === feedback.feedback_id}
-                    />
+                <div className="border border-slate-200 rounded-xl bg-white overflow-hidden divide-y divide-slate-100">
+                  {filteredRawFeedbacks.map((feedback) => (
+                    <RawFeedbackRow key={feedback.raw_feedback_id} feedback={feedback} onDelete={handleDeleteRawFeedbackClick} />
                   ))}
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              )
+            ) : filteredFeedbacks.length === 0 ? (
+              <div className="text-center py-12">
+                <Calendar className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-slate-800 mb-2">No aggregated feedbacks found</h3>
+                <p className="text-sm text-slate-500">
+                  Try adjusting your search or filter criteria
+                </p>
+              </div>
+            ) : (
+              <div className="border border-slate-200 rounded-xl bg-white overflow-hidden divide-y divide-slate-100">
+                {filteredFeedbacks.map((feedback) => (
+                  <FeedbackRow
+                    key={feedback.feedback_id}
+                    feedback={feedback}
+                    onUpdateStatus={updateFeedbackStatus}
+                    onDelete={handleDeleteFeedbackClick}
+                    isUpdating={updatingFeedbackId === feedback.feedback_id}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
             </>
           )}
         </div>

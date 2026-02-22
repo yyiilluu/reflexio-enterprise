@@ -88,7 +88,7 @@ function InteractionItem({ interaction, onDelete }: InteractionItemProps) {
   const ActionIcon = getActionIcon(interaction.user_action)
 
   return (
-    <div className="border border-slate-200 rounded-lg overflow-hidden bg-white hover:bg-slate-50 transition-colors">
+    <div className="hover:bg-slate-50/50 transition-colors">
       <div className="p-3">
         <div className="flex items-center justify-between gap-3">
           <div
@@ -96,8 +96,8 @@ function InteractionItem({ interaction, onDelete }: InteractionItemProps) {
             onClick={() => setExpanded(!expanded)}
           >
             {/* Action Icon */}
-            <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center flex-shrink-0 shadow">
-              <ActionIcon className="h-4 w-4 text-white" />
+            <div className="h-6 w-6 rounded-md bg-blue-100 flex items-center justify-center flex-shrink-0">
+              <ActionIcon className="h-3.5 w-3.5 text-blue-600" />
             </div>
 
             {/* Main Info */}
@@ -162,13 +162,13 @@ function InteractionItem({ interaction, onDelete }: InteractionItemProps) {
 
       {/* Expanded Details */}
       {expanded && (
-        <div className="border-t border-slate-100 bg-slate-50 p-3 space-y-3">
+        <div className="border-t border-slate-100 p-3 space-y-3">
           <div className="grid gap-4 md:grid-cols-2">
             {/* Left Column */}
             <div className="space-y-3">
               <div>
                 <h4 className="text-xs font-semibold mb-1 text-slate-800">Content</h4>
-                <p className="text-sm text-slate-600 leading-relaxed bg-white p-2 rounded-lg border border-slate-200">
+                <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-2 rounded-lg">
                   {interaction.content}
                 </p>
               </div>
@@ -203,7 +203,7 @@ function InteractionItem({ interaction, onDelete }: InteractionItemProps) {
               {interaction.user_action_description && (
                 <div>
                   <h4 className="text-xs font-semibold mb-1 text-slate-800">Action Description</h4>
-                  <p className="text-sm text-slate-600 bg-white p-2 rounded-lg border border-slate-200">
+                  <p className="text-sm text-slate-600 bg-slate-50 p-2 rounded-lg">
                     {interaction.user_action_description}
                   </p>
                 </div>
@@ -213,7 +213,7 @@ function InteractionItem({ interaction, onDelete }: InteractionItemProps) {
             {/* Right Column */}
             <div className="space-y-2">
               <h4 className="text-xs font-semibold text-slate-800">Details</h4>
-              <div className="space-y-1 bg-white p-2 rounded-lg border border-slate-200 text-xs">
+              <div className="space-y-1 bg-slate-50 p-2 rounded-lg text-xs">
                 <div className="flex justify-between">
                   <span className="text-slate-500">Interaction ID:</span>
                   <span className="font-mono text-[10px] text-slate-700">{interaction.interaction_id}</span>
@@ -251,7 +251,7 @@ function RequestItem({ requestData, onDeleteRequest, onDeleteInteraction }: Requ
 
   return (
     <div
-      className="border border-slate-200 rounded-xl overflow-hidden transition-all duration-300 bg-white hover:shadow-lg"
+      className="hover:bg-slate-50/50 transition-colors"
     >
       <div className="p-4">
         <div className="flex items-center justify-between gap-4">
@@ -261,9 +261,9 @@ function RequestItem({ requestData, onDeleteRequest, onDeleteInteraction }: Requ
           >
             {/* Request Type Icon */}
             <div
-              className="h-9 w-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg bg-gradient-to-br from-blue-500 to-indigo-500"
+              className="h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-indigo-100"
             >
-              <CheckCircle2 className="h-5 w-5 text-white" />
+              <CheckCircle2 className="h-4 w-4 text-indigo-600" />
             </div>
 
             {/* Main Info */}
@@ -341,12 +341,12 @@ function RequestItem({ requestData, onDeleteRequest, onDeleteInteraction }: Requ
 
       {/* Expanded: Show Interactions */}
       {expanded && (
-        <div className="border-t border-slate-100 bg-slate-50 p-4">
+        <div className="border-t border-slate-100 p-4">
           <h4 className="text-sm font-semibold mb-3 flex items-center gap-2 text-slate-800">
             <Layers className="h-4 w-4 text-slate-600" />
             Interactions ({interactions.length})
           </h4>
-          <div className="space-y-2">
+          <div className="border-l-2 border-indigo-200 pl-4 divide-y divide-slate-50">
             {interactions.map((interaction) => (
               <InteractionItem
                 key={interaction.interaction_id}
@@ -386,25 +386,25 @@ function RequestGroup({ groupData, onDeleteRequest, onDeleteInteraction, onDelet
   const maxTimestamp = Math.max(...timestamps)
 
   return (
-    <Card className="border-slate-200 overflow-hidden bg-white hover:shadow-lg transition-all duration-300">
-      <div className="bg-slate-50 border-b border-slate-200 hover:bg-slate-100 transition-colors">
-        <CardHeader className="pb-3">
+    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+      <div className="bg-slate-50/50 border-b border-slate-200 hover:bg-slate-100 transition-colors">
+        <div className="p-4 pb-3">
           <div className="flex items-center justify-between">
             <div
               className="flex items-center gap-3 flex-1 cursor-pointer"
               onClick={() => setExpanded(!expanded)}
             >
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg">
-                <Layers className="h-5 w-5 text-white" />
+              <div className="h-8 w-8 rounded-lg bg-indigo-100 flex items-center justify-center">
+                <Layers className="h-4 w-4 text-indigo-600" />
               </div>
               <div className="flex-1">
                 <span className="text-[10px] font-medium uppercase tracking-wider text-slate-400">
                   Request Group
                 </span>
-                <CardTitle className="text-lg font-semibold flex items-center gap-2 text-slate-800">
+                <h3 className="text-lg font-semibold flex items-center gap-2 text-slate-800">
                   {request_group || "Ungrouped"}
-                </CardTitle>
-                <CardDescription className="text-xs mt-1 flex items-center gap-3 flex-wrap text-slate-500">
+                </h3>
+                <p className="text-xs mt-1 flex items-center gap-3 flex-wrap text-slate-500">
                   <span className="flex items-center gap-1">
                     <FileText className="h-3 w-3" />
                     {requests.length} requests
@@ -420,7 +420,7 @@ function RequestGroup({ groupData, onDeleteRequest, onDeleteInteraction, onDelet
                       {formatTimestamp(minTimestamp)} - {formatTimestamp(maxTimestamp)}
                     </span>
                   )}
-                </CardDescription>
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -446,13 +446,13 @@ function RequestGroup({ groupData, onDeleteRequest, onDeleteInteraction, onDelet
               </Button>
             </div>
           </div>
-        </CardHeader>
+        </div>
       </div>
 
       {/* Expanded: Show Requests */}
       {expanded && (
-        <CardContent className="pt-4 bg-slate-50">
-          <div className="space-y-3">
+        <div className="pt-4 px-4 pb-4">
+          <div className="divide-y divide-slate-100">
             {sortedRequests.map((requestData) => (
               <RequestItem
                 key={requestData.request.request_id}
@@ -462,9 +462,9 @@ function RequestGroup({ groupData, onDeleteRequest, onDeleteInteraction, onDelet
               />
             ))}
           </div>
-        </CardContent>
+        </div>
       )}
-    </Card>
+    </div>
   )
 }
 
@@ -795,9 +795,7 @@ export default function InteractionsPage() {
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg">
-                    <Filter className="h-5 w-5 text-white" />
-                  </div>
+                  <Filter className="h-4 w-4 text-slate-400" />
                   <div>
                     <CardTitle className="text-lg font-semibold text-slate-800">Filters</CardTitle>
                     <CardDescription className="text-xs mt-1 text-slate-500">
@@ -943,31 +941,23 @@ export default function InteractionsPage() {
 
           {/* Results */}
           {loading ? (
-            <Card className="border-slate-200 bg-white">
-              <CardContent className="pt-6">
-                <div className="text-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-3 border-transparent border-t-indigo-500 border-r-indigo-500 mx-auto mb-4"></div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-2">Loading request groups...</h3>
-                  <p className="text-sm text-slate-500">Fetching data from the API</p>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-3 border-transparent border-t-indigo-500 border-r-indigo-500 mx-auto mb-4"></div>
+              <h3 className="text-lg font-semibold text-slate-800 mb-2">Loading request groups...</h3>
+              <p className="text-sm text-slate-500">Fetching data from the API</p>
+            </div>
           ) : filteredRequestGroups.length === 0 ? (
-            <Card className="border-slate-200 bg-white">
-              <CardContent className="pt-6">
-                <div className="text-center py-12">
-                  <Layers className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-slate-800 mb-2">No request groups found</h3>
-                  <p className="text-sm text-slate-500">
-                    {requestGroups.length === 0
-                      ? userId.trim()
-                        ? "No requests found for this user. Try a different user ID or publish some interactions first."
-                        : "No request groups found. Publish some interactions first."
-                      : "No requests match your current filters. Try adjusting the filters."}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="text-center py-12">
+              <Layers className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-slate-800 mb-2">No request groups found</h3>
+              <p className="text-sm text-slate-500">
+                {requestGroups.length === 0
+                  ? userId.trim()
+                    ? "No requests found for this user. Try a different user ID or publish some interactions first."
+                    : "No request groups found. Publish some interactions first."
+                  : "No requests match your current filters. Try adjusting the filters."}
+              </p>
+            </div>
           ) : (
             <div className="space-y-4">
               {filteredRequestGroups.map((group) => (

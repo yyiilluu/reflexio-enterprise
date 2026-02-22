@@ -26,9 +26,7 @@ export function AgentContextSection({
     <Card className="border-slate-200 bg-white overflow-hidden hover:shadow-lg transition-all duration-300">
       <CardHeader className="pb-4">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
-            <Brain className="h-5 w-5 text-white" />
-          </div>
+          <Brain className="h-4 w-4 text-slate-400" />
           <div>
             <CardTitle className="text-lg font-semibold text-slate-800">Agent Context</CardTitle>
             <CardDescription className="text-xs mt-1 text-slate-500">Define agent working environment</CardDescription>

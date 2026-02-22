@@ -221,7 +221,7 @@ function FailureDetailsSection({ result }: FailureDetailsSectionProps) {
             <AlertTriangle className="h-4 w-4 text-red-500" />
             <span className="text-sm font-semibold text-slate-800">Failure Reason</span>
           </div>
-          <p className="text-sm text-slate-600 bg-white p-3 rounded-lg border border-slate-200">
+          <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg">
             {result.failure_reason}
           </p>
         </div>
@@ -310,7 +310,7 @@ function EvaluationRow({ result }: EvaluationRowProps) {
   }
 
   return (
-    <div className="border border-slate-200 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 bg-white">
+    <div className="hover:bg-slate-50/50 transition-colors">
       <div
         className={`p-4 ${isExpandable ? "cursor-pointer hover:bg-slate-50" : ""} transition-colors`}
         onClick={isExpandable ? handleExpand : undefined}
@@ -320,12 +320,12 @@ function EvaluationRow({ result }: EvaluationRowProps) {
             {/* Success/Failure Icon */}
             <div className="flex-shrink-0">
               {result.is_success ? (
-                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg">
-                  <CheckCircle className="h-5 w-5 text-white" />
+                <div className="h-8 w-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+                  <CheckCircle className="h-4 w-4 text-emerald-600" />
                 </div>
               ) : (
-                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-red-500 to-rose-500 flex items-center justify-center shadow-lg">
-                  <XCircle className="h-5 w-5 text-white" />
+                <div className="h-8 w-8 rounded-lg bg-red-100 flex items-center justify-center">
+                  <XCircle className="h-4 w-4 text-red-600" />
                 </div>
               )}
             </div>
@@ -379,7 +379,7 @@ function EvaluationRow({ result }: EvaluationRowProps) {
 
       {/* Expanded Details Section */}
       {expanded && isExpandable && (
-        <div className="border-t border-slate-100 bg-slate-50 p-4">
+        <div className="border-t border-slate-100 p-4">
           {/* Tab Navigation - only show if both failure and comparison exist */}
           {hasFailure && hasComparison && (
             <div className="flex gap-2 mb-4 border-b border-slate-200 pb-2">
@@ -519,14 +519,10 @@ export default function EvaluationsPage() {
         <div className="max-w-[1800px] mx-auto space-y-6">
           {/* Loading and Error States */}
           {loading && (
-            <Card className="border-slate-200 bg-white">
-              <CardContent className="py-12">
-                <div className="flex flex-col items-center justify-center">
-                  <div className="animate-spin rounded-full h-10 w-10 border-2 border-transparent border-t-emerald-500 border-r-emerald-500 mb-4"></div>
-                  <p className="text-sm text-slate-500">Loading evaluations...</p>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-10 w-10 border-2 border-transparent border-t-emerald-500 border-r-emerald-500 mb-4"></div>
+              <p className="text-sm text-slate-500">Loading evaluations...</p>
+            </div>
           )}
 
           {error && (
@@ -613,9 +609,7 @@ export default function EvaluationsPage() {
           <Card className="border-slate-200 bg-white overflow-hidden hover:shadow-lg transition-all duration-300">
             <CardHeader className="pb-4">
               <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg">
-                  <Filter className="h-5 w-5 text-white" />
-                </div>
+                <Filter className="h-4 w-4 text-slate-400" />
                 <div>
                   <CardTitle className="text-lg font-semibold text-slate-800">Filters</CardTitle>
                   <CardDescription className="text-xs mt-1 text-slate-500">
@@ -711,47 +705,43 @@ export default function EvaluationsPage() {
 
           {/* Results */}
           {!loading && !error && (
-          <Card className="border-slate-200 bg-white overflow-hidden hover:shadow-lg transition-all duration-300">
-            <CardHeader className="pb-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-lg font-semibold text-slate-800">Evaluation Results</CardTitle>
-                  <CardDescription className="text-xs mt-1 text-slate-500">
-                    Showing {filteredEvaluations.length} of {totalEvaluations} evaluations
-                  </CardDescription>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={fetchEvaluations}
-                  disabled={loading}
-                  className="border-slate-200 hover:bg-slate-50 text-slate-700"
-                >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-                  Refresh
-                </Button>
+          <div>
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-800">Evaluation Results</h2>
+                <p className="text-xs mt-1 text-slate-500">
+                  Showing {filteredEvaluations.length} of {totalEvaluations} evaluations
+                </p>
               </div>
-            </CardHeader>
-            <CardContent>
-              {filteredEvaluations.length === 0 ? (
-                <div className="text-center py-12">
-                  <Calendar className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-slate-800 mb-2">
-                    No evaluations found
-                  </h3>
-                  <p className="text-sm text-slate-500">
-                    Try adjusting your filters or search query
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {filteredEvaluations.map((result) => (
-                    <EvaluationRow key={result.result_id} result={result} />
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchEvaluations}
+                disabled={loading}
+                className="border-slate-200 hover:bg-slate-50 text-slate-700"
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+                Refresh
+              </Button>
+            </div>
+            {filteredEvaluations.length === 0 ? (
+              <div className="text-center py-12">
+                <Calendar className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-slate-800 mb-2">
+                  No evaluations found
+                </h3>
+                <p className="text-sm text-slate-500">
+                  Try adjusting your filters or search query
+                </p>
+              </div>
+            ) : (
+              <div className="border border-slate-200 rounded-xl bg-white overflow-hidden divide-y divide-slate-100">
+                {filteredEvaluations.map((result) => (
+                  <EvaluationRow key={result.result_id} result={result} />
+                ))}
+              </div>
+            )}
+          </div>
           )}
         </div>
       </div>

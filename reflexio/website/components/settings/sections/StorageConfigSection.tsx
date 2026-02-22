@@ -18,9 +18,7 @@ export function StorageConfigSection({ config, onStorageUpdate, onStorageTypeCha
     <Card className="border-slate-200 bg-white overflow-hidden hover:shadow-lg transition-all duration-300">
       <CardHeader className="pb-4">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg">
-            <Database className="h-5 w-5 text-white" />
-          </div>
+          <Database className="h-4 w-4 text-slate-400" />
           <div>
             <CardTitle className="text-lg font-semibold text-slate-800">Storage Configuration</CardTitle>
             <CardDescription className="text-xs mt-1 text-slate-500">Configure data storage backend</CardDescription>

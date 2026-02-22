@@ -37,12 +37,10 @@ export function AgentFeedbackSection({
 
   return (
     <>
-      <Card className="border-slate-200 bg-white overflow-hidden hover:shadow-lg transition-all duration-300">
+      <Card className="border-slate-200 bg-white overflow-hidden">
         <CardHeader className="pb-4">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-lg">
-              <MessageSquare className="h-5 w-5 text-white" />
-            </div>
+            <MessageSquare className="h-4 w-4 text-slate-400" />
             <div>
               <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-800">
                 Agent Feedback
@@ -62,13 +60,13 @@ export function AgentFeedbackSection({
               type="single"
               collapsible
 
-              className="space-y-3"
+              className="border border-slate-200 rounded-xl bg-white overflow-hidden divide-y divide-slate-100"
             >
               {feedbacks.map((feedback) => (
                 <AccordionItem
                   key={feedback.id}
                   value={feedback.id}
-                  className="border rounded-lg bg-muted/30 px-5 data-[state=open]:shadow-sm transition-shadow"
+                  className="border-b-0 px-5"
                 >
                   <div
                     className="flex items-center py-3 gap-3 cursor-pointer hover:bg-muted/50 transition-colors rounded-t-lg"

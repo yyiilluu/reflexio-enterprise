@@ -63,9 +63,7 @@ export function AdvancedSettingsSection({
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center shadow-lg">
-              <Key className="h-5 w-5 text-white" />
-            </div>
+            <Key className="h-4 w-4 text-slate-400" />
             <div>
               <CardTitle className="text-lg font-semibold text-slate-800">Advanced Settings</CardTitle>
               <CardDescription className="text-xs mt-1 text-slate-500">API keys and provider configuration</CardDescription>
@@ -93,9 +91,7 @@ export function AdvancedSettingsSection({
           {/* Custom Endpoint Configuration */}
           <div className="p-5 border rounded-lg space-y-4 bg-muted/30">
             <div className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
-                <span className="text-white text-xs font-bold">CE</span>
-              </div>
+              <span className="text-xs font-bold text-slate-400">CE</span>
               <span className="text-sm font-semibold text-slate-800">Custom Endpoint</span>
             </div>
             <p className="text-xs text-slate-500">
@@ -141,9 +137,7 @@ export function AdvancedSettingsSection({
           {/* OpenAI Configuration */}
           <div className="p-5 border rounded-lg space-y-4 bg-muted/30">
             <div className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
-                <span className="text-white text-xs font-bold">AI</span>
-              </div>
+              <span className="text-xs font-bold text-slate-400">AI</span>
               <span className="text-sm font-semibold text-slate-800">OpenAI Configuration</span>
             </div>
 
@@ -241,9 +235,7 @@ export function AdvancedSettingsSection({
           {/* Anthropic Configuration */}
           <div className="p-5 border rounded-lg space-y-4 bg-muted/30">
             <div className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
-                <span className="text-white text-xs font-bold">A</span>
-              </div>
+              <span className="text-xs font-bold text-slate-400">A</span>
               <span className="text-sm font-semibold text-slate-800">Anthropic Configuration</span>
             </div>
             <div>
@@ -262,9 +254,7 @@ export function AdvancedSettingsSection({
           {/* OpenRouter Configuration */}
           <div className="p-5 border rounded-lg space-y-4 bg-muted/30">
             <div className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-                <span className="text-white text-xs font-bold">OR</span>
-              </div>
+              <span className="text-xs font-bold text-slate-400">OR</span>
               <span className="text-sm font-semibold text-slate-800">OpenRouter Configuration</span>
             </div>
             <div>
@@ -283,9 +273,7 @@ export function AdvancedSettingsSection({
           {/* LLM Model Configuration */}
           <div className="p-5 border rounded-lg space-y-4 bg-muted/30">
             <div className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
-                <span className="text-white text-xs font-bold">M</span>
-              </div>
+              <span className="text-xs font-bold text-slate-400">M</span>
               <span className="text-sm font-semibold text-slate-800">LLM Model Configuration</span>
             </div>
             <p className="text-xs text-slate-500">
