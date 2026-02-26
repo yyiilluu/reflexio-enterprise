@@ -46,7 +46,7 @@ source $(poetry env info --path)/bin/activate
 ./stop_services.sh  # Stop all services
 ```
 
-**Claude Code users:** Run `/run-services` instead of `./run_services.sh` — it auto-installs missing dependencies, health-checks services, and diagnoses/retries on failure.
+**Claude Code users:** Run `/run-services` (in claude code) instead of `./run_services.sh` (in bash) — it auto-installs missing dependencies, health-checks services, and diagnoses/fixes/retries on failure.
 
 **Package Setup:**
 
