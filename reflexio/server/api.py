@@ -344,7 +344,11 @@ def require_skill_generation(
 
 @app.get("/")
 def root():
-    return {"message": "Hello World"}
+    return {
+        "service": "Reflexio API",
+        "docs": "/docs",
+        "health": "/health",
+    }
 
 
 @app.get("/health")
