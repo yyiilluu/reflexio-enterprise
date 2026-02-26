@@ -15,21 +15,28 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
   const isAuthPage = authPages.includes(pathname)
   const isLandingPage = pathname === "/"
 
-  // Redirect to login if not authenticated and not in self-host mode
+  // Only redirect to login for known protected routes, not unknown routes
+  const protectedRoutes = ["/dashboard", "/profiles", "/interactions", "/feedbacks", "/evaluations", "/skills", "/settings"]
+  const isProtectedRoute = protectedRoutes.some(route => pathname === route || pathname.startsWith(route + "/"))
+
+  // Redirect to login if not authenticated and accessing a protected route
   useEffect(() => {
-    // Skip auth check for auth pages, landing page, and self-host mode
     if (isAuthPage || isLandingPage || isSelfHost) {
       return
     }
 
-    // Redirect to login if not authenticated
-    if (!isAuthenticated) {
+    if (!isAuthenticated && isProtectedRoute) {
       router.push("/login")
     }
-  }, [isAuthenticated, isSelfHost, isAuthPage, isLandingPage, pathname, router])
+  }, [isAuthenticated, isSelfHost, isAuthPage, isLandingPage, isProtectedRoute, pathname, router])
 
   if (isAuthPage || isLandingPage) {
     // Auth pages and landing page get full screen without sidebar
+    return <>{children}</>
+  }
+
+  // For unknown routes, let Next.js render the not-found page
+  if (!isProtectedRoute) {
     return <>{children}</>
   }
 
