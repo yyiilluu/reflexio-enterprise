@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
+import { AUTH_PAGES, PROTECTED_ROUTES } from "@/lib/routes"
 import { ResponsiveSidebar } from "@/components/responsive-sidebar"
 
 export function LayoutContent({ children }: { children: React.ReactNode }) {
@@ -10,14 +11,9 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const { isAuthenticated, isSelfHost } = useAuth()
 
-  // Hide sidebar on auth-related pages and landing page
-  const authPages = ["/login", "/register", "/forgot-password", "/reset-password", "/verify-email", "/resend-verification"]
-  const isAuthPage = authPages.includes(pathname)
+  const isAuthPage = AUTH_PAGES.includes(pathname as typeof AUTH_PAGES[number])
   const isLandingPage = pathname === "/"
-
-  // Only redirect to login for known protected routes, not unknown routes
-  const protectedRoutes = ["/dashboard", "/profiles", "/interactions", "/feedbacks", "/evaluations", "/skills", "/settings"]
-  const isProtectedRoute = protectedRoutes.some(route => pathname === route || pathname.startsWith(route + "/"))
+  const isProtectedRoute = PROTECTED_ROUTES.some(route => pathname === route || pathname.startsWith(route + "/"))
 
   // Redirect to login if not authenticated and accessing a protected route
   useEffect(() => {

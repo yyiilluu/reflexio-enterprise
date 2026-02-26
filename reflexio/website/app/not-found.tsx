@@ -1,7 +1,12 @@
+import type { Metadata } from "next"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { FileQuestion, Home, LayoutDashboard } from "lucide-react"
 import Link from "next/link"
+
+export const metadata: Metadata = {
+  title: "Page Not Found",
+}
 
 export default function NotFound() {
   return (
