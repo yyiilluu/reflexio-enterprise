@@ -10,15 +10,16 @@ Create a git commit with automatic precommit hook handling, test fixing, README 
 ## Workflow
 
 1. **Check git status** - Run `git status` and `git diff --cached --name-only` to see staged/unstaged changes
-2. **Stage files** - Add relevant untracked/modified files if needed. Do not modify or change gitignored files, such as `.env`. Never change `.env` file even if it is modified.
-3. **Check README updates** - Run through the README Update Guidelines checklist below. If ANY criteria match, update README files before proceeding.
-4. **Update API Reference docs** - If `reflexio/reflexio_client/reflexio/client.py` or `reflexio/reflexio_commons/reflexio_commons/api_schema/service_schemas.py` changed, update `reflexio/public_docs/api-reference/` (see API Reference Update Guidelines below)
-5. **Attempt commit** - Run `git commit` which triggers precommit hooks
-6. **Handle hook results**:
+2. **Sync AI instruction files** - Run `diff CLAUDE.md GEMINI.md` and `diff CLAUDE.md AGENTS.md`. If either differs, copy CLAUDE.md content to the differing file(s) and stage them with `git add GEMINI.md AGENTS.md`. This keeps all three AI instruction files in sync on every commit.
+3. **Stage files** - Add relevant untracked/modified files if needed. Do not modify or change gitignored files, such as `.env`. Never change `.env` file even if it is modified.
+4. **Check README updates** - Run through the README Update Guidelines checklist below. If ANY criteria match, update README files before proceeding.
+5. **Update API Reference docs** - If `reflexio/reflexio_client/reflexio/client.py` or `reflexio/reflexio_commons/reflexio_commons/api_schema/service_schemas.py` changed, update `reflexio/public_docs/api-reference/` (see API Reference Update Guidelines below)
+6. **Attempt commit** - Run `git commit` which triggers precommit hooks
+7. **Handle hook results**:
    - If hooks **modify files** (formatting, linting): Stage the modified files with `git add -u` and retry commit
    - If **unit tests fail**: Fix the failing tests, stage fixes, and retry commit
    - If hooks **pass**: Commit succeeds
-7. **Do NOT push** - Only commit locally
+8. **Do NOT push** - Only commit locally
 
 ## README Update Guidelines
 
