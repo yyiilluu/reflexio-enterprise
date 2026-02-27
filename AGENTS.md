@@ -1,16 +1,31 @@
 # About the code base
-- backend FastAPI server requires OpenAI key, so the server is already started and running on http://0.0.0.0:8081 (or custom port — check `run_services.sh`)
+- backend FastAPI server requires OpenAI key, so the server is already started and running on http://localhost:8081 (or custom port — check `run_services.sh`)
 - frontend website is also already started and running on http://localhost:8080 (or custom port — check `run_services.sh`)
 - You can test your changes by sending api request to above endpoints
 - run command in poetry env
+- never change env variable value in .env file
 
 # Test account for API
-To test all the API, login with username "local_supabase" with password "s" to test the api end to end.
+if need to login, login with username "local_supabase" with password "s" to test the api end to end. login using `http://localhost:8081/token` api
 Use Curl to test api and get test information for investigation, which is faster than going through with web browser like chrome.
 Test with Chrome when there is frontend related task.
 
 # Activate env before run any command
 activate poetry env before running any test or script in the repo using `source $(poetry env info --path)/bin/activate`
+
+# Local Packages: reflexio_commons and reflexio_client
+The `reflexio_commons` and `reflexio_client` packages are in the main repository.
+
+**File locations**:
+- `reflexio_commons` Python source: `reflexio/reflexio_commons/reflexio_commons/`
+- `reflexio_client` Python source: `reflexio/reflexio_client/reflexio/`
+
+**Installation**: `reflexio-commons` is installed via Poetry path dependency in editable mode (`develop = true`).
+
+**When modifying schemas**: Edit files in `reflexio/reflexio_commons/reflexio_commons/api_schema/`
+
+# Supabase migration
+use supabase cli `supabase migration up` to apply migrations locally instead of using the migration script which will migrate non-local storage as well.
 
 # Use/Update README.md
 - `README.md` is code navigation hint (code map) for you at project root level and maybe component levels (e.g., `reflexio/server/README.md`).
@@ -30,7 +45,7 @@ activate poetry env before running any test or script in the repo using `source 
 - Ensure same UI style across the entire project. Always use same UI style for similar components to ensure consistency.
 
 # Building backend
-- when implement a new change to API, validate your change by sending sample CURL request to the API, server is started at http://0.0.0.0:8081
+- when implement a new change to API, validate your change by sending sample CURL request to the API, server is started at http://localhost:8081
 
 # Python docstring example
 Generate python code with docstring in the following example
