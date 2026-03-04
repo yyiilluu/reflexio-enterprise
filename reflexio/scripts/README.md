@@ -219,6 +219,25 @@ python -m reflexio.scripts.snapshot_manager list
 - `data.dump` — pg_dump custom-format file (public schema data only)
 - `metadata.json` — snapshot name, timestamp, and list of applied migrations at snapshot time
 
+### analyze_db_usage.py
+
+Analyze database usage over the past N days. Shows daily averages and line plots for interactions, profiles, feedbacks, raw feedbacks, and requests.
+
+**Usage**:
+
+```bash
+python reflexio/scripts/analyze_db_usage.py --db-url "postgresql://user:pass@host:port/dbname"
+
+# Custom time window
+python reflexio/scripts/analyze_db_usage.py --db-url "..." --days 7
+```
+
+**Output**:
+- Summary table with daily averages and totals per table
+- Line plot saved as `db_usage_report.png`
+
+**Requirements**: `matplotlib`, `psycopg2`
+
 ### play.py
 
 Playground script for testing and experimentation with Reflexio features.
@@ -237,6 +256,7 @@ scripts/
 ├── async_publish_interaction_script.py # Async publishing example
 ├── simple_sync_publish.py             # Sync-to-async publishing example
 ├── snapshot_manager.py                 # Local Supabase snapshot & restore
+├── analyze_db_usage.py                # DB usage analysis & charting
 ├── play.py                            # Testing playground
 ├── db_operations/                     # Database operation scripts
 └── super_admin/                       # Super admin utilities

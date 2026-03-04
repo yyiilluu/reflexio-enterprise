@@ -501,7 +501,7 @@ export default function InteractionsPage() {
   const [userId, setUserId] = useState<string>("")
   const [requestGroupFilter, setRequestGroupFilter] = useState<string>("")
   const [sourceFilter, setSourceFilter] = useState<string>("all")
-  const [topK, setTopK] = useState<number>(100)
+  const [topK, setTopK] = useState<number>(30)
 
   // Delete state
   const [requestToDelete, setRequestToDelete] = useState<Request | null>(null)
