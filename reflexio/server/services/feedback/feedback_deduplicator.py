@@ -162,6 +162,15 @@ class FeedbackDeduplicator(BaseDeduplicator):
             # Create merged feedback
             now_ts = int(datetime.now(timezone.utc).timestamp())
 
+            # Combine source_interaction_ids from all feedbacks in the group
+            combined_source_ids: list[int] = []
+            seen_ids: set[int] = set()
+            for idx in group.item_indices:
+                for sid in all_feedbacks[idx].source_interaction_ids:
+                    if sid not in seen_ids:
+                        combined_source_ids.append(sid)
+                        seen_ids.add(sid)
+
             merged_feedback = RawFeedback(
                 raw_feedback_id=0,  # Will be assigned by storage
                 user_id=template_feedback.user_id,
@@ -172,6 +181,7 @@ class FeedbackDeduplicator(BaseDeduplicator):
                 feedback_content=group.merged_content,
                 status=template_feedback.status,
                 source=template_feedback.source,
+                source_interaction_ids=combined_source_ids,
             )
             merged_feedbacks.append(merged_feedback)
 

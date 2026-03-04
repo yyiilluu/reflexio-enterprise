@@ -52,6 +52,33 @@ class TestRawFeedbackToData:
 
         assert data["blocking_issue"] is None
 
+    def test_serializes_source_interaction_ids(self):
+        """Test that source_interaction_ids list is serialized as-is."""
+        raw_feedback = RawFeedback(
+            agent_version="1.0",
+            request_id="req1",
+            feedback_name="test",
+            feedback_content="test content",
+            source_interaction_ids=[10, 20, 30],
+        )
+
+        data = raw_feedback_to_data(raw_feedback)
+
+        assert data["source_interaction_ids"] == [10, 20, 30]
+
+    def test_serializes_empty_source_interaction_ids_as_none(self):
+        """Test that empty source_interaction_ids is serialized as None for DB storage."""
+        raw_feedback = RawFeedback(
+            agent_version="1.0",
+            request_id="req1",
+            feedback_name="test",
+            feedback_content="test content",
+        )
+
+        data = raw_feedback_to_data(raw_feedback)
+
+        assert data["source_interaction_ids"] is None
+
 
 class TestFeedbackToData:
     """Tests for feedback_to_data serialization."""

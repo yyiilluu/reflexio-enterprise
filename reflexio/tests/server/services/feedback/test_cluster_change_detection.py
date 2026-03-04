@@ -1125,7 +1125,7 @@ class TestClusterChangeDetectionE2E:
                 [
                     AgentFeedbackConfig(
                         feedback_name=E2E_FEEDBACK_NAME,
-                        feedback_definition_prompt="",
+                        feedback_definition_prompt="test feedback definition",
                         feedback_aggregator_config=FeedbackAggregatorConfig(
                             min_feedback_threshold=2,
                             refresh_count=1,

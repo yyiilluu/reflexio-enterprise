@@ -473,6 +473,38 @@ class TestRun:
         assert len(result) > 0
         assert all(isinstance(f, RawFeedback) for f in result)
 
+    def test_mock_mode_includes_source_interaction_ids(
+        self,
+        request_context,
+        mock_llm_client,
+        service_config,
+        sample_request_interaction_models,
+    ):
+        """Test that mock mode populates source_interaction_ids from input interactions."""
+        config = AgentFeedbackConfig(
+            feedback_name="quality_feedback",
+            feedback_definition_prompt="Evaluate agent quality",
+        )
+
+        request_context.storage.get_last_k_interactions_grouped.return_value = (
+            sample_request_interaction_models,
+            [],
+        )
+
+        extractor = FeedbackExtractor(
+            request_context=request_context,
+            llm_client=mock_llm_client,
+            extractor_config=config,
+            service_config=service_config,
+            agent_context="Test agent",
+        )
+
+        with patch.dict(os.environ, {"MOCK_LLM_RESPONSE": "true"}):
+            result = extractor.run()
+
+        assert len(result) == 1
+        assert result[0].source_interaction_ids == [1, 2, 3]
+
     def test_run_returns_empty_when_no_interactions(
         self,
         request_context,
@@ -585,6 +617,7 @@ class TestStructuredFeedbackExtraction:
         assert 'When: "assisting technical users"' in result[0].feedback_content
         assert 'Do: "ask for CLI preference"' in result[0].feedback_content
         assert 'Don\'t: "assume GUI workflows by default"' in result[0].feedback_content
+        assert result[0].source_interaction_ids == [1, 2, 3]
 
     def test_extracts_structured_feedback_with_only_do_action(
         self,
@@ -759,6 +792,60 @@ class TestProcessStructuredResponse:
         result = extractor._process_structured_response(pydantic_response)
 
         assert result is None
+
+    def test_passes_source_interaction_ids(
+        self,
+        request_context,
+        mock_llm_client,
+        extractor_config,
+        service_config,
+    ):
+        """Test that _process_structured_response includes source_interaction_ids when provided."""
+        extractor = FeedbackExtractor(
+            request_context=request_context,
+            llm_client=mock_llm_client,
+            extractor_config=extractor_config,
+            service_config=service_config,
+            agent_context="Test agent",
+        )
+
+        pydantic_response = StructuredFeedbackContent(
+            do_action="validate inputs",
+            when_condition="processing external data",
+        )
+
+        result = extractor._process_structured_response(
+            pydantic_response, source_interaction_ids=[10, 20, 30]
+        )
+
+        assert result is not None
+        assert result.source_interaction_ids == [10, 20, 30]
+
+    def test_defaults_source_interaction_ids_to_empty(
+        self,
+        request_context,
+        mock_llm_client,
+        extractor_config,
+        service_config,
+    ):
+        """Test that _process_structured_response defaults source_interaction_ids to [] when not provided."""
+        extractor = FeedbackExtractor(
+            request_context=request_context,
+            llm_client=mock_llm_client,
+            extractor_config=extractor_config,
+            service_config=service_config,
+            agent_context="Test agent",
+        )
+
+        pydantic_response = StructuredFeedbackContent(
+            do_action="validate inputs",
+            when_condition="processing external data",
+        )
+
+        result = extractor._process_structured_response(pydantic_response)
+
+        assert result is not None
+        assert result.source_interaction_ids == []
 
     def test_handles_none_response(
         self,

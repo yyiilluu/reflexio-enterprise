@@ -1119,6 +1119,7 @@ class SupabaseStorage(BaseStorage):
                     blocking_issue=_parse_blocking_issue(item),
                     source=item.get("source"),
                     status=Status(item["status"]) if item.get("status") else None,
+                    source_interaction_ids=item.get("source_interaction_ids") or [],
                     embedding=(
                         [float(x) for x in item["embedding"].strip("[]").split(",")]
                         if item.get("embedding")
@@ -1211,6 +1212,7 @@ class SupabaseStorage(BaseStorage):
                 blocking_issue=_parse_blocking_issue(item),
                 status=Status(item["status"]) if item.get("status") else None,
                 source=item.get("source"),
+                source_interaction_ids=item.get("source_interaction_ids") or [],
                 embedding=(
                     [float(x) for x in item["embedding"].strip("[]").split(",")]
                     if item.get("embedding")
@@ -1551,6 +1553,7 @@ class SupabaseStorage(BaseStorage):
                 blocking_issue=_parse_blocking_issue(item),
                 status=Status(item["status"]) if item.get("status") else None,
                 source=item.get("source"),
+                source_interaction_ids=item.get("source_interaction_ids") or [],
                 embedding=(
                     [float(x) for x in item["embedding"].strip("[]").split(",")]
                     if item["embedding"]

@@ -227,6 +227,14 @@ class FeedbackExtractor:
         # Get existing feedbacks from service config (past 7 days)
         existing_feedbacks = self.service_config.existing_data or []
 
+        # Collect source interaction IDs
+        source_interaction_ids = [
+            interaction.interaction_id
+            for ridm in request_interaction_data_models
+            for interaction in ridm.interactions
+            if interaction.interaction_id
+        ]
+
         # Check if mock mode is enabled
         if os.getenv("MOCK_LLM_RESPONSE", "").lower() == "true":
             logger.info("Mock mode: generating mock feedback")
@@ -246,6 +254,7 @@ class FeedbackExtractor:
                     when_condition=structured.when_condition,
                     blocking_issue=structured.blocking_issue,
                     indexed_content=structured.when_condition,
+                    source_interaction_ids=source_interaction_ids,
                 )
             ]
 
@@ -311,7 +320,9 @@ class FeedbackExtractor:
             )
             log_model_response(logger, "Feedback structured response", response)
 
-            raw_feedback = self._process_structured_response(response)
+            raw_feedback = self._process_structured_response(
+                response, source_interaction_ids=source_interaction_ids
+            )
             if raw_feedback is None:
                 logger.info("No feedback can be generated for the given interactions")
                 return []
@@ -400,13 +411,16 @@ class FeedbackExtractor:
         return "\n".join(lines)
 
     def _process_structured_response(
-        self, response: StructuredFeedbackContent
+        self,
+        response: StructuredFeedbackContent,
+        source_interaction_ids: list[int] | None = None,
     ) -> Optional[RawFeedback]:
         """
         Process structured response from LLM into RawFeedback.
 
         Args:
             response (StructuredFeedbackContent): Parsed Pydantic model from structured output
+            source_interaction_ids (list[int] | None): IDs of interactions used to generate this feedback
 
         Returns:
             RawFeedback or None if no feedback should be generated
@@ -428,4 +442,5 @@ class FeedbackExtractor:
             when_condition=response.when_condition,
             blocking_issue=response.blocking_issue,
             indexed_content=response.when_condition,  # Use when_condition for indexing
+            source_interaction_ids=source_interaction_ids or [],
         )

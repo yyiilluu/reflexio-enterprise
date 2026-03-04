@@ -284,14 +284,14 @@ def test_aggregator_archives_then_deletes_on_success(
         request_context = RequestContext(org_id=org_id, storage_base_dir=temp_dir)
         request_context.configurator.set_config_by_name(
             "storage_config",
-            StorageConfigSupabase(url="", key="", db_url=""),
+            StorageConfigSupabase(url="http://placeholder", key="placeholder", db_url="postgresql://placeholder"),
         )
         request_context.configurator.set_config_by_name(
             "agent_feedback_configs",
             [
                 AgentFeedbackConfig(
                     feedback_name="test_aggregation",
-                    feedback_definition_prompt="",
+                    feedback_definition_prompt="test feedback definition",
                     feedback_aggregator_config=FeedbackAggregatorConfig(
                         min_feedback_threshold=2,
                     ),
@@ -389,14 +389,14 @@ def test_aggregator_restores_on_error(supabase_storage, cleanup_after_test, llm_
         request_context = RequestContext(org_id=org_id, storage_base_dir=temp_dir)
         request_context.configurator.set_config_by_name(
             "storage_config",
-            StorageConfigSupabase(url="", key="", db_url=""),
+            StorageConfigSupabase(url="http://placeholder", key="placeholder", db_url="postgresql://placeholder"),
         )
         request_context.configurator.set_config_by_name(
             "agent_feedback_configs",
             [
                 AgentFeedbackConfig(
                     feedback_name="test_error",
-                    feedback_definition_prompt="",
+                    feedback_definition_prompt="test feedback definition",
                     feedback_aggregator_config=FeedbackAggregatorConfig(
                         min_feedback_threshold=2,
                     ),

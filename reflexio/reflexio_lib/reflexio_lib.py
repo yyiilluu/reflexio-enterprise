@@ -898,6 +898,7 @@ class Reflexio:
                         do_not_action=rf.do_not_action,
                         when_condition=rf.when_condition,
                         indexed_content=rf.indexed_content,
+                        source_interaction_ids=rf.source_interaction_ids,
                     )
                 )
 

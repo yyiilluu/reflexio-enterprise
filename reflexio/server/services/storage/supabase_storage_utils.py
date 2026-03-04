@@ -358,6 +358,7 @@ def raw_feedback_to_data(raw_feedback: RawFeedback) -> dict[str, Any]:
         if raw_feedback.blocking_issue
         else None,
         "indexed_content": raw_feedback.indexed_content,
+        "source_interaction_ids": raw_feedback.source_interaction_ids or None,
         "status": raw_feedback.status,
         "source": raw_feedback.source,
         "embedding": raw_feedback.embedding,

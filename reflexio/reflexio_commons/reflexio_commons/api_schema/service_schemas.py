@@ -194,6 +194,7 @@ class RawFeedback(BaseModel):
     indexed_content: Optional[
         str
     ] = None  # Content used for embedding/indexing (extracted from feedback_content)
+    source_interaction_ids: list[int] = Field(default_factory=list)
     embedding: EmbeddingVector = []
 
 
