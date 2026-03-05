@@ -51,6 +51,7 @@ from reflexio_commons.api_schema.service_schemas import (
     DeleteRawFeedbackRequest,
     DeleteRawFeedbackResponse,
     ProfileChangeLogResponse,
+    FeedbackAggregationChangeLogResponse,
     Status,
     PublishUserInteractionRequest,
     PublishUserInteractionResponse,
@@ -907,6 +908,22 @@ def get_profile_change_log(
     org_id: str = Depends(get_org_id_for_self_host),
 ):
     return retriever_api.get_profile_change_logs(org_id=org_id)
+
+
+@app.get(
+    "/api/feedback_aggregation_change_logs",
+    response_model=FeedbackAggregationChangeLogResponse,
+)
+def get_feedback_aggregation_change_logs(
+    feedback_name: str,
+    agent_version: str,
+    org_id: str = Depends(get_org_id_for_self_host),
+):
+    return retriever_api.get_feedback_aggregation_change_logs(
+        org_id=org_id,
+        feedback_name=feedback_name,
+        agent_version=agent_version,
+    )
 
 
 @app.delete(

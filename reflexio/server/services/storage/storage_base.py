@@ -14,6 +14,7 @@ from reflexio_commons.api_schema.service_schemas import (
     DeleteUserInteractionRequest,
     DeleteUserProfileRequest,
     ProfileChangeLog,
+    FeedbackAggregationChangeLog,
     AgentSuccessEvaluationResult,
     FeedbackStatus,
     Status,
@@ -354,6 +355,32 @@ class BaseStorage(ABC):
     @abstractmethod
     def delete_all_profile_change_logs(self):
         """Delete all profile change logs"""
+        raise NotImplementedError
+
+    # ==============================
+    # Feedback Aggregation Change Log methods
+    # ==============================
+
+    @abstractmethod
+    def add_feedback_aggregation_change_log(
+        self, change_log: FeedbackAggregationChangeLog
+    ):
+        """Add a feedback aggregation change log entry."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_feedback_aggregation_change_logs(
+        self,
+        feedback_name: str,
+        agent_version: str,
+        limit: int = 100,
+    ) -> list[FeedbackAggregationChangeLog]:
+        """Get feedback aggregation change logs filtered by feedback_name and agent_version."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def delete_all_feedback_aggregation_change_logs(self):
+        """Delete all feedback aggregation change logs."""
         raise NotImplementedError
 
     # ==============================

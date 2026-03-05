@@ -15,6 +15,7 @@ from reflexio_commons.api_schema.service_schemas import (
     Interaction,
     Request,
     ProfileChangeLog,
+    FeedbackAggregationChangeLog,
     Feedback,
     Skill,
     SkillStatus,
@@ -1014,6 +1015,51 @@ class LocalJsonStorage(BaseStorage):
             all_memories = self._load()
             if "profile_change_logs" in all_memories:
                 all_memories["profile_change_logs"] = []
+                self._save(all_memories)
+
+    # ==============================
+    # Feedback Aggregation Change Log methods
+    # ==============================
+
+    def add_feedback_aggregation_change_log(
+        self, change_log: FeedbackAggregationChangeLog
+    ):
+        with self._lock:
+            all_memories = self._load()
+            if "feedback_aggregation_change_logs" not in all_memories:
+                all_memories["feedback_aggregation_change_logs"] = []
+            all_memories["feedback_aggregation_change_logs"].append(
+                change_log.model_dump_json()
+            )
+            self._save(all_memories)
+
+    def get_feedback_aggregation_change_logs(
+        self,
+        feedback_name: str,
+        agent_version: str,
+        limit: int = 100,
+    ) -> list[FeedbackAggregationChangeLog]:
+        with self._lock:
+            all_memories = self._load()
+        if "feedback_aggregation_change_logs" not in all_memories:
+            return []
+        logs = []
+        for log_json in all_memories["feedback_aggregation_change_logs"]:
+            log = FeedbackAggregationChangeLog.model_validate_json(log_json)
+            if (
+                log.feedback_name == feedback_name
+                and log.agent_version == agent_version
+            ):
+                logs.append(log)
+        # Sort by created_at descending to match Supabase ordering
+        logs.sort(key=lambda x: x.created_at, reverse=True)
+        return logs[:limit]
+
+    def delete_all_feedback_aggregation_change_logs(self):
+        with self._lock:
+            all_memories = self._load()
+            if "feedback_aggregation_change_logs" in all_memories:
+                all_memories["feedback_aggregation_change_logs"] = []
                 self._save(all_memories)
 
     # ==============================
@@ -2328,6 +2374,7 @@ class LocalJsonStorage(BaseStorage):
         "operation_states",
         "requests",
         "profile_change_logs",
+        "feedback_aggregation_change_logs",
         "raw_feedbacks",
         "feedbacks",
         "agent_success_evaluation_results",
@@ -2382,9 +2429,9 @@ class LocalJsonStorage(BaseStorage):
             last_processed_timestamp = None
 
         # Get interaction payloads from specified user or all users
-        all_interaction_payloads: list[
-            tuple[str, str]
-        ] = []  # (user_id, interaction_json)
+        all_interaction_payloads: list[tuple[str, str]] = (
+            []
+        )  # (user_id, interaction_json)
         if user_id is not None:
             user_bucket = all_memories.get(user_id, {})
             for interaction_json in user_bucket.get("interactions", []):
@@ -2434,9 +2481,9 @@ class LocalJsonStorage(BaseStorage):
                 # Use interaction's user_id since we may be aggregating across users
                 request = Request(
                     request_id=request_id,
-                    user_id=interactions[0].user_id
-                    if interactions
-                    else (user_id or ""),
+                    user_id=(
+                        interactions[0].user_id if interactions else (user_id or "")
+                    ),
                     created_at=interactions[0].created_at if interactions else 0,
                 )
 
@@ -2457,9 +2504,9 @@ class LocalJsonStorage(BaseStorage):
 
         # Sort by the earliest interaction timestamp in each group
         request_groups.sort(
-            key=lambda g: min(i.created_at or 0 for i in g.interactions)
-            if g.interactions
-            else 0
+            key=lambda g: (
+                min(i.created_at or 0 for i in g.interactions) if g.interactions else 0
+            )
         )
 
         return operation_state, request_groups
@@ -2558,9 +2605,9 @@ class LocalJsonStorage(BaseStorage):
                 # Use interaction's user_id since we may be aggregating across users
                 request = Request(
                     request_id=request_id,
-                    user_id=interactions[0].user_id
-                    if interactions
-                    else (user_id or ""),
+                    user_id=(
+                        interactions[0].user_id if interactions else (user_id or "")
+                    ),
                     created_at=interactions[0].created_at if interactions else 0,
                 )
 
@@ -2582,9 +2629,11 @@ class LocalJsonStorage(BaseStorage):
 
         # Sort groups by earliest interaction_id (preserves insertion order)
         request_groups.sort(
-            key=lambda g: min(i.interaction_id or 0 for i in g.interactions)
-            if g.interactions
-            else 0
+            key=lambda g: (
+                min(i.interaction_id or 0 for i in g.interactions)
+                if g.interactions
+                else 0
+            )
         )
 
         return request_groups, flat_interactions
@@ -2766,9 +2815,11 @@ class LocalJsonStorage(BaseStorage):
             if skill.skill_id:
                 # Update existing skill: replace in-place
                 all_memories["skills"] = [
-                    skill.model_dump_json()
-                    if Skill.model_validate_json(sj).skill_id == skill.skill_id
-                    else sj
+                    (
+                        skill.model_dump_json()
+                        if Skill.model_validate_json(sj).skill_id == skill.skill_id
+                        else sj
+                    )
                     for sj in all_memories["skills"]
                 ]
             else:

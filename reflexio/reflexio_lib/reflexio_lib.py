@@ -3,6 +3,7 @@ from typing import Optional, Union
 
 from reflexio_commons.api_schema.service_schemas import (
     ProfileChangeLogResponse,
+    FeedbackAggregationChangeLogResponse,
     PublishUserInteractionRequest,
     PublishUserInteractionResponse,
     AddRawFeedbackRequest,
@@ -291,6 +292,27 @@ class Reflexio:
             return ProfileChangeLogResponse(success=True, profile_change_logs=[])
         changelogs = self.request_context.storage.get_profile_change_logs()
         return ProfileChangeLogResponse(success=True, profile_change_logs=changelogs)
+
+    def get_feedback_aggregation_change_logs(
+        self, feedback_name: str, agent_version: str
+    ) -> FeedbackAggregationChangeLogResponse:
+        """Get feedback aggregation change logs.
+
+        Args:
+            feedback_name (str): Feedback name to filter by
+            agent_version (str): Agent version to filter by
+
+        Returns:
+            FeedbackAggregationChangeLogResponse: Response containing change logs
+        """
+        if not self._is_storage_configured():
+            return FeedbackAggregationChangeLogResponse(success=True, change_logs=[])
+        change_logs = self.request_context.storage.get_feedback_aggregation_change_logs(
+            feedback_name=feedback_name, agent_version=agent_version
+        )
+        return FeedbackAggregationChangeLogResponse(
+            success=True, change_logs=change_logs
+        )
 
     def delete_profile(
         self,
@@ -885,19 +907,33 @@ class Reflexio:
             request = AddRawFeedbackRequest(**request)
 
         try:
-            # Normalize raw feedbacks - only keep required fields, reset others to defaults
+            # Normalize raw feedbacks - preserve user-provided fields, auto-set indexed_content
             normalized_feedbacks = []
             for rf in request.raw_feedbacks:
+                # Ensure indexed_content always has a value for clustering/embedding
+                indexed_content = (
+                    rf.indexed_content
+                    or rf.when_condition
+                    or rf.feedback_content
+                    or " ".join(filter(None, [rf.do_action, rf.do_not_action]))
+                    or ""
+                )
+
                 normalized_feedbacks.append(
                     RawFeedback(
+                        user_id=rf.user_id,
                         agent_version=rf.agent_version,
                         request_id=rf.request_id,
                         feedback_name=rf.feedback_name,
+                        created_at=rf.created_at,
                         feedback_content=rf.feedback_content,
                         do_action=rf.do_action,
                         do_not_action=rf.do_not_action,
                         when_condition=rf.when_condition,
-                        indexed_content=rf.indexed_content,
+                        status=rf.status,
+                        source=rf.source,
+                        blocking_issue=rf.blocking_issue,
+                        indexed_content=indexed_content,
                         source_interaction_ids=rf.source_interaction_ids,
                     )
                 )
@@ -938,9 +974,9 @@ class Reflexio:
                         feedback_name=fb.feedback_name,
                         feedback_content=fb.feedback_content,
                         feedback_status=fb.feedback_status,
-                        feedback_metadata=fb.feedback_metadata
-                        if fb.feedback_metadata
-                        else "",
+                        feedback_metadata=(
+                            fb.feedback_metadata if fb.feedback_metadata else ""
+                        ),
                     )
                 )
 
@@ -1010,12 +1046,12 @@ class Reflexio:
                 user_id=request.user_id,
                 agent_version=request.agent_version,
                 feedback_name=request.feedback_name,
-                start_time=int(request.start_time.timestamp())
-                if request.start_time
-                else None,
-                end_time=int(request.end_time.timestamp())
-                if request.end_time
-                else None,
+                start_time=(
+                    int(request.start_time.timestamp()) if request.start_time else None
+                ),
+                end_time=(
+                    int(request.end_time.timestamp()) if request.end_time else None
+                ),
                 status_filter=request.status_filter,
                 match_threshold=request.threshold or 0.5,
                 match_count=request.top_k or 10,
@@ -1054,12 +1090,12 @@ class Reflexio:
                 query=query,
                 agent_version=request.agent_version,
                 feedback_name=request.feedback_name,
-                start_time=int(request.start_time.timestamp())
-                if request.start_time
-                else None,
-                end_time=int(request.end_time.timestamp())
-                if request.end_time
-                else None,
+                start_time=(
+                    int(request.start_time.timestamp()) if request.start_time else None
+                ),
+                end_time=(
+                    int(request.end_time.timestamp()) if request.end_time else None
+                ),
                 status_filter=request.status_filter,
                 feedback_status_filter=request.feedback_status_filter,
                 match_threshold=request.threshold or 0.5,

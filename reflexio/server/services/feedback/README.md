@@ -49,6 +49,9 @@ Triggered manually via `/api/run_feedback_aggregation`. Clusters raw feedbacks a
 **Key Methods**:
 - `get_clusters(raw_feedbacks, config)` - HDBSCAN/Agglomerative clustering on embeddings (reused by SkillGenerator)
 - `aggregate()` - Full aggregation pipeline with LLM-based consolidation
+- `_build_change_log()` - Builds `FeedbackAggregationChangeLog` with before/after snapshots (added/removed/updated feedbacks)
+
+**Change Log**: After each aggregation, saves a `FeedbackAggregationChangeLog` to storage. In full_archive mode, all old feedbacks are "removed" and new ones "added". In incremental mode, maps old→new via fingerprints to detect updates. Saving is best-effort (failures logged, don't block aggregation).
 
 **Clustering**: Embeds raw feedbacks → HDBSCAN clustering → falls back to Agglomerative if too few clusters
 

@@ -15,7 +15,11 @@ CLUSTERING_ALGORITHM_THRESHOLD = 50
 from reflexio_commons.api_schema.service_schemas import (
     Feedback,
     FeedbackStatus,
+    FeedbackAggregationChangeLog,
+    FeedbackSnapshot,
+    FeedbackUpdateEntry,
     RawFeedback,
+    feedback_to_snapshot,
 )
 from reflexio.server.api_endpoints.request_context import RequestContext
 from reflexio.server.services.operation_state_utils import OperationStateManager
@@ -286,6 +290,100 @@ class FeedbackAggregator:
 
         return changed_clusters, feedback_ids_to_archive
 
+    def _build_change_log(
+        self,
+        feedback_name: str,
+        full_archive: bool,
+        before_feedbacks_by_id: dict[int, Feedback],
+        saved_feedbacks: list[Feedback],
+        archived_feedback_ids: list[int],
+        prev_fingerprints: dict,
+    ) -> FeedbackAggregationChangeLog:
+        """Build a FeedbackAggregationChangeLog from the aggregation run results.
+
+        Args:
+            feedback_name: The feedback name being aggregated
+            full_archive: Whether this was a full archive (rerun/first run)
+            before_feedbacks_by_id: Snapshot of feedbacks before archiving, keyed by feedback_id
+            saved_feedbacks: Newly saved feedbacks from this run
+            archived_feedback_ids: Feedback IDs that were selectively archived (incremental mode)
+            prev_fingerprints: Previous cluster fingerprints (empty for full archive)
+
+        Returns:
+            FeedbackAggregationChangeLog with added/removed/updated lists populated
+        """
+        added: list[FeedbackSnapshot] = []
+        removed: list[FeedbackSnapshot] = []
+        updated: list[FeedbackUpdateEntry] = []
+
+        if full_archive:
+            # No 1:1 mapping — all old feedbacks are removed, all new are added
+            removed = [
+                feedback_to_snapshot(fb) for fb in before_feedbacks_by_id.values()
+            ]
+            added = [feedback_to_snapshot(fb) for fb in saved_feedbacks if fb]
+        else:
+            # Incremental mode: map old feedback_ids to new feedbacks via fingerprints
+            # Build a set of old feedback_ids that were archived
+            archived_id_set = set(archived_feedback_ids)
+
+            # Build mapping: old_feedback_id -> new_feedback_id via fingerprint changes
+            # prev_fingerprints maps fp_hash -> {feedback_id, raw_feedback_ids}
+            # new_fingerprints maps fp_hash -> {feedback_id, raw_feedback_ids}
+            # If an old fingerprint disappeared and a new one appeared, and
+            # the old fp had a feedback_id in archived_id_set, we can try to pair them.
+            # However, without a direct cluster-level old->new mapping, we use a simpler approach:
+            # archived feedbacks that have a corresponding new feedback (by position in saved list) are updates.
+
+            # Collect old feedback_ids from disappeared fingerprints
+            old_fp_feedback_ids = {}
+            for fp, fp_data in prev_fingerprints.items():
+                fid = fp_data.get("feedback_id")
+                if fid is not None and fid in archived_id_set:
+                    old_fp_feedback_ids[fid] = fp
+
+            # For each saved feedback, try to match with an archived old feedback
+            matched_old_ids: set[int] = set()
+            for saved_fb in saved_feedbacks:
+                if not saved_fb:
+                    continue
+                # Try to find an old feedback from the archived set to pair with
+                paired_old_id = None
+                for old_id in list(old_fp_feedback_ids.keys()):
+                    if old_id not in matched_old_ids:
+                        paired_old_id = old_id
+                        matched_old_ids.add(old_id)
+                        break
+
+                if (
+                    paired_old_id is not None
+                    and paired_old_id in before_feedbacks_by_id
+                ):
+                    updated.append(
+                        FeedbackUpdateEntry(
+                            before=feedback_to_snapshot(
+                                before_feedbacks_by_id[paired_old_id]
+                            ),
+                            after=feedback_to_snapshot(saved_fb),
+                        )
+                    )
+                else:
+                    added.append(feedback_to_snapshot(saved_fb))
+
+            # Remaining archived feedbacks that weren't paired are removals
+            for old_id in archived_id_set:
+                if old_id not in matched_old_ids and old_id in before_feedbacks_by_id:
+                    removed.append(feedback_to_snapshot(before_feedbacks_by_id[old_id]))
+
+        return FeedbackAggregationChangeLog(
+            feedback_name=feedback_name,
+            agent_version=self.agent_version,
+            run_mode="full_archive" if full_archive else "incremental",
+            added_feedbacks=added,
+            removed_feedbacks=removed,
+            updated_feedbacks=updated,
+        )
+
     # ===============================
     # public methods
     # ===============================
@@ -350,11 +448,17 @@ class FeedbackAggregator:
         )
         clusters = self.get_clusters(raw_feedbacks, feedback_aggregator_config)
 
+        # Capture all current feedbacks before archiving (for change log)
+        before_feedbacks_by_id: dict[int, Feedback] = {
+            fb.feedback_id: fb for fb in existing_feedbacks
+        }
+
         # Determine which clusters changed (skip for rerun)
         mgr = self._create_state_manager()
         feedback_name = feedback_aggregator_request.feedback_name
         archived_feedback_ids = []
         full_archive = False  # True when archive_feedbacks_by_feedback_name was used
+        prev_fingerprints: dict = {}  # Populated for incremental mode
 
         if feedback_aggregator_request.rerun:
             # Full rerun: archive all non-APPROVED feedbacks, regenerate everything
@@ -442,7 +546,6 @@ class FeedbackAggregator:
             # _generate_feedback_from_clusters iterates clusters in order and
             # filters out None results, so we need to track which feedbacks
             # correspond to which clusters
-            iter(saved_feedbacks)
             for cluster_id, cluster_feedbacks in changed_clusters.items():
                 fp = self._compute_cluster_fingerprint(cluster_feedbacks)
                 raw_ids = sorted(fb.raw_feedback_id for fb in cluster_feedbacks)
@@ -489,6 +592,29 @@ class FeedbackAggregator:
 
             # Update operation state with the highest raw_feedback_id processed
             self._update_operation_state(feedback_name, raw_feedbacks)
+
+            # Build and save change log
+            try:
+                change_log = self._build_change_log(
+                    feedback_name=feedback_name,
+                    full_archive=full_archive,
+                    before_feedbacks_by_id=before_feedbacks_by_id,
+                    saved_feedbacks=saved_feedback_list,
+                    archived_feedback_ids=archived_feedback_ids,
+                    prev_fingerprints=(prev_fingerprints if not full_archive else {}),
+                )
+                self.storage.add_feedback_aggregation_change_log(change_log)
+                logger.info(
+                    "Saved feedback aggregation change log: %d added, %d removed, %d updated",
+                    len(change_log.added_feedbacks),
+                    len(change_log.removed_feedbacks),
+                    len(change_log.updated_feedbacks),
+                )
+            except Exception:
+                logger.exception(
+                    "Failed to save feedback aggregation change log for '%s', continuing",
+                    feedback_name,
+                )
 
             # Delete archived feedbacks after successful aggregation
             if full_archive:

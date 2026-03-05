@@ -22,6 +22,8 @@ from reflexio.server.services.storage.supabase_storage_utils import (
     response_list_to_interactions,
     profile_change_log_to_data,
     response_list_to_profile_change_logs,
+    feedback_aggregation_change_log_to_data,
+    response_list_to_feedback_aggregation_change_logs,
     feedback_to_data,
     skill_to_data,
     response_to_skill,
@@ -42,6 +44,7 @@ from reflexio_commons.api_schema.service_schemas import (
     BlockingIssue,
     AgentSuccessEvaluationResult,
     FeedbackStatus,
+    FeedbackAggregationChangeLog,
     Status,
     UserActionType,
     RegularVsShadow,
@@ -913,6 +916,41 @@ class SupabaseStorage(BaseStorage):
     @handle_exceptions
     def delete_all_profile_change_logs(self):
         self.client.table("profile_change_logs").delete().gte("id", 0).execute()
+
+    # ==============================
+    # Feedback Aggregation Change Log methods
+    # ==============================
+
+    @handle_exceptions
+    def add_feedback_aggregation_change_log(
+        self, change_log: FeedbackAggregationChangeLog
+    ) -> None:
+        data = feedback_aggregation_change_log_to_data(change_log)
+        self.client.table("feedback_aggregation_change_logs").insert(data).execute()
+
+    @handle_exceptions
+    def get_feedback_aggregation_change_logs(
+        self,
+        feedback_name: str,
+        agent_version: str,
+        limit: int = 100,
+    ) -> list[FeedbackAggregationChangeLog]:
+        response = (
+            self.client.table("feedback_aggregation_change_logs")
+            .select("*")
+            .eq("feedback_name", feedback_name)
+            .eq("agent_version", agent_version)
+            .order("created_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        return response_list_to_feedback_aggregation_change_logs(response.data)
+
+    @handle_exceptions
+    def delete_all_feedback_aggregation_change_logs(self) -> None:
+        self.client.table("feedback_aggregation_change_logs").delete().gte(
+            "id", 0
+        ).execute()
 
     # ==============================
     # Search methods
@@ -2347,12 +2385,14 @@ class SupabaseStorage(BaseStorage):
 
         # Build stats objects
         current_stats = {
-            "total_profiles": profiles_current.count
-            if profiles_current.count is not None
-            else 0,
-            "total_interactions": interactions_current.count
-            if interactions_current.count is not None
-            else 0,
+            "total_profiles": (
+                profiles_current.count if profiles_current.count is not None else 0
+            ),
+            "total_interactions": (
+                interactions_current.count
+                if interactions_current.count is not None
+                else 0
+            ),
             "total_feedbacks": (
                 (
                     raw_feedbacks_current.count
@@ -2369,12 +2409,14 @@ class SupabaseStorage(BaseStorage):
         }
 
         previous_stats = {
-            "total_profiles": profiles_previous.count
-            if profiles_previous.count is not None
-            else 0,
-            "total_interactions": interactions_previous.count
-            if interactions_previous.count is not None
-            else 0,
+            "total_profiles": (
+                profiles_previous.count if profiles_previous.count is not None else 0
+            ),
+            "total_interactions": (
+                interactions_previous.count
+                if interactions_previous.count is not None
+                else 0
+            ),
             "total_feedbacks": (
                 (
                     raw_feedbacks_previous.count
@@ -2751,9 +2793,9 @@ class SupabaseStorage(BaseStorage):
 
         # Sort groups by earliest interaction
         request_groups.sort(
-            key=lambda g: min(i.created_at or 0 for i in g.interactions)
-            if g.interactions
-            else 0
+            key=lambda g: (
+                min(i.created_at or 0 for i in g.interactions) if g.interactions else 0
+            )
         )
 
         return operation_state, request_groups
@@ -2874,9 +2916,9 @@ class SupabaseStorage(BaseStorage):
 
         # Sort groups by earliest interaction timestamp
         request_groups.sort(
-            key=lambda g: min(i.created_at or 0 for i in g.interactions)
-            if g.interactions
-            else 0
+            key=lambda g: (
+                min(i.created_at or 0 for i in g.interactions) if g.interactions else 0
+            )
         )
 
         return request_groups, flat_interactions

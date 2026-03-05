@@ -22,6 +22,7 @@ from reflexio_commons.api_schema.retriever_schema import (
 )
 from reflexio_commons.api_schema.service_schemas import (
     ProfileChangeLogResponse,
+    FeedbackAggregationChangeLogResponse,
 )
 from reflexio.server.cache.reflexio_cache import get_reflexio
 
@@ -142,6 +143,28 @@ def get_profile_change_logs(
     """
     reflexio = get_reflexio(org_id=org_id)
     result = reflexio.get_profile_change_logs()
+    return result
+
+
+def get_feedback_aggregation_change_logs(
+    org_id: str,
+    feedback_name: str,
+    agent_version: str,
+) -> FeedbackAggregationChangeLogResponse:
+    """Get feedback aggregation change logs.
+
+    Args:
+        org_id (str): Organization ID
+        feedback_name (str): Feedback name to filter by
+        agent_version (str): Agent version to filter by
+
+    Returns:
+        FeedbackAggregationChangeLogResponse: Response containing list of change logs
+    """
+    reflexio = get_reflexio(org_id=org_id)
+    result = reflexio.get_feedback_aggregation_change_logs(
+        feedback_name=feedback_name, agent_version=agent_version
+    )
     return result
 
 

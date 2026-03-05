@@ -49,6 +49,7 @@ Description: FastAPI backend server that processes user interactions to generate
 - `POST /api/rerun_feedback_generation` - Regenerate feedback for agent version (creates PENDING, runs in background)
 - `POST /api/manual_feedback_generation` - Regenerate feedback from window-sized interactions (creates CURRENT)
 - `POST /api/run_feedback_aggregation` - Aggregate raw feedbacks into insights
+- `GET /api/feedback_aggregation_change_logs?feedback_name=&agent_version=` - Get change logs from aggregation runs (added/removed/updated feedbacks)
 - `POST /api/run_skill_generation` - Generate skills from clustered raw feedbacks (expensive, 5/min) **[gated by `skill_generation` feature flag]**
 - `POST /api/get_skills` - List skills (filtered by feedback_name, agent_version, skill_status) **[gated]**
 - `POST /api/search_skills` - Hybrid search skills (vector + FTS) **[gated]**
@@ -356,6 +357,8 @@ Aggregation clusters raw feedbacks by embedding similarity, then calls LLM per c
 | No changes | Logs skip message, updates bookmark, returns early |
 | Error during save | Restores only selectively archived feedbacks |
 
+**Change Log Tracking**: After each aggregation run, a `FeedbackAggregationChangeLog` is saved with before/after snapshots of added, removed, and updated feedbacks. Viewable via `GET /api/feedback_aggregation_change_logs`. Change log saving is best-effort (failures are logged but don't block aggregation).
+
 **Generation Modes** (detailed comparison):
 
 | Aspect | Regular | Rerun | Manual Regular |
@@ -449,7 +452,7 @@ Skills search gated behind `skill_generation` feature flag. Pre-computed embeddi
 **Pattern**: **NEVER import SupabaseStorage/LocalJsonStorage directly** - Always use `request_context.storage`
 
 **Key Methods**:
-- CRUD: profiles, interactions, feedbacks, results, requests, skills
+- CRUD: profiles, interactions, feedbacks, results, requests, skills, feedback aggregation change logs
 - `get_request_groups(offset, top_k)` → `dict[str, list[RequestInteractionDataModel]]` (groups by request_id, supports offset/limit pagination)
 - `get_rerun_user_ids(user_id, start_time, end_time, source, agent_version)` → `list[str]` - Get distinct user IDs matching filters for rerun workflows (pushes filtering to storage layer)
 - `get_feedbacks(status_filter, feedback_status_filter)` - Filter by profile status and approval status

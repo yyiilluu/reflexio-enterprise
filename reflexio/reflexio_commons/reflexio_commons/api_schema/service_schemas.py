@@ -1,6 +1,6 @@
 import enum
 from datetime import datetime, timezone
-from typing import Optional, Self
+from typing import Literal, Optional, Self
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -177,23 +177,23 @@ class RawFeedback(BaseModel):
 
     # Structured feedback fields (v1.2.0+)
     do_action: Optional[str] = None  # What the agent should do (preferred behavior)
-    do_not_action: Optional[
-        str
-    ] = None  # What the agent should avoid (mistaken behavior)
+    do_not_action: Optional[str] = (
+        None  # What the agent should avoid (mistaken behavior)
+    )
     when_condition: Optional[str] = None  # The condition/context when this applies
 
-    status: Optional[
-        Status
-    ] = None  # Status.PENDING (from rerun), None (current), Status.ARCHIVED (old)
-    source: Optional[
-        str
-    ] = None  # source of the interaction that generated this feedback
-    blocking_issue: Optional[
-        BlockingIssue
-    ] = None  # Root cause when agent couldn't complete action
-    indexed_content: Optional[
-        str
-    ] = None  # Content used for embedding/indexing (extracted from feedback_content)
+    status: Optional[Status] = (
+        None  # Status.PENDING (from rerun), None (current), Status.ARCHIVED (old)
+    )
+    source: Optional[str] = (
+        None  # source of the interaction that generated this feedback
+    )
+    blocking_issue: Optional[BlockingIssue] = (
+        None  # Root cause when agent couldn't complete action
+    )
+    indexed_content: Optional[str] = (
+        None  # Content used for embedding/indexing (extracted from feedback_content)
+    )
     source_interaction_ids: list[int] = Field(default_factory=list)
     embedding: EmbeddingVector = []
 
@@ -221,20 +221,20 @@ class Feedback(BaseModel):
 
     # Structured feedback fields (v1.2.0+)
     do_action: Optional[str] = None  # What the agent should do (preferred behavior)
-    do_not_action: Optional[
-        str
-    ] = None  # What the agent should avoid (mistaken behavior)
+    do_not_action: Optional[str] = (
+        None  # What the agent should avoid (mistaken behavior)
+    )
     when_condition: Optional[str] = None  # The condition/context when this applies
 
-    blocking_issue: Optional[
-        BlockingIssue
-    ] = None  # Root cause when agent couldn't complete action
+    blocking_issue: Optional[BlockingIssue] = (
+        None  # Root cause when agent couldn't complete action
+    )
     feedback_status: FeedbackStatus = FeedbackStatus.PENDING
     feedback_metadata: str = ""
     embedding: EmbeddingVector = []
-    status: Optional[
-        Status
-    ] = None  # used for tracking intermediate states during feedback aggregation. Status.ARCHIVED for feedbacks during aggregation process, None for current feedbacks
+    status: Optional[Status] = (
+        None  # used for tracking intermediate states during feedback aggregation. Status.ARCHIVED for feedbacks during aggregation process, None for current feedbacks
+    )
 
 
 class Skill(BaseModel):
@@ -400,6 +400,26 @@ class PublishUserInteractionResponse(BaseModel):
 class AddRawFeedbackRequest(BaseModel):
     raw_feedbacks: list[RawFeedback] = Field(min_length=1)
 
+    @model_validator(mode="after")
+    def check_content_fields(self) -> Self:
+        """Ensure each raw feedback has at least one field for indexed_content."""
+        for i, rf in enumerate(self.raw_feedbacks):
+            has_content = any(
+                (
+                    rf.indexed_content,
+                    rf.when_condition,
+                    rf.feedback_content,
+                    rf.do_action,
+                    rf.do_not_action,
+                )
+            )
+            if not has_content:
+                raise ValueError(
+                    f"raw_feedbacks[{i}]: at least one of indexed_content, when_condition, "
+                    "feedback_content, do_action, or do_not_action must be provided"
+                )
+        return self
+
 
 class AddRawFeedbackResponse(BaseModel):
     success: bool
@@ -421,6 +441,71 @@ class AddFeedbackResponse(BaseModel):
 class ProfileChangeLogResponse(BaseModel):
     success: bool
     profile_change_logs: list[ProfileChangeLog]
+
+
+class FeedbackSnapshot(BaseModel):
+    """Lightweight feedback snapshot for change log JSONB payloads (excludes embedding and internal status)."""
+
+    feedback_id: int = 0
+    feedback_name: str = ""
+    agent_version: str = ""
+    feedback_content: str = ""
+    do_action: Optional[str] = None
+    do_not_action: Optional[str] = None
+    when_condition: Optional[str] = None
+    blocking_issue: Optional[BlockingIssue] = None
+    feedback_status: FeedbackStatus = FeedbackStatus.PENDING
+    feedback_metadata: str = ""
+
+
+class FeedbackUpdateEntry(BaseModel):
+    """Before/after pair for an updated feedback."""
+
+    before: FeedbackSnapshot
+    after: FeedbackSnapshot
+
+
+class FeedbackAggregationChangeLog(BaseModel):
+    """Tracks changes from a single feedback aggregation run."""
+
+    id: int = 0
+    created_at: int = Field(
+        default_factory=lambda: int(datetime.now(timezone.utc).timestamp())
+    )
+    feedback_name: str
+    agent_version: str
+    run_mode: Literal["full_archive", "incremental"]
+    added_feedbacks: list[FeedbackSnapshot] = Field(default_factory=list)
+    removed_feedbacks: list[FeedbackSnapshot] = Field(default_factory=list)
+    updated_feedbacks: list[FeedbackUpdateEntry] = Field(default_factory=list)
+
+
+class FeedbackAggregationChangeLogResponse(BaseModel):
+    success: bool
+    change_logs: list[FeedbackAggregationChangeLog]
+
+
+def feedback_to_snapshot(feedback: Feedback) -> FeedbackSnapshot:
+    """Convert a Feedback to a lightweight FeedbackSnapshot (excludes embedding and internal status).
+
+    Args:
+        feedback (Feedback): Full feedback object
+
+    Returns:
+        FeedbackSnapshot: Lightweight snapshot for change log storage
+    """
+    return FeedbackSnapshot(
+        feedback_id=feedback.feedback_id,
+        feedback_name=feedback.feedback_name,
+        agent_version=feedback.agent_version,
+        feedback_content=feedback.feedback_content,
+        do_action=feedback.do_action,
+        do_not_action=feedback.do_not_action,
+        when_condition=feedback.when_condition,
+        blocking_issue=feedback.blocking_issue,
+        feedback_status=feedback.feedback_status,
+        feedback_metadata=feedback.feedback_metadata,
+    )
 
 
 class RunFeedbackAggregationRequest(BaseModel):
