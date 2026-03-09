@@ -21,6 +21,7 @@ Represents raw feedback generated from user interactions.
 | Field | Type | Description | Default |
 |-------|------|-------------|---------|
 | `raw_feedback_id` | integer | Unique identifier for the feedback | 0 |
+| `user_id` | string | Identifier of the user (optional for backward compatibility) | None |
 | `agent_version` | string | Version of the agent | Required |
 | `request_id` | string | Request ID that generated this feedback | Required |
 | `feedback_name` | string | Name of the feedback type | Empty string |
@@ -33,6 +34,7 @@ Represents raw feedback generated from user interactions.
 | `blocking_issue` | BlockingIssue | Root cause when agent couldn't complete action | None |
 | `indexed_content` | string | Content used for embedding/indexing (extracted from feedback_content) | None |
 | `status` | Status | Processing status (None=current, PENDING=from rerun, ARCHIVED=old) | None |
+| `source_interaction_ids` | array[integer] | IDs of source interactions that generated this feedback | Empty array |
 | `embedding` | array[float] | Vector embedding of the feedback | Empty array |
 
 ## Feedback
@@ -176,6 +178,7 @@ Request model for rerunning feedback generation.
 | `start_time` | datetime | Filter interactions from this time | Optional |
 | `end_time` | datetime | Filter interactions until this time | Optional |
 | `feedback_name` | string | Specific feedback type to generate | Optional |
+| `source` | string | Filter interactions by source | Optional |
 
 ## RerunFeedbackGenerationResponse
 
@@ -186,4 +189,24 @@ Response model for feedback generation rerun requests.
 | `success` | boolean | Whether the operation was successful | Required |
 | `msg` | string | Additional information | Optional |
 | `feedbacks_generated` | integer | Number of feedbacks generated | Optional |
-| `operation_id` | string | Operation identifier for tracking | Optional |
+| `operation_id` | string | Operation identifier for tracking | `"rerun_feedback_generation"` |
+
+## ManualFeedbackGenerationRequest
+
+Request model for manually triggering feedback generation with window-sized interactions. Creates feedbacks with CURRENT status directly (no upgrade needed).
+
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `agent_version` | string | Agent version to evaluate | Required |
+| `source` | string | Filter interactions by source | Optional |
+| `feedback_name` | string | Specific feedback type to generate | Optional |
+
+## ManualFeedbackGenerationResponse
+
+Response model for manual feedback generation.
+
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `success` | boolean | Whether the operation was successful | Required |
+| `msg` | string | Additional information | Optional |
+| `feedbacks_generated` | integer | Number of feedbacks generated | Optional |

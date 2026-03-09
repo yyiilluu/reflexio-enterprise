@@ -14,9 +14,11 @@ Request model for searching across all entity types in a single call.
 | `query` | string | Search query text | Required |
 | `top_k` | integer | Maximum results per entity type | 5 |
 | `threshold` | float | Similarity threshold for vector search | 0.3 |
-| `agent_version` | string | Filter by agent version (feedbacks, raw_feedbacks, skills) | Optional |
-| `feedback_name` | string | Filter by feedback name (feedbacks, raw_feedbacks, skills) | Optional |
+| `agent_version` | string | Filter by agent version (feedbacks, raw_feedbacks) | Optional |
+| `feedback_name` | string | Filter by feedback name (feedbacks, raw_feedbacks) | Optional |
 | `user_id` | string | Filter by user ID (profiles, raw_feedbacks) | Optional |
+| `conversation_history` | array[ConversationTurn] | Prior conversation turns for context-aware query rewriting | Optional |
+| `query_rewrite` | boolean | Enable LLM query rewriting for improved search results | `false` |
 
 ## UnifiedSearchResponse
 

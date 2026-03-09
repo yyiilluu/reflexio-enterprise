@@ -47,6 +47,7 @@ Request model for getting requests grouped by request_group.
 | `start_time` | datetime | Filter by start time | Optional |
 | `end_time` | datetime | Filter by end time | Optional |
 | `top_k` | integer | Maximum number of results to return | 30 |
+| `offset` | integer | Number of results to skip (for pagination) | 0 |
 
 ## GetRequestsResponse
 
@@ -56,6 +57,7 @@ Response model for getting requests.
 |-------|------|-------------|---------|
 | `success` | boolean | Whether the request was successful | Required |
 | `request_groups` | array[RequestGroup] | List of request groups with their requests | Required |
+| `has_more` | boolean | Whether there are more results available (for pagination) | `false` |
 | `msg` | string | Additional message | Optional |
 
 ## DeleteRequestRequest

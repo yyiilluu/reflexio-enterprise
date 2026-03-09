@@ -58,3 +58,14 @@ Represents the status of long-running operations.
 - `IN_PROGRESS`: Operation is currently running
 - `COMPLETED`: Operation has completed successfully
 - `FAILED`: Operation has failed
+- `CANCELLED`: Operation was cancelled by the user
+
+## RegularVsShadow
+
+Indicates the relative performance between regular and shadow agent versions during evaluation.
+
+- `REGULAR_IS_BETTER`: Regular version performed significantly better
+- `REGULAR_IS_SLIGHTLY_BETTER`: Regular version performed slightly better
+- `SHADOW_IS_BETTER`: Shadow version performed significantly better
+- `SHADOW_IS_SLIGHTLY_BETTER`: Shadow version performed slightly better
+- `TIED`: Both versions performed equally

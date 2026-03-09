@@ -30,6 +30,7 @@ response = client.search_profiles(
 | `custom_feature` | str | No | `None` | Filter by custom features |
 | `extractor_name` | str | No | `None` | Filter by extractor name |
 | `threshold` | float | No | `0.7` | Similarity threshold (0.0-1.0) |
+| `query_rewrite` | bool | No | `False` | Enable LLM query rewriting for improved search results |
 
 ### SearchUserProfileResponse Schema
 
@@ -52,6 +53,8 @@ response = client.search_profiles(
 | `expiration_timestamp` | int | Unix timestamp when profile expires |
 | `custom_features` | dict | Custom feature metadata |
 | `source` | str | Source of the interaction that generated this profile |
+| `status` | Status | Processing status (None for current, ARCHIVED, PENDING) |
+| `extractor_names` | list[str] | Names of extractors that generated this profile |
 | `embedding` | list[float] | Vector embedding of the profile |
 
 **Example:**

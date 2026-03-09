@@ -23,8 +23,10 @@ response = client.search(
 | `top_k` | int | No | `5` | Maximum results per entity type |
 | `threshold` | float | No | `0.3` | Similarity threshold for vector search |
 | `agent_version` | str | No | `None` | Filter by agent version (feedbacks, raw_feedbacks, skills) |
-| `feedback_name` | str | No | `None` | Filter by feedback name (feedbacks, raw_feedbacks, skills) |
+| `feedback_name` | str | No | `None` | Filter by feedback name (feedbacks, raw_feedbacks) |
 | `user_id` | str | No | `None` | Filter by user ID (profiles, raw_feedbacks) |
+| `query_rewrite` | bool | No | `False` | Enable LLM query rewriting for improved search results |
+| `conversation_history` | list[ConversationTurn] | No | `None` | Prior conversation turns for context-aware query rewriting |
 
 ### UnifiedSearchResponse Schema
 

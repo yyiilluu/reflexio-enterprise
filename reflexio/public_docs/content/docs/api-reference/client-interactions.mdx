@@ -44,6 +44,7 @@ response = client.publish_interaction(
 | `user_action` | str | No | `"NONE"` | Type of user action: `"NONE"`, `"CLICK"`, `"SCROLL"`, `"TYPE"` |
 | `user_action_description` | str | No | `None` | Description of the user action |
 | `interacted_image_url` | str | No | `None` | URL of any associated image |
+| `tools_used` | list[dict] | No | `[]` | Tools used during this interaction. Each dict has `tool_name` (str) and `tool_input` (dict) |
 
 ### PublishUserInteractionResponse Schema
 
@@ -189,16 +190,18 @@ response = client.search_interactions(
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `interaction_id` | str | Unique identifier for the interaction |
+| `interaction_id` | int | Unique identifier for the interaction |
 | `user_id` | str | Identifier of the user |
 | `request_id` | str | Identifier of the request |
 | `created_at` | int | Unix timestamp when interaction was created |
 | `role` | str | Role of the interaction participant |
 | `content` | str | Text content of the interaction |
+| `shadow_content` | str | Alternative agent response for A/B testing |
 | `user_action` | str | Type of user action |
 | `user_action_description` | str | Description of the user action |
 | `interacted_image_url` | str | URL of any associated image |
 | `image_encoding` | str | Base64 encoded image data |
+| `tools_used` | list[ToolUsed] | Tools used during this interaction |
 | `embedding` | list[float] | Vector embedding of the interaction |
 
 **Example:**
@@ -303,7 +306,7 @@ response = client.delete_interaction(
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `user_id` | str | Yes | - | User identifier |
-| `interaction_id` | str | Yes | - | Interaction ID to delete |
+| `interaction_id` | int | Yes | - | Interaction ID to delete |
 | `wait_for_response` | bool | No | `False` | Wait for confirmation |
 
 ### DeleteUserInteractionResponse Schema

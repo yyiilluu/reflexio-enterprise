@@ -20,11 +20,11 @@ Represents information about a user interaction stored in the system.
 
 | Field | Type | Description | Default |
 |-------|------|-------------|---------|
-| `interaction_id` | string | Unique identifier for the interaction | Required |
+| `interaction_id` | integer | Unique identifier for the interaction | 0 |
 | `user_id` | string | Identifier of the user | Required |
 | `request_id` | string | Identifier of the request | Required |
-| `created_at` | integer | Unix timestamp when interaction was created | Required |
-| `role` | string | Role of the interaction participant | Required |
+| `created_at` | integer | Unix timestamp when interaction was created | Current time |
+| `role` | string | Role of the interaction participant | "User" |
 | `content` | string | Text content of the interaction | Empty string |
 | `shadow_content` | string | Alternative agent response for A/B testing (see [Shadow Content](/docs/api-reference/schemas-concepts#shadow-content)) | Empty string |
 | `user_action` | UserActionType | Type of user action | `NONE` |
@@ -78,9 +78,12 @@ Request model for searching user interactions.
 | Field | Type | Description | Default |
 |-------|------|-------------|---------|
 | `user_id` | string | Identifier of the user | Required |
-| `query` | string | Semantic search query | Required |
-| `top_k` | integer | Number of results to return | 5 |
-| `threshold` | float | Similarity threshold for results | 0.7 |
+| `request_id` | string | Filter by specific request ID | Optional |
+| `query` | string | Semantic search query | Optional |
+| `start_time` | datetime | Filter interactions from this time | Optional |
+| `end_time` | datetime | Filter interactions until this time | Optional |
+| `top_k` | integer | Maximum number of results to return | Optional |
+| `most_recent_k` | integer | Return most recent k interactions | Optional |
 
 ## SearchInteractionResponse
 
@@ -120,7 +123,7 @@ Request model for deleting a user interaction.
 | Field | Type | Description | Default |
 |-------|------|-------------|---------|
 | `user_id` | string | Identifier of the user | Required |
-| `interaction_id` | string | Identifier of the interaction to delete | Required |
+| `interaction_id` | integer | Identifier of the interaction to delete | Required |
 
 ## DeleteUserInteractionResponse
 

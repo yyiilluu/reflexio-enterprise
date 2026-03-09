@@ -33,14 +33,16 @@ response = client.get_agent_success_evaluation_results(
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `result_id` | str | Unique identifier for the evaluation result |
+| `result_id` | int | Unique identifier for the evaluation result |
 | `agent_version` | str | Version of the agent being evaluated |
 | `request_id` | str | Request ID that was evaluated |
-| `created_at` | int | Unix timestamp when evaluation was created |
 | `is_success` | bool | Whether the agent was successful |
 | `failure_type` | str | Type of failure if unsuccessful |
 | `failure_reason` | str | Detailed reason for failure |
 | `agent_prompt_update` | str | Suggested improvement for the agent |
+| `evaluation_name` | str | Name of the evaluation configuration (optional) |
+| `created_at` | int | Unix timestamp when evaluation was created |
+| `regular_vs_shadow` | RegularVsShadow | Comparison between regular and shadow versions (optional) |
 
 **Example:**
 

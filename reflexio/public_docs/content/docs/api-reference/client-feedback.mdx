@@ -28,6 +28,7 @@ response = client.search_raw_feedbacks(
 | `status_filter` | list[Status] | No | `None` | Filter by status (None for CURRENT, PENDING, ARCHIVED) |
 | `top_k` | int | No | `10` | Maximum number of results to return |
 | `threshold` | float | No | `0.5` | Similarity threshold for vector search |
+| `query_rewrite` | bool | No | `False` | Enable LLM query rewriting for improved search results |
 
 ### SearchRawFeedbackResponse Schema
 
@@ -102,6 +103,7 @@ response = client.search_feedbacks(
 | `feedback_status_filter` | FeedbackStatus | No | `None` | Filter by feedback approval status (PENDING, APPROVED, REJECTED) |
 | `top_k` | int | No | `10` | Maximum number of results to return |
 | `threshold` | float | No | `0.5` | Similarity threshold for vector search |
+| `query_rewrite` | bool | No | `False` | Enable LLM query rewriting for improved search results |
 
 ### SearchFeedbackResponse Schema
 
@@ -186,11 +188,20 @@ response = client.get_raw_feedbacks(
 | Field | Type | Description |
 |-------|------|-------------|
 | `raw_feedback_id` | int | Unique identifier for the feedback |
+| `user_id` | str | Identifier of the user (optional) |
 | `agent_version` | str | Version of the agent |
 | `request_id` | str | Request ID that generated this feedback |
 | `feedback_name` | str | Name of the feedback type |
 | `created_at` | int | Unix timestamp when feedback was created |
 | `feedback_content` | str | Content of the feedback |
+| `do_action` | str | Preferred behavior the agent should adopt (optional) |
+| `do_not_action` | str | Mistaken behavior the agent should avoid (optional) |
+| `when_condition` | str | Condition/context when this applies (optional) |
+| `source` | str | Source of the interaction that generated this feedback (optional) |
+| `blocking_issue` | BlockingIssue | Root cause when agent couldn't complete action (optional) |
+| `indexed_content` | str | Content used for embedding/indexing (optional) |
+| `status` | Status | Processing status (optional) |
+| `source_interaction_ids` | list[int] | IDs of source interactions |
 | `embedding` | list[float] | Vector embedding of the feedback |
 
 **Example:**
@@ -261,6 +272,12 @@ response = client.add_raw_feedback(
 | `request_id` | str | Yes | - | Request ID associated with the feedback |
 | `feedback_name` | str | No | `""` | Name/category of the feedback |
 | `feedback_content` | str | No | `""` | Content of the feedback |
+| `do_action` | str | No | `None` | Preferred behavior the agent should adopt |
+| `do_not_action` | str | No | `None` | Mistaken behavior the agent should avoid |
+| `when_condition` | str | No | `None` | Condition/context when this applies |
+| `indexed_content` | str | No | `None` | Content used for embedding/indexing |
+
+At least one of `indexed_content`, `when_condition`, `feedback_content`, `do_action`, or `do_not_action` must be provided.
 
 ### AddRawFeedbackResponse Schema
 
@@ -339,6 +356,10 @@ response = client.add_feedbacks(
 | `agent_version` | str | Yes | - | Version of the agent |
 | `feedback_name` | str | No | `""` | Name/category of the feedback |
 | `feedback_content` | str | Yes | - | Content of the aggregated feedback |
+| `do_action` | str | No | `None` | Preferred behavior the agent should adopt |
+| `do_not_action` | str | No | `None` | Mistaken behavior the agent should avoid |
+| `when_condition` | str | No | `None` | Condition/context when this applies |
+| `blocking_issue` | BlockingIssue | No | `None` | Root cause when agent couldn't complete action |
 | `feedback_status` | FeedbackStatus | Yes | - | Approval status: `"pending"`, `"approved"`, or `"rejected"` |
 | `feedback_metadata` | str | Yes | - | JSON string with additional metadata |
 

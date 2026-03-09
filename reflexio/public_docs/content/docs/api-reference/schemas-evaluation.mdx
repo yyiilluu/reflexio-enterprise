@@ -18,7 +18,9 @@ Represents an agent performance evaluation result.
 | `failure_type` | string | Type of failure if unsuccessful | Required |
 | `failure_reason` | string | Detailed reason for failure | Required |
 | `agent_prompt_update` | string | Suggested improvement for the agent | Required |
+| `evaluation_name` | string | Name of the evaluation configuration that generated this result | None |
 | `created_at` | integer | Unix timestamp when evaluation was created | Current time |
+| `regular_vs_shadow` | RegularVsShadow | Comparison result between regular and shadow agent versions (see [RegularVsShadow](/docs/api-reference/schemas-enums#regularvsshadow)) | None |
 | `embedding` | array[float] | Vector embedding of the evaluation result | Empty array |
 
 ## GetAgentSuccessEvaluationResultsRequest

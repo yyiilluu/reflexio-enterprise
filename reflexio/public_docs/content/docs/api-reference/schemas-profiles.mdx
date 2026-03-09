@@ -21,6 +21,7 @@ Represents a user profile generated from user interactions.
 | `custom_features` | object | Custom feature metadata | None |
 | `source` | string | Source of the interaction that generated this profile | None |
 | `status` | Status | Processing status of the profile (None for current, ARCHIVED, PENDING) | None |
+| `extractor_names` | array[string] | Names of extractors that generated this profile | None |
 | `embedding` | array[float] | Vector embedding of the profile | Empty array |
 
 ## SearchUserProfileRequest
@@ -121,6 +122,7 @@ Request model for rerunning profile generation.
 | `start_time` | datetime | Filter interactions from this time | Optional |
 | `end_time` | datetime | Filter interactions until this time | Optional |
 | `source` | string | Filter interactions by source | Optional |
+| `extractor_names` | array[string] | List of specific extractor names to run. If None, runs all extractors | Optional |
 
 ## RerunProfileGenerationResponse
 
@@ -131,4 +133,24 @@ Response model for profile generation rerun requests.
 | `success` | boolean | Whether the operation was successful | Required |
 | `msg` | string | Additional information | Optional |
 | `profiles_generated` | integer | Number of profiles generated | Optional |
-| `operation_id` | string | Operation identifier for tracking | Optional |
+| `operation_id` | string | Operation identifier for tracking | `"rerun_profile_generation"` |
+
+## ManualProfileGenerationRequest
+
+Request model for manually triggering profile generation with window-sized interactions. Creates profiles with CURRENT status directly (no upgrade needed).
+
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `user_id` | string | Specific user ID (if None, runs for all users) | Optional |
+| `source` | string | Filter interactions by source | Optional |
+| `extractor_names` | array[string] | Specific extractors to run. If None, runs extractors with `allow_manual_trigger=True` | Optional |
+
+## ManualProfileGenerationResponse
+
+Response model for manual profile generation.
+
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `success` | boolean | Whether the operation was successful | Required |
+| `msg` | string | Additional information | Optional |
+| `profiles_generated` | integer | Number of profiles generated | Optional |

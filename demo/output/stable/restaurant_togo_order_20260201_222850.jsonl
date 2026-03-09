@@ -1,0 +1,9 @@
+{"turn": 1, "role": "customer", "content": "Hi! I'd like to place a to-go order for pickup tonight.", "labels": []}
+{"turn": 2, "role": "agent", "content": "Hello! I\u2019d be happy to help you with your order. Can I suggest a few popular dishes? How about the Kung Pao Chicken, Pad Thai, or the Teriyaki Salmon Bowl? If you\u2019re looking for something milder, the Veggie Fried Rice is also a great option! What sounds good to you?", "labels": []}
+{"turn": 3, "role": "customer", "content": "I'm really in the mood for the Pad Thai! Can I get that to-go?", "labels": []}
+{"turn": 4, "role": "agent", "content": "Great choice! The Pad Thai is a delicious dish. Your order for Pad Thai ($13.99) has been placed! Estimated pickup time is 20-25 minutes. Enjoy your meal!", "labels": []}
+{"turn": 5, "role": "customer", "content": "Oh wait, I should mention \u2014 I have a severe peanut allergy. Is that dish safe?", "labels": []}
+{"turn": 6, "role": "agent", "content": "I apologize for that oversight! The Pad Thai does contain peanuts, so it wouldn\u2019t be safe for you. May I suggest the Veggie Fried Rice instead? It\u2019s peanut-free and a tasty option!", "labels": []}
+{"turn": 7, "role": "customer", "content": "That sounds good! I'll take the Veggie Fried Rice instead.", "labels": []}
+{"turn": 8, "role": "agent", "content": "Perfect choice! Your order for Veggie Fried Rice ($11.99) has been placed! Estimated pickup time is 20-25 minutes. Enjoy your meal, and thank you for your order!", "labels": []}
+{"turn": 9, "role": "customer", "content": "Thanks, that resolves everything.", "labels": []}

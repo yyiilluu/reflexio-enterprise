@@ -1,20 +1,35 @@
 ---
 title: "Configuration Models"
-description: "Data structures for system configuration — profile extraction, agent feedback, and feedback aggregation settings."
+description: "Data structures for system configuration — profile extraction, agent feedback, evaluation, and LLM settings."
 ---
 
 # Configuration Models
 
 ## Config
 
-Configuration object for Reflexio system.
+Root configuration object for the Reflexio system.
 
 | Field | Type | Description | Default |
 |-------|------|-------------|---------|
 | `storage_config` | StorageConfig | Database storage configuration | Required |
-| `agent_context_prompt` | string | Global agent context prompt | Optional |
-| `profile_extractor_configs` | array[ProfileExtractorConfig] | Profile extraction configurations | Empty array |
-| `agent_feedback_configs` | array[AgentFeedbackConfig] | Agent feedback configurations | Empty array |
+| `agent_context_prompt` | string | Global agent context prompt describing the agent's environment | Optional |
+| `tool_can_use` | array[ToolUseConfig] | Tools the agent can use (shared across success evaluation and feedback extraction) | Optional |
+| `profile_extractor_configs` | array[ProfileExtractorConfig] | Profile extraction configurations | Optional |
+| `agent_feedback_configs` | array[AgentFeedbackConfig] | Agent feedback configurations | Optional |
+| `agent_success_configs` | array[AgentSuccessConfig] | Agent success evaluation configurations | Optional |
+| `extraction_window_size` | integer | Global sliding window size for extraction (number of interactions per window) | Optional |
+| `extraction_window_stride` | integer | Global sliding window stride (must be ≤ window size) | Optional |
+| `api_key_config` | APIKeyConfig | API key configuration for LLM providers | Optional |
+| `llm_config` | LLMConfig | LLM model configuration overrides | Optional |
+
+## ToolUseConfig
+
+Defines a tool that the agent can use.
+
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `tool_name` | string | Name of the tool | Required |
+| `tool_description` | string | Description of what the tool does | Required |
 
 ## ProfileExtractorConfig
 
@@ -22,10 +37,15 @@ Configuration for profile extraction from interactions.
 
 | Field | Type | Description | Default |
 |-------|------|-------------|---------|
-| `profile_content_definition_prompt` | string | Prompt defining what to extract | Required |
-| `context_prompt` | string | Context for profile extraction | Empty string |
+| `extractor_name` | string | Unique name for this extractor | Required |
+| `profile_content_definition_prompt` | string | Prompt defining what to extract from interactions | Required |
+| `context_prompt` | string | Additional context for profile extraction | Optional |
 | `metadata_definition_prompt` | string | Prompt for metadata extraction | Optional |
-| `should_extract_profile_prompt_override` | string | Override for extraction conditions | Optional |
+| `should_extract_profile_prompt_override` | string | Override prompt for extraction conditions | Optional |
+| `request_sources_enabled` | array[string] | Only extract from these request sources. If not set, extracts from all sources | Optional |
+| `manual_trigger` | boolean | If true, skip auto extraction and require manual triggering (rerun) | `false` |
+| `extraction_window_size_override` | integer | Override global `extraction_window_size` for this extractor | Optional |
+| `extraction_window_stride_override` | integer | Override global `extraction_window_stride` for this extractor | Optional |
 
 ## AgentFeedbackConfig
 
@@ -34,14 +54,53 @@ Configuration for agent feedback generation.
 | Field | Type | Description | Default |
 |-------|------|-------------|---------|
 | `feedback_name` | string | Name of the feedback type | Required |
-| `feedback_definition_prompt` | string | Prompt defining feedback extraction | Required |
+| `feedback_definition_prompt` | string | Prompt defining what feedback to extract | Required |
 | `metadata_definition_prompt` | string | Prompt for metadata extraction | Optional |
-| `feedback_aggregator_config` | FeedbackAggregatorConfig | Configuration for aggregation | Required |
+| `feedback_aggregator_config` | FeedbackAggregatorConfig | Configuration for feedback aggregation | Optional |
+| `request_sources_enabled` | array[string] | Only extract from these request sources. If not set, extracts from all sources | Optional |
+| `extraction_window_size_override` | integer | Override global `extraction_window_size` for this feedback config | Optional |
+| `extraction_window_stride_override` | integer | Override global `extraction_window_stride` for this feedback config | Optional |
 
 ## FeedbackAggregatorConfig
 
-Configuration for feedback aggregation.
+Configuration for feedback aggregation (clustering similar raw feedbacks).
 
 | Field | Type | Description | Default |
 |-------|------|-------------|---------|
-| `min_feedback_threshold` | integer | Minimum feedbacks required for aggregation | 2 |
+| `min_feedback_threshold` | integer | Minimum raw feedbacks required before aggregation runs | 2 |
+| `refresh_count` | integer | Number of new raw feedbacks that trigger a re-aggregation | 2 |
+
+## AgentSuccessConfig
+
+Configuration for agent success evaluation.
+
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `evaluation_name` | string | Unique name for this evaluation | Required |
+| `success_definition_prompt` | string | Prompt defining what constitutes a successful agent interaction | Required |
+| `metadata_definition_prompt` | string | Prompt for metadata extraction | Optional |
+| `sampling_rate` | float | Fraction of interactions to evaluate (0.0 to 1.0) | 1.0 |
+| `extraction_window_size_override` | integer | Override global `extraction_window_size` for this evaluator | Optional |
+| `extraction_window_stride_override` | integer | Override global `extraction_window_stride` for this evaluator | Optional |
+
+## APIKeyConfig
+
+API key configuration for LLM providers. When `custom_endpoint` is configured, it takes priority over all other providers for LLM completion calls (but not embeddings).
+
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `custom_endpoint` | CustomEndpointConfig | Custom OpenAI-compatible endpoint | Optional |
+| `openai` | OpenAIConfig | OpenAI API configuration (direct or Azure) | Optional |
+| `anthropic` | AnthropicConfig | Anthropic API configuration | Optional |
+| `openrouter` | OpenRouterConfig | OpenRouter API configuration | Optional |
+| `gemini` | GeminiConfig | Google Gemini API configuration | Optional |
+
+## LLMConfig
+
+LLM model configuration overrides. If a field is None, the system default is used.
+
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `should_run_model_name` | string | Model for "should run extraction" checks | Optional |
+| `generation_model_name` | string | Model for generation and evaluation tasks | Optional |
+| `embedding_model_name` | string | Model for embedding generation | Optional |
