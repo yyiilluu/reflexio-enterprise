@@ -89,7 +89,7 @@ def test_data():
             created_at=current_time,
             source="test_source",
             agent_version="v1.0.0",
-            request_group="",
+            session_id="",
         ),
         "interaction": Interaction(
             interaction_id=1,
@@ -308,7 +308,7 @@ def test_add_user_interactions_bulk(supabase_storage):
         created_at=current_time,
         source="test_bulk",
         agent_version="v1.0.0",
-        request_group="",
+        session_id="",
     )
     storage.add_request(test_request)
 
@@ -720,14 +720,14 @@ def test_add_and_get_requests(supabase_storage, test_data):
     storage.add_user_interaction(user_id, interaction1)
     storage.add_user_interaction(user_id, interaction2)
 
-    # Get requests with interactions (returns dict grouped by request_group)
-    results = storage.get_request_groups(user_id=user_id, top_k=10)
+    # Get requests with interactions (returns dict grouped by session_id)
+    results = storage.get_sessions(user_id=user_id, top_k=10)
 
     # Verify results is a dictionary
     assert isinstance(
         results, dict
-    ), "Results should be a dictionary grouped by request_group"
-    assert len(results) > 0, "Should find at least one request group"
+    ), "Results should be a dictionary grouped by session_id"
+    assert len(results) > 0, "Should find at least one session"
 
     # Find our test request in the grouped results
     found_request = None
@@ -745,9 +745,9 @@ def test_add_and_get_requests(supabase_storage, test_data):
     assert found_request.user_id == user_id
     assert found_request.source == request.source
     assert found_request.agent_version == request.agent_version
-    # DB may return None for empty request_group, treat both as equivalent
-    expected_group = request.request_group if request.request_group else None
-    actual_group = found_request.request_group if found_request.request_group else None
+    # DB may return None for empty session_id, treat both as equivalent
+    expected_group = request.session_id if request.session_id else None
+    actual_group = found_request.session_id if found_request.session_id else None
     assert actual_group == expected_group
 
     # Verify interactions
@@ -769,7 +769,7 @@ def test_add_and_get_requests(supabase_storage, test_data):
 
 @skip_in_precommit
 def test_get_requests_with_filters(supabase_storage, test_data):
-    """Test get_requests with various filters (results are grouped by request_group)."""
+    """Test get_requests with various filters (results are grouped by session_id)."""
     storage = supabase_storage
     user_id = test_data["user_id"]
     request = test_data["request"]
@@ -786,8 +786,8 @@ def test_get_requests_with_filters(supabase_storage, test_data):
     storage.add_request(request)
     storage.add_user_interaction(user_id, interaction1)
 
-    # Test 1: Get by request_id (returns dict grouped by request_group)
-    results = storage.get_request_groups(user_id=user_id, request_id=request.request_id)
+    # Test 1: Get by request_id (returns dict grouped by session_id)
+    results = storage.get_sessions(user_id=user_id, request_id=request.request_id)
     assert isinstance(results, dict)
     # Find our request in the grouped results
     found = False
@@ -799,18 +799,18 @@ def test_get_requests_with_filters(supabase_storage, test_data):
     assert found, "Should find the request by ID"
 
     # Test 2: Get by time range
-    results = storage.get_request_groups(
+    results = storage.get_sessions(
         user_id=user_id,
         start_time=request.created_at - 100,
         end_time=request.created_at + 100,
     )
     assert isinstance(results, dict)
-    assert len(results) >= 1, "Should find at least one request group in time range"
+    assert len(results) >= 1, "Should find at least one session in time range"
 
     # Test 3: Get with top_k limit (limits number of groups)
-    results = storage.get_request_groups(user_id=user_id, top_k=1)
+    results = storage.get_sessions(user_id=user_id, top_k=1)
     assert isinstance(results, dict)
-    assert len(results) <= 1, "Should return at most 1 request group"
+    assert len(results) <= 1, "Should return at most 1 session"
 
     # Clean up
     storage.client.table("interactions").delete().eq("user_id", user_id).execute()
@@ -823,7 +823,7 @@ def test_get_requests_empty_result(supabase_storage):
     storage = supabase_storage
 
     # Query for non-existent user
-    results = storage.get_request_groups(user_id="nonexistent_user_xyz")
+    results = storage.get_sessions(user_id="nonexistent_user_xyz")
 
     # Should return empty dict
     assert results == {}
@@ -832,7 +832,7 @@ def test_get_requests_empty_result(supabase_storage):
 
 @skip_in_precommit
 def test_get_requests_with_no_interactions(supabase_storage, test_data):
-    """Test get_requests for a request with no interactions (grouped by request_group)."""
+    """Test get_requests for a request with no interactions (grouped by session_id)."""
     storage = supabase_storage
     user_id = test_data["user_id"]
     request = test_data["request"]
@@ -847,12 +847,12 @@ def test_get_requests_with_no_interactions(supabase_storage, test_data):
     # Add only request, no interactions
     storage.add_request(request)
 
-    # Get requests (returns dict grouped by request_group)
-    results = storage.get_request_groups(user_id=user_id)
+    # Get requests (returns dict grouped by session_id)
+    results = storage.get_sessions(user_id=user_id)
 
     # Should find the request with empty interactions list
     assert isinstance(results, dict)
-    assert len(results) > 0, "Should find at least one request group"
+    assert len(results) > 0, "Should find at least one session"
 
     # Find our request in the grouped results
     found_request = None
@@ -870,8 +870,8 @@ def test_get_requests_with_no_interactions(supabase_storage, test_data):
 
 
 @skip_in_precommit
-def test_add_request_with_request_group(supabase_storage):
-    """Test adding a request with request_group."""
+def test_add_request_with_session_id(supabase_storage):
+    """Test adding a request with session_id."""
     storage = supabase_storage
     current_time = int(datetime.now(timezone.utc).timestamp())
 
@@ -881,7 +881,7 @@ def test_add_request_with_request_group(supabase_storage):
         created_at=current_time,
         source="test_source",
         agent_version="v2.0.0",
-        request_group="test_group_xyz",
+        session_id="test_group_xyz",
     )
 
     # Clean up any existing test data first
@@ -902,7 +902,7 @@ def test_add_request_with_request_group(supabase_storage):
     assert result is not None, "Should find the request"
     assert result.request_id == test_request.request_id
     assert result.user_id == test_request.user_id
-    assert result.request_group == "test_group_xyz"
+    assert result.session_id == "test_group_xyz"
     assert result.source == test_request.source
     assert result.agent_version == test_request.agent_version
 
@@ -1219,7 +1219,7 @@ def test_get_operation_state_with_new_request_interaction_sources_filter(
         created_at=current_time,
         source="api",
         agent_version="v1.0.0",
-        request_group="",
+        session_id="",
     )
     request_webhook = Request(
         request_id=f"test_request_webhook_{current_time}",
@@ -1227,7 +1227,7 @@ def test_get_operation_state_with_new_request_interaction_sources_filter(
         created_at=current_time + 1,
         source="webhook",
         agent_version="v1.0.0",
-        request_group="",
+        session_id="",
     )
     request_other = Request(
         request_id=f"test_request_other_{current_time}",
@@ -1235,7 +1235,7 @@ def test_get_operation_state_with_new_request_interaction_sources_filter(
         created_at=current_time + 2,
         source="other_source",
         agent_version="v1.0.0",
-        request_group="",
+        session_id="",
     )
 
     # Add requests
@@ -1359,7 +1359,7 @@ def test_get_last_k_interactions_grouped_sources_filter(supabase_storage):
         created_at=current_time,
         source="api",
         agent_version="v1.0.0",
-        request_group="",
+        session_id="",
     )
     request_webhook = Request(
         request_id=f"test_lastk_webhook_{current_time}",
@@ -1367,7 +1367,7 @@ def test_get_last_k_interactions_grouped_sources_filter(supabase_storage):
         created_at=current_time + 1,
         source="webhook",
         agent_version="v1.0.0",
-        request_group="",
+        session_id="",
     )
 
     storage.add_request(request_api)
@@ -1691,17 +1691,17 @@ def test_raw_feedback_status_management(supabase_storage, cleanup_after_test):
 
 
 @skip_in_precommit
-def test_delete_request_and_request_group(supabase_storage):
-    """Test delete_request and delete_request_group operations.
+def test_delete_request_and_session_id(supabase_storage):
+    """Test delete_request and delete_session operations.
 
     This test verifies:
     1. delete_request removes request and its interactions
-    2. delete_request_group removes all requests in a group
+    2. delete_session removes all requests in a group
     """
     storage = supabase_storage
     current_time = int(datetime.now(timezone.utc).timestamp())
     user_id = "test_delete_request_user"
-    request_group = "test_delete_group"
+    session_id = "test_delete_group"
 
     # Clean up any existing test data
     try:
@@ -1717,7 +1717,7 @@ def test_delete_request_and_request_group(supabase_storage):
         created_at=current_time,
         source="test",
         agent_version="v1",
-        request_group=request_group,
+        session_id=session_id,
     )
     request_2 = Request(
         request_id=f"delete_req_2_{current_time}",
@@ -1725,7 +1725,7 @@ def test_delete_request_and_request_group(supabase_storage):
         created_at=current_time + 1,
         source="test",
         agent_version="v1",
-        request_group=request_group,
+        session_id=session_id,
     )
     request_standalone = Request(
         request_id=f"delete_req_standalone_{current_time}",
@@ -1733,7 +1733,7 @@ def test_delete_request_and_request_group(supabase_storage):
         created_at=current_time + 2,
         source="test",
         agent_version="v1",
-        request_group="",  # Not in the group
+        session_id="",  # Not in the group
     )
 
     storage.add_request(request_1)
@@ -1759,8 +1759,8 @@ def test_delete_request_and_request_group(supabase_storage):
     deleted_request = storage.get_request(request_standalone.request_id)
     assert deleted_request is None, "Standalone request should be deleted"
 
-    # Test 2: Delete request group
-    deleted_count = storage.delete_request_group(request_group)
+    # Test 2: Delete session
+    deleted_count = storage.delete_session(session_id)
     assert deleted_count == 2, f"Should delete 2 requests in group, got {deleted_count}"
 
     # Verify requests in group are deleted
@@ -1798,7 +1798,7 @@ def test_agent_success_evaluation_results(supabase_storage):
     # Create test evaluation results
     results = [
         AgentSuccessEvaluationResult(
-            request_id=f"eval_req_{i}",
+            session_id=f"eval_group_{i}",
             agent_version=agent_version,
             is_success=i % 2 == 0,  # Alternating success/failure
             failure_type="timeout" if i % 2 != 0 else "",
@@ -1941,7 +1941,7 @@ def test_count_operations(supabase_storage):
         created_at=current_time,
         source="test",
         agent_version="v1",
-        request_group="",
+        session_id="",
     )
     storage.add_request(test_request)
 

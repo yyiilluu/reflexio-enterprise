@@ -15,12 +15,15 @@ import {
   LogIn,
   User,
   BarChart3,
+  Sparkles,
+  KeyRound,
 } from "lucide-react"
 
 interface NavItem {
   title: string
   href: string
   icon: React.ComponentType<{ className?: string }>
+  featureFlag?: string
 }
 
 interface NavSection {
@@ -62,6 +65,12 @@ const navSections: NavSection[] = [
         href: "/feedbacks",
         icon: BarChart3,
       },
+      {
+        title: "Skills",
+        href: "/skills",
+        icon: Sparkles,
+        featureFlag: "skill_generation",
+      },
     ],
   },
   {
@@ -72,13 +81,18 @@ const navSections: NavSection[] = [
         href: "/settings",
         icon: Settings,
       },
+      {
+        title: "Account",
+        href: "/account",
+        icon: KeyRound,
+      },
     ],
   },
 ]
 
 export function MobileSidebar() {
   const pathname = usePathname()
-  const { isAuthenticated, userEmail, logout, isSelfHost } = useAuth()
+  const { isAuthenticated, userEmail, logout, isSelfHost, isFeatureEnabled } = useAuth()
 
   return (
     <div className="flex h-screen w-64 flex-col bg-background shadow-[4px_0_12px_-2px_rgba(29,53,87,0.08)] relative z-10">
@@ -116,7 +130,7 @@ export function MobileSidebar() {
 
             {/* Section Items */}
             <div className="space-y-1">
-              {section.items.map((item) => {
+              {section.items.filter((item) => !item.featureFlag || isFeatureEnabled(item.featureFlag)).map((item) => {
                 const Icon = item.icon
                 const isActive = pathname === item.href
 

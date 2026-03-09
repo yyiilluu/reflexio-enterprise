@@ -30,12 +30,12 @@ import {
   type Request,
   type Interaction,
   type RequestData,
-  type RequestGroup,
+  type Session,
   type GetRequestsRequest,
   getRequests,
   deleteInteraction,
   deleteRequest,
-  deleteRequestGroup,
+  deleteSession,
 } from "@/lib/api"
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog"
 
@@ -361,17 +361,17 @@ function RequestItem({ requestData, onDeleteRequest, onDeleteInteraction }: Requ
   )
 }
 
-// Request Group component (outermost level)
-interface RequestGroupProps {
-  groupData: RequestGroup
+// Session component (outermost level)
+interface SessionProps {
+  groupData: Session
   onDeleteRequest: (request: Request) => void
   onDeleteInteraction: (interaction: Interaction) => void
-  onDeleteGroup: (requestGroup: string) => void
+  onDeleteGroup: (sessionId: string) => void
 }
 
-function RequestGroup({ groupData, onDeleteRequest, onDeleteInteraction, onDeleteGroup }: RequestGroupProps) {
+function SessionGroup({ groupData, onDeleteRequest, onDeleteInteraction, onDeleteGroup }: SessionProps) {
   const [expanded, setExpanded] = useState(true)
-  const { request_group, requests } = groupData
+  const { session_id, requests } = groupData
 
   // Sort requests from oldest to latest
   const sortedRequests = useMemo(() => {
@@ -399,10 +399,10 @@ function RequestGroup({ groupData, onDeleteRequest, onDeleteInteraction, onDelet
               </div>
               <div className="flex-1">
                 <span className="text-[10px] font-medium uppercase tracking-wider text-slate-400">
-                  Request Group
+                  Session
                 </span>
                 <h3 className="text-lg font-semibold flex items-center gap-2 text-slate-800">
-                  {request_group || "Ungrouped"}
+                  {session_id || "Ungrouped"}
                 </h3>
                 <p className="text-xs mt-1 flex items-center gap-3 flex-wrap text-slate-500">
                   <span className="flex items-center gap-1">
@@ -430,9 +430,9 @@ function RequestGroup({ groupData, onDeleteRequest, onDeleteInteraction, onDelet
                 className="h-8 w-8 p-0 text-red-400 hover:text-red-600 hover:bg-red-50"
                 onClick={(e) => {
                   e.stopPropagation()
-                  onDeleteGroup(request_group)
+                  onDeleteGroup(session_id)
                 }}
-                title="Delete entire request group"
+                title="Delete entire session"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -468,11 +468,11 @@ function RequestGroup({ groupData, onDeleteRequest, onDeleteInteraction, onDelet
   )
 }
 
-// Merge new request groups into existing ones (append requests to existing groups, add new groups)
-const mergeRequestGroups = (existing: RequestGroup[], incoming: RequestGroup[]): RequestGroup[] => {
+// Merge new sessions into existing ones (append requests to existing sessions, add new sessions)
+const mergeSessions = (existing: Session[], incoming: Session[]): Session[] => {
   const merged = [...existing]
   for (const incomingGroup of incoming) {
-    const existingGroup = merged.find((g) => g.request_group === incomingGroup.request_group)
+    const existingGroup = merged.find((g) => g.session_id === incomingGroup.session_id)
     if (existingGroup) {
       // Append new requests that aren't already present
       const existingIds = new Set(existingGroup.requests.map((r) => r.request.request_id))
@@ -487,7 +487,7 @@ const mergeRequestGroups = (existing: RequestGroup[], incoming: RequestGroup[]):
 
 export default function InteractionsPage() {
   // State for API data
-  const [requestGroups, setRequestGroups] = useState<RequestGroup[]>([])
+  const [sessions, setSessions] = useState<Session[]>([])
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string>("")
 
@@ -499,19 +499,19 @@ export default function InteractionsPage() {
 
   // Filter state
   const [userId, setUserId] = useState<string>("")
-  const [requestGroupFilter, setRequestGroupFilter] = useState<string>("")
+  const [sessionFilter, setSessionFilter] = useState<string>("")
   const [sourceFilter, setSourceFilter] = useState<string>("all")
   const [topK, setTopK] = useState<number>(30)
 
   // Delete state
   const [requestToDelete, setRequestToDelete] = useState<Request | null>(null)
   const [interactionToDelete, setInteractionToDelete] = useState<Interaction | null>(null)
-  const [requestGroupToDelete, setRequestGroupToDelete] = useState<string | null>(null)
+  const [sessionToDelete, setSessionToDelete] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<boolean>(false)
   const [deleteError, setDeleteError] = useState<string>("")
 
-  // Fetch request groups from API
-  const fetchRequestGroups = async (searchUserId: string, limit: number, pageOffset: number = 0) => {
+  // Fetch sessions from API
+  const fetchSessions = async (searchUserId: string, limit: number, pageOffset: number = 0) => {
     const fetchSeq = ++fetchRequestSeqRef.current
     if (pageOffset === 0) {
       setLoading(true)
@@ -538,16 +538,16 @@ export default function InteractionsPage() {
 
       if (response.success) {
         if (pageOffset === 0) {
-          setRequestGroups(response.request_groups)
+          setSessions(response.sessions)
         } else {
-          setRequestGroups((prev) => mergeRequestGroups(prev, response.request_groups))
+          setSessions((prev) => mergeSessions(prev, response.sessions))
         }
         setHasMore(response.has_more)
         setError("")
       } else {
         setError(response.msg || "Failed to fetch requests")
         if (pageOffset === 0) {
-          setRequestGroups([])
+          setSessions([])
           setHasMore(false)
         }
       }
@@ -557,7 +557,7 @@ export default function InteractionsPage() {
       }
       setError(err instanceof Error ? err.message : "An error occurred while fetching requests")
       if (pageOffset === 0) {
-        setRequestGroups([])
+        setSessions([])
         setHasMore(false)
       }
     } finally {
@@ -572,7 +572,7 @@ export default function InteractionsPage() {
   const handleLoadMore = () => {
     const newOffset = offset + topK
     setOffset(newOffset)
-    fetchRequestGroups(userId, topK, newOffset)
+    fetchSessions(userId, topK, newOffset)
   }
 
   // Debounced search effect - auto-fetch when userId or topK changes (reset pagination)
@@ -582,7 +582,7 @@ export default function InteractionsPage() {
     fetchRequestSeqRef.current += 1
     setHasMore(false)
     const timer = setTimeout(() => {
-      fetchRequestGroups(userId, topK, 0)
+      fetchSessions(userId, topK, 0)
     }, 1000)
 
     return () => clearTimeout(timer)
@@ -599,8 +599,8 @@ export default function InteractionsPage() {
     setDeleteError("")
   }
 
-  const handleDeleteRequestGroup = (requestGroup: string) => {
-    setRequestGroupToDelete(requestGroup)
+  const handleDeleteSession = (sessionId: string) => {
+    setSessionToDelete(sessionId)
     setDeleteError("")
   }
 
@@ -618,7 +618,7 @@ export default function InteractionsPage() {
       if (response.success) {
         // Refresh data (reset pagination)
         setOffset(0)
-        await fetchRequestGroups(userId, topK, 0)
+        await fetchSessions(userId, topK, 0)
         setRequestToDelete(null)
       } else {
         setDeleteError(response.message || "Failed to delete request")
@@ -645,7 +645,7 @@ export default function InteractionsPage() {
       if (response.success) {
         // Refresh data (reset pagination)
         setOffset(0)
-        await fetchRequestGroups(userId, topK, 0)
+        await fetchSessions(userId, topK, 0)
         setInteractionToDelete(null)
       } else {
         setDeleteError(response.message || "Failed to delete interaction")
@@ -659,42 +659,42 @@ export default function InteractionsPage() {
     }
   }
 
-  const confirmDeleteRequestGroup = async () => {
-    if (!requestGroupToDelete) return
+  const confirmDeleteSession = async () => {
+    if (!sessionToDelete) return
 
     setDeleting(true)
     setDeleteError("")
 
     try {
-      const response = await deleteRequestGroup({
-        request_group: requestGroupToDelete,
+      const response = await deleteSession({
+        session_id: sessionToDelete,
       })
 
       if (response.success) {
         // Refresh data (reset pagination)
         setOffset(0)
-        await fetchRequestGroups(userId, topK, 0)
-        setRequestGroupToDelete(null)
+        await fetchSessions(userId, topK, 0)
+        setSessionToDelete(null)
       } else {
-        setDeleteError(response.message || "Failed to delete request group")
+        setDeleteError(response.message || "Failed to delete session")
       }
     } catch (error) {
       setDeleteError(
-        error instanceof Error ? error.message : "An error occurred while deleting the request group"
+        error instanceof Error ? error.message : "An error occurred while deleting the session"
       )
     } finally {
       setDeleting(false)
     }
   }
 
-  // Apply client-side filters to the request groups from API
-  const filteredRequestGroups = useMemo(() => {
-    let filtered = requestGroups
+  // Apply client-side filters to the sessions from API
+  const filteredSessions = useMemo(() => {
+    let filtered = sessions
 
-    // Filter by request group name
-    if (requestGroupFilter.trim()) {
+    // Filter by session name
+    if (sessionFilter.trim()) {
       filtered = filtered.filter((group) =>
-        group.request_group.toLowerCase().includes(requestGroupFilter.toLowerCase())
+        group.session_id.toLowerCase().includes(sessionFilter.toLowerCase())
       )
     }
 
@@ -710,14 +710,14 @@ export default function InteractionsPage() {
     }
 
     return filtered
-  }, [requestGroups, requestGroupFilter, sourceFilter])
+  }, [sessions, sessionFilter, sourceFilter])
 
-  // Calculate statistics from all request groups
+  // Calculate statistics from all sessions
   const allRequests = useMemo(() => {
-    return requestGroups.flatMap((group) => group.requests)
-  }, [requestGroups])
+    return sessions.flatMap((group) => group.requests)
+  }, [sessions])
 
-  const totalGroups = filteredRequestGroups.length
+  const totalGroups = filteredSessions.length
   const totalRequests = allRequests.length
   const totalInteractions = allRequests.reduce((sum, rd) => sum + rd.interactions.length, 0)
 
@@ -736,10 +736,10 @@ export default function InteractionsPage() {
               <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/25">
                 <MessageSquare className="h-5 w-5 text-white" />
               </div>
-              <h1 className="text-3xl font-bold tracking-tight text-slate-800">Request Groups & Interactions</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-slate-800">Sessions & Interactions</h1>
             </div>
             <p className="text-slate-500 mt-1 ml-13">
-              View and manage requests grouped by request_group
+              View and manage requests grouped by session
             </p>
           </div>
         </div>
@@ -751,14 +751,14 @@ export default function InteractionsPage() {
           <div className="grid gap-5 md:grid-cols-3">
             <Card className="border bg-gradient-to-br from-purple-50 to-pink-50 border-purple-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-semibold text-slate-600">Request Groups</CardTitle>
+                <CardTitle className="text-sm font-semibold text-slate-600">Sessions</CardTitle>
                 <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
                   <Layers className="h-5 w-5 text-white" />
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold text-slate-800">{totalGroups}</div>
-                <p className="text-xs text-slate-500 mt-1">Unique request groups</p>
+                <p className="text-xs text-slate-500 mt-1">Unique sessions</p>
               </CardContent>
             </Card>
 
@@ -799,7 +799,7 @@ export default function InteractionsPage() {
                   <div>
                     <CardTitle className="text-lg font-semibold text-slate-800">Filters</CardTitle>
                     <CardDescription className="text-xs mt-1 text-slate-500">
-                      {loading ? "Searching..." : userId.trim() ? `Showing requests for ${userId}` : "Showing top request groups across all users"}
+                      {loading ? "Searching..." : userId.trim() ? `Showing requests for ${userId}` : "Showing top sessions across all users"}
                     </CardDescription>
                   </div>
                 </div>
@@ -818,7 +818,7 @@ export default function InteractionsPage() {
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                       <Input
-                        placeholder="Leave empty to show top request groups across all users"
+                        placeholder="Leave empty to show top sessions across all users"
                         value={userId}
                         onChange={(e) => setUserId(e.target.value)}
                         className="pl-9 border-slate-200 focus:border-indigo-300 focus:ring-indigo-200"
@@ -835,20 +835,20 @@ export default function InteractionsPage() {
                     </div>
                   </div>
 
-                  {/* Request Group Filter */}
+                  {/* Session Filter */}
                   <div>
-                    <label className="text-sm font-medium mb-2 block text-slate-700">Request Group</label>
+                    <label className="text-sm font-medium mb-2 block text-slate-700">Session</label>
                     <div className="relative">
                       <Layers className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                       <Input
                         placeholder="e.g., experiment_a"
-                        value={requestGroupFilter}
-                        onChange={(e) => setRequestGroupFilter(e.target.value)}
+                        value={sessionFilter}
+                        onChange={(e) => setSessionFilter(e.target.value)}
                         className="pl-9 border-slate-200 focus:border-indigo-300 focus:ring-indigo-200"
                       />
-                      {requestGroupFilter && (
+                      {sessionFilter && (
                         <button
-                          onClick={() => setRequestGroupFilter("")}
+                          onClick={() => setSessionFilter("")}
                           className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
                         >
                           <XCircle className="h-4 w-4" />
@@ -891,7 +891,7 @@ export default function InteractionsPage() {
                 </div>
 
                 {/* Active filters indicator */}
-                {(userId || requestGroupFilter || sourceFilter !== "all") && (
+                {(userId || sessionFilter || sourceFilter !== "all") && (
                   <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-slate-100">
                     <span className="text-sm font-medium text-slate-500">Active:</span>
                     {userId && (
@@ -900,10 +900,10 @@ export default function InteractionsPage() {
                         User: {userId}
                       </Badge>
                     )}
-                    {requestGroupFilter && (
+                    {sessionFilter && (
                       <Badge className="text-xs bg-indigo-100 text-indigo-700 hover:bg-indigo-100">
                         <Layers className="h-3 w-3 mr-1" />
-                        Group: {requestGroupFilter}
+                        Session: {sessionFilter}
                       </Badge>
                     )}
                     {sourceFilter !== "all" && (
@@ -918,7 +918,7 @@ export default function InteractionsPage() {
                       className="h-6 text-xs ml-auto text-slate-500 hover:text-slate-700"
                       onClick={() => {
                         setUserId("")
-                        setRequestGroupFilter("")
+                        setSessionFilter("")
                         setSourceFilter("all")
                       }}
                     >
@@ -943,30 +943,30 @@ export default function InteractionsPage() {
           {loading ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-3 border-transparent border-t-indigo-500 border-r-indigo-500 mx-auto mb-4"></div>
-              <h3 className="text-lg font-semibold text-slate-800 mb-2">Loading request groups...</h3>
+              <h3 className="text-lg font-semibold text-slate-800 mb-2">Loading sessions...</h3>
               <p className="text-sm text-slate-500">Fetching data from the API</p>
             </div>
-          ) : filteredRequestGroups.length === 0 ? (
+          ) : filteredSessions.length === 0 ? (
             <div className="text-center py-12">
               <Layers className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-slate-800 mb-2">No request groups found</h3>
+              <h3 className="text-lg font-semibold text-slate-800 mb-2">No sessions found</h3>
               <p className="text-sm text-slate-500">
-                {requestGroups.length === 0
+                {sessions.length === 0
                   ? userId.trim()
                     ? "No requests found for this user. Try a different user ID or publish some interactions first."
-                    : "No request groups found. Publish some interactions first."
+                    : "No sessions found. Publish some interactions first."
                   : "No requests match your current filters. Try adjusting the filters."}
               </p>
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredRequestGroups.map((group) => (
-                <RequestGroup
-                  key={group.request_group}
+              {filteredSessions.map((group) => (
+                <SessionGroup
+                  key={group.session_id}
                   groupData={group}
                   onDeleteRequest={handleDeleteRequest}
                   onDeleteInteraction={handleDeleteInteraction}
-                  onDeleteGroup={handleDeleteRequestGroup}
+                  onDeleteGroup={handleDeleteSession}
                 />
               ))}
               {hasMore && (
@@ -993,28 +993,28 @@ export default function InteractionsPage() {
         </div>
       </div>
 
-      {/* Delete Request Group Confirmation Dialog */}
+      {/* Delete Session Confirmation Dialog */}
       <DeleteConfirmDialog
-        open={!!requestGroupToDelete}
+        open={!!sessionToDelete}
         onOpenChange={(open) => {
-          if (!open) setRequestGroupToDelete(null)
+          if (!open) setSessionToDelete(null)
         }}
-        onConfirm={confirmDeleteRequestGroup}
-        title="Delete Request Group"
-        description="Are you sure you want to delete this entire request group and all its requests and interactions?"
+        onConfirm={confirmDeleteSession}
+        title="Delete Session"
+        description="Are you sure you want to delete this entire session and all its requests and interactions?"
         itemDetails={
-          requestGroupToDelete && (
+          sessionToDelete && (
             <>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Request Group:</span>
-                <span className="font-mono text-xs">{requestGroupToDelete}</span>
+                <span className="text-muted-foreground">Session:</span>
+                <span className="font-mono text-xs">{sessionToDelete}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Total Requests:</span>
                 <span>
                   {
-                    requestGroups
-                      .find((rg) => rg.request_group === requestGroupToDelete)
+                    sessions
+                      .find((s) => s.session_id === sessionToDelete)
                       ?.requests.length || 0
                   }
                 </span>
@@ -1022,8 +1022,8 @@ export default function InteractionsPage() {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Total Interactions:</span>
                 <span>
-                  {requestGroups
-                    .find((rg) => rg.request_group === requestGroupToDelete)
+                  {sessions
+                    .find((s) => s.session_id === sessionToDelete)
                     ?.requests.reduce((sum, rd) => sum + rd.interactions.length, 0) || 0}
                 </span>
               </div>
@@ -1031,7 +1031,7 @@ export default function InteractionsPage() {
           )
         }
         loading={deleting}
-        confirmButtonText="Delete Request Group"
+        confirmButtonText="Delete Session"
       />
 
       {/* Delete Request Confirmation Dialog */}

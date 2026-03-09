@@ -130,12 +130,12 @@ def sample_request_interaction_models(sample_interactions):
     )
     return [
         RequestInteractionDataModel(
-            request_group="req1",
+            session_id="req1",
             request=request1,
             interactions=sample_interactions[:2],
         ),
         RequestInteractionDataModel(
-            request_group="req2",
+            session_id="req2",
             request=request2,
             interactions=[sample_interactions[2]],
         ),
@@ -283,7 +283,7 @@ class TestGetInteractions:
         result = extractor._get_interactions()
 
         assert result is not None
-        assert len(result) == 2  # Two request groups
+        assert len(result) == 2  # Two sessions
 
     def test_uses_window_size_with_none_user_id(
         self,

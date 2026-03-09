@@ -727,12 +727,12 @@ class LocalJsonStorage(BaseStorage):
             ]
             self._save(all_memories)
 
-    def delete_request_group(self, request_group: str) -> int:
+    def delete_session(self, session_id: str) -> int:
         """
-        Delete all requests and interactions in a request group.
+        Delete all requests and interactions in a session.
 
         Args:
-            request_group: The request group name to delete
+            session_id: The session ID to delete
 
         Returns:
             int: Number of requests deleted
@@ -740,20 +740,20 @@ class LocalJsonStorage(BaseStorage):
         with self._lock:
             all_memories = self._load()
 
-            # First get all request IDs in this group
+            # First get all request IDs in this session
             if "requests" not in all_memories:
                 return 0
 
             request_ids = []
             for request_json in all_memories["requests"]:
                 request = Request.model_validate_json(request_json)
-                if request.request_group == request_group:
+                if request.session_id == session_id:
                     request_ids.append(request.request_id)
 
             if not request_ids:
                 return 0
 
-            # Delete all interactions for all requests in this group
+            # Delete all interactions for all requests in this session
             for user_id in all_memories.keys():
                 if "interactions" in all_memories[user_id]:
                     all_memories[user_id]["interactions"] = [
@@ -763,12 +763,11 @@ class LocalJsonStorage(BaseStorage):
                         not in request_ids
                     ]
 
-            # Delete all requests in this group
+            # Delete all requests in this session
             all_memories["requests"] = [
                 request_json
                 for request_json in all_memories["requests"]
-                if Request.model_validate_json(request_json).request_group
-                != request_group
+                if Request.model_validate_json(request_json).session_id != session_id
             ]
 
             self._save(all_memories)
@@ -789,18 +788,16 @@ class LocalJsonStorage(BaseStorage):
 
             self._save(all_memories)
 
-    def get_requests_by_request_group(
-        self, user_id: str, request_group: str
-    ) -> list[Request]:
+    def get_requests_by_session(self, user_id: str, session_id: str) -> list[Request]:
         """
-        Get all requests for a specific request_group.
+        Get all requests for a specific session.
 
         Args:
             user_id (str): User ID to filter requests
-            request_group (str): Request group to filter by
+            session_id (str): Session ID to filter by
 
         Returns:
-            list[Request]: List of Request objects in the request_group
+            list[Request]: List of Request objects in the session
         """
         with self._lock:
             all_memories = self._load()
@@ -810,32 +807,34 @@ class LocalJsonStorage(BaseStorage):
         requests = []
         for request_json in all_memories["requests"]:
             request = Request.model_validate_json(request_json)
-            if request.user_id == user_id and request.request_group == request_group:
+            if request.user_id == user_id and request.session_id == session_id:
                 requests.append(request)
 
         return requests
 
-    def get_request_groups(
+    def get_sessions(
         self,
         user_id: Optional[str] = None,
         request_id: Optional[str] = None,
+        session_id: Optional[str] = None,
         start_time: Optional[int] = None,
         end_time: Optional[int] = None,
         top_k: Optional[int] = 30,
         offset: int = 0,
     ) -> dict[str, list[RequestInteractionDataModel]]:
         """
-        Get requests with their associated interactions, grouped by request_group.
+        Get requests with their associated interactions, grouped by session_id.
 
         Args:
             user_id (str, optional): User ID to filter requests.
             request_id (str, optional): Specific request ID to retrieve
+            session_id (str, optional): Specific session ID to retrieve
             start_time (int, optional): Start timestamp for filtering
             end_time (int, optional): End timestamp for filtering
             top_k (int, optional): Maximum number of requests to return
 
         Returns:
-            dict[str, list[RequestInteractionDataModel]]: Dictionary mapping request_group to list of RequestInteractionDataModel objects
+            dict[str, list[RequestInteractionDataModel]]: Dictionary mapping session_id to list of RequestInteractionDataModel objects
         """
         with self._lock:
             all_memories = self._load()
@@ -856,6 +855,10 @@ class LocalJsonStorage(BaseStorage):
             if request_id and req.request_id != request_id:
                 continue
 
+            # Filter by session_id if specified
+            if session_id and req.session_id != session_id:
+                continue
+
             # Filter by start_time if specified
             if start_time and req.created_at < start_time:
                 continue
@@ -873,10 +876,10 @@ class LocalJsonStorage(BaseStorage):
         effective_limit = top_k or 100
         requests = requests[offset : offset + effective_limit]
 
-        # Group requests by request_group first
+        # Group requests by session_id first
         groups_dict = {}
         for req in requests:
-            group_name = req.request_group if req.request_group else ""
+            group_name = req.session_id if req.session_id else ""
             if group_name not in groups_dict:
                 groups_dict[group_name] = []
             groups_dict[group_name].append(req)
@@ -920,7 +923,7 @@ class LocalJsonStorage(BaseStorage):
                 )
                 grouped_results[group_name].append(
                     RequestInteractionDataModel(
-                        request_group=group_name,
+                        session_id=group_name,
                         request=req,
                         interactions=associated_interactions,
                     )
@@ -2472,7 +2475,7 @@ class LocalJsonStorage(BaseStorage):
             interactions_by_request[request_id].append(interaction)
 
         # Build RequestInteractionDataModel objects
-        request_groups: list[RequestInteractionDataModel] = []
+        sessions: list[RequestInteractionDataModel] = []
         for request_id, interactions in interactions_by_request.items():
             # Fetch the Request object
             request = self.get_request(request_id)
@@ -2491,25 +2494,25 @@ class LocalJsonStorage(BaseStorage):
             if sources is not None and request.source not in sources:
                 continue
 
-            # Use request_group from Request, or request_id as fallback
-            group_name = request.request_group or request_id
+            # Use session_id from Request, or request_id as fallback
+            group_name = request.session_id or request_id
 
-            request_groups.append(
+            sessions.append(
                 RequestInteractionDataModel(
-                    request_group=group_name,
+                    session_id=group_name,
                     request=request,
                     interactions=interactions,
                 )
             )
 
         # Sort by the earliest interaction timestamp in each group
-        request_groups.sort(
+        sessions.sort(
             key=lambda g: (
                 min(i.created_at or 0 for i in g.interactions) if g.interactions else 0
             )
         )
 
-        return operation_state, request_groups
+        return operation_state, sessions
 
     def get_last_k_interactions_grouped(
         self,
@@ -2536,7 +2539,7 @@ class LocalJsonStorage(BaseStorage):
 
         Returns:
             tuple[list[RequestInteractionDataModel], list[Interaction]]:
-                - List of RequestInteractionDataModel objects (grouped by request/request_group)
+                - List of RequestInteractionDataModel objects (grouped by request/session)
                 - Flat list of all interactions sorted by interaction_id DESC
         """
         with self._lock:
@@ -2596,7 +2599,7 @@ class LocalJsonStorage(BaseStorage):
             interactions_by_request[request_id].append(interaction)
 
         # Build RequestInteractionDataModel objects
-        request_groups: list[RequestInteractionDataModel] = []
+        sessions: list[RequestInteractionDataModel] = []
         for request_id, interactions in interactions_by_request.items():
             # Fetch the Request object
             request = self.get_request(request_id)
@@ -2611,24 +2614,24 @@ class LocalJsonStorage(BaseStorage):
                     created_at=interactions[0].created_at if interactions else 0,
                 )
 
-            # Use request_group from Request, or request_id as fallback
-            group_name = request.request_group or request_id
+            # Use session_id from Request, or request_id as fallback
+            group_name = request.session_id or request_id
 
             # Sort interactions by interaction_id ASC within the group (preserves insertion order)
             interactions_sorted = sorted(
                 interactions, key=lambda x: x.interaction_id or 0
             )
 
-            request_groups.append(
+            sessions.append(
                 RequestInteractionDataModel(
-                    request_group=group_name,
+                    session_id=group_name,
                     request=request,
                     interactions=interactions_sorted,
                 )
             )
 
         # Sort groups by earliest interaction_id (preserves insertion order)
-        request_groups.sort(
+        sessions.sort(
             key=lambda g: (
                 min(i.interaction_id or 0 for i in g.interactions)
                 if g.interactions
@@ -2636,7 +2639,7 @@ class LocalJsonStorage(BaseStorage):
             )
         )
 
-        return request_groups, flat_interactions
+        return sessions, flat_interactions
 
     def update_operation_state(self, service_name: str, operation_state: dict):
         """

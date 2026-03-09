@@ -139,7 +139,7 @@ def test_get_rerun_user_ids_with_filters():
                 created_at=now - 30,
                 source="api",
                 agent_version="v1",
-                request_group="group1",
+                session_id="group1",
             )
         )
         storage.add_request(
@@ -149,7 +149,7 @@ def test_get_rerun_user_ids_with_filters():
                 created_at=now - 20,
                 source="api",
                 agent_version="v1",
-                request_group="group1",
+                session_id="group1",
             )
         )
         storage.add_request(
@@ -159,7 +159,7 @@ def test_get_rerun_user_ids_with_filters():
                 created_at=now - 10,
                 source="web",
                 agent_version="v1",
-                request_group="group2",
+                session_id="group2",
             )
         )
 

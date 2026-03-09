@@ -3,6 +3,9 @@
 from typing import Callable
 
 from reflexio.reflexio_lib.reflexio_lib import Reflexio
+from reflexio.server.services.agent_success_evaluation.group_evaluation_runner import (
+    run_group_evaluation,
+)
 from reflexio.tests.server.test_utils import skip_in_precommit, skip_low_priority
 from reflexio_commons.api_schema.retriever_schema import (
     GetInteractionsRequest,
@@ -23,6 +26,7 @@ def test_publish_interaction_end_to_end(
     """Test end-to-end interaction publishing workflow."""
     user_id = "test_user_123"
     agent_version = "test_agent_v1"
+    session_id = "test_session_interaction_e2e"
 
     # Publish interactions (request_id will be auto-generated)
     response = reflexio_instance.publish_interaction(
@@ -31,6 +35,7 @@ def test_publish_interaction_end_to_end(
             "interaction_data_list": sample_interaction_requests,
             "source": "test_conversation",
             "agent_version": agent_version,
+            "session_id": session_id,
         }
     )
 
@@ -79,12 +84,23 @@ def test_publish_interaction_end_to_end(
     )
     assert len(raw_feedbacks) > 0 and raw_feedbacks[0].feedback_content.strip() != ""
 
-    # Verify agent success evaluation results were created
-    agent_success_results = reflexio_instance.request_context.storage.get_agent_success_evaluation_results(
-        agent_version=agent_version
+    # Trigger and verify agent success evaluation results
+    run_group_evaluation(
+        org_id=reflexio_instance.org_id,
+        user_id=user_id,
+        session_id=session_id,
+        agent_version=agent_version,
+        source="test_conversation",
+        request_context=reflexio_instance.request_context,
+        llm_client=reflexio_instance.llm_client,
+    )
+    agent_success_results = (
+        reflexio_instance.request_context.storage.get_agent_success_evaluation_results(
+            agent_version=agent_version
+        )
     )
     assert len(agent_success_results) > 0
-    assert agent_success_results[0].request_id == request_id
+    assert agent_success_results[0].session_id == session_id
     assert agent_success_results[0].agent_version == agent_version
     assert isinstance(agent_success_results[0].is_success, bool)
 

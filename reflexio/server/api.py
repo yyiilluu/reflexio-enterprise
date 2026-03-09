@@ -44,8 +44,8 @@ from reflexio_commons.api_schema.service_schemas import (
     DeleteUserProfileResponse,
     DeleteRequestRequest,
     DeleteRequestResponse,
-    DeleteRequestGroupRequest,
-    DeleteRequestGroupResponse,
+    DeleteSessionRequest,
+    DeleteSessionResponse,
     DeleteFeedbackRequest,
     DeleteFeedbackResponse,
     DeleteRawFeedbackRequest,
@@ -963,15 +963,15 @@ def delete_request(
 
 
 @app.delete(
-    "/api/delete_request_group",
-    response_model=DeleteRequestGroupResponse,
+    "/api/delete_session",
+    response_model=DeleteSessionResponse,
     response_model_exclude_none=True,
 )
-def delete_request_group(
-    request: DeleteRequestGroupRequest,
+def delete_session(
+    request: DeleteSessionRequest,
     org_id: str = Depends(get_org_id_for_self_host),
 ):
-    return publisher_api.delete_request_group(org_id=org_id, request=request)
+    return publisher_api.delete_session(org_id=org_id, request=request)
 
 
 @app.delete(

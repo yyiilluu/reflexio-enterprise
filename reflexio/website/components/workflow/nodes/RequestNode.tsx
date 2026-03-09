@@ -19,7 +19,7 @@ export function RequestNode({ data }: RequestNodeProps) {
           <div className="text-center">
             <div className="font-bold text-lg text-[#1d3557] mb-1">{data.label}</div>
             <div className="text-sm text-[#1d3557]/80 font-medium">
-              Request Groups & Interactions
+              Sessions & Interactions
             </div>
           </div>
         </div>

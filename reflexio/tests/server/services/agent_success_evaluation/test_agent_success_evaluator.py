@@ -128,12 +128,12 @@ def sample_request_interaction_models(sample_interactions):
     )
     return [
         RequestInteractionDataModel(
-            request_group="req1",
+            session_id="req1",
             request=request1,
             interactions=sample_interactions[:2],
         ),
         RequestInteractionDataModel(
-            request_group="req2",
+            session_id="req2",
             request=request2,
             interactions=sample_interactions[2:],
         ),
@@ -145,7 +145,7 @@ def service_config(sample_request_interaction_models):
     """Create a service config with required request_interaction_data_models."""
     return AgentSuccessGenerationServiceConfig(
         agent_version="1.0.0",
-        request_id="test_request",
+        session_id="test_group",
         request_interaction_data_models=sample_request_interaction_models,
         source="api",
     )
@@ -198,7 +198,7 @@ class TestRun:
 
         service_config = AgentSuccessGenerationServiceConfig(
             agent_version="1.0.0",
-            request_id="test_request",
+            session_id="test_group",
             request_interaction_data_models=sample_request_interaction_models,
             source="api",
         )
@@ -271,12 +271,12 @@ class TestSourceFiltering:
         )
         models = [
             RequestInteractionDataModel(
-                request_group="req1",
+                session_id="req1",
                 request=request1,
                 interactions=sample_interactions[:2],
             ),
             RequestInteractionDataModel(
-                request_group="req2",
+                session_id="req2",
                 request=request2,
                 interactions=sample_interactions[2:],
             ),
@@ -291,7 +291,7 @@ class TestSourceFiltering:
 
         service_config = AgentSuccessGenerationServiceConfig(
             agent_version="1.0.0",
-            request_id="test_request",
+            session_id="test_group",
             request_interaction_data_models=models,
             source="api",
         )

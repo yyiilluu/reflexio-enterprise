@@ -9,7 +9,7 @@ Description: AI agent memory system that makes AI agents personalized and self-i
 | `reflexio/reflexio_lib/` | Core library - `Reflexio` orchestrator connecting API to services | `reflexio_lib.py` |
 | `reflexio/reflexio_client/` | Python SDK for interacting with Reflexio API | [README](reflexio/README.md) |
 | `reflexio/reflexio_commons/` | Shared schemas and configuration models | [README](reflexio/README.md) |
-| `reflexio/website/` | Next.js frontend - profiles, interactions, feedbacks, evaluations, skills, auth UI | `app/`, `components/` |
+| `reflexio/website/` | Next.js frontend - profiles, interactions, feedbacks, evaluations, skills, account, auth UI | `app/`, `components/` |
 | `supabase/` | Local Supabase - user data (profiles, interactions, feedbacks), atomic lock RPC | Migrations |
 | `supabase_login/` | Cloud Supabase - authentication (organizations, API keys) | [README](supabase_login/README.md) |
 | `demo/` | Conversation simulation demo - scenarios, simulator, and live viewer | [README](demo/readme.md) |
@@ -25,7 +25,7 @@ Client (SDK/Web)
         -> GenerationService (server/services/)
           ├─> ProfileGenerationService -> ProfileExtractor(s) -> Storage
           ├─> FeedbackGenerationService -> FeedbackExtractor(s) -> Storage
-          └─> AgentSuccessEvaluationService -> Evaluator(s) -> Storage
+          └─> GroupEvaluationScheduler (deferred 10 min) -> Evaluator(s) -> Storage
 ```
 
 ## Prerequisites
@@ -90,9 +90,7 @@ docker compose -f ./docker-compose-local.yaml up -d --build
 **Testing:**
 ```python
 import reflexio
-client = reflexio.ReflexioClient(url_endpoint="http://127.0.0.1:8081/")
-token = await client.login("local_supabase", "s")
-client.api_key = token.api_key
+client = reflexio.ReflexioClient(api_key="your-api-key", url_endpoint="http://127.0.0.1:8081/")
 ```
 See `notebooks/reflexio_cookbook.ipynb` and `reflexio/tests/readme.md`
 

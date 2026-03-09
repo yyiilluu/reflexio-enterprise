@@ -641,21 +641,21 @@ class SupabaseStorage(BaseStorage):
         self.client.table("requests").delete().eq("request_id", request_id).execute()
 
     @handle_exceptions
-    def delete_request_group(self, request_group: str) -> int:
+    def delete_session(self, session_id: str) -> int:
         """
-        Delete all requests and interactions in a request group.
+        Delete all requests and interactions in a session.
 
         Args:
-            request_group: The request group name to delete
+            session_id: The session ID to delete
 
         Returns:
             int: Number of requests deleted
         """
-        # First get all request IDs in this group
+        # First get all request IDs in this session
         response = (
             self.client.table("requests")
             .select("request_id")
-            .eq("request_group", request_group)
+            .eq("session_id", session_id)
             .execute()
         )
 
@@ -665,16 +665,14 @@ class SupabaseStorage(BaseStorage):
         request_ids = [r["request_id"] for r in response.data]
         request_count = len(request_ids)
 
-        # Delete all interactions for all requests in this group
+        # Delete all interactions for all requests in this session
         for request_id in request_ids:
             self.client.table("interactions").delete().eq(
                 "request_id", request_id
             ).execute()
 
-        # Delete all requests in this group
-        self.client.table("requests").delete().eq(
-            "request_group", request_group
-        ).execute()
+        # Delete all requests in this session
+        self.client.table("requests").delete().eq("session_id", session_id).execute()
 
         return request_count
 
@@ -691,24 +689,22 @@ class SupabaseStorage(BaseStorage):
         ).execute()
 
     @handle_exceptions
-    def get_requests_by_request_group(
-        self, user_id: str, request_group: str
-    ) -> list[Request]:
+    def get_requests_by_session(self, user_id: str, session_id: str) -> list[Request]:
         """
-        Get all requests for a specific request_group.
+        Get all requests for a specific session.
 
         Args:
             user_id (str): User ID to filter requests
-            request_group (str): Request group to filter by
+            session_id (str): Session ID to filter by
 
         Returns:
-            list[Request]: List of Request objects in the request_group
+            list[Request]: List of Request objects in the session
         """
         response = (
             self.client.table("requests")
             .select("*")
             .eq("user_id", user_id)
-            .eq("request_group", request_group)
+            .eq("session_id", session_id)
             .execute()
         )
 
@@ -718,32 +714,34 @@ class SupabaseStorage(BaseStorage):
         return [response_to_request(item) for item in response.data]
 
     @handle_exceptions
-    def get_request_groups(
+    def get_sessions(
         self,
         user_id: Optional[str] = None,
         request_id: Optional[str] = None,
+        session_id: Optional[str] = None,
         start_time: Optional[int] = None,
         end_time: Optional[int] = None,
         top_k: Optional[int] = 30,
         offset: int = 0,
     ) -> dict[str, list[RequestInteractionDataModel]]:
         """
-        Get requests with their associated interactions, grouped by request_group.
+        Get requests with their associated interactions, grouped by session_id.
 
         Uses PostgREST's automatic JOIN syntax via the foreign key relationship between
         requests and interactions tables. Applies request-level filters and pagination,
-        then groups returned requests by request_group.
+        then groups returned requests by session_id.
 
         Args:
             user_id (str, optional): User ID to filter requests.
             request_id (str, optional): Specific request ID to retrieve
+            session_id (str, optional): Specific session ID to retrieve
             start_time (int, optional): Start timestamp for filtering
             end_time (int, optional): End timestamp for filtering
             top_k (int, optional): Maximum number of requests to return
             offset (int): Number of requests to skip for pagination
 
         Returns:
-            dict[str, list[RequestInteractionDataModel]]: Dictionary mapping request_group to list of RequestInteractionDataModel objects
+            dict[str, list[RequestInteractionDataModel]]: Dictionary mapping session_id to list of RequestInteractionDataModel objects
         """
         # Explicit interaction columns to avoid fetching embedding vector(1536) and content_fts
         interaction_columns = "interaction_id,user_id,content,request_id,created_at,role,user_action,user_action_description,interacted_image_url,shadow_content,tools_used"
@@ -761,6 +759,8 @@ class SupabaseStorage(BaseStorage):
         # Apply filters
         if request_id:
             query = query.eq("request_id", request_id)
+        if session_id:
+            query = query.eq("session_id", session_id)
         if start_time:
             start_time_iso = datetime.fromtimestamp(
                 start_time, tz=timezone.utc
@@ -788,7 +788,7 @@ class SupabaseStorage(BaseStorage):
             req = response_to_request(item)
 
             # Get the group name
-            group_name = req.request_group if req.request_group else ""
+            group_name = req.session_id if req.session_id else ""
 
             # Parse interactions
             interactions = []
@@ -810,7 +810,7 @@ class SupabaseStorage(BaseStorage):
                 grouped_results[group_name] = []
             grouped_results[group_name].append(
                 RequestInteractionDataModel(
-                    request_group=group_name,
+                    session_id=group_name,
                     request=req,
                     interactions=interactions,
                 )
@@ -2213,7 +2213,7 @@ class SupabaseStorage(BaseStorage):
         return [
             AgentSuccessEvaluationResult(
                 result_id=int(item["result_id"]),
-                request_id=item["request_id"],
+                session_id=item["session_id"],
                 agent_version=item["agent_version"],
                 evaluation_name=item.get("evaluation_name"),
                 is_success=item["is_success"],
@@ -2744,7 +2744,7 @@ class SupabaseStorage(BaseStorage):
                     ),
                     source=row.get("request_source") or "",
                     agent_version=row.get("request_agent_version") or "",
-                    request_group=row.get("request_group"),
+                    session_id=row.get("session_id"),
                 )
                 interactions_by_request[req_id] = []
 
@@ -2777,28 +2777,28 @@ class SupabaseStorage(BaseStorage):
             interactions_by_request[req_id].append(interaction)
 
         # Build RequestInteractionDataModel objects
-        request_groups: list[RequestInteractionDataModel] = []
+        sessions: list[RequestInteractionDataModel] = []
         for req_id, req in requests_map.items():
             interactions = sorted(
                 interactions_by_request[req_id], key=lambda x: x.created_at or 0
             )
-            group_name = req.request_group or req.request_id
-            request_groups.append(
+            group_name = req.session_id or req.request_id
+            sessions.append(
                 RequestInteractionDataModel(
-                    request_group=group_name,
+                    session_id=group_name,
                     request=req,
                     interactions=interactions,
                 )
             )
 
         # Sort groups by earliest interaction
-        request_groups.sort(
+        sessions.sort(
             key=lambda g: (
                 min(i.created_at or 0 for i in g.interactions) if g.interactions else 0
             )
         )
 
-        return operation_state, request_groups
+        return operation_state, sessions
 
     @handle_exceptions
     def get_last_k_interactions_grouped(
@@ -2829,7 +2829,7 @@ class SupabaseStorage(BaseStorage):
 
         Returns:
             tuple[list[RequestInteractionDataModel], list[Interaction]]:
-                - List of RequestInteractionDataModel objects (grouped by request/request_group)
+                - List of RequestInteractionDataModel objects (grouped by request/session)
                 - Flat list of all interactions sorted by created_at DESC
         """
         # Call RPC function for efficient retrieval
@@ -2865,7 +2865,7 @@ class SupabaseStorage(BaseStorage):
                     ),
                     source=row.get("request_source") or "",
                     agent_version=row.get("request_agent_version") or "",
-                    request_group=row.get("request_group"),
+                    session_id=row.get("session_id"),
                 )
                 interactions_by_request[req_id] = []
 
@@ -2899,29 +2899,29 @@ class SupabaseStorage(BaseStorage):
             interactions_by_request[req_id].append(interaction)
 
         # Build RequestInteractionDataModel objects
-        request_groups: list[RequestInteractionDataModel] = []
+        sessions: list[RequestInteractionDataModel] = []
         for req_id, req in requests_map.items():
             # Sort interactions by created_at ASC within each group
             interactions = sorted(
                 interactions_by_request[req_id], key=lambda x: x.created_at or 0
             )
-            group_name = req.request_group or req.request_id
-            request_groups.append(
+            group_name = req.session_id or req.request_id
+            sessions.append(
                 RequestInteractionDataModel(
-                    request_group=group_name,
+                    session_id=group_name,
                     request=req,
                     interactions=interactions,
                 )
             )
 
         # Sort groups by earliest interaction timestamp
-        request_groups.sort(
+        sessions.sort(
             key=lambda g: (
                 min(i.created_at or 0 for i in g.interactions) if g.interactions else 0
             )
         )
 
-        return request_groups, flat_interactions
+        return sessions, flat_interactions
 
     @handle_exceptions
     def update_operation_state(self, service_name: str, operation_state: dict):
@@ -3201,7 +3201,6 @@ class SupabaseStorage(BaseStorage):
         response = (
             self.client.table("interactions")
             .select("*")
-            .eq("org_id", self.org_id)
             .in_("request_id", request_ids)
             .order("created_at", desc=False)
             .execute()

@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     default: 'Reflexio Docs',
   },
   description: 'Official documentation for Reflexio - A powerful framework for building AI agents with memory and user profiling capabilities',
-  icons: '/assets/reflexio_fav.svg',
+  icons: '/docs/assets/reflexio_fav.svg',
 };
 
 export default function Layout({ children }: { children: ReactNode }) {

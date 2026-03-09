@@ -31,10 +31,10 @@ def create_request_interaction_data_model(
         user_id=user_id,
         source="test",
         agent_version="1.0",
-        request_group="session_1",
+        session_id="session_1",
     )
     return RequestInteractionDataModel(
-        request_group="session_1",
+        session_id="session_1",
         request=request,
         interactions=interactions,
     )
@@ -116,7 +116,7 @@ def test_generate_feedback(mock_chat_completion):
             user_id=user_id,
             source="test",
             agent_version="1.0",
-            request_group="session_1",
+            session_id="session_1",
         )
         feedback_generation_service.storage.add_request(request_obj)
         feedback_generation_service.storage.add_user_interaction(user_id, interaction)
@@ -644,7 +644,7 @@ class TestGetRerunItems:
                     user_id=user_id_1,
                     source="test_source",
                     agent_version=agent_version,
-                    request_group="group_1",
+                    session_id="group_1",
                 )
                 service.storage.add_request(request_obj)
                 service.storage.add_user_interaction(user_id_1, interaction)
@@ -665,7 +665,7 @@ class TestGetRerunItems:
                 user_id=user_id_2,
                 source="test_source",
                 agent_version=agent_version,
-                request_group="group_2",
+                session_id="group_2",
             )
             service.storage.add_request(request_obj)
             service.storage.add_user_interaction(user_id_2, interaction)
@@ -713,7 +713,7 @@ class TestGetRerunItems:
                 user_id=user_id_a,
                 source="source_a",
                 agent_version=agent_version,
-                request_group="group_a",
+                session_id="group_a",
             )
             service.storage.add_request(request_a)
             service.storage.add_user_interaction(user_id_a, interaction_a)
@@ -733,7 +733,7 @@ class TestGetRerunItems:
                 user_id=user_id_b,
                 source="source_b",
                 agent_version=agent_version,
-                request_group="group_b",
+                session_id="group_b",
             )
             service.storage.add_request(request_b)
             service.storage.add_user_interaction(user_id_b, interaction_b)
@@ -806,14 +806,14 @@ def test_collect_scoped_interactions_for_precheck_uses_extractor_scope():
             role="user",
             created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
         )
-        request_group = create_request_interaction_data_model(
+        session_id = create_request_interaction_data_model(
             user_id=user_id,
             request_id="request-1",
             interactions=[interaction],
         )
 
         service.storage.get_last_k_interactions_grouped = MagicMock(
-            return_value=([request_group], [])
+            return_value=([session_id], [])
         )
 
         extractor_configs = [

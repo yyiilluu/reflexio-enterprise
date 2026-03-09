@@ -59,7 +59,7 @@ print(f"Success rate: {successful/total*100:.1f}%")
 print("\nFailure Analysis:")
 for result in response.results:
     if not result.is_success:
-        print(f"Request: {result.request_id}")
+        print(f"Session: {result.session_id}")
         print(f"  Failure Type: {result.failure_type}")
         print(f"  Reason: {result.failure_reason}")
         print(f"  Suggestion: {result.agent_prompt_update}")

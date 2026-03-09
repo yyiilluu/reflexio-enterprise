@@ -250,12 +250,12 @@ class BaseStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def delete_request_group(self, request_group: str) -> int:
+    def delete_session(self, session_id: str) -> int:
         """
-        Delete all requests and interactions in a request group.
+        Delete all requests and interactions in a session.
 
         Args:
-            request_group: The request group name to delete
+            session_id: The session ID to delete
 
         Returns:
             int: Number of requests deleted
@@ -268,28 +268,30 @@ class BaseStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_request_groups(
+    def get_sessions(
         self,
         user_id: Optional[str] = None,
         request_id: Optional[str] = None,
+        session_id: Optional[str] = None,
         start_time: Optional[int] = None,
         end_time: Optional[int] = None,
         top_k: Optional[int] = 30,
         offset: int = 0,
     ) -> dict[str, list[RequestInteractionDataModel]]:
         """
-        Get requests with their associated interactions, grouped by request_group.
+        Get requests with their associated interactions, grouped by session_id.
 
         Args:
             user_id (str, optional): User ID to filter requests.
             request_id (str, optional): Specific request ID to retrieve
+            session_id (str, optional): Specific session ID to retrieve
             start_time (int, optional): Start timestamp for filtering
             end_time (int, optional): End timestamp for filtering
             top_k (int, optional): Maximum number of requests to return
             offset (int): Number of requests to skip for pagination. Defaults to 0.
 
         Returns:
-            dict[str, list[RequestInteractionDataModel]]: Dictionary mapping request_group to list of RequestInteractionDataModel objects
+            dict[str, list[RequestInteractionDataModel]]: Dictionary mapping session_id to list of RequestInteractionDataModel objects
         """
         raise NotImplementedError
 
@@ -318,18 +320,16 @@ class BaseStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_requests_by_request_group(
-        self, user_id: str, request_group: str
-    ) -> list[Request]:
+    def get_requests_by_session(self, user_id: str, session_id: str) -> list[Request]:
         """
-        Get all requests for a specific request_group.
+        Get all requests for a specific session.
 
         Args:
             user_id (str): User ID to filter requests
-            request_group (str): Request group to filter by
+            session_id (str): Session ID to filter by
 
         Returns:
-            list[Request]: List of Request objects in the request_group
+            list[Request]: List of Request objects in the session
         """
         raise NotImplementedError
 
@@ -936,7 +936,7 @@ class BaseStorage(ABC):
 
         Returns:
             tuple[list[RequestInteractionDataModel], list[Interaction]]:
-                - List of RequestInteractionDataModel objects (grouped by request/request_group)
+                - List of RequestInteractionDataModel objects (grouped by request/session)
                 - Flat list of all interactions sorted by created_at DESC
         """
         raise NotImplementedError

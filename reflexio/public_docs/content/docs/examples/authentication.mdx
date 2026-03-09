@@ -1,46 +1,46 @@
 ---
 title: "Authentication Examples"
-description: "Examples covering all aspects of authentication with Reflexio, including setup, token management, and best practices."
+description: "Examples covering all aspects of authentication with Reflexio, including API key setup and best practices."
 ---
 
 # Authentication Examples
 
-This page covers all aspects of authentication with Reflexio, including setup, token management, and best practices for different deployment scenarios.
+This page covers all aspects of authentication with Reflexio, including API key setup and best practices for different deployment scenarios.
 
 ## Basic Authentication
 
-### Email/Password Login
+### Direct API Key
 
 ```python
 import reflexio
 
-# Initialize client with endpoint
-client = reflexio.ReflexioClient(url_endpoint="http://127.0.0.1:8081/")
-
-# Perform login - client automatically stores the API key
-token = client.login("your_email@example.com", "your_password")
-
-print(f"Authenticated successfully!")
-print(f"Token type: {token.token_type}")
-
-# The API key never expires - save it for future use
-print(f"Save this key for future sessions: {token.api_key}")
-```
-
-### Direct API Key Authentication
-
-If you already have an API key (obtained from `token.api_key` after a previous login), you can initialize the client directly:
-
-```python
-# Initialize client with a previously saved API key (from token.api_key)
+# Initialize client with API key and endpoint
 client = reflexio.ReflexioClient(
-    api_key="<your_saved_token.api_key>",  # The token.api_key value from a previous login
+    api_key="your-api-key",
     url_endpoint="http://127.0.0.1:8081/"
 )
 
-# No login required - ready to use immediately
+# Ready to use immediately
 response = client.get_config()
-print("Client ready with direct API key authentication")
+print("Client ready with API key authentication")
+```
+
+### Environment Variable Authentication
+
+The client automatically reads `REFLEXIO_API_KEY` and `REFLEXIO_API_URL` environment variables:
+
+```python
+import reflexio
+
+# Set environment variables before running:
+# export REFLEXIO_API_KEY="your-api-key"
+# export REFLEXIO_API_URL="http://127.0.0.1:8081/"
+
+# No arguments needed - auto-reads from environment
+client = reflexio.ReflexioClient()
+
+response = client.get_config()
+print("Client ready with environment variable authentication")
 ```
 
 ## Environment-Specific Configuration
@@ -48,20 +48,13 @@ print("Client ready with direct API key authentication")
 ### Local Development
 
 ```python
-import os
 import reflexio
 
-# Local development setup
+# Local development setup with explicit API key
 client = reflexio.ReflexioClient(
+    api_key="your-dev-api-key",
     url_endpoint="http://127.0.0.1:8081/"  # Local development server
 )
-
-# Use environment variables for credentials
-email = os.getenv("REFLEXIO_EMAIL", "dev@example.com")
-password = os.getenv("REFLEXIO_PASSWORD", "dev_password")
-
-# Login automatically sets the API key on the client
-token = client.login(email, password)
 ```
 
 ### Production Environment
@@ -70,27 +63,21 @@ token = client.login(email, password)
 import os
 import reflexio
 
-# Option 1: Use saved API key (recommended for production)
-# The API key never expires, so save it after first login
+# Option 1: Environment variables (recommended for production)
+# export REFLEXIO_API_KEY="your-production-api-key"
+# export REFLEXIO_API_URL="https://api.reflexio.com"
+client = reflexio.ReflexioClient()
+
+# Option 2: Explicit API key from secrets manager
 client = reflexio.ReflexioClient(
     api_key=os.getenv("REFLEXIO_API_KEY"),
-    url_endpoint=os.getenv("REFLEXIO_ENDPOINT", "https://api.reflexio.com")
+    url_endpoint=os.getenv("REFLEXIO_API_URL", "https://api.reflexio.com")
 )
-
-# Option 2: Login with credentials (API key is automatically set)
-client = reflexio.ReflexioClient(
-    url_endpoint=os.getenv("REFLEXIO_ENDPOINT", "https://api.reflexio.com")
-)
-token = client.login(
-    email=os.getenv("REFLEXIO_EMAIL"),
-    password=os.getenv("REFLEXIO_PASSWORD")
-)
-# Save token.api_key to environment/secrets for future use
 ```
 
 ## Advanced Authentication Patterns
 
-### Token Persistence and Reuse
+### API Key Persistence and Validation
 
 ```python
 import json
@@ -99,81 +86,71 @@ from pathlib import Path
 import reflexio
 
 class ReflexioAuthManager:
-    """Manages authentication with token persistence."""
+    """Manages authentication with API key persistence."""
 
     def __init__(self, endpoint: str, token_file: str = ".reflexio_token"):
-        self.client = reflexio.ReflexioClient(url_endpoint=endpoint)
+        self.endpoint = endpoint
         self.token_file = Path(token_file)
-        self.token = None
+        self.client = None
 
-    def authenticate(self, email: str, password: str, save_token: bool = True):
-        """Authenticate and optionally save token for reuse."""
-        try:
-            # Try to load existing token first
-            if self.token_file.exists() and save_token:
-                self._load_token()
-                if self._validate_token():
-                    print("Using saved token")
-                    return True
-        except Exception:
-            pass  # Fall back to fresh login
+    def authenticate(self, api_key: str = None, save_key: bool = True):
+        """
+        Authenticate with API key, optionally loading from file.
 
-        # Perform fresh login (automatically sets client.api_key)
-        print("Performing fresh login...")
-        self.token = self.client.login(email, password)
-        # Note: login() automatically sets client.api_key, no manual assignment needed
+        Args:
+            api_key: API key to use. If None, tries to load from file or environment.
+            save_key: Whether to save the API key to file for reuse.
+        """
+        # Try to load existing key if none provided
+        if api_key is None:
+            api_key = self._load_key()
 
-        # Save token for future use (API key never expires)
-        if save_token:
-            self._save_token()
+        if api_key is None:
+            raise ValueError("No API key provided and none found in file or environment")
+
+        self.client = reflexio.ReflexioClient(
+            api_key=api_key,
+            url_endpoint=self.endpoint
+        )
+
+        # Validate the key works
+        if not self._validate_key():
+            raise ValueError("API key validation failed")
+
+        # Save key for future use
+        if save_key:
+            self._save_key(api_key)
 
         print("Authentication successful")
         return True
 
-    def _save_token(self):
-        """Save token to file."""
-        token_data = {
-            "api_key": self.token.api_key,
-            "token_type": self.token.token_type
-        }
+    def _save_key(self, api_key: str):
+        """Save API key to file."""
         with open(self.token_file, 'w') as f:
-            json.dump(token_data, f)
+            json.dump({"api_key": api_key}, f)
 
         # Set restrictive permissions
         os.chmod(self.token_file, 0o600)
 
-    def _load_token(self):
-        """Load token from file."""
-        with open(self.token_file, 'r') as f:
-            token_data = json.load(f)
+    def _load_key(self) -> str:
+        """Load API key from file."""
+        if self.token_file.exists():
+            with open(self.token_file, 'r') as f:
+                token_data = json.load(f)
+            return token_data.get("api_key")
+        return None
 
-        # Reconstruct token object and set on client
-        from reflexio_commons.api_schema.login_schema import Token
-        self.token = Token(**token_data)
-        self.client.api_key = self.token.api_key  # Set manually when loading from file
-
-    def _validate_token(self) -> bool:
-        """Validate that the current token works."""
+    def _validate_key(self) -> bool:
+        """Validate that the current API key works."""
         try:
-            # Try a simple API call to validate token
             self.client.get_config()
             return True
         except Exception:
             return False
 
-    def logout(self):
-        """Clear token and remove saved file."""
-        self.client.api_key = ""
-        self.token = None
-
-        if self.token_file.exists():
-            self.token_file.unlink()
-
-        print("Logged out successfully")
-
 # Usage
 auth_manager = ReflexioAuthManager("http://127.0.0.1:8081/")
-auth_manager.authenticate("user@example.com", "password")
+auth_manager.authenticate(api_key="your-api-key")
 
 # Client is now ready to use
 client = auth_manager.client

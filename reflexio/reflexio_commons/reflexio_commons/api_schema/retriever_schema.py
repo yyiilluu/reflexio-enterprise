@@ -255,6 +255,7 @@ class GetAgentSuccessEvaluationResultsResponse(BaseModel):
 class GetRequestsRequest(BaseModel):
     user_id: Optional[str] = None
     request_id: Optional[str] = None
+    session_id: Optional[str] = None
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
     top_k: Optional[int] = Field(default=30, gt=0)
@@ -272,14 +273,14 @@ class RequestData(BaseModel):
     interactions: list[Interaction]
 
 
-class RequestGroup(BaseModel):
-    request_group: str
+class Session(BaseModel):
+    session_id: str
     requests: list[RequestData]
 
 
 class GetRequestsResponse(BaseModel):
     success: bool
-    request_groups: list[RequestGroup]
+    sessions: list[Session]
     has_more: bool = False
     msg: Optional[str] = None
 

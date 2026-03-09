@@ -866,7 +866,7 @@ class TestGetRerunItems:
                     request_id=request_id,
                     user_id="user1",
                     source="test_source",
-                    request_group=f"group_{i}",
+                    session_id=f"group_{i}",
                 )
                 service.storage.add_request(request_obj)
                 service.storage.add_user_interaction("user1", interaction)
@@ -885,7 +885,7 @@ class TestGetRerunItems:
                 request_id=request_id,
                 user_id="user2",
                 source="test_source",
-                request_group="group_user2",
+                session_id="group_user2",
             )
             service.storage.add_request(request_obj)
             service.storage.add_user_interaction("user2", interaction)
@@ -930,7 +930,7 @@ class TestGetRerunItems:
                 request_id="request_1",
                 user_id="user1",
                 source="test_source",
-                request_group="group_1",
+                session_id="group_1",
             )
             service.storage.add_request(request1)
             service.storage.add_user_interaction("user1", interaction1)
@@ -948,7 +948,7 @@ class TestGetRerunItems:
                 request_id="request_2",
                 user_id="user2",
                 source="test_source",
-                request_group="group_2",
+                session_id="group_2",
             )
             service.storage.add_request(request2)
             service.storage.add_user_interaction("user2", interaction2)
@@ -995,7 +995,7 @@ class TestGetRerunItems:
                 request_id="request_a",
                 user_id=user_id,
                 source="source_a",
-                request_group="group_a",
+                session_id="group_a",
             )
             service.storage.add_request(request_a)
             service.storage.add_user_interaction(user_id, interaction_a)
@@ -1013,7 +1013,7 @@ class TestGetRerunItems:
                 request_id="request_b",
                 user_id=user_id,
                 source="source_b",
-                request_group="group_b",
+                session_id="group_b",
             )
             service.storage.add_request(request_b)
             service.storage.add_user_interaction(user_id, interaction_b)
@@ -1086,16 +1086,16 @@ def test_collect_scoped_interactions_for_precheck_uses_extractor_scope():
             request_id="request-1",
             user_id=user_id,
             source="api",
-            request_group="group-1",
+            session_id="group-1",
         )
-        request_group = RequestInteractionDataModel(
-            request_group="group-1",
+        session_data = RequestInteractionDataModel(
+            session_id="group-1",
             request=request_obj,
             interactions=[interaction],
         )
 
         service.storage.get_last_k_interactions_grouped = MagicMock(
-            return_value=([request_group], [])
+            return_value=([session_data], [])
         )
 
         extractor_configs = [
@@ -1158,10 +1158,10 @@ def test_should_run_before_extraction_combines_all_extractor_criteria():
             request_id="request-1",
             user_id=user_id,
             source="api",
-            request_group="group-1",
+            session_id="group-1",
         )
-        request_group = RequestInteractionDataModel(
-            request_group="group-1",
+        session_data = RequestInteractionDataModel(
+            session_id="group-1",
             request=request_obj,
             interactions=[interaction],
         )
@@ -1183,7 +1183,7 @@ def test_should_run_before_extraction_combines_all_extractor_criteria():
         with patch.object(
             service,
             "_collect_scoped_interactions_for_precheck",
-            return_value=([request_group], extractor_configs),
+            return_value=([session_data], extractor_configs),
         ), patch.object(
             service.client,
             "generate_chat_response",

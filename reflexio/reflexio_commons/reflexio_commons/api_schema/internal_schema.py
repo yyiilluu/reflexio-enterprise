@@ -7,6 +7,6 @@ from pydantic import BaseModel
 
 
 class RequestInteractionDataModel(BaseModel):
-    request_group: str
+    session_id: str
     request: Request
     interactions: list[Interaction]

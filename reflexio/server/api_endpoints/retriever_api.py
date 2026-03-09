@@ -172,21 +172,21 @@ def get_requests(
     org_id: str,
     request: GetRequestsRequest,
 ) -> GetRequestsResponse:
-    """Get requests with their associated interactions, grouped by request_group.
+    """Get requests with their associated interactions, grouped by session.
 
     Args:
         org_id (str): Organization ID
         request (GetRequestsRequest): The get request
 
     Returns:
-        GetRequestsResponse: Response containing requests grouped by request_group with their interactions
+        GetRequestsResponse: Response containing requests grouped by session with their interactions
     """
     reflexio = get_reflexio(org_id=org_id)
     result = reflexio.get_requests(request)
 
     # Filter out embedding fields from interactions
-    for request_group in result.request_groups:
-        for request_data in request_group.requests:
+    for session in result.sessions:
+        for request_data in session.requests:
             for interaction in request_data.interactions:
                 interaction.embedding = []
 

@@ -1,5 +1,6 @@
 import os
 import time
+import warnings
 import aiohttp
 import asyncio
 import logging
@@ -54,9 +55,9 @@ from reflexio_commons.api_schema.service_schemas import (
     AddFeedbackResponse,
     AddRawFeedbackRequest,
     AddRawFeedbackResponse,
-    DeleteRequestGroupRequest,
+    DeleteSessionRequest,
     Feedback,
-    DeleteRequestGroupResponse,
+    DeleteSessionResponse,
     DeleteRequestRequest,
     DeleteRequestResponse,
     DeleteUserInteractionRequest,
@@ -112,13 +113,20 @@ class ReflexioClient:
     def __init__(self, api_key: str = "", url_endpoint: str = "", timeout: int = 300):
         """Initialize the Reflexio client.
 
+        The client authenticates using an API key. You can provide the key directly
+        or set the REFLEXIO_API_KEY environment variable. Similarly, the URL can be
+        provided directly or via the REFLEXIO_API_URL environment variable.
+
         Args:
-            api_key (str): Your API key for authentication
-            url_endpoint (str): Base URL for the API
+            api_key (str): Your API key for authentication. Falls back to REFLEXIO_API_KEY env var.
+            url_endpoint (str): Base URL for the API. Falls back to REFLEXIO_API_URL env var,
+                then to the default backend URL.
             timeout (int): Default request timeout in seconds (default 300)
         """
-        self.api_key = api_key
-        self.base_url = url_endpoint if url_endpoint else BACKEND_URL
+        self.api_key = api_key or os.environ.get("REFLEXIO_API_KEY", "")
+        self.base_url = (
+            url_endpoint or os.environ.get("REFLEXIO_API_URL", "") or BACKEND_URL
+        )
         self.timeout = timeout
         self.session = requests.Session()
         self._cache = InMemoryCache()
@@ -232,7 +240,31 @@ class ReflexioClient:
         return response.json()
 
     def login(self, email: str, password: str) -> Token:
-        """Login to the Reflexio API."""
+        """Login to the Reflexio API.
+
+        .. deprecated::
+            The login() method is deprecated. Pass your API key directly instead:
+
+            client = ReflexioClient(api_key="your-api-key")
+
+            Or set the REFLEXIO_API_KEY environment variable:
+
+            export REFLEXIO_API_KEY="your-api-key"
+            client = ReflexioClient()
+
+        Args:
+            email (str): User email
+            password (str): User password
+
+        Returns:
+            Token: Authentication token response
+        """
+        warnings.warn(
+            "login() is deprecated. Pass api_key directly to ReflexioClient() "
+            "or set the REFLEXIO_API_KEY environment variable instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         response = self._make_request(
             "POST",
             "/token",
@@ -273,7 +305,7 @@ class ReflexioClient:
         interactions: list[Union[InteractionData, dict]],
         source: str = "",
         agent_version: str = "",
-        request_group: Optional[str] = None,
+        session_id: Optional[str] = None,
         wait_for_response: bool = False,
     ) -> Optional[PublishUserInteractionResponse]:
         """Publish user interactions.
@@ -287,7 +319,7 @@ class ReflexioClient:
             interactions (List[InteractionData]): List of interaction data
             source (str, optional): The source of the interaction
             agent_version (str, optional): The agent version
-            request_group (Optional[str], optional): The request group. Defaults to None.
+            session_id (Optional[str], optional): The session ID for grouping requests together. Defaults to None.
             wait_for_response (bool, optional): If True, wait for response. If False, send request without waiting. Defaults to False.
         Returns:
             Optional[PublishUserInteractionResponse]: Response containing success status and message if wait_for_response=True, None otherwise
@@ -301,7 +333,7 @@ class ReflexioClient:
             for interaction_request in interactions
         ]
         request = PublishUserInteractionRequest(
-            request_group=request_group,
+            session_id=session_id,
             user_id=user_id,
             interaction_data_list=interaction_data_list,
             source=source,
@@ -677,52 +709,52 @@ class ReflexioClient:
             self._fire_and_forget(self._delete_request_async, request)
             return None
 
-    def _delete_request_group_sync(
-        self, request: DeleteRequestGroupRequest
-    ) -> DeleteRequestGroupResponse:
-        """Internal sync method to delete request group."""
+    def _delete_session_sync(
+        self, request: DeleteSessionRequest
+    ) -> DeleteSessionResponse:
+        """Internal sync method to delete session."""
         response = self._make_request(
             "DELETE",
-            "/api/delete_request_group",
+            "/api/delete_session",
             json=request.model_dump(),
         )
-        return DeleteRequestGroupResponse(**response)
+        return DeleteSessionResponse(**response)
 
-    async def _delete_request_group_async(
-        self, request: DeleteRequestGroupRequest
-    ) -> DeleteRequestGroupResponse:
-        """Internal async method to delete request group."""
+    async def _delete_session_async(
+        self, request: DeleteSessionRequest
+    ) -> DeleteSessionResponse:
+        """Internal async method to delete session."""
         response = await self._make_async_request(
             "DELETE",
-            "/api/delete_request_group",
+            "/api/delete_session",
             json=request.model_dump(),
         )
-        return DeleteRequestGroupResponse(**response)
+        return DeleteSessionResponse(**response)
 
-    def delete_request_group(
-        self, request_group: str, wait_for_response: bool = False
-    ) -> Optional[DeleteRequestGroupResponse]:
-        """Delete all requests and interactions in a request group.
+    def delete_session(
+        self, session_id: str, wait_for_response: bool = False
+    ) -> Optional[DeleteSessionResponse]:
+        """Delete all requests and interactions in a session.
 
         This method is optimized for resource efficiency:
         - In async contexts (e.g., FastAPI): Uses existing event loop (most efficient)
         - In sync contexts: Uses shared thread pool (avoids thread creation overhead)
 
         Args:
-            request_group (str): The request group to delete
+            session_id (str): The session ID to delete
             wait_for_response (bool, optional): If True, wait for response. If False, send request without waiting. Defaults to False.
 
         Returns:
-            Optional[DeleteRequestGroupResponse]: Response containing success status, message, and deleted count if wait_for_response=True, None otherwise
+            Optional[DeleteSessionResponse]: Response containing success status, message, and deleted count if wait_for_response=True, None otherwise
         """
-        request = DeleteRequestGroupRequest(request_group=request_group)
+        request = DeleteSessionRequest(session_id=session_id)
 
         if wait_for_response:
             # Synchronous blocking call
-            return self._delete_request_group_sync(request)
+            return self._delete_session_sync(request)
         else:
             # Non-blocking fire-and-forget
-            self._fire_and_forget(self._delete_request_group_async, request)
+            self._fire_and_forget(self._delete_session_async, request)
             return None
 
     def _delete_feedback_sync(
@@ -1160,7 +1192,7 @@ class ReflexioClient:
         end_time: Optional[datetime] = None,
         top_k: Optional[int] = None,
     ) -> GetRequestsResponse:
-        """Get requests with their associated interactions, grouped by request_group.
+        """Get requests with their associated interactions, grouped by session.
 
         Args:
             request (Optional[GetRequestsRequest]): The get request object (alternative to kwargs)
@@ -1171,7 +1203,7 @@ class ReflexioClient:
             top_k (Optional[int]): Maximum number of results to return (default: 30)
 
         Returns:
-            GetRequestsResponse: Response containing requests grouped by request_group with their interactions
+            GetRequestsResponse: Response containing requests grouped by session with their interactions
         """
         req = self._build_request(
             request,

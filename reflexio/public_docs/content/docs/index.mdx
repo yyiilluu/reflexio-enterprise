@@ -10,7 +10,7 @@ Python client library for the Reflexio API. Build agents with persistent memory 
 ## Key Features
 
 - **User Interaction Management** - Track text, images, and user actions with semantic search
-- **Request & Experiment Management** - Organize interactions with request groups for session tracking and context management
+- **Request & Experiment Management** - Organize interactions with sessions for session tracking and context management
 - **Automatic Profile Extraction** - Generate user profiles from interactions using configurable prompts
 - **Agent Feedback System** - Collect and aggregate feedback from user interactions
 - **Agent Performance Evaluation** - Automated evaluation of agent success with improvement suggestions
@@ -29,12 +29,13 @@ pip install reflexio-client
 import reflexio
 from reflexio_commons.api_schema.service_schemas import InteractionData, UserActionType
 
-# Initialize with API endpoint
-client = reflexio.ReflexioClient(url_endpoint="http://127.0.0.1:8081/")
+# Option 1: Direct API key
+client = reflexio.ReflexioClient(api_key="your-api-key", url_endpoint="http://127.0.0.1:8081/")
 
-# Authenticate (API key is automatically set, and never expires)
-token = client.login("user@example.com", "password")
-# token.api_key contains your API key - save it to skip login in future sessions
+# Option 2: Environment variable
+# export REFLEXIO_API_KEY="your-api-key"
+# export REFLEXIO_API_URL="http://127.0.0.1:8081/"
+# client = reflexio.ReflexioClient()
 
 # Publish interaction (fire-and-forget by default)
 client.publish_interaction(
@@ -45,7 +46,7 @@ client.publish_interaction(
             content="I'm interested in your premium plan"
         )
     ],
-    request_group="req_001",
+    session_id="req_001",
     source="chat"
 )
 
@@ -72,8 +73,8 @@ The following diagram shows how the core data entities relate to each other:
 ### Interactions
 The most basic unit of data in Reflexio. Each interaction represents a single piece of user activity—text messages, images (base64-encoded), or user actions (clicks, scrolls, etc.). Interactions are the source from which all other outputs (profiles, feedback, evaluations) are generated.
 
-### Requests & Request Groups
-A **Request** is what the client sends to Reflexio each time, bundling one or more interactions together with metadata (source, agent version, timestamps). A **Request Group** connects multiple requests under the same context—useful for organizing all requests within a single conversation session. [Learn more →](/docs/concepts/requests-and-groups)
+### Requests & Sessions
+A **Request** is what the client sends to Reflexio each time, bundling one or more interactions together with metadata (source, agent version, timestamps). A **Session** connects multiple requests under the same context—useful for organizing all requests within a single conversation session. [Learn more →](/docs/concepts/requests-and-groups)
 
 ### User Profiles
 Insights automatically extracted from interactions based on your configured profile extractors for each user. Each profile captures specific information about the user (preferences, context, history) and supports semantic search to retrieve relevant user information across conversation history.
@@ -89,7 +90,7 @@ Automated assessments of agent success or failure for each request. The evaluati
 When shadow content is present, the evaluation system also compares regular and shadow responses to measure quality differences and win rates.
 
 ### Fire-and-Forget Mode
-Methods like `publish_interaction`, `delete_interaction`, `delete_profile`, `delete_request`, and `delete_request_group` support fire-and-forget mode (default) for better performance. Set `wait_for_response=True` to get response data.
+Methods like `publish_interaction`, `delete_interaction`, `delete_profile`, `delete_request`, and `delete_session` support fire-and-forget mode (default) for better performance. Set `wait_for_response=True` to get response data.
 
 ## Documentation
 
@@ -100,7 +101,7 @@ Methods like `publish_interaction`, `delete_interaction`, `delete_profile`, `del
 
 ### Core Concepts
 - [Interactions](/docs/concepts/interactions) - Understanding interaction types and patterns
-- [Requests & Groups](/docs/concepts/requests-and-groups) - Request management and session organization
+- [Requests & Sessions](/docs/concepts/requests-and-groups) - Request management and session organization
 - [User Profiles](/docs/concepts/user-profiles) - Profile extraction and management
 - [Agent Feedback](/docs/concepts/agent-feedback) - Feedback system and aggregation
 
@@ -110,7 +111,7 @@ Methods like `publish_interaction`, `delete_interaction`, `delete_profile`, `del
 
 ### Examples
 - [User Interactions](/docs/examples/user-interactions) - Publishing and searching interactions
-- [Request Management](/docs/examples/request-management) - Working with requests and request groups
+- [Request Management](/docs/examples/request-management) - Working with requests and sessions
 - [User Profiles](/docs/examples/user-profiles) - Profile search and management
 - [Agent Feedbacks](/docs/examples/agent-feedback) - Agent self-improving feedbacks
 - [Agent Evaluation](/docs/examples/agent-evaluation) - Analyzing agent performance

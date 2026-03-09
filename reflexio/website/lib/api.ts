@@ -197,14 +197,14 @@ export async function getAllInteractions(limit: number = 100): Promise<GetIntera
   }
 }
 
-// Request and RequestGroup types
+// Request and Session types
 export interface Request {
   request_id: string
   user_id: string
   created_at: number
   source: string
   agent_version: string
-  request_group: string
+  session_id: string
 }
 
 export interface RequestData {
@@ -212,14 +212,15 @@ export interface RequestData {
   interactions: Interaction[]
 }
 
-export interface RequestGroup {
-  request_group: string
+export interface Session {
+  session_id: string
   requests: RequestData[]
 }
 
 export interface GetRequestsRequest {
   user_id?: string
   request_id?: string
+  session_id?: string
   start_time?: string
   end_time?: string
   top_k?: number
@@ -228,7 +229,7 @@ export interface GetRequestsRequest {
 
 export interface GetRequestsResponse {
   success: boolean
-  request_groups: RequestGroup[]
+  sessions: Session[]
   has_more: boolean
   msg?: string
 }
@@ -480,21 +481,21 @@ export async function deleteRequest(request: DeleteRequestRequest): Promise<Dele
   }
 }
 
-export interface DeleteRequestGroupRequest {
-  request_group: string
+export interface DeleteSessionRequest {
+  session_id: string
 }
 
-export interface DeleteRequestGroupResponse {
+export interface DeleteSessionResponse {
   success: boolean
   message?: string
   deleted_requests_count?: number
 }
 
-export async function deleteRequestGroup(
-  request: DeleteRequestGroupRequest
-): Promise<DeleteRequestGroupResponse> {
+export async function deleteSession(
+  request: DeleteSessionRequest
+): Promise<DeleteSessionResponse> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/delete_request_group`, {
+    const response = await fetch(`${API_BASE_URL}/api/delete_session`, {
       method: "DELETE",
       headers: getHeaders(),
       body: JSON.stringify(request),
@@ -507,7 +508,7 @@ export async function deleteRequestGroup(
     const data = await response.json()
     return data
   } catch (error) {
-    console.error("Error deleting request group:", error)
+    console.error("Error deleting session:", error)
     throw error
   }
 }
@@ -577,7 +578,7 @@ export type RegularVsShadow =
 export interface AgentSuccessEvaluationResult {
   result_id: number
   agent_version: string
-  request_id: string
+  session_id: string
   evaluation_name?: string | null
   is_success: boolean
   failure_type: string

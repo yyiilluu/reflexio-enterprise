@@ -416,7 +416,7 @@ class TestFilterConfigsByStride:
         )
         return [
             RequestInteractionDataModel(
-                request_group="req1",
+                session_id="req1",
                 request=request,
                 interactions=interactions,
             )

@@ -384,8 +384,7 @@ async def chat(req: ChatRequest):
 
 
 class ReflexioLoginRequest(BaseModel):
-    email: str
-    password: str
+    api_key: str
     reflexio_url: str = "http://localhost:8081"
 
 
@@ -399,12 +398,11 @@ class ReflexioPublishRequest(BaseModel):
 @app.post("/api/reflexio/login")
 async def reflexio_login(req: ReflexioLoginRequest):
     """
-    Login to a Reflexio server and store the client for subsequent operations.
+    Connect to a Reflexio server using an API key and store the client for subsequent operations.
     """
     global reflexio_client
     try:
-        client = ReflexioClient(url_endpoint=req.reflexio_url)
-        client.login(req.email, req.password)
+        client = ReflexioClient(api_key=req.api_key, url_endpoint=req.reflexio_url)
         reflexio_client = client
         return JSONResponse({"success": True})
     except Exception as e:

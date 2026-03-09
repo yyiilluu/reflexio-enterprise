@@ -588,10 +588,10 @@ class BaseGenerationService(
             return True
 
         # Collect scoped interactions
-        request_groups, scoped_configs = self._collect_scoped_interactions_for_precheck(
-            extractor_configs
+        session_data_models, scoped_configs = (
+            self._collect_scoped_interactions_for_precheck(extractor_configs)
         )
-        if not request_groups:
+        if not session_data_models:
             logger.info(
                 "No interactions found for consolidated should_generate check for %s",
                 self._get_service_name(),
@@ -599,7 +599,7 @@ class BaseGenerationService(
             return False
 
         # Build prompt via subclass hook
-        prompt = self._build_should_run_prompt(scoped_configs, request_groups)
+        prompt = self._build_should_run_prompt(scoped_configs, session_data_models)
         if not prompt:
             return True  # No prompt means no check needed, proceed
 
@@ -646,7 +646,7 @@ class BaseGenerationService(
     def _build_should_run_prompt(
         self,
         scoped_configs: list[TExtractorConfig],
-        request_groups: list[RequestInteractionDataModel],
+        session_data_models: list[RequestInteractionDataModel],
     ) -> Optional[str]:
         """
         Build the prompt for the consolidated should_run LLM check.
@@ -656,7 +656,7 @@ class BaseGenerationService(
 
         Args:
             scoped_configs: Extractor configs that had scoped interactions
-            request_groups: Deduplicated request interaction groups
+            session_data_models: Deduplicated request interaction data models
 
         Returns:
             Optional[str]: The rendered prompt string, or None to skip the check
@@ -676,7 +676,7 @@ class BaseGenerationService(
             extractor_configs: Enabled extractor configs after request-level filtering
 
         Returns:
-            tuple: (deduplicated request groups, extractor configs that had scoped interactions)
+            tuple: (deduplicated session data models, extractor configs that had scoped interactions)
         """
         root_config = self.request_context.configurator.get_config()
         global_window_size = (
@@ -690,7 +690,7 @@ class BaseGenerationService(
             else None
         )
 
-        deduped_request_groups: dict[str, RequestInteractionDataModel] = {}
+        deduped_sessions: dict[str, RequestInteractionDataModel] = {}
         scoped_configs: list[TExtractorConfig] = []
         extra_kwargs = self._get_precheck_interaction_query_kwargs()
 
@@ -705,7 +705,7 @@ class BaseGenerationService(
                 config, global_window_size, global_stride
             )
             fetch_k = window_size
-            request_groups, _ = self.storage.get_last_k_interactions_grouped(
+            session_data_models, _ = self.storage.get_last_k_interactions_grouped(
                 user_id=getattr(self.service_config, "user_id", None),
                 k=fetch_k,
                 sources=effective_source,
@@ -713,21 +713,21 @@ class BaseGenerationService(
                 end_time=getattr(self.service_config, "rerun_end_time", None),
                 **extra_kwargs,
             )
-            if not request_groups:
+            if not session_data_models:
                 continue
 
             scoped_configs.append(config)
-            for request_group in request_groups:
-                request_id = getattr(request_group.request, "request_id", None)
+            for data_model in session_data_models:
+                request_id = getattr(data_model.request, "request_id", None)
                 dedupe_key = (
                     request_id
-                    or request_group.request_group
-                    or f"scoped_group_{len(deduped_request_groups)}"
+                    or data_model.session_id
+                    or f"scoped_group_{len(deduped_sessions)}"
                 )
-                if dedupe_key not in deduped_request_groups:
-                    deduped_request_groups[dedupe_key] = request_group
+                if dedupe_key not in deduped_sessions:
+                    deduped_sessions[dedupe_key] = data_model
 
-        return list(deduped_request_groups.values()), scoped_configs
+        return list(deduped_sessions.values()), scoped_configs
 
     def _get_precheck_interaction_query_kwargs(self) -> dict:
         """

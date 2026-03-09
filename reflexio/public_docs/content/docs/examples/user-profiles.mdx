@@ -12,13 +12,13 @@ This page demonstrates comprehensive patterns for working with user profiles in 
 ```python
 import reflexio
 
-# Initialize and authenticate (login automatically sets the API key)
-client = reflexio.ReflexioClient(url_endpoint="http://127.0.0.1:8081/")
-token = client.login("your_email@example.com", "your_password")
-# token.api_key contains your API key - save it for future use (it never expires)
+# Option 1: Direct API key
+client = reflexio.ReflexioClient(api_key="your-api-key", url_endpoint="http://127.0.0.1:8081/")
 
-# Or initialize with a previously saved API key (more efficient - skips login)
-# client = reflexio.ReflexioClient(api_key=token.api_key, url_endpoint="http://127.0.0.1:8081/")
+# Option 2: Environment variable
+# export REFLEXIO_API_KEY="your-api-key"
+# export REFLEXIO_API_URL="http://127.0.0.1:8081/"
+# client = reflexio.ReflexioClient()
 ```
 
 ## Profile Configuration
@@ -157,7 +157,7 @@ initial_interaction = client.publish_interaction(
     interactions=[
         {"role": "User", "content": "Hi, I'm a beginner photographer looking to buy my first professional camera"}
     ],
-    request_group="user_onboarding_001",
+    session_id="user_onboarding_001",
     source="initial_consultation"
 )
 
@@ -167,7 +167,7 @@ updated_interaction = client.publish_interaction(
     interactions=[
         {"role": "User", "content": "I've been taking landscape photography classes and now I'm specifically interested in wide-angle lenses"}
     ],
-    request_group="user_followup_001",
+    session_id="user_followup_001",
     source="follow_up_consultation"
 )
 

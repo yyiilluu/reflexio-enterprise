@@ -14,7 +14,7 @@ from reflexio.server.services.service_utils import (
     PromptConfig,
     MessageConstructionConfig,
     construct_messages_from_interactions,
-    format_request_groups_to_history_string,
+    format_sessions_to_history_string,
     extract_interactions_from_request_interaction_data_models,
 )
 
@@ -191,7 +191,7 @@ def check_string_token_overlap(str1: str, str2: str, threshold: float = 0.7) -> 
     return overlap_ratio >= threshold
 
 
-def construct_profile_extraction_messages_from_request_groups(
+def construct_profile_extraction_messages_from_sessions(
     prompt_manager: PromptManager,
     request_interaction_data_models: list[RequestInteractionDataModel],
     existing_profiles: list[UserProfile],
@@ -201,11 +201,11 @@ def construct_profile_extraction_messages_from_request_groups(
     metadata_definition_prompt: Optional[str] = None,
 ) -> list[dict]:
     """
-    Construct LLM messages for profile extraction from request interaction groups.
+    Construct LLM messages for profile extraction from sessions.
 
     This function uses the shared message construction interface to build messages
     with a system prompt and a final user prompt specific to profile extraction.
-    Interactions are formatted grouped by request group.
+    Interactions are formatted grouped by session.
 
     Args:
         prompt_manager: The prompt manager for rendering prompt templates
@@ -242,7 +242,7 @@ def construct_profile_extraction_messages_from_request_groups(
         prompt_id=ProfileGenerationServiceConstants.PROFILE_UPDATE_MAIN_PROMPT_ID,
         variables={
             "existing_profiles": formatted_existing_profiles,
-            "interactions": format_request_groups_to_history_string(
+            "interactions": format_sessions_to_history_string(
                 request_interaction_data_models
             ),
         },
@@ -337,7 +337,7 @@ def construct_incremental_profile_extraction_messages(
             "existing_profiles": formatted_existing_profiles,
             "previously_added_profiles": formatted_previously_added,
             "previously_deleted_profiles": formatted_previously_deleted,
-            "interactions": format_request_groups_to_history_string(
+            "interactions": format_sessions_to_history_string(
                 request_interaction_data_models
             ),
         },

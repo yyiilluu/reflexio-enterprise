@@ -20,6 +20,7 @@ import {
   PanelLeftOpen,
   BarChart3,
   Sparkles,
+  KeyRound,
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import {
@@ -92,6 +93,11 @@ const navSections: NavSection[] = [
         title: "Settings",
         href: "/settings",
         icon: Settings,
+      },
+      {
+        title: "Account",
+        href: "/account",
+        icon: KeyRound,
       },
     ],
   },

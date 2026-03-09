@@ -412,17 +412,17 @@ def test_rerun_profile_generation_all_users(reflexio_with_config):
     response = reflexio.rerun_profile_generation(rerun_request)
 
     # The test creates interactions, but get_requests with user_id=None might not
-    # return them depending on request_group filtering. Accept either:
+    # return them depending on session_id filtering. Accept either:
     # 1. success=False with "No interactions found" message
     # 2. success=True with profiles_generated > 0
-    # 3. success=True with profiles_generated == 0 (valid if request groups were found but
+    # 3. success=True with profiles_generated == 0 (valid if sessions were found but
     #    interactions within them were empty due to how the storage groups data)
     if not response.success:
-        # It's acceptable if no interactions are found due to request grouping
+        # It's acceptable if no interactions are found due to session grouping
         assert "No interactions found" in response.msg
     else:
         # Success is acceptable - profiles may or may not be generated depending
-        # on how request groups are handled for all-users query
+        # on how sessions are handled for all-users query
         assert response.profiles_generated >= 0
 
 
@@ -943,7 +943,7 @@ def test_get_dashboard_stats(reflexio_with_config):
 
 
 def test_get_requests_grouped(reflexio_with_config):
-    """Test getting requests grouped by request_group."""
+    """Test getting requests grouped by session_id."""
     user_id = "test_user_requests"
 
     reflexio = reflexio_with_config
@@ -957,7 +957,7 @@ def test_get_requests_grouped(reflexio_with_config):
     publish_request = PublishUserInteractionRequest(
         user_id=user_id,
         interaction_data_list=[interaction_data],
-        request_group="test_group",
+        session_id="test_group",
     )
     reflexio.publish_interaction(publish_request)
 
@@ -967,7 +967,7 @@ def test_get_requests_grouped(reflexio_with_config):
     response = reflexio.get_requests(get_requests_request)
 
     assert response.success is True
-    assert len(response.request_groups) >= 0
+    assert len(response.sessions) >= 0
 
 
 def test_get_requests_with_filters(reflexio_with_config):

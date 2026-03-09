@@ -37,7 +37,7 @@ Description: FastAPI backend server that processes user interactions to generate
 
 **Key Endpoints**:
 - `POST /api/publish_interaction` - Publish interactions (triggers profile/feedback/evaluation)
-- `POST /api/get_requests` - Get request groups with associated interactions (supports `offset`/`has_more` pagination)
+- `POST /api/get_requests` - Get sessions with associated interactions (supports `offset`/`has_more` pagination)
 - `GET /api/get_all_interactions` - Get all interactions across all users
 - `GET /api/get_profile_statistics` - Profile statistics by status
 - `GET /api/get_all_profiles?status_filter=<status>` - Filter by status (current/pending/archived)
@@ -211,7 +211,8 @@ python -m reflexio.server.scripts.manage_invitation_codes list --show-used
 
 Main orchestrator flow:
 1. Save interactions to storage
-2. Run ProfileGenerationService, FeedbackGenerationService, AgentSuccessEvaluationService in parallel (ThreadPoolExecutor, 3 workers)
+2. Run ProfileGenerationService, FeedbackGenerationService in parallel (ThreadPoolExecutor, 2 workers)
+3. Schedule deferred agent success evaluation via `GroupEvaluationScheduler` when `session_id` is present (10 min delay after last request in session)
 
 **Timeout Protection**: Two-layer timeout strategy:
 - **Service level**: `GENERATION_SERVICE_TIMEOUT_SECONDS = 600` (10 min) — outer timeout for each parallel service
@@ -399,12 +400,16 @@ Similar to profiles, raw feedbacks support versioning:
 **Directory**: `services/agent_success_evaluation/`
 
 Key files:
-- `agent_success_evaluation_service.py`: Service orchestrator
-- `agent_success_evaluator.py`: Evaluates success and improvement areas
+- `agent_success_evaluation_service.py`: Service orchestrator (tracks run outcome flags: `last_run_result_count`, `has_run_failures()`)
+- `agent_success_evaluator.py`: Evaluates success at session level (all interactions as one group)
 - `agent_success_evaluation_constants.py`: Output schemas (`AgentSuccessEvaluationOutput`, `AgentSuccessEvaluationWithComparisonOutput`)
 - `agent_success_evaluation_utils.py`: Message construction utilities
+- `delayed_group_evaluator.py`: `GroupEvaluationScheduler` singleton - min-heap priority queue with daemon thread, defers evaluation until 10 min after last request in session
+- `group_evaluation_runner.py`: `run_group_evaluation()` - fetches all requests/interactions for a session, builds `RequestInteractionDataModel` list, runs evaluation
 
-**Flow**: Interactions → AgentSuccessEvaluator → AgentSuccessEvaluationResult → Storage
+**Flow**: Interactions → (deferred 10 min) → GroupEvaluationScheduler → run_group_evaluation → AgentSuccessEvaluator → AgentSuccessEvaluationResult → Storage
+
+**Session-Level Evaluation**: Evaluator treats all `request_interaction_data_models` in a session as a single conversation. Sampling rate checked once per session (not per-request). Result keyed by `session_id` (not `request_id`).
 
 **Tool Context**: Reads `tool_can_use` from root `Config` level (shared with feedback extraction).
 
@@ -453,7 +458,7 @@ Skills search gated behind `skill_generation` feature flag. Pre-computed embeddi
 
 **Key Methods**:
 - CRUD: profiles, interactions, feedbacks, results, requests, skills, feedback aggregation change logs
-- `get_request_groups(offset, top_k)` → `dict[str, list[RequestInteractionDataModel]]` (groups by request_id, supports offset/limit pagination)
+- `get_sessions(offset, top_k, session_id)` → `dict[str, list[RequestInteractionDataModel]]` (groups by session_id, supports offset/limit pagination)
 - `get_rerun_user_ids(user_id, start_time, end_time, source, agent_version)` → `list[str]` - Get distinct user IDs matching filters for rerun workflows (pushes filtering to storage layer)
 - `get_feedbacks(status_filter, feedback_status_filter)` - Filter by profile status and approval status
 - `save_feedbacks()` → returns `list[Feedback]` with `feedback_id` populated (callers can ignore return)
@@ -496,7 +501,7 @@ API Request (api.py)
         -> GenerationService
           ├─> ProfileGenerationService → Storage
           ├─> FeedbackGenerationService → Storage
-          └─> AgentSuccessEvaluationService → Storage
+          └─> GroupEvaluationScheduler (deferred 10 min) → run_group_evaluation → Storage
 ```
 
 ```mermaid
@@ -526,8 +531,9 @@ flowchart TB
     end
 
     subgraph EvalService["AgentSuccessEvaluationService"]
-        E --> H1[AgentSuccessEvaluator 1]
-        E --> H2[AgentSuccessEvaluator N]
+        E -.->|deferred 10 min| SCH[GroupEvaluationScheduler]
+        SCH --> H1[AgentSuccessEvaluator 1]
+        SCH --> H2[AgentSuccessEvaluator N]
     end
 
     PU --> I[(Storage)]

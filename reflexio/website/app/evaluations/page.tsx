@@ -271,10 +271,10 @@ function EvaluationRow({ result }: EvaluationRowProps) {
     setComparisonError(null)
 
     try {
-      const response = await getRequests({ request_id: result.request_id })
-      if (response.success && response.request_groups.length > 0) {
+      const response = await getRequests({ session_id: result.session_id })
+      if (response.success && response.sessions.length > 0) {
         // Get all interactions from the request
-        const allInteractions = response.request_groups
+        const allInteractions = response.sessions
           .flatMap(group => group.requests)
           .flatMap(rd => rd.interactions)
           .sort((a, b) => a.created_at - b.created_at)
@@ -357,7 +357,7 @@ function EvaluationRow({ result }: EvaluationRowProps) {
                     {result.evaluation_name}
                   </Badge>
                 )}
-                <span className="truncate">Request: {result.request_id}</span>
+                <span className="truncate">Session: {result.session_id}</span>
               </div>
             </div>
           </div>
@@ -482,7 +482,7 @@ export default function EvaluationsPage() {
   const filteredEvaluations = evaluations.filter((evaluation) => {
     const matchesSearch =
       searchQuery === "" ||
-      evaluation.request_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      evaluation.session_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
       evaluation.agent_version.toLowerCase().includes(searchQuery.toLowerCase()) ||
       evaluation.failure_type.toLowerCase().includes(searchQuery.toLowerCase())
 

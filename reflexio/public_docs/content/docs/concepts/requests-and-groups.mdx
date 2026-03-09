@@ -1,13 +1,13 @@
 ---
-title: "Requests and Request Groups"
-description: "Learn how requests and request groups organize interactions in Reflexio for structured tracking and bulk operations."
+title: "Requests and Sessions"
+description: "Learn how requests and sessions organize interactions in Reflexio for structured tracking and bulk operations."
 ---
 
-# Requests and Request Groups
+# Requests and Sessions
 
 ## Overview
 
-Requests and request groups are the organizational foundation of Reflexio, enabling structured tracking and bulk operations on user interactions.
+Requests and sessions are the organizational foundation of Reflexio, enabling structured tracking and bulk operations on user interactions.
 
 ## What is a Request?
 
@@ -21,7 +21,7 @@ Each Request contains:
 - **`user_id`**: The user associated with this request
 - **`source`**: Where the interaction came from (e.g., "web_app", "mobile_app", "api")
 - **`agent_version`**: Version of your agent that generated this interaction
-- **`request_group`**: Optional string to group related requests together
+- **`session_id`**: Optional string to group related requests together
 - **`created_at`**: Timestamp when the request was created
 
 ### Why Requests Matter
@@ -31,13 +31,13 @@ Requests provide:
 - **Organization**: Group related interactions together
 - **Bulk Operations**: Delete all interactions from a request at once
 
-## Request Groups
+## Sessions
 
-**Request groups** are logical groupings of related requests that belong to the same conversation or session. They serve a critical role in providing context for profile and feedback extraction.
+**Sessions** are logical groupings of related requests that belong to the same conversation or session. They serve a critical role in providing context for profile and feedback extraction.
 
-### Why Request Groups Matter
+### Why Sessions Matter
 
-When Reflexio processes interactions for profile extraction or feedback generation, it uses the request group to understand the broader context. All requests within the same request group are considered part of the same conversation, allowing the system to:
+When Reflexio processes interactions for profile extraction or feedback generation, it uses the session to understand the broader context. All requests within the same session are considered part of the same conversation, allowing the system to:
 
 - **Extract more accurate profiles** - Understanding the full conversation context leads to better profile extraction
 - **Generate contextual feedback** - Feedback generation can consider the entire session flow
@@ -57,13 +57,13 @@ for interaction in session_interactions:
     client.publish_interaction(
         user_id="user_123",
         interactions=[interaction],
-        request_group=session_id
+        session_id=session_id
     )
 ```
 
 #### 2. Multi-Turn Conversation Tracking
 
-Publish multiple turns of a conversation under the same request group for better context:
+Publish multiple turns of a conversation under the same session for better context:
 
 ```python
 conversation_id = "conv_20241215_001"
@@ -75,7 +75,7 @@ client.publish_interaction(
         {"role": "User", "content": "I need help with my order"},
         {"role": "Agent", "content": "I'd be happy to help! What's your order number?"}
     ],
-    request_group=conversation_id,
+    session_id=conversation_id,
     agent_version="v1.0"
 )
 
@@ -86,7 +86,7 @@ client.publish_interaction(
         {"role": "User", "content": "Order #12345"},
         {"role": "Agent", "content": "I found your order. It's currently being shipped."}
     ],
-    request_group=conversation_id,
+    session_id=conversation_id,
     agent_version="v1.0"
 )
 ```
@@ -97,15 +97,15 @@ Delete all requests from a session or conversation at once:
 
 ```python
 # After session concludes, clean up all data
-client.delete_request_group(
-    request_group="session_001",
+client.delete_session(
+    session_id="session_001",
     wait_for_response=True
 )
 ```
 
 ## Workflow Example
 
-Here's a complete workflow showing how requests and request groups work together:
+Here's a complete workflow showing how requests and sessions work together:
 
 ```python
 from reflexio import ReflexioClient
@@ -119,7 +119,7 @@ client.publish_interaction(
         {"content": "User asks a question", "role": "user"},
         {"content": "Agent response", "role": "assistant"}
     ],
-    request_group="session_001",
+    session_id="session_001",
     agent_version="v2.0",
     source="web_app"
 )
@@ -128,32 +128,32 @@ client.publish_interaction(
 requests = client.get_requests(user_id="user_456")
 
 # Step 3: Analyze requests
-for request_group in requests.request_groups:
-    print(f"Request Group: {request_group.request_group}")
-    for request_data in request_group.requests:
+for session in requests.sessions:
+    print(f"Session: {session.session_id}")
+    for request_data in session.requests:
         print(f"  Request ID: {request_data.request.request_id}")
         print(f"  Agent Version: {request_data.request.agent_version}")
         print(f"  Interactions: {len(request_data.interactions)}")
 
 # Step 4: Clean up after analysis
-client.delete_request_group(
-    request_group="session_001",
+client.delete_session(
+    session_id="session_001",
     wait_for_response=True
 )
 ```
 
 ## Best Practices
 
-### 1. Use Descriptive Request Group Names
+### 1. Use Descriptive Session Names
 
 ```python
 # Good: Clear, descriptive names
-request_group="2024_q1_session_001"
-request_group="onboarding_flow_v3"
+session_id="2024_q1_session_001"
+session_id="onboarding_flow_v3"
 
 # Avoid: Generic or unclear names
-request_group="test1"
-request_group="experiment"
+session_id="test1"
+session_id="experiment"
 ```
 
 ### 2. Track Agent Versions
@@ -165,18 +165,18 @@ client.publish_interaction(
     user_id="user_123",
     interactions=[...],
     agent_version="v2.1.0",  # Clear version tracking
-    request_group="session_001"
+    session_id="session_001"
 )
 ```
 
 ### 3. Clean Up Completed Sessions
 
-Delete request groups when they are no longer needed to manage storage:
+Delete sessions when they are no longer needed to manage storage:
 
 ```python
 # After analysis is complete
-client.delete_request_group(
-    request_group="old_session_001",
+client.delete_session(
+    session_id="old_session_001",
     wait_for_response=True
 )
 ```
@@ -190,7 +190,7 @@ client.publish_interaction(
     user_id="user_123",
     interactions=[...],
     source="mobile_app",  # or "web_app", "api", etc.
-    request_group="session_001"
+    session_id="session_001"
 )
 ```
 
@@ -203,9 +203,9 @@ client.publish_interaction(
 ## API Reference
 
 - [`publish_interaction()`](/docs/api-reference/client-interactions#publish_interaction): Create requests with interactions
-- [`get_requests()`](/docs/api-reference/client-requests#get_requests): Retrieve requests grouped by request_group
+- [`get_requests()`](/docs/api-reference/client-requests#get_requests): Retrieve requests grouped by session
 - [`delete_request()`](/docs/api-reference/client-requests#delete_request): Delete a single request
-- [`delete_request_group()`](/docs/api-reference/client-requests#delete_request_group): Delete all requests in a group
+- [`delete_session()`](/docs/api-reference/client-requests#delete_session): Delete all requests in a session
 
 ## Examples
 

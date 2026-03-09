@@ -17,40 +17,31 @@ pip install reflexio-client
 
 ## Authentication
 
-Reflexio supports two authentication methods:
+Authenticate using an API key:
 
 <Tabs items={['Python', 'cURL']}>
 <Tab value="Python">
 ```python
 from reflexio import ReflexioClient
 
-# Option 1: Login with email/password (API key is automatically set)
-client = ReflexioClient(url_endpoint="http://127.0.0.1:8081/")
-token = client.login("your_email@example.com", "your_password")
-# token.api_key contains your API key - save it for future use (it never expires)
-
-# Option 2: Initialize with a previously saved API key (recommended for efficiency)
+# Option 1: Direct API key
 client = ReflexioClient(
-    api_key=token.api_key,  # Use the saved token.api_key from a previous login
+    api_key="your-api-key",
     url_endpoint="http://127.0.0.1:8081/"
 )
+
+# Option 2: Environment variable (recommended)
+# export REFLEXIO_API_KEY="your-api-key"
+# export REFLEXIO_API_URL="http://127.0.0.1:8081/"
+client = ReflexioClient()
 ```
 </Tab>
 <Tab value="cURL">
 ```bash
-# Login with email/password to get API key
-curl -X POST "http://127.0.0.1:8081/token" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=your_email@example.com&password=your_password"
-
-# Response contains access_token (your API key)
-# {
-#   "access_token": "YOUR_API_KEY",
-#   "token_type": "bearer"
-# }
-
-# Use the API key in subsequent requests via Authorization header
-# -H "Authorization: Bearer YOUR_API_KEY"
+# Use your API key in requests via Authorization header
+curl -X POST "http://127.0.0.1:8081/api/get_config" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json"
 ```
 </Tab>
 </Tabs>
@@ -71,10 +62,9 @@ This example shows the complete workflow: retrieving user context, building an L
 ```python
 from reflexio import ReflexioClient, InteractionData, UserActionType
 
-# Step 1: Login
-client = ReflexioClient(url_endpoint="http://127.0.0.1:8081/")
-token = client.login("your_email@example.com", "your_password")
-# Save token.api_key for future use (it never expires)
+# Step 1: Initialize client with API key
+client = ReflexioClient(api_key="your-api-key", url_endpoint="http://127.0.0.1:8081/")
+# Or use environment variables: REFLEXIO_API_KEY and REFLEXIO_API_URL
 
 # Step 2: Retrieve user context
 user_id = "user_123"
@@ -144,7 +134,7 @@ client.publish_interaction(
         )
     ],
     source="chat",
-    request_group="session_001"
+    session_id="session_001"
 )
 
 print("Interaction published! Profiles will be extracted automatically.")
@@ -152,11 +142,8 @@ print("Interaction published! Profiles will be extracted automatically.")
 </Tab>
 <Tab value="cURL">
 ```bash
-# Step 1: Login and get API key
-curl -X POST "http://127.0.0.1:8081/token" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=your_email@example.com&password=your_password"
-# Save the access_token from response as YOUR_API_KEY
+# Step 1: Set your API key
+# YOUR_API_KEY is your Reflexio API key
 
 # Step 2a: Search user profiles
 curl -X POST "http://127.0.0.1:8081/api/search_profiles" \
@@ -195,7 +182,7 @@ curl -X POST "http://127.0.0.1:8081/api/publish_interaction" \
       }
     ],
     "source": "chat",
-    "request_group": "session_001"
+    "session_id": "session_001"
   }'
 ```
 </Tab>
@@ -204,7 +191,7 @@ curl -X POST "http://127.0.0.1:8081/api/publish_interaction" \
 ## Key Concepts
 
 - **Fire-and-forget**: `publish_interaction` returns immediately by default. Set `wait_for_response=True` to wait for processing.
-- **Request groups**: Group related interactions (e.g., by session) for tracking and attribution.
+- **Sessions**: Group related interactions (e.g., by session) for tracking and attribution.
 - **Sources**: Categorize interactions (e.g., "chat", "email") for filtering during searches.
 - **Semantic search**: Use natural language queries like "user preferences" rather than exact keywords.
 

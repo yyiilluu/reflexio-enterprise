@@ -16,7 +16,7 @@ Create well-structured, reviewer-friendly pull requests following best practices
 Run these checks before anything else:
 
 1. **Detect the GitHub user** — run `gh api user --jq '.login'` to get the authenticated user. Use this as the PR author. Do NOT hardcode any username.
-2. **Verify clean git state** — run `git status` to ensure no uncommitted changes. If there are uncommitted changes, ask the user whether to commit first or proceed.
+2. **Verify clean git state** — run `git status` to ensure no uncommitted changes. If there are uncommitted changes, run the `/commit` skill first to commit them (this handles precommit hooks, README updates, API doc updates, and AI instruction file syncing).
 3. **Determine the base branch** — default to `main`. If the user specifies a different base, use that.
 4. **Ensure you are on a feature branch** — if currently on `main` (or the base branch), create a feature branch first:
    - Pick a descriptive branch name (e.g., `feat/short-description`)

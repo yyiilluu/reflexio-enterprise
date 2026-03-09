@@ -116,7 +116,7 @@ def sample_request_interaction_models(sample_interactions):
     )
     return [
         RequestInteractionDataModel(
-            request_group="req1",
+            session_id="req1",
             request=request,
             interactions=sample_interactions,
         )
@@ -229,7 +229,7 @@ class TestGetInteractions:
         result = extractor._get_interactions()
 
         assert result is not None
-        assert len(result) == 1  # One request group
+        assert len(result) == 1  # One session
 
     def test_uses_window_size_when_configured(
         self,
@@ -472,7 +472,7 @@ class TestRun:
             service_config=service_config,
             agent_context="Test agent",
         )
-        extractor._generate_raw_updates_from_request_groups = MagicMock(
+        extractor._generate_raw_updates_from_sessions = MagicMock(
             side_effect=RuntimeError("llm timeout")
         )
 

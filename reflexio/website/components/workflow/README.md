@@ -33,7 +33,7 @@ interface WorkflowVisualizationProps {
 
 #### nodes/RequestNode.tsx
 - Entry point of the workflow
-- Shows "Request Groups & Interactions"
+- Shows "Sessions & Interactions"
 - Light blue color scheme
 
 #### nodes/SlidingWindowNode.tsx

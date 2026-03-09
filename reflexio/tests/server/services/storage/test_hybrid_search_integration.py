@@ -106,7 +106,7 @@ def hybrid_test_data():
             created_at=current_time,
             source="test_hybrid_source",
             agent_version="test_hybrid_v1",
-            request_group="",
+            session_id="",
         ),
         "profile_with_keyword": UserProfile(
             profile_id=f"test_profile_keyword_{current_time}",

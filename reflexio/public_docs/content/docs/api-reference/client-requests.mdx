@@ -1,13 +1,13 @@
 ---
 title: "Request Management"
-description: "Methods for retrieving and deleting requests and request groups."
+description: "Methods for retrieving and deleting requests and sessions."
 ---
 
 # Request Management
 
 ## `get_requests`
 
-Get requests with their associated interactions, grouped by request_group.
+Get requests with their associated interactions, grouped by session.
 
 ```python
 response = client.get_requests(
@@ -29,15 +29,15 @@ response = client.get_requests(
 | Field | Type | Description |
 |-------|------|-------------|
 | `success` | bool | Whether the request was successful |
-| `request_groups` | list[RequestGroup] | List of request groups with their requests |
+| `sessions` | list[Session] | List of sessions with their requests |
 | `msg` | str | Additional message (optional) |
 
-### RequestGroup Schema
+### Session Schema
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `request_group` | str | The request group identifier |
-| `requests` | list[RequestData] | List of requests in this group |
+| `session_id` | str | The session identifier |
+| `requests` | list[RequestData] | List of requests in this session |
 
 ### RequestData Schema
 
@@ -55,7 +55,7 @@ response = client.get_requests(
 | `created_at` | int | Unix timestamp when request was created |
 | `source` | str | Source of the request (e.g., "web_app", "mobile_app") |
 | `agent_version` | str | Version of the agent that generated this request |
-| `request_group` | str | Group identifier for related requests |
+| `session_id` | str | Session identifier for related requests |
 
 **Example:**
 
@@ -66,9 +66,9 @@ response = client.get_requests(
     top_k=50
 )
 
-for group in response.request_groups:
-    print(f"Group: {group.request_group}")
-    for req_data in group.requests:
+for session in response.sessions:
+    print(f"Session: {session.session_id}")
+    for req_data in session.requests:
         print(f"  Request: {req_data.request.request_id}")
         print(f"  Agent Version: {req_data.request.agent_version}")
         print(f"  Interactions: {len(req_data.interactions)}")
@@ -128,23 +128,23 @@ if response.success:
 
 ---
 
-## `delete_request_group`
+## `delete_session`
 
-Delete all requests and interactions in a request group.
+Delete all requests and interactions in a session.
 
 ```python
-response = client.delete_request_group(
-    request_group,
+response = client.delete_session(
+    session_id,
     wait_for_response=False
 )
 ```
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `request_group` | str | Yes | - | Request group to delete |
+| `session_id` | str | Yes | - | Session to delete |
 | `wait_for_response` | bool | No | `False` | Wait for confirmation |
 
-### DeleteRequestGroupResponse Schema
+### DeleteSessionResponse Schema
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -156,13 +156,13 @@ response = client.delete_request_group(
 
 ```python
 # Clean up after an experiment
-response = client.delete_request_group(
-    request_group="experiment_001",
+response = client.delete_session(
+    session_id="experiment_001",
     wait_for_response=True
 )
 if response.success:
     print(f"Deleted {response.deleted_requests_count} requests")
 
 # Fire-and-forget cleanup
-client.delete_request_group(request_group="old_session_data")
+client.delete_session(session_id="old_session_data")
 ```

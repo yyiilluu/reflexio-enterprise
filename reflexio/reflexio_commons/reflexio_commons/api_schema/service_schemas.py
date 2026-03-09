@@ -142,7 +142,7 @@ class Request(BaseModel):
     )
     source: str = ""
     agent_version: str = ""
-    request_group: Optional[str] = None
+    session_id: Optional[str] = None
 
 
 # information about the user profile generated from the user interaction
@@ -261,7 +261,7 @@ class Skill(BaseModel):
 class AgentSuccessEvaluationResult(BaseModel):
     result_id: int = 0
     agent_version: str
-    request_id: str
+    session_id: str
     is_success: bool
     failure_type: str
     failure_reason: str
@@ -315,13 +315,13 @@ class DeleteRequestResponse(BaseModel):
     message: str = ""
 
 
-# delete request group request
-class DeleteRequestGroupRequest(BaseModel):
-    request_group: NonEmptyStr
+# delete session request
+class DeleteSessionRequest(BaseModel):
+    session_id: NonEmptyStr
 
 
-# delete request group response
-class DeleteRequestGroupResponse(BaseModel):
+# delete session response
+class DeleteSessionResponse(BaseModel):
     success: bool
     message: str = ""
     deleted_requests_count: int = 0
@@ -387,7 +387,7 @@ class PublishUserInteractionRequest(BaseModel):
     agent_version: str = (
         ""  # this is used for aggregating interactions for generating agent feedback
     )
-    request_group: Optional[str] = None  # used for grouping requests together
+    session_id: Optional[str] = None  # used for grouping requests together
 
 
 # publish user interaction response

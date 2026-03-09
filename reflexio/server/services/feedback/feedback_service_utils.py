@@ -13,7 +13,7 @@ from reflexio.server.services.service_utils import (
     PromptConfig,
     MessageConstructionConfig,
     construct_messages_from_interactions,
-    format_request_groups_to_history_string,
+    format_sessions_to_history_string,
     extract_interactions_from_request_interaction_data_models,
 )
 
@@ -157,7 +157,7 @@ class FeedbackAggregatorRequest(BaseModel):
     rerun: bool = False
 
 
-def construct_feedback_extraction_messages_from_request_groups(
+def construct_feedback_extraction_messages_from_sessions(
     prompt_manager: PromptManager,
     request_interaction_data_models: list[RequestInteractionDataModel],
     agent_context_prompt: str,
@@ -166,7 +166,7 @@ def construct_feedback_extraction_messages_from_request_groups(
     tool_can_use: Optional[str] = None,
 ) -> list[dict]:
     """
-    Construct LLM messages for feedback extraction from request interaction groups.
+    Construct LLM messages for feedback extraction from sessions.
 
     This function uses the shared message construction interface to build messages
     with a system prompt and a final user prompt specific to feedback extraction.
@@ -208,7 +208,7 @@ def construct_feedback_extraction_messages_from_request_groups(
         prompt_id=FeedbackServiceConstants.RAW_FEEDBACK_EXTRACTION_PROMPT_ID,
         variables={
             "existing_feedbacks": formatted_existing_feedbacks,
-            "interactions": format_request_groups_to_history_string(
+            "interactions": format_sessions_to_history_string(
                 request_interaction_data_models
             ),
         },
@@ -290,7 +290,7 @@ def construct_incremental_feedback_extraction_messages(
         variables={
             "existing_feedbacks": formatted_existing_feedbacks,
             "previously_extracted_feedbacks": formatted_previously_extracted,
-            "interactions": format_request_groups_to_history_string(
+            "interactions": format_sessions_to_history_string(
                 request_interaction_data_models
             ),
         },

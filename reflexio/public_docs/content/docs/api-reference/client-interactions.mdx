@@ -15,7 +15,7 @@ response = client.publish_interaction(
     interactions,
     source="",
     agent_version="",
-    request_group=None,
+    session_id=None,
     wait_for_response=False
 )
 ```
@@ -26,7 +26,7 @@ response = client.publish_interaction(
 | `interactions` | list[dict] | Yes | - | List of interaction dicts (see Interaction Dict Fields below) |
 | `source` | str | No | `""` | Source category (e.g., "chat", "email", "support"), which can trigger specific profile extractor if set |
 | `agent_version` | str | No | `""` | Version string for tracking agent iterations |
-| `request_group` | str | No | `None` | Groups related requests together |
+| `session_id` | str | No | `None` | Groups related requests together |
 | `wait_for_response` | bool | No | `False` | If `True`, waits for server confirmation |
 
 **Returns:**
@@ -64,7 +64,7 @@ client.publish_interaction(
         {"role": "Agent", "content": "It's sunny and 72°F today."}
     ],
     source="chat",
-    request_group="session_001"
+    session_id="session_001"
 )
 ```
 
@@ -99,7 +99,7 @@ client.publish_interaction(
     ],
     source="sales_chat",
     agent_version="v2.1.0",
-    request_group="purchase_flow_789"
+    session_id="purchase_flow_789"
 )
 ```
 
@@ -127,7 +127,7 @@ client.publish_interaction(
         }
     ],
     source="styling_consultation",
-    request_group="style_session_001"
+    session_id="style_session_001"
 )
 ```
 
@@ -149,7 +149,7 @@ client.publish_interaction(
         }
     ],
     source="ecommerce",
-    request_group="shopping_session_001"
+    session_id="shopping_session_001"
 )
 ```
 

@@ -117,46 +117,46 @@ def format_interactions_to_history_string(interactions: list[Interaction]) -> st
     return "\n".join(formatted_interactions)
 
 
-def format_request_groups_to_history_string(
-    request_groups: list[RequestInteractionDataModel],
+def format_sessions_to_history_string(
+    sessions: list[RequestInteractionDataModel],
 ) -> str:
     """
-    Format interactions grouped by request group into a string.
+    Format interactions grouped by session into a string.
 
-    All RequestInteractionDataModel objects with the same request_group name are consolidated
+    All RequestInteractionDataModel objects with the same session_id are consolidated
     under a single header. Within each consolidated group, interactions are ordered by
     their id in ascending order (smaller to bigger).
 
     Args:
-        request_groups (list[RequestInteractionDataModel]): List of request interaction groups to format
+        sessions (list[RequestInteractionDataModel]): List of request interaction data models to format
 
     Returns:
-        str: A formatted string with interactions grouped by request group.
-             Returns empty string if no groups are provided.
+        str: A formatted string with interactions grouped by session.
+             Returns empty string if no sessions are provided.
 
     Example:
-        >>> # Given request groups with interactions (multiple requests in same group)
-        >>> result = format_request_groups_to_history_string(request_groups)
+        >>> # Given sessions with interactions (multiple requests in same session)
+        >>> result = format_sessions_to_history_string(sessions)
         >>> print(result)
-        === Request Group: session_1 ===
+        === Session: session_1 ===
         user: Hello, I need help
         assistant: How can I assist you?
         user: Thanks for the help
         assistant: You're welcome!
 
-        === Request Group: session_2 ===
+        === Session: session_2 ===
         user: I love sushi
         assistant: That's great!
     """
-    if not request_groups:
+    if not sessions:
         return ""
 
-    # Group all RequestInteractionDataModel objects by their request_group name
+    # Group all RequestInteractionDataModel objects by their session_id
     grouped_by_name: dict[str, list[RequestInteractionDataModel]] = {}
-    for request_interaction in request_groups:
-        if request_interaction.request_group not in grouped_by_name:
-            grouped_by_name[request_interaction.request_group] = []
-        grouped_by_name[request_interaction.request_group].append(request_interaction)
+    for request_interaction in sessions:
+        if request_interaction.session_id not in grouped_by_name:
+            grouped_by_name[request_interaction.session_id] = []
+        grouped_by_name[request_interaction.session_id].append(request_interaction)
 
     # Sort each group's requests by created_at timestamp
     for group_name in grouped_by_name:
@@ -172,10 +172,10 @@ def format_request_groups_to_history_string(
 
     formatted_groups = []
     for group_name in sorted_group_names:
-        # Format header with request group name
-        group_header = f"=== Request Group: {group_name} ==="
+        # Format header with session name
+        group_header = f"=== Session: {group_name} ==="
 
-        # Combine all interactions from all requests in this group
+        # Combine all interactions from all requests in this session
         all_interactions = []
         for request_interaction in grouped_by_name[group_name]:
             all_interactions.extend(request_interaction.interactions)

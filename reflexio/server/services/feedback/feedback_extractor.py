@@ -14,7 +14,7 @@ from reflexio.server.services.extractor_interaction_utils import (
 )
 from reflexio.server.services.operation_state_utils import OperationStateManager
 from reflexio.server.services.feedback.feedback_service_utils import (
-    construct_feedback_extraction_messages_from_request_groups,
+    construct_feedback_extraction_messages_from_sessions,
     StructuredFeedbackContent,
 )
 from reflexio.server.services.service_utils import (
@@ -151,7 +151,7 @@ class FeedbackExtractor:
         )
 
         # Get window interactions with time range filter
-        request_groups, _ = storage.get_last_k_interactions_grouped(
+        session_data_models, _ = storage.get_last_k_interactions_grouped(
             user_id=self.service_config.user_id,
             k=window_size,
             sources=effective_source,
@@ -159,7 +159,7 @@ class FeedbackExtractor:
             end_time=self.service_config.rerun_end_time,
             agent_version=rerun_agent_version,
         )
-        return request_groups
+        return session_data_models
 
     def _update_operation_state(
         self, request_interaction_data_models: list[RequestInteractionDataModel]
@@ -294,7 +294,7 @@ class FeedbackExtractor:
                 tool_can_use=tool_can_use_str,
             )
         else:
-            messages = construct_feedback_extraction_messages_from_request_groups(
+            messages = construct_feedback_extraction_messages_from_sessions(
                 prompt_manager=self.request_context.prompt_manager,
                 request_interaction_data_models=request_interaction_data_models,
                 agent_context_prompt=self.agent_context,
@@ -346,7 +346,7 @@ class FeedbackExtractor:
         Returns:
             StructuredFeedbackContent: Mock structured feedback
         """
-        # Extract flat interactions from request groups
+        # Extract flat interactions from sessions
         interactions = extract_interactions_from_request_interaction_data_models(
             request_interaction_data_models
         )

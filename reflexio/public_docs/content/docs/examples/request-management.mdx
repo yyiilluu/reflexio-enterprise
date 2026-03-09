@@ -1,24 +1,24 @@
 ---
 title: "Request Management Examples"
-description: "Practical examples for working with requests and request groups in Reflexio."
+description: "Practical examples for working with requests and sessions in Reflexio."
 ---
 
 # Request Management Examples
 
-This guide provides practical examples for working with requests and request groups in Reflexio.
+This guide provides practical examples for working with requests and sessions in Reflexio.
 
 ## Setup
 
 ```python
 from reflexio import ReflexioClient
 
-# Initialize and authenticate (login automatically sets the API key)
-client = ReflexioClient(url_endpoint="http://127.0.0.1:8081/")
-token = client.login("your_email@example.com", "your_password")
-# token.api_key contains your API key - save it for future use (it never expires)
+# Option 1: Direct API key
+client = ReflexioClient(api_key="your-api-key", url_endpoint="http://127.0.0.1:8081/")
 
-# Or initialize with a previously saved API key (more efficient - skips login)
-# client = ReflexioClient(api_key=token.api_key, url_endpoint="http://127.0.0.1:8081/")
+# Option 2: Environment variable
+# export REFLEXIO_API_KEY="your-api-key"
+# export REFLEXIO_API_URL="http://127.0.0.1:8081/"
+# client = ReflexioClient()
 ```
 
 ## Basic Request Publishing
@@ -41,14 +41,14 @@ response = client.publish_interaction(
 print(f"Success: {response.success}")
 ```
 
-### Publishing with Request Group
+### Publishing with Session
 
 ```python
 # Group related requests together
 client.publish_interaction(
     user_id="user_123",
     interactions=[...],
-    request_group="onboarding_session_001",
+    session_id="onboarding_session_001",
     source="mobile_app",
     agent_version="v1.0.0"
 )
@@ -56,18 +56,18 @@ client.publish_interaction(
 
 ## Retrieving Requests
 
-### Get All Requests in a Group
+### Get All Requests in a Session
 
 ```python
 # Retrieve all requests for a user
 response = client.get_requests(user_id="user_456")
 
-# Iterate through request groups
-for request_group in response.request_groups:
-    print(f"\nRequest Group: {request_group.request_group}")
+# Iterate through sessions
+for session in response.sessions:
+    print(f"\nSession: {session.session_id}")
 
-    # Each group contains multiple requests
-    for request_data in request_group.requests:
+    # Each session contains multiple requests
+    for request_data in session.requests:
         request = request_data.request
         interactions = request_data.interactions
 
@@ -90,10 +90,10 @@ response = client.get_requests(
     top_k=50
 )
 
-# Count requests per group
-for request_group in response.request_groups:
-    print(f"Group: {request_group.request_group}")
-    print(f"  Requests: {len(request_group.requests)}")
+# Count requests per session
+for session in response.sessions:
+    print(f"Session: {session.session_id}")
+    print(f"  Requests: {len(session.requests)}")
 
 # Filter by time range
 from datetime import datetime, timedelta
@@ -120,12 +120,12 @@ if response.success:
     print(f"Deleted: {response.message}")
 ```
 
-### Delete an Entire Request Group
+### Delete an Entire Session
 
 ```python
-# Delete all requests in a group (useful for cleanup)
-response = client.delete_request_group(
-    request_group="session_001",
+# Delete all requests in a session (useful for cleanup)
+response = client.delete_session(
+    session_id="session_001",
     wait_for_response=True
 )
 
@@ -138,8 +138,8 @@ if response.success:
 
 ```python
 # Non-blocking deletion (doesn't wait for response)
-client.delete_request_group(
-    request_group="old_session",
+client.delete_session(
+    session_id="old_session",
     wait_for_response=False
 )
 # Continues immediately without waiting
@@ -166,7 +166,7 @@ for interaction_batch in interactions_in_session:
     client.publish_interaction(
         user_id="user_123",
         interactions=interaction_batch,
-        request_group=f"session_{session_id}",
+        session_id=f"session_{session_id}",
         source="chat_interface"
     )
 
@@ -186,8 +186,8 @@ completed_sessions = [
 
 # Delete all at once
 for session_id in completed_sessions:
-    response = client.delete_request_group(
-        request_group=session_id,
+    response = client.delete_session(
+        session_id=session_id,
         wait_for_response=True
     )
     if response.success:
@@ -206,7 +206,7 @@ try:
     client.publish_interaction(
         user_id="user_test",
         interactions=[...],
-        request_group=session_id
+        session_id=session_id
     )
 
     # Retrieve results
@@ -216,8 +216,8 @@ try:
 
 finally:
     # Always clean up
-    client.delete_request_group(
-        request_group=session_id,
+    client.delete_session(
+        session_id=session_id,
         wait_for_response=True
     )
 ```
@@ -234,13 +234,13 @@ session_version = f"session_{datetime.now().strftime('%Y%m%d')}"
 client.publish_interaction(
     user_id="user_123",
     interactions=[...],
-    request_group=session_version,
+    session_id=session_version,
     agent_version="v1.0"
 )
 ```
 
 ## Related Documentation
 
-- [Requests and Groups Concepts](/docs/concepts/requests-and-groups)
+- [Requests and Sessions Concepts](/docs/concepts/requests-and-groups)
 - [Publishing Interactions](/docs/examples/user-interactions)
 - [Client API Reference](/docs/api-reference)

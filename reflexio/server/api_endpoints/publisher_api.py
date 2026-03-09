@@ -11,8 +11,8 @@ from reflexio_commons.api_schema.service_schemas import (
     DeleteUserProfileResponse,
     DeleteRequestRequest,
     DeleteRequestResponse,
-    DeleteRequestGroupRequest,
-    DeleteRequestGroupResponse,
+    DeleteSessionRequest,
+    DeleteSessionResponse,
     DeleteFeedbackRequest,
     DeleteFeedbackResponse,
     DeleteRawFeedbackRequest,
@@ -165,25 +165,23 @@ def delete_request(org_id: str, request: DeleteRequestRequest) -> DeleteRequestR
         return DeleteRequestResponse(success=False, message=str(e))
 
 
-def delete_request_group(
-    org_id: str, request: DeleteRequestGroupRequest
-) -> DeleteRequestGroupResponse:
-    """Delete all requests and interactions in a request group
+def delete_session(org_id: str, request: DeleteSessionRequest) -> DeleteSessionResponse:
+    """Delete all requests and interactions in a session
 
     Args:
         org_id (str): Organization ID
-        request (DeleteRequestGroupRequest): The delete request
+        request (DeleteSessionRequest): The delete request
 
     Returns:
-        DeleteRequestGroupResponse: Response containing success status, message, and deleted count
+        DeleteSessionResponse: Response containing success status, message, and deleted count
     """
     reflexio = get_reflexio(org_id=org_id)
     try:
-        result = reflexio.delete_request_group(request)
+        result = reflexio.delete_session(request)
         return result
     except Exception as e:
-        logger.error("Failed to delete request group: %s", e)
-        return DeleteRequestGroupResponse(success=False, message=str(e))
+        logger.error("Failed to delete session: %s", e)
+        return DeleteSessionResponse(success=False, message=str(e))
 
 
 def delete_feedback(

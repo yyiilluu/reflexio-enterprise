@@ -18,8 +18,8 @@ from reflexio_commons.api_schema.service_schemas import (
     DeleteUserInteractionResponse,
     DeleteRequestRequest,
     DeleteRequestResponse,
-    DeleteRequestGroupRequest,
-    DeleteRequestGroupResponse,
+    DeleteSessionRequest,
+    DeleteSessionResponse,
     DeleteFeedbackRequest,
     DeleteFeedbackResponse,
     DeleteRawFeedbackRequest,
@@ -72,7 +72,7 @@ from reflexio_commons.api_schema.retriever_schema import (
     GetRequestsRequest,
     GetRequestsResponse,
     RequestData,
-    RequestGroup,
+    Session,
     UpdateFeedbackStatusRequest,
     UpdateFeedbackStatusResponse,
     GetDashboardStatsRequest,
@@ -386,33 +386,33 @@ class Reflexio:
         except Exception as e:
             return DeleteRequestResponse(success=False, message=str(e))
 
-    def delete_request_group(
+    def delete_session(
         self,
-        request: Union[DeleteRequestGroupRequest, dict],
-    ) -> DeleteRequestGroupResponse:
-        """Delete all requests and interactions in a request group.
+        request: Union[DeleteSessionRequest, dict],
+    ) -> DeleteSessionResponse:
+        """Delete all requests and interactions in a session.
 
         Args:
-            request (DeleteRequestGroupRequest): The delete request containing request_group
+            request (DeleteSessionRequest): The delete request containing session_id
 
         Returns:
-            DeleteRequestGroupResponse: Response containing success status, message, and deleted count
+            DeleteSessionResponse: Response containing success status, message, and deleted count
         """
         if not self._is_storage_configured():
-            return DeleteRequestGroupResponse(
+            return DeleteSessionResponse(
                 success=False, message=STORAGE_NOT_CONFIGURED_MSG
             )
         if isinstance(request, dict):
-            request = DeleteRequestGroupRequest(**request)
+            request = DeleteSessionRequest(**request)
         try:
-            deleted_count = self.request_context.storage.delete_request_group(
-                request.request_group
+            deleted_count = self.request_context.storage.delete_session(
+                request.session_id
             )
-            return DeleteRequestGroupResponse(
+            return DeleteSessionResponse(
                 success=True, deleted_requests_count=deleted_count
             )
         except Exception as e:
-            return DeleteRequestGroupResponse(success=False, message=str(e))
+            return DeleteSessionResponse(success=False, message=str(e))
 
     def delete_feedback(
         self,
@@ -1142,26 +1142,27 @@ class Reflexio:
         self,
         request: Union[GetRequestsRequest, dict],
     ) -> GetRequestsResponse:
-        """Get requests with their associated interactions, grouped by request_group.
+        """Get requests with their associated interactions, grouped by session.
 
         Args:
             request (Union[GetRequestsRequest, dict]): The get request
 
         Returns:
-            GetRequestsResponse: Response containing requests grouped by request_group with their interactions
+            GetRequestsResponse: Response containing requests grouped by session with their interactions
         """
         if not self._is_storage_configured():
             return GetRequestsResponse(
-                success=True, request_groups=[], msg=STORAGE_NOT_CONFIGURED_MSG
+                success=True, sessions=[], msg=STORAGE_NOT_CONFIGURED_MSG
             )
         if isinstance(request, dict):
             request = GetRequestsRequest(**request)
 
         try:
-            # Get requests with interactions from storage (already grouped by request_group)
-            grouped_results = self.request_context.storage.get_request_groups(
+            # Get requests with interactions from storage (already grouped by session)
+            grouped_results = self.request_context.storage.get_sessions(
                 user_id=request.user_id,
                 request_id=request.request_id,
+                session_id=request.session_id,
                 start_time=(
                     int(request.start_time.timestamp()) if request.start_time else None
                 ),
@@ -1172,8 +1173,8 @@ class Reflexio:
                 offset=request.offset or 0,
             )
 
-            # Transform the dictionary into RequestGroup objects
-            request_groups = []
+            # Transform the dictionary into Session objects
+            sessions = []
             for group_name, request_interaction_data_models in grouped_results.items():
                 # Convert each RequestInteractionDataModel to RequestData
                 request_data_list = [
@@ -1183,22 +1184,22 @@ class Reflexio:
                     )
                     for request_interaction in request_interaction_data_models
                 ]
-                request_groups.append(
-                    RequestGroup(request_group=group_name, requests=request_data_list)
+                sessions.append(
+                    Session(session_id=group_name, requests=request_data_list)
                 )
 
             # Determine has_more: count total requests returned across all groups
-            total_returned = sum(len(rg.requests) for rg in request_groups)
+            total_returned = sum(len(s.requests) for s in sessions)
             effective_limit = request.top_k or 100
             has_more = total_returned >= effective_limit
 
             return GetRequestsResponse(
                 success=True,
-                request_groups=request_groups,
+                sessions=sessions,
                 has_more=has_more,
             )
         except Exception as e:
-            return GetRequestsResponse(success=False, request_groups=[], msg=str(e))
+            return GetRequestsResponse(success=False, sessions=[], msg=str(e))
 
     def update_feedback_status(
         self,

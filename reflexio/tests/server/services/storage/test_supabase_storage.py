@@ -1113,8 +1113,8 @@ class TestParseDatetimeToTimestamp:
         assert result > 0
 
 
-def test_get_requests_grouped_by_request_group(supabase_storage, mock_supabase_client):
-    """Test get_requests returns results grouped by request_group."""
+def test_get_requests_grouped_by_session_id(supabase_storage, mock_supabase_client):
+    """Test get_requests returns results grouped by session_id."""
     storage = supabase_storage
     current_time = int(datetime.now(timezone.utc).timestamp())
 
@@ -1126,7 +1126,7 @@ def test_get_requests_grouped_by_request_group(supabase_storage, mock_supabase_c
             "created_at": datetime.fromtimestamp(current_time).isoformat(),
             "source": "test",
             "agent_version": "v1",
-            "request_group": "group1",
+            "session_id": "group1",
             "interactions": [
                 {
                     "interaction_id": 1,
@@ -1146,14 +1146,14 @@ def test_get_requests_grouped_by_request_group(supabase_storage, mock_supabase_c
             "created_at": datetime.fromtimestamp(current_time).isoformat(),
             "source": "test",
             "agent_version": "v1",
-            "request_group": "group2",
+            "session_id": "group2",
             "interactions": [],
         },
     ]
 
-    results = storage.get_request_groups(user_id="user1", top_k=10)
+    results = storage.get_sessions(user_id="user1", top_k=10)
 
-    # Results should be a dictionary grouped by request_group
+    # Results should be a dictionary grouped by session_id
     assert isinstance(results, dict)
     assert "group1" in results
     assert "group2" in results
