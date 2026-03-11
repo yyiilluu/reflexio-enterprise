@@ -21,7 +21,7 @@ export function StorageConfigSection({ config, onStorageUpdate, onStorageTypeCha
           <Database className="h-4 w-4 text-slate-400" />
           <div>
             <CardTitle className="text-lg font-semibold text-slate-800">Storage Configuration</CardTitle>
-            <CardDescription className="text-xs mt-1 text-slate-500">Configure data storage backend</CardDescription>
+            <CardDescription className="text-xs mt-1 text-muted-foreground">Configure data storage backend</CardDescription>
           </div>
         </div>
       </CardHeader>

@@ -92,6 +92,12 @@ class GeminiConfig(BaseModel):
     api_key: NonEmptyStr
 
 
+class MiniMaxConfig(BaseModel):
+    """MiniMax API configuration."""
+
+    api_key: NonEmptyStr
+
+
 class CustomEndpointConfig(BaseModel):
     """Custom OpenAI-compatible endpoint configuration.
 
@@ -112,7 +118,7 @@ class APIKeyConfig(BaseModel):
     """
     API key configuration for LLM providers.
 
-    Supports OpenAI (direct and Azure), Anthropic, OpenRouter, Google Gemini, and custom
+    Supports OpenAI (direct and Azure), Anthropic, OpenRouter, Google Gemini, MiniMax, and custom
     OpenAI-compatible endpoints. When custom_endpoint is configured with non-empty fields,
     it takes priority over all other providers for LLM completion calls (but not embeddings).
     """
@@ -122,6 +128,7 @@ class APIKeyConfig(BaseModel):
     anthropic: Optional[AnthropicConfig] = None
     openrouter: Optional[OpenRouterConfig] = None
     gemini: Optional[GeminiConfig] = None
+    minimax: Optional[MiniMaxConfig] = None
 
 
 class ProfileExtractorConfig(BaseModel):
@@ -130,10 +137,12 @@ class ProfileExtractorConfig(BaseModel):
     context_prompt: Optional[str] = None
     metadata_definition_prompt: Optional[str] = None
     should_extract_profile_prompt_override: Optional[str] = None
-    request_sources_enabled: Optional[
-        list[str]
-    ] = None  # default enabled for all sources, if set, only extract profiles from the enabled request sources
-    manual_trigger: bool = False  # require manual triggering (rerun) to run extraction and skip auto extraction if set to True
+    request_sources_enabled: Optional[list[str]] = (
+        None  # default enabled for all sources, if set, only extract profiles from the enabled request sources
+    )
+    manual_trigger: bool = (
+        False  # require manual triggering (rerun) to run extraction and skip auto extraction if set to True
+    )
     extraction_window_size_override: Optional[int] = Field(
         default=None, gt=0
     )  # override global extraction_window_size for this extractor
@@ -162,9 +171,9 @@ class AgentFeedbackConfig(BaseModel):
     metadata_definition_prompt: Optional[str] = None
     feedback_aggregator_config: Optional[FeedbackAggregatorConfig] = None
     skill_generator_config: Optional[SkillGeneratorConfig] = None
-    request_sources_enabled: Optional[
-        list[str]
-    ] = None  # default enabled for all sources, if set, only extract feedbacks from the enabled request sources
+    request_sources_enabled: Optional[list[str]] = (
+        None  # default enabled for all sources, if set, only extract feedbacks from the enabled request sources
+    )
     extraction_window_size_override: Optional[int] = Field(
         default=None, gt=0
     )  # override global extraction_window_size for this extractor
@@ -202,12 +211,12 @@ class LLMConfig(BaseModel):
     If a field is None, the default from site variable is used.
     """
 
-    should_run_model_name: Optional[
-        str
-    ] = None  # Model for "should run extraction" checks
-    generation_model_name: Optional[
-        str
-    ] = None  # Model for generation and evaluation tasks
+    should_run_model_name: Optional[str] = (
+        None  # Model for "should run extraction" checks
+    )
+    generation_model_name: Optional[str] = (
+        None  # Model for generation and evaluation tasks
+    )
     embedding_model_name: Optional[str] = None  # Model for embedding generation
 
 

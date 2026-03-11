@@ -37,7 +37,7 @@ export function AgentFeedbackSection({
 
   return (
     <>
-      <Card className="border-slate-200 bg-white overflow-hidden">
+      <Card className="border-slate-200 bg-white overflow-hidden hover:shadow-lg transition-all duration-300">
         <CardHeader className="pb-4">
           <div className="flex items-center gap-3">
             <MessageSquare className="h-4 w-4 text-slate-400" />
@@ -50,7 +50,7 @@ export function AgentFeedbackSection({
                   </Badge>
                 )}
               </CardTitle>
-              <CardDescription className="text-xs mt-1 text-slate-500">Configure feedback collection</CardDescription>
+              <CardDescription className="text-xs mt-1 text-muted-foreground">Configure feedback collection</CardDescription>
             </div>
           </div>
         </CardHeader>

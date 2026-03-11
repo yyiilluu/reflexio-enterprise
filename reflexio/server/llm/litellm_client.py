@@ -147,6 +147,11 @@ class LiteLLMClient:
             if self.config.api_key_config.openrouter:
                 return self.config.api_key_config.openrouter.api_key, None, None
 
+        # MiniMax
+        elif model_lower.startswith("minimax/"):
+            if self.config.api_key_config.minimax:
+                return self.config.api_key_config.minimax.api_key, None, None
+
         # Azure OpenAI
         elif model_lower.startswith("azure/"):
             if (
