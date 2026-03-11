@@ -9,7 +9,6 @@ Prerequisites:
     - Local Supabase running
 """
 
-import requests
 import sys
 
 from reflexio import (
@@ -27,19 +26,6 @@ from reflexio import (
 BASE_URL = "http://localhost:8081"
 FEEDBACK_NAME = "default"
 AGENT_VERSION = "v1"
-
-
-def get_token() -> str:
-    """Get auth token from local server."""
-    resp = requests.post(
-        f"{BASE_URL}/token",
-        data={"username": "local_supabase", "password": "s"},
-        headers={"User-Agent": "Mozilla/5.0"},
-    )
-    resp.raise_for_status()
-    token = resp.json()["api_key"]
-    print(f"[OK] Got auth token: {token[:20]}...")
-    return token
 
 
 def setup_config(client: ReflexioClient) -> None:
@@ -329,9 +315,8 @@ def cleanup_skills(client: ReflexioClient) -> None:
 def main():
     print("=== Skill E2E Test ===\n")
 
-    # Setup
-    token = get_token()
-    client = ReflexioClient(api_key=token, url_endpoint=BASE_URL)
+    # Setup — uses REFLEXIO_API_KEY from environment automatically
+    client = ReflexioClient(url_endpoint=BASE_URL)
 
     try:
         # Setup config with available tools

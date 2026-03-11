@@ -1009,68 +1009,65 @@ export default function ProfilesPage() {
 
       <div className="p-8">
         <div className="max-w-[1800px] mx-auto space-y-6">
-          {/* Statistics Cards */}
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="border bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-semibold text-slate-600">Current Total</CardTitle>
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg">
-                  <CheckCircle2 className="h-5 w-5 text-white" />
+          {/* Performance Overview */}
+          <Card className="border-slate-200 bg-white hover:shadow-lg transition-all duration-300">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/25">
+                  <Users className="h-5 w-5 text-white" />
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-slate-800">
-                  {profileStatistics?.current_count ?? 0}
+                <div>
+                  <CardTitle className="text-lg font-semibold text-slate-800">Profile Overview</CardTitle>
+                  <CardDescription className="text-xs mt-0.5 text-slate-500">
+                    {(profileStatistics?.current_count ?? 0) + (profileStatistics?.pending_count ?? 0) + (profileStatistics?.archived_count ?? 0)} total profiles across all statuses
+                  </CardDescription>
                 </div>
-                <p className="text-xs text-slate-500 mt-1">Active profiles</p>
-              </CardContent>
-            </Card>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4 md:flex md:gap-0 md:divide-x md:divide-slate-200">
+                {/* Current Total */}
+                <div className="flex flex-col items-center text-center flex-1 md:px-4 py-2">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                    <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Current</span>
+                  </div>
+                  <span className="text-2xl font-bold text-slate-800">{profileStatistics?.current_count ?? 0}</span>
+                  <span className="text-xs text-slate-400 mt-0.5">active profiles</span>
+                </div>
 
-            <Card className="border bg-gradient-to-br from-orange-50 to-amber-50 border-orange-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-semibold text-slate-600">Pending Total</CardTitle>
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-lg">
-                  <Clock className="h-5 w-5 text-white" />
+                {/* Pending Total */}
+                <div className="flex flex-col items-center text-center flex-1 md:px-4 py-2">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Clock className="h-3.5 w-3.5 text-amber-500" />
+                    <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Pending</span>
+                  </div>
+                  <span className="text-2xl font-bold text-slate-800">{profileStatistics?.pending_count ?? 0}</span>
+                  <span className="text-xs text-slate-400 mt-0.5">awaiting approval</span>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-slate-800">
-                  {profileStatistics?.pending_count ?? 0}
-                </div>
-                <p className="text-xs text-slate-500 mt-1">Awaiting approval</p>
-              </CardContent>
-            </Card>
 
-            <Card className="border bg-gradient-to-br from-purple-50 to-pink-50 border-purple-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-semibold text-slate-600">Archived Total</CardTitle>
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
-                  <Archive className="h-5 w-5 text-white" />
+                {/* Archived Total */}
+                <div className="flex flex-col items-center text-center flex-1 md:px-4 py-2">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Archive className="h-3.5 w-3.5 text-purple-500" />
+                    <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Archived</span>
+                  </div>
+                  <span className="text-2xl font-bold text-slate-800">{profileStatistics?.archived_count ?? 0}</span>
+                  <span className="text-xs text-slate-400 mt-0.5">old profiles</span>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-slate-800">
-                  {profileStatistics?.archived_count ?? 0}
-                </div>
-                <p className="text-xs text-slate-500 mt-1">Old profiles</p>
-              </CardContent>
-            </Card>
 
-            <Card className="border bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-semibold text-slate-600">Expiring Soon</CardTitle>
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg">
-                  <AlertCircle className="h-5 w-5 text-white" />
+                {/* Expiring Soon */}
+                <div className="flex flex-col items-center text-center flex-1 md:px-4 py-2">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <AlertCircle className="h-3.5 w-3.5 text-blue-500" />
+                    <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Expiring Soon</span>
+                  </div>
+                  <span className="text-2xl font-bold text-slate-800">{profileStatistics?.expiring_soon_count ?? 0}</span>
+                  <span className="text-xs text-slate-400 mt-0.5">within 7 days</span>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-slate-800">
-                  {profileStatistics?.expiring_soon_count ?? 0}
-                </div>
-                <p className="text-xs text-slate-500 mt-1">Within 7 days</p>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Status Tabs */}
           <div className="flex gap-2 border-b border-slate-200">

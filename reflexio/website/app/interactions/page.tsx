@@ -747,48 +747,55 @@ export default function InteractionsPage() {
 
       <div className="p-8">
         <div className="max-w-[1800px] mx-auto space-y-6">
-          {/* Statistics Cards */}
-          <div className="grid gap-5 md:grid-cols-3">
-            <Card className="border bg-gradient-to-br from-purple-50 to-pink-50 border-purple-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-semibold text-slate-600">Sessions</CardTitle>
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
-                  <Layers className="h-5 w-5 text-white" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-slate-800">{totalGroups}</div>
-                <p className="text-xs text-slate-500 mt-1">Unique sessions</p>
-              </CardContent>
-            </Card>
-
-            <Card className="border bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-semibold text-slate-600">Total Requests</CardTitle>
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg">
-                  <FileText className="h-5 w-5 text-white" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-slate-800">{totalRequests}</div>
-                <p className="text-xs text-slate-500 mt-1">All requests</p>
-              </CardContent>
-            </Card>
-
-            <Card className="border bg-gradient-to-br from-indigo-50 to-blue-50 border-indigo-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-semibold text-slate-600">Total Interactions</CardTitle>
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-500 flex items-center justify-center shadow-lg">
+          {/* Performance Overview */}
+          <Card className="border-slate-200 bg-white hover:shadow-lg transition-all duration-300">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/25">
                   <MessageSquare className="h-5 w-5 text-white" />
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-slate-800">{totalInteractions}</div>
-                <p className="text-xs text-slate-500 mt-1">All interactions</p>
-              </CardContent>
-            </Card>
+                <div>
+                  <CardTitle className="text-lg font-semibold text-slate-800">Overview</CardTitle>
+                  <CardDescription className="text-xs mt-0.5 text-slate-500">
+                    {totalGroups} session{totalGroups !== 1 ? "s" : ""} loaded
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 md:flex md:gap-0 md:divide-x md:divide-slate-200">
+                {/* Sessions */}
+                <div className="flex flex-col items-center text-center flex-1 md:px-4 py-2">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Layers className="h-3.5 w-3.5 text-purple-500" />
+                    <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Sessions</span>
+                  </div>
+                  <span className="text-2xl font-bold text-slate-800">{totalGroups}</span>
+                  <span className="text-xs text-slate-400 mt-0.5">unique sessions</span>
+                </div>
 
-          </div>
+                {/* Total Requests */}
+                <div className="flex flex-col items-center text-center flex-1 md:px-4 py-2">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <FileText className="h-3.5 w-3.5 text-blue-500" />
+                    <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Requests</span>
+                  </div>
+                  <span className="text-2xl font-bold text-slate-800">{totalRequests}</span>
+                  <span className="text-xs text-slate-400 mt-0.5">all requests</span>
+                </div>
+
+                {/* Total Interactions */}
+                <div className="flex flex-col items-center text-center flex-1 md:px-4 py-2">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <MessageSquare className="h-3.5 w-3.5 text-indigo-500" />
+                    <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Interactions</span>
+                  </div>
+                  <span className="text-2xl font-bold text-slate-800">{totalInteractions}</span>
+                  <span className="text-xs text-slate-400 mt-0.5">all interactions</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Search and Filters */}
           <Card className="border-slate-200 bg-white overflow-hidden hover:shadow-lg transition-all duration-300">

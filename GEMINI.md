@@ -5,8 +5,16 @@
 - run command in poetry env
 - never change env variable value in .env file
 
-# Test account for API
-if need to login, login with username "local_supabase" with password "s" to test the api end to end. login using `http://localhost:8081/token` api
+# API Authentication
+Use `REFLEXIO_API_KEY` from `.env` to authenticate API requests. Pass it as a Bearer token in the Authorization header, e.g.:
+```
+curl -H "Authorization: Bearer $REFLEXIO_API_KEY" http://localhost:8081/...
+```
+Or with the Python client:
+```python
+from reflexio import ReflexioClient
+client = ReflexioClient(url_endpoint="http://localhost:8081")  # picks up REFLEXIO_API_KEY from env automatically
+```
 Use Curl to test api and get test information for investigation, which is faster than going through with web browser like chrome.
 Test with Chrome when there is frontend related task.
 
