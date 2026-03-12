@@ -328,7 +328,14 @@ export default function RegisterPage() {
                   id="invitationCode"
                   type="text"
                   value={invitationCode}
-                  onChange={(e) => setInvitationCode(e.target.value)}
+                  onChange={(e) => {
+                    const sanitized = e.target.value
+                      .trimStart()
+                      .replace(/\s+$/, "")
+                      .toUpperCase()
+                      .replace(/[^A-Z0-9\-]/g, "")
+                    setInvitationCode(sanitized)
+                  }}
                   required={invitationRequired}
                   autoComplete="off"
                   disabled={isLoading}
