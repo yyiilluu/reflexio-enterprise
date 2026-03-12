@@ -18,8 +18,7 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [showVerificationNotice, setShowVerificationNotice] = useState(false)
   const [showAutoVerifiedNotice, setShowAutoVerifiedNotice] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [showPasswords, setShowPasswords] = useState(false)
   const { register, isAuthenticated, isSelfHost } = useAuth()
   const router = useRouter()
 
@@ -206,7 +205,7 @@ export default function RegisterPage() {
                 <div className="relative">
                   <Input
                     id="password"
-                    type={showPassword ? "text" : "password"}
+                    type={showPasswords ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -220,10 +219,10 @@ export default function RegisterPage() {
                     variant="ghost"
                     size="icon"
                     className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                    onClick={() => setShowPassword(!showPassword)}
+                    onClick={() => setShowPasswords(!showPasswords)}
                     tabIndex={-1}
                   >
-                    {showPassword ? (
+                    {showPasswords ? (
                       <EyeOff className="h-4 w-4 text-muted-foreground" />
                     ) : (
                       <Eye className="h-4 w-4 text-muted-foreground" />
@@ -243,7 +242,7 @@ export default function RegisterPage() {
                 <div className="relative">
                   <Input
                     id="confirmPassword"
-                    type={showConfirmPassword ? "text" : "password"}
+                    type={showPasswords ? "text" : "password"}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
@@ -257,10 +256,10 @@ export default function RegisterPage() {
                     variant="ghost"
                     size="icon"
                     className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    onClick={() => setShowPasswords(!showPasswords)}
                     tabIndex={-1}
                   >
-                    {showConfirmPassword ? (
+                    {showPasswords ? (
                       <EyeOff className="h-4 w-4 text-muted-foreground" />
                     ) : (
                       <Eye className="h-4 w-4 text-muted-foreground" />
