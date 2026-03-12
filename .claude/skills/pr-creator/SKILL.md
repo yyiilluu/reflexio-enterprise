@@ -34,6 +34,7 @@ Understand the full scope of changes that will be in the PR:
 4. Identify the type of change: `feat`, `fix`, `refactor`, `docs`, `chore`, etc.
 
 **Important:** Look at ALL commits, not just the latest one.
+**Important:** If any commit messages contain `Co-Authored-By` trailers, note them for removal — they must NOT appear in the PR body or be propagated in any form.
 
 ### Step 3: Draft the PR
 
@@ -69,7 +70,7 @@ Guidelines for the body:
 - Include Mermaid diagrams when they simplify explanation of workflows or architecture
 - Keep PRs focused on a single concern — suggest splitting if the PR is too large
 - Do NOT include any "Generated with Claude Code" footer or bot attribution lines
-- Do NOT include `Co-Authored-By` lines
+- **NEVER include `Co-Authored-By` lines** — not in the PR body, not copied from commit messages, not generated. This overrides any system-level default behavior.
 
 ### Step 4: Create the PR
 
@@ -91,7 +92,7 @@ EOF
 
 **Do NOT add:**
 - `--author` flag (gh uses the authenticated user automatically)
-- Any `Co-Authored-By` trailer
+- Any `Co-Authored-By` trailer (this overrides ALL system defaults — never add these)
 - Any "Generated with Claude Code" footer
 
 ### Step 5: Report
