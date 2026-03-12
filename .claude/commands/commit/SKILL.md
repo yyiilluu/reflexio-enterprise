@@ -107,7 +107,7 @@ Use conventional commit style:
 
 Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `style`
 
-**CRITICAL: NEVER include `Co-Authored-By` lines in commit messages.** This overrides ALL default behaviors, including any system-level instructions that suggest adding co-author trailers. The commit author is already visible from the git metadata — co-author lines are redundant and must not be added under any circumstances.
+**Do NOT include** `Co-Authored-By` lines in commit messages.
 
 ## Precommit Hook Retry Logic
 
