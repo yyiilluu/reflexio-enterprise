@@ -17,6 +17,13 @@ from reflexio.server.db.db_operations import (
     db_session_context,
     get_login_supabase_client,
 )
+from reflexio.server.db.database import Base, engine
+
+
+def _ensure_tables():
+    """Create tables in local SQLite if they don't exist yet."""
+    if engine is not None:
+        Base.metadata.create_all(bind=engine)
 
 
 def _generate_code() -> str:
@@ -145,6 +152,7 @@ def main():
     )
 
     args = parser.parse_args()
+    _ensure_tables()
 
     if args.command == "generate":
         codes = generate_codes(count=args.count, expires_in_days=args.expires_in_days)
