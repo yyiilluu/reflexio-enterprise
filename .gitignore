@@ -203,6 +203,7 @@ site/
 
 # super admin scripts
 reflexio/scripts/super_admin/init_db.sh
+local_script/
 
 # Spell
 .cspell/*

@@ -278,24 +278,42 @@ class ReflexioClient:
         return Token(**response)
 
     def _publish_interaction_sync(
-        self, request: PublishUserInteractionRequest
+        self,
+        request: PublishUserInteractionRequest,
+        wait_for_response: bool = False,
     ) -> PublishUserInteractionResponse:
-        """Internal sync method to publish interaction."""
+        """Internal sync method to publish interaction.
+
+        Args:
+            request (PublishUserInteractionRequest): The publish request
+            wait_for_response (bool): If True, server processes synchronously and returns real result
+        """
+        params = {"wait_for_response": "true"} if wait_for_response else None
         response = self._make_request(
             "POST",
             "/api/publish_interaction",
             json=request.model_dump(),
+            params=params,
         )
         return PublishUserInteractionResponse(**response)
 
     async def _publish_interaction_async(
-        self, request: PublishUserInteractionRequest
+        self,
+        request: PublishUserInteractionRequest,
+        wait_for_response: bool = False,
     ) -> PublishUserInteractionResponse:
-        """Internal async method to publish interaction."""
+        """Internal async method to publish interaction.
+
+        Args:
+            request (PublishUserInteractionRequest): The publish request
+            wait_for_response (bool): If True, server processes synchronously and returns real result
+        """
+        params = {"wait_for_response": "true"} if wait_for_response else None
         response = await self._make_async_request(
             "POST",
             "/api/publish_interaction",
             json=request.model_dump(),
+            params=params,
         )
         return PublishUserInteractionResponse(**response)
 
@@ -341,8 +359,8 @@ class ReflexioClient:
         )
 
         if wait_for_response:
-            # Synchronous blocking call
-            return self._publish_interaction_sync(request)
+            # Synchronous blocking call — server processes synchronously too
+            return self._publish_interaction_sync(request, wait_for_response=True)
         else:
             # Non-blocking fire-and-forget
             self._fire_and_forget(self._publish_interaction_async, request)

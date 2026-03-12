@@ -160,6 +160,7 @@ logger = logging.getLogger(__name__)
 
 # Bot protection configuration
 REQUEST_TIMEOUT_SECONDS = 60
+SYNC_REQUEST_TIMEOUT_SECONDS = 600  # Longer timeout for synchronous processing (wait_for_response=true)
 SUSPICIOUS_USER_AGENTS = ["bot", "crawler", "spider", "scraper", "curl", "wget"]
 ALLOWED_EMPTY_UA_PATHS = ["/health", "/"]  # Paths that allow empty user agents
 
@@ -235,9 +236,14 @@ class TimeoutMiddleware(BaseHTTPMiddleware):
         """
         from starlette.responses import JSONResponse
 
+        # Use longer timeout for synchronous processing requests
+        timeout = REQUEST_TIMEOUT_SECONDS
+        if request.query_params.get("wait_for_response", "").lower() == "true":
+            timeout = SYNC_REQUEST_TIMEOUT_SECONDS
+
         try:
             return await asyncio.wait_for(
-                call_next(request), timeout=REQUEST_TIMEOUT_SECONDS
+                call_next(request), timeout=timeout
             )
         except asyncio.TimeoutError:
             return JSONResponse(
@@ -717,15 +723,19 @@ def publish_user_interaction(
     payload: PublishUserInteractionRequest,
     background_tasks: BackgroundTasks,
     org_id: str = Depends(get_org_id_for_self_host),
+    wait_for_response: bool = False,
 ):
-    # Run the long-running task in the background to avoid timeout
-    # Client receives immediate response while processing continues
-    background_tasks.add_task(
-        publisher_api.add_user_interaction, org_id=org_id, request=payload
-    )
-    return PublishUserInteractionResponse(
-        success=True, message="Interaction queued for processing"
-    )
+    if wait_for_response:
+        # Process synchronously so the caller gets the real result
+        return publisher_api.add_user_interaction(org_id=org_id, request=payload)
+    else:
+        # Run in background — caller gets immediate acknowledgement
+        background_tasks.add_task(
+            publisher_api.add_user_interaction, org_id=org_id, request=payload
+        )
+        return PublishUserInteractionResponse(
+            success=True, message="Interaction queued for processing"
+        )
 
 
 @app.post(
