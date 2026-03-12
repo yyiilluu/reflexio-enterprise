@@ -31,7 +31,7 @@ Description: FastAPI backend server that processes user interactions to generate
 | `request_context.py` | RequestContext (bundles org_id, storage, configurator, prompt_manager) |
 | `publisher_api.py` | Publishing user interactions |
 | `retriever_api.py` | Retrieving profiles, interactions, requests |
-| `login.py` | Authentication with TTL-cached org lookups (5 min TTL), email verification, password reset |
+| `login.py` | Authentication with TTL-cached token/org lookups (5 min TTL), `rflx-` API key generation, email verification, password reset |
 | `precondition_checks.py` | Request validation |
 | `self_managed_migration.py` | Background migration for self-managed orgs (triggered on login, TTL-throttled 10 min) |
 
@@ -64,7 +64,9 @@ Description: FastAPI backend server that processes user interactions to generate
 - `GET /api/get_operation_status` - Get background operation status
 - `POST /api/cancel_operation` - Cancel an in-progress operation (rerun or manual generation)
 
-**Login Response**: `POST /token` now returns `feature_flags: dict[str, bool]` alongside `api_key` and `token_type`. Frontend stores these in localStorage to gate UI features. For self-managed orgs (`is_self_managed=True`), login also triggers a background migration check via `self_managed_migration.py`.
+**Login Response**: `POST /token` returns `api_key` (40-char `rflx-` prefixed token), `token_type`, and `feature_flags: dict[str, bool]`. Frontend stores these in localStorage. For self-managed orgs (`is_self_managed=True`), login also triggers a background migration check via `self_managed_migration.py`.
+
+**Authentication**: API keys use `rflx-` prefix format (40 chars). Auth flow: Bearer token → DB lookup in `api_tokens` table → get `org_id` → load org. Legacy JWT tokens are still supported as fallback. Multiple tokens per org are supported.
 
 **Authentication Endpoints**:
 - `POST /api/register` - Register new org (accepts optional `invitation_code` form field; when `invitation_only` flag enabled, code is required and org is auto-verified)
@@ -72,6 +74,11 @@ Description: FastAPI backend server that processes user interactions to generate
 - `POST /api/resend-verification` - Resend verification email
 - `POST /api/forgot-password` - Request password reset email
 - `POST /api/reset-password` - Reset password with token
+
+**API Token Management Endpoints**:
+- `GET /api/tokens` - List all tokens for current org (masked values)
+- `POST /api/tokens` - Create new token (returns full value once), body: `{"name": "..."}`
+- `DELETE /api/tokens/{token_id}` - Delete a token (cannot delete last token)
 
 **Self-Host Mode** (`SELF_HOST=true`): No auth, default org: `self-host-org`, requires S3 config storage (`CONFIG_S3_*` env vars)
 
@@ -83,8 +90,8 @@ Description: FastAPI backend server that processes user interactions to generate
 
 Key files:
 - `database.py`: Connection setup (priority: S3 in self-host → Supabase → SQLite)
-- `db_models.py`: SQLAlchemy models (users, tokens, configs, invitation codes)
-- `db_operations.py`: CRUD operations with retry logic (tenacity: 3 attempts, exponential backoff), invitation code management (claim/release/create)
+- `db_models.py`: SQLAlchemy models (Organization, ApiToken, InvitationCode)
+- `db_operations.py`: CRUD operations with retry logic (tenacity: 3 attempts, exponential backoff), invitation code management (claim/release/create), API token management (create/list/lookup/delete)
 - `login_supabase_client.py`: Cloud Supabase client for auth (see `supabase_login/README.md`)
 - `s3_org_storage.py`: S3-based organization storage for self-host mode (singleton, cached in memory)
 

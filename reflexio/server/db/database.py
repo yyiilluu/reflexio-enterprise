@@ -74,3 +74,13 @@ else:
     )
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base = declarative_base()
+
+
+def ensure_sqlite_tables():
+    """Create all tables in local SQLite if using SQLite fallback.
+
+    Call this after all models have been imported to ensure tables exist.
+    Safe to call multiple times (uses CREATE TABLE IF NOT EXISTS).
+    """
+    if engine is not None:
+        Base.metadata.create_all(bind=engine)
