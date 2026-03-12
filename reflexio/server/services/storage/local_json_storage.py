@@ -2949,6 +2949,12 @@ class LocalJsonStorage(BaseStorage):
         ]
         self._save(all_memories)
 
+    def delete_all_skills(self):
+        """Delete all skills for this organization."""
+        all_memories = self._load()
+        all_memories["skills"] = []
+        self._save(all_memories)
+
     def get_interactions_by_request_ids(
         self, request_ids: list[str]
     ) -> list[Interaction]:

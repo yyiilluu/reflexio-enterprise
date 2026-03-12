@@ -80,6 +80,9 @@ Description: FastAPI backend server that processes user interactions to generate
 - `POST /api/tokens` - Create new token (returns full value once), body: `{"name": "..."}`
 - `DELETE /api/tokens/{token_id}` - Delete a token (cannot delete last token)
 
+**Account Management Endpoints**:
+- `DELETE /api/account` - Permanently delete account and all data (requires password re-verification, disabled in self-host mode, rate-limited 3/hour)
+
 **Self-Host Mode** (`SELF_HOST=true`): No auth, default org: `self-host-org`, requires S3 config storage (`CONFIG_S3_*` env vars)
 
 **Pattern**: All endpoints call `Reflexio` from `reflexio_lib.py`
@@ -91,7 +94,7 @@ Description: FastAPI backend server that processes user interactions to generate
 Key files:
 - `database.py`: Connection setup (priority: S3 in self-host → Supabase → SQLite)
 - `db_models.py`: SQLAlchemy models (Organization, ApiToken, InvitationCode)
-- `db_operations.py`: CRUD operations with retry logic (tenacity: 3 attempts, exponential backoff), invitation code management (claim/release/create), API token management (create/list/lookup/delete)
+- `db_operations.py`: CRUD operations with retry logic (tenacity: 3 attempts, exponential backoff), invitation code management (claim/release/create), API token management (create/list/lookup/delete/bulk-delete), organization deletion
 - `login_supabase_client.py`: Cloud Supabase client for auth (see `supabase_login/README.md`)
 - `s3_org_storage.py`: S3-based organization storage for self-host mode (singleton, cached in memory)
 

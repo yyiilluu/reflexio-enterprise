@@ -3242,6 +3242,11 @@ class SupabaseStorage(BaseStorage):
         ).execute()
 
     @handle_exceptions
+    def delete_all_skills(self):
+        """Delete all skills for this organization."""
+        self.client.table("skills").delete().eq("org_id", self.org_id).execute()
+
+    @handle_exceptions
     def get_interactions_by_request_ids(
         self, request_ids: list[str]
     ) -> list[Interaction]:

@@ -15,11 +15,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Copy, Check, KeyRound, User, Mail, ShieldCheck, Terminal, Plus, Trash2, AlertTriangle } from "lucide-react"
-import { getApiTokens, createApiToken, deleteApiToken, type ApiToken } from "@/lib/api"
+import { Copy, Check, KeyRound, User, Mail, ShieldCheck, Terminal, Plus, Trash2, AlertTriangle, Loader2 } from "lucide-react"
+import { getApiTokens, createApiToken, deleteApiToken, deleteAccount, type ApiToken } from "@/lib/api"
+import { useRouter } from "next/navigation"
 
 export default function AccountPage() {
-  const { userEmail, token, isSelfHost } = useAuth()
+  const { userEmail, token, isSelfHost, logout } = useAuth()
+  const router = useRouter()
   const [snippetCopied, setSnippetCopied] = useState(false)
   const [tokens, setTokens] = useState<ApiToken[]>([])
   const [loading, setLoading] = useState(true)
@@ -35,6 +37,12 @@ export default function AccountPage() {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [tokenToDelete, setTokenToDelete] = useState<ApiToken | null>(null)
   const [deleting, setDeleting] = useState(false)
+
+  // Delete account state
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false)
+  const [deleteAccountPassword, setDeleteAccountPassword] = useState("")
+  const [deletingAccount, setDeletingAccount] = useState(false)
+  const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null)
 
   const fetchTokens = useCallback(async () => {
     if (isSelfHost || !token) return
@@ -117,6 +125,28 @@ client = ReflexioClient()`
     setTimeout(() => setSnippetCopied(false), 2000)
   }
 
+  const handleDeleteAccount = async () => {
+    if (!deleteAccountPassword.trim()) return
+    setDeletingAccount(true)
+    setDeleteAccountError(null)
+    try {
+      await deleteAccount(deleteAccountPassword)
+      setDeleteAccountOpen(false)
+      await logout()
+      router.push("/")
+    } catch (error) {
+      setDeleteAccountError(error instanceof Error ? error.message : "Failed to delete account")
+    } finally {
+      setDeletingAccount(false)
+    }
+  }
+
+  const handleCloseDeleteAccount = () => {
+    setDeleteAccountOpen(false)
+    setDeleteAccountPassword("")
+    setDeleteAccountError(null)
+  }
+
   const formatDate = (timestamp: number | null) => {
     if (!timestamp) return "—"
     return new Date(timestamp * 1000).toLocaleDateString("en-US", {
@@ -190,6 +220,68 @@ client = ReflexioClient()`
               </div>
             </CardContent>
           </Card>
+
+          {/* Delete Account Dialog */}
+          <Dialog open={deleteAccountOpen} onOpenChange={(open) => {
+            if (!open) handleCloseDeleteAccount()
+            else setDeleteAccountOpen(true)
+          }}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="text-red-600">Delete Account</DialogTitle>
+                <DialogDescription>
+                  This action is permanent and cannot be undone. All your data will be deleted, including:
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3">
+                <ul className="text-sm text-slate-600 list-disc list-inside space-y-1">
+                  <li>All interactions and profiles</li>
+                  <li>All feedbacks and skills</li>
+                  <li>All API keys</li>
+                  <li>Your organization record</li>
+                </ul>
+                {deleteAccountError && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200">
+                    <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                    <p className="text-xs text-red-800">{deleteAccountError}</p>
+                  </div>
+                )}
+                <div>
+                  <Label htmlFor="delete-password">Enter your password to confirm</Label>
+                  <Input
+                    id="delete-password"
+                    type="password"
+                    placeholder="Your password"
+                    value={deleteAccountPassword}
+                    onChange={(e) => setDeleteAccountPassword(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && deleteAccountPassword.trim()) handleDeleteAccount()
+                    }}
+                    className="mt-2"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={handleCloseDeleteAccount}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteAccount}
+                  disabled={!deleteAccountPassword.trim() || deletingAccount}
+                >
+                  {deletingAccount ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    "Delete My Account"
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* API Keys Card */}
           <Card className="border-slate-200 bg-white overflow-hidden hover:shadow-lg transition-all duration-300">
@@ -431,6 +523,43 @@ client = ReflexioClient()`
               )}
             </CardContent>
           </Card>
+
+          {/* Danger Zone Card — hidden in self-host mode */}
+          {!isSelfHost && token && (
+            <Card className="border-red-200 bg-white overflow-hidden hover:shadow-lg transition-all duration-300">
+              <CardHeader className="pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-red-50 to-red-100 flex items-center justify-center border border-red-200">
+                    <AlertTriangle className="h-4 w-4 text-red-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg font-semibold text-slate-800">Danger Zone</CardTitle>
+                    <CardDescription className="text-xs mt-1 text-slate-500">
+                      Irreversible actions for your account
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between p-4 rounded-xl border border-red-100 bg-red-50/50">
+                  <div>
+                    <p className="text-sm font-medium text-slate-800">Delete Account</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Permanently delete your account and all associated data
+                    </p>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setDeleteAccountOpen(true)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1.5" />
+                    Delete Account
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>

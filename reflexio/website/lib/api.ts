@@ -1133,6 +1133,21 @@ export async function deleteApiToken(tokenId: number): Promise<{ success: boolea
   }
 }
 
+export async function deleteAccount(password: string): Promise<{ success: boolean; message: string }> {
+  const response = await fetch(`${API_BASE_URL}/api/account`, {
+    method: "DELETE",
+    headers: getHeaders(),
+    body: JSON.stringify({ password }),
+  })
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}))
+    throw new Error(data.detail || `Failed to delete account (${response.status})`)
+  }
+
+  return await response.json()
+}
+
 // Skill types
 export type SkillStatus = "draft" | "published" | "deprecated"
 

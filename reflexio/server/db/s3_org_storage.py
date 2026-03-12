@@ -520,6 +520,48 @@ class S3OrganizationStorage:
                     return True
             return False
 
+    def delete_all_api_tokens_for_org(self, org_id: int) -> int:
+        """
+        Delete all API tokens for an organization.
+
+        Args:
+            org_id: Organization ID
+
+        Returns:
+            int: Number of tokens deleted
+        """
+        with self._write_lock:
+            old_tokens = list(self.store.api_tokens)
+            removed = [t for t in self.store.api_tokens if t.get("org_id") == org_id]
+            self.store.api_tokens = [
+                t for t in self.store.api_tokens if t.get("org_id") != org_id
+            ]
+            if removed:
+                if not self._save_to_s3():
+                    self.store.api_tokens = old_tokens
+                    raise Exception("Failed to save to S3")
+            return len(removed)
+
+    def delete_organization(self, org_id: int) -> bool:
+        """
+        Delete an organization from S3 storage.
+
+        Args:
+            org_id: Organization ID to delete
+
+        Returns:
+            bool: True if deleted, False if not found
+        """
+        with self._write_lock:
+            for i, org_dict in enumerate(self.store.organizations):
+                if org_dict.get("id") == org_id:
+                    old_org = self.store.organizations.pop(i)
+                    if not self._save_to_s3():
+                        self.store.organizations.insert(i, old_org)
+                        raise Exception("Failed to save to S3")
+                    return True
+            return False
+
 
 # Singleton getter
 _s3_org_storage_instance: Optional[S3OrganizationStorage] = None

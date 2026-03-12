@@ -34,6 +34,7 @@ from reflexio.server.api_endpoints.login import (
     oauth2_scheme,
     register_organization,
     verify_email_token,
+    verify_password,
     verify_password_reset_token,
 )
 from reflexio_commons.api_schema.service_schemas import (
@@ -128,6 +129,8 @@ from reflexio.server.db.db_operations import (
     create_api_token,
     get_api_tokens_by_org_id,
     delete_api_token,
+    delete_all_api_tokens_for_org,
+    delete_organization,
 )
 from reflexio.server.site_var.feature_flags import (
     get_all_feature_flags,
@@ -706,6 +709,116 @@ def delete_api_token_endpoint(
                 break
 
         return {"success": True, "message": "Token deleted"}
+    finally:
+        if session is not None:
+            session.close()
+
+
+@app.delete("/api/account")
+@limiter.limit("3/hour")
+def delete_account(
+    request: Request,
+    payload: dict,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(
+        optional_oauth2_scheme
+    ),
+):
+    """
+    Permanently delete the current user's account and all associated data.
+    Requires password re-verification. Disabled in self-host mode.
+
+    Args:
+        request (Request): The HTTP request object (for rate limiting)
+        payload (dict): Must contain {"password": "..."}
+
+    Returns:
+        dict: Success status and message
+    """
+    if SELF_HOST_MODE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account deletion is not available in self-host mode",
+        )
+
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    password = payload.get("password")
+    if not password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password is required",
+        )
+
+    session = next(get_db_session())
+    try:
+        current_org = get_current_active_org(
+            token=credentials.credentials, session=session
+        )
+
+        # Verify password
+        if not verify_password(password, str(current_org.hashed_password)):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect password",
+            )
+
+        org_id = str(current_org.id)
+        email = str(current_org.email)
+
+        # 1. Delete all storage data (best-effort)
+        try:
+            reflexio_instance = get_reflexio(org_id=org_id)
+            storage = reflexio_instance.request_context.storage
+
+            delete_methods = [
+                "delete_all_interactions",
+                "delete_all_profiles",
+                "delete_all_feedbacks",
+                "delete_all_raw_feedbacks",
+                "delete_all_requests",
+                "delete_all_skills",
+                "delete_all_operation_states",
+                "delete_all_profile_change_logs",
+                "delete_all_feedback_aggregation_change_logs",
+                "delete_all_agent_success_evaluation_results",
+            ]
+            for method_name in delete_methods:
+                try:
+                    getattr(storage, method_name)()
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to call {method_name} for org {org_id}: {e}"
+                    )
+        except Exception as e:
+            logger.warning(f"Failed to delete storage data for org {org_id}: {e}")
+
+        # 2. Delete all API tokens
+        try:
+            tokens = get_api_tokens_by_org_id(session=session, org_id=current_org.id)
+            for t in tokens:
+                invalidate_token_cache(t.token)
+            delete_all_api_tokens_for_org(session=session, org_id=current_org.id)
+        except Exception as e:
+            logger.warning(f"Failed to delete API tokens for org {org_id}: {e}")
+
+        # 3. Delete organization record
+        deleted = delete_organization(session=session, org_id=current_org.id)
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to delete organization",
+            )
+
+        # 4. Invalidate caches
+        invalidate_org_cache(email)
+        invalidate_reflexio_cache(org_id=org_id)
+
+        return {"success": True, "message": "Account deleted successfully"}
     finally:
         if session is not None:
             session.close()

@@ -1091,6 +1091,11 @@ class BaseStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def delete_all_skills(self):
+        """Delete all skills for this organization."""
+        raise NotImplementedError
+
+    @abstractmethod
     def get_interactions_by_request_ids(
         self, request_ids: list[str]
     ) -> list[Interaction]:

@@ -650,6 +650,81 @@ def delete_api_token(
         return True
 
 
+def delete_all_api_tokens_for_org(session: Session, org_id: int) -> int:
+    """
+    Delete all API tokens for an organization.
+
+    Args:
+        session: SQLAlchemy session (ignored if using Supabase or S3)
+        org_id: Organization ID
+
+    Returns:
+        int: Number of tokens deleted
+    """
+    if _is_self_host_s3_mode():
+        s3_storage = get_s3_org_storage()
+        return s3_storage.delete_all_api_tokens_for_org(org_id)
+
+    client = get_login_supabase_client()
+    if client:
+        response = (
+            client.table("api_tokens")
+            .delete()
+            .eq("org_id", org_id)
+            .execute()
+        )
+        return len(response.data)
+    else:
+        if session is None:
+            return 0
+        count = (
+            session.query(db_models.ApiToken)
+            .filter(db_models.ApiToken.org_id == org_id)
+            .delete()
+        )
+        session.commit()
+        return count
+
+
+def delete_organization(session: Session, org_id: int) -> bool:
+    """
+    Delete an organization record by ID.
+
+    Args:
+        session: SQLAlchemy session (ignored if using Supabase or S3)
+        org_id: Organization ID to delete
+
+    Returns:
+        bool: True if deleted, False if not found
+    """
+    if _is_self_host_s3_mode():
+        s3_storage = get_s3_org_storage()
+        return s3_storage.delete_organization(org_id)
+
+    client = get_login_supabase_client()
+    if client:
+        response = (
+            client.table("organizations")
+            .delete()
+            .eq("id", org_id)
+            .execute()
+        )
+        return len(response.data) > 0
+    else:
+        if session is None:
+            return False
+        result = (
+            session.query(db_models.Organization)
+            .filter(db_models.Organization.id == org_id)
+            .first()
+        )
+        if result is None:
+            return False
+        session.delete(result)
+        session.commit()
+        return True
+
+
 def add_db_model(session: Session, db_model: db_models.Base) -> db_models.Base:
     """
     Add a generic database model (SQLAlchemy only, for backward compatibility).
