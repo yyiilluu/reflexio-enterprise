@@ -21,7 +21,7 @@ from tenacity import (
 )
 
 from reflexio.server.db import db_models
-from reflexio.server.db.database import SessionLocal
+from reflexio.server.db.database import SessionLocal, ensure_sqlite_tables
 from reflexio.server.db.login_supabase_client import (
     get_login_supabase_client,
     is_using_login_supabase,
@@ -32,6 +32,9 @@ from reflexio.server.db.s3_org_storage import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Ensure SQLite tables exist (no-op for Supabase/S3 modes)
+ensure_sqlite_tables()
 
 # Check if in self-host mode
 SELF_HOST_MODE = os.getenv("SELF_HOST", "false").lower() == "true"
@@ -438,6 +441,213 @@ def create_invitation_code(
         session.commit()
         session.refresh(inv)
         return inv
+
+
+def _row_to_api_token(row: dict) -> db_models.ApiToken:
+    """
+    Convert a Supabase/dict row to an ApiToken model instance.
+
+    Args:
+        row: Dictionary from query result
+
+    Returns:
+        ApiToken model instance
+    """
+    token = db_models.ApiToken()
+    token.id = row.get("id")
+    token.org_id = row.get("org_id")
+    token.token = row.get("token")
+    token.name = row.get("name", "Default")
+    token.created_at = row.get("created_at")
+    token.last_used_at = row.get("last_used_at")
+    return token
+
+
+def create_api_token(
+    session: Session, org_id: int, token_value: str, name: str = "Default"
+) -> db_models.ApiToken:
+    """
+    Create a new API token for an organization.
+
+    Args:
+        session: SQLAlchemy session (ignored if using Supabase or S3)
+        org_id: Organization ID
+        token_value: The token string (rflx-...)
+        name: Human-readable name for the token
+
+    Returns:
+        Created ApiToken object
+    """
+    created_at = int(datetime.now(timezone.utc).timestamp())
+
+    if _is_self_host_s3_mode():
+        s3_storage = get_s3_org_storage()
+        return s3_storage.create_api_token(org_id, token_value, name)
+
+    client = get_login_supabase_client()
+    if client:
+        data = {
+            "org_id": org_id,
+            "token": token_value,
+            "name": name,
+            "created_at": created_at,
+        }
+        response = client.table("api_tokens").insert(data).execute()
+        if response.data:
+            return _row_to_api_token(response.data[0])
+        raise Exception("Failed to create API token in Supabase")
+    else:
+        if session is None:
+            raise Exception("No session available and Supabase client not configured")
+        api_token = db_models.ApiToken(
+            org_id=org_id,
+            token=token_value,
+            name=name,
+            created_at=created_at,
+        )
+        session.add(api_token)
+        session.commit()
+        session.refresh(api_token)
+        return api_token
+
+
+def get_api_tokens_by_org_id(
+    session: Session, org_id: int
+) -> list[db_models.ApiToken]:
+    """
+    Get all API tokens for an organization.
+
+    Args:
+        session: SQLAlchemy session (ignored if using Supabase or S3)
+        org_id: Organization ID
+
+    Returns:
+        List of ApiToken objects
+    """
+    if _is_self_host_s3_mode():
+        s3_storage = get_s3_org_storage()
+        return s3_storage.get_api_tokens_by_org_id(org_id)
+
+    client = get_login_supabase_client()
+    if client:
+        response = (
+            client.table("api_tokens")
+            .select("*")
+            .eq("org_id", org_id)
+            .order("created_at")
+            .execute()
+        )
+        return [_row_to_api_token(row) for row in response.data]
+    else:
+        if session is None:
+            return []
+        return (
+            session.query(db_models.ApiToken)
+            .filter(db_models.ApiToken.org_id == org_id)
+            .order_by(db_models.ApiToken.created_at)
+            .all()
+        )
+
+
+def get_org_by_api_token(
+    session: Session, token_value: str
+) -> Optional[db_models.Organization]:
+    """
+    Look up an organization by API token value.
+
+    Args:
+        session: SQLAlchemy session (ignored if using Supabase or S3)
+        token_value: The token string to look up
+
+    Returns:
+        Organization or None
+    """
+    if _is_self_host_s3_mode():
+        s3_storage = get_s3_org_storage()
+        return s3_storage.get_org_by_api_token(token_value)
+
+    client = get_login_supabase_client()
+    if client:
+        response = (
+            client.table("api_tokens")
+            .select("org_id")
+            .eq("token", token_value)
+            .execute()
+        )
+        if not response.data:
+            return None
+        org_id = response.data[0]["org_id"]
+        # Now get the organization
+        org_response = (
+            client.table("organizations")
+            .select("*")
+            .eq("id", org_id)
+            .execute()
+        )
+        if org_response.data:
+            return _supabase_row_to_organization(org_response.data[0])
+        return None
+    else:
+        if session is None:
+            return None
+        api_token = (
+            session.query(db_models.ApiToken)
+            .filter(db_models.ApiToken.token == token_value)
+            .first()
+        )
+        if api_token is None:
+            return None
+        return (
+            session.query(db_models.Organization)
+            .filter(db_models.Organization.id == api_token.org_id)
+            .first()
+        )
+
+
+def delete_api_token(
+    session: Session, token_id: int, org_id: int
+) -> bool:
+    """
+    Delete an API token, ensuring it belongs to the given organization.
+
+    Args:
+        session: SQLAlchemy session (ignored if using Supabase or S3)
+        token_id: Token ID to delete
+        org_id: Organization ID (for ownership check)
+
+    Returns:
+        True if deleted, False if not found
+    """
+    if _is_self_host_s3_mode():
+        s3_storage = get_s3_org_storage()
+        return s3_storage.delete_api_token(token_id, org_id)
+
+    client = get_login_supabase_client()
+    if client:
+        response = (
+            client.table("api_tokens")
+            .delete()
+            .eq("id", token_id)
+            .eq("org_id", org_id)
+            .execute()
+        )
+        return len(response.data) > 0
+    else:
+        if session is None:
+            return False
+        result = (
+            session.query(db_models.ApiToken)
+            .filter(
+                db_models.ApiToken.id == token_id,
+                db_models.ApiToken.org_id == org_id,
+            )
+            .first()
+        )
+        if result is None:
+            return False
+        session.delete(result)
+        session.commit()
+        return True
 
 
 def add_db_model(session: Session, db_model: db_models.Base) -> db_models.Base:

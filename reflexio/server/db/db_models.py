@@ -33,3 +33,16 @@ class Organization(Base):
     configuration_json = Column(String, default="")
     api_key = Column(String, default="")
     is_self_managed = Column(Boolean, default=False)
+
+
+class ApiToken(Base):
+    __tablename__ = "api_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, nullable=False, index=True)
+    token = Column(String(40), unique=True, nullable=False, index=True)
+    name = Column(String(255), nullable=False, default="Default")
+    created_at = Column(
+        Integer, default=lambda: int(datetime.now(timezone.utc).timestamp())
+    )
+    last_used_at = Column(Integer, nullable=True)

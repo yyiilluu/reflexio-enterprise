@@ -22,16 +22,15 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
 from sqlalchemy.orm import Session
-from datetime import timedelta
 from reflexio.server.api_endpoints.login import (
-    ACCESS_TOKEN_EXPIRE_DAYS,
     authenticate_organization,
-    create_access_token,
     create_verification_token,
     create_password_reset_token,
+    generate_short_api_key,
     get_current_active_org,
     get_password_hash,
     invalidate_org_cache,
+    invalidate_token_cache,
     oauth2_scheme,
     register_organization,
     verify_email_token,
@@ -124,7 +123,12 @@ from reflexio_commons.api_schema.retriever_schema import (
     UnifiedSearchRequest,
     UnifiedSearchResponse,
 )
-from reflexio.server.db.db_operations import get_db_session
+from reflexio.server.db.db_operations import (
+    get_db_session,
+    create_api_token,
+    get_api_tokens_by_org_id,
+    delete_api_token,
+)
 from reflexio.server.site_var.feature_flags import (
     get_all_feature_flags,
     is_invitation_only_enabled,
@@ -141,6 +145,10 @@ from reflexio_commons.api_schema.login_schema import (
     ForgotPasswordResponse,
     ResetPasswordRequest,
     ResetPasswordResponse,
+    ApiTokenCreateRequest,
+    ApiTokenCreateResponse,
+    ApiTokenListResponse,
+    ApiTokenResponse,
 )
 from reflexio_commons.config_schema import Config
 from reflexio.server.cache.reflexio_cache import (
@@ -428,18 +436,21 @@ def login_for_access_token(
 
     feature_flags = get_all_feature_flags(str(org.id))
 
-    if org.api_key is not None and str(org.api_key) != "":
-        return {
-            "api_key": org.api_key,
-            "token_type": "bearer",
-            "feature_flags": feature_flags,
-        }
+    # Look up existing api_tokens for this org
+    existing_tokens = get_api_tokens_by_org_id(session=session, org_id=org.id)
+    if existing_tokens:
+        # Return the first existing token
+        api_key = existing_tokens[0].token
+    else:
+        # No tokens exist — create a default one
+        api_key = generate_short_api_key()
+        create_api_token(
+            session=session,
+            org_id=org.id,
+            token_value=api_key,
+            name="Default",
+        )
 
-    # create a new temporary api key if not already present
-    api_key_expires = timedelta(days=7)
-    api_key = create_access_token(
-        data={"sub": org.email}, expires_delta=api_key_expires
-    )
     return {"api_key": api_key, "token_type": "bearer", "feature_flags": feature_flags}
 
 
@@ -480,16 +491,20 @@ def register(
                 detail="Invalid, expired, or already used invitation code",
             )
 
-    api_key = create_access_token(
-        data={"sub": form_data.username},
-        expires_delta=timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS),
-    )
+    api_key = generate_short_api_key()
     try:
         org = register_organization(
             org_email=form_data.username,
             password=form_data.password,
             session=session,
             api_key=api_key,
+        )
+        # Create the api_token record
+        create_api_token(
+            session=session,
+            org_id=org.id,
+            token_value=api_key,
+            name="Default",
         )
     except Exception:
         # Release the invitation code if registration fails unexpectedly
@@ -516,6 +531,176 @@ def register(
     )
 
     return {"api_key": api_key, "token_type": "bearer"}
+
+
+def _mask_token(token_value: str) -> str:
+    """Mask a token for display: show prefix and last 4 chars."""
+    if len(token_value) <= 12:
+        return token_value[:4] + "..." + token_value[-4:]
+    return token_value[:8] + "..." + token_value[-4:]
+
+
+@app.get("/api/tokens", response_model=ApiTokenListResponse)
+def list_api_tokens(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(
+        optional_oauth2_scheme
+    ),
+):
+    """
+    List all API tokens for the current organization. Token values are masked.
+
+    Returns:
+        ApiTokenListResponse: List of masked tokens
+    """
+    if SELF_HOST_MODE:
+        return ApiTokenListResponse(tokens=[])
+
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    session = next(get_db_session())
+    try:
+        current_org = get_current_active_org(
+            token=credentials.credentials, session=session
+        )
+        tokens = get_api_tokens_by_org_id(session=session, org_id=current_org.id)
+        return ApiTokenListResponse(
+            tokens=[
+                ApiTokenResponse(
+                    id=t.id,
+                    name=t.name,
+                    token_masked=_mask_token(t.token),
+                    created_at=t.created_at,
+                    last_used_at=t.last_used_at,
+                )
+                for t in tokens
+            ]
+        )
+    finally:
+        if session is not None:
+            session.close()
+
+
+@app.post("/api/tokens", response_model=ApiTokenCreateResponse)
+def create_new_api_token(
+    payload: ApiTokenCreateRequest,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(
+        optional_oauth2_scheme
+    ),
+):
+    """
+    Create a new API token for the current organization.
+    Returns the full token value — it is only shown once.
+
+    Args:
+        payload: Token creation request with name
+
+    Returns:
+        ApiTokenCreateResponse: The newly created token (full value shown once)
+    """
+    if SELF_HOST_MODE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Token management not available in self-host mode",
+        )
+
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    session = next(get_db_session())
+    try:
+        current_org = get_current_active_org(
+            token=credentials.credentials, session=session
+        )
+        new_token_value = generate_short_api_key()
+        api_token = create_api_token(
+            session=session,
+            org_id=current_org.id,
+            token_value=new_token_value,
+            name=payload.name,
+        )
+        return ApiTokenCreateResponse(
+            id=api_token.id,
+            name=api_token.name,
+            token=api_token.token,
+            created_at=api_token.created_at,
+        )
+    finally:
+        if session is not None:
+            session.close()
+
+
+@app.delete("/api/tokens/{token_id}")
+def delete_api_token_endpoint(
+    token_id: int,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(
+        optional_oauth2_scheme
+    ),
+):
+    """
+    Delete an API token by ID.
+
+    Args:
+        token_id: ID of the token to delete
+
+    Returns:
+        dict: Success status
+    """
+    if SELF_HOST_MODE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Token management not available in self-host mode",
+        )
+
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    session = next(get_db_session())
+    try:
+        current_org = get_current_active_org(
+            token=credentials.credentials, session=session
+        )
+        # Prevent deleting the last token
+        existing_tokens = get_api_tokens_by_org_id(
+            session=session, org_id=current_org.id
+        )
+        if len(existing_tokens) <= 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot delete the last API token. Create a new one first.",
+            )
+
+        deleted = delete_api_token(
+            session=session, token_id=token_id, org_id=current_org.id
+        )
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Token not found",
+            )
+
+        # Invalidate cache for the deleted token
+        for t in existing_tokens:
+            if t.id == token_id:
+                invalidate_token_cache(t.token)
+                break
+
+        return {"success": True, "message": "Token deleted"}
+    finally:
+        if session is not None:
+            session.close()
 
 
 @app.post("/api/verify-email", response_model=VerifyEmailResponse)

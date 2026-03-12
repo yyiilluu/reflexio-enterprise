@@ -1057,6 +1057,82 @@ export async function cancelOperation(
   }
 }
 
+// API Token types
+export interface ApiToken {
+  id: number
+  name: string
+  token_masked: string
+  created_at: number | null
+  last_used_at: number | null
+}
+
+export interface ApiTokenListResponse {
+  tokens: ApiToken[]
+}
+
+export interface ApiTokenCreateResponse {
+  id: number
+  name: string
+  token: string
+  created_at: number | null
+}
+
+export async function getApiTokens(): Promise<ApiTokenListResponse> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/tokens`, {
+      method: "GET",
+      headers: getHeaders(),
+    })
+
+    if (!response.ok) {
+      throw new Error(`API request failed with status ${response.status}`)
+    }
+
+    return await response.json()
+  } catch (error) {
+    console.error("Error fetching API tokens:", error)
+    throw error
+  }
+}
+
+export async function createApiToken(name: string): Promise<ApiTokenCreateResponse> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/tokens`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ name }),
+    })
+
+    if (!response.ok) {
+      throw new Error(`API request failed with status ${response.status}`)
+    }
+
+    return await response.json()
+  } catch (error) {
+    console.error("Error creating API token:", error)
+    throw error
+  }
+}
+
+export async function deleteApiToken(tokenId: number): Promise<{ success: boolean; message: string }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/tokens/${tokenId}`, {
+      method: "DELETE",
+      headers: getHeaders(),
+    })
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}))
+      throw new Error(data.detail || `API request failed with status ${response.status}`)
+    }
+
+    return await response.json()
+  } catch (error) {
+    console.error("Error deleting API token:", error)
+    throw error
+  }
+}
+
 // Skill types
 export type SkillStatus = "draft" | "published" | "deprecated"
 
