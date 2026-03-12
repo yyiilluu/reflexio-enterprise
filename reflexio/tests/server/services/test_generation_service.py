@@ -40,13 +40,13 @@ def mock_llm_responses():
         yield
 
 
-def test_publish_request_with_request_group(mock_llm_responses):
+def test_publish_request_with_session_id(mock_llm_responses):
     """
-    Test that requests with a request_group are stored correctly.
+    Test that requests with a session_id are stored correctly.
     """
     user_id = "test_user_id"
     org_id = "test_org"
-    request_group = "test_request_group"
+    session_id = "test_session_id"
 
     with tempfile.TemporaryDirectory() as temp_dir:
         llm_config = LiteLLMConfig(model="gpt-4o-mini")
@@ -64,16 +64,16 @@ def test_publish_request_with_request_group(mock_llm_responses):
         request = PublishUserInteractionRequest(
             user_id=user_id,
             interaction_data_list=[interaction],
-            request_group=request_group,
+            session_id=session_id,
         )
 
         # Request should succeed
         generation_service.run(request)
 
 
-def test_empty_request_group_allows_multiple_requests(mock_llm_responses):
+def test_empty_session_id_allows_multiple_requests(mock_llm_responses):
     """
-    Test that multiple requests with empty request_group are allowed.
+    Test that multiple requests with empty session_id are allowed.
     """
     user_id = "test_user_id"
     org_id = "test_org"
@@ -87,30 +87,30 @@ def test_empty_request_group_allows_multiple_requests(mock_llm_responses):
         )
 
         interaction = InteractionData(
-            content="interaction without request group",
+            content="interaction without session",
             created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
         )
 
-        # Request without request_group (empty string)
+        # Request without session_id (empty string)
         request = PublishUserInteractionRequest(
             user_id=user_id,
             interaction_data_list=[interaction],
-            request_group="",  # Empty request group
+            session_id="",  # Empty session
         )
 
         # Should not raise any exception
         generation_service.run(request)
 
-        # Try another request with empty request_group - should also succeed
+        # Try another request with empty session_id - should also succeed
         another_interaction = InteractionData(
-            content="another interaction without request group",
+            content="another interaction without session",
             created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
         )
 
         another_request = PublishUserInteractionRequest(
             user_id=user_id,
             interaction_data_list=[another_interaction],
-            request_group="",
+            session_id="",
         )
 
         # Should not raise any exception

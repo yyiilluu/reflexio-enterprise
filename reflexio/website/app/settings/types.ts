@@ -81,6 +81,10 @@ export interface OpenRouterConfig {
   api_key: string
 }
 
+export interface MiniMaxConfig {
+  api_key: string
+}
+
 export interface CustomEndpointConfig {
   model: string
   api_key: string
@@ -92,6 +96,7 @@ export interface APIKeyConfig {
   openai?: OpenAIConfig
   anthropic?: AnthropicConfig
   openrouter?: OpenRouterConfig
+  minimax?: MiniMaxConfig
 }
 
 // LLM model configuration overrides

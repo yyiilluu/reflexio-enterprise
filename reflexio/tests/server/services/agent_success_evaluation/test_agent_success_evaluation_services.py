@@ -36,7 +36,7 @@ def create_request_interaction_data_model(
     request_id: str,
     user_id: str,
     interactions: list[Interaction],
-    request_group: str = "test_group",
+    session_id: str = "test_group",
     agent_version: str = "1.0",
 ) -> RequestInteractionDataModel:
     """Helper function to create a RequestInteractionDataModel for testing."""
@@ -45,13 +45,13 @@ def create_request_interaction_data_model(
         user_id=user_id,
         source="test",
         agent_version=agent_version,
-        request_group=request_group,
+        session_id=session_id,
         created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
     )
     return RequestInteractionDataModel(
         request=test_request,
         interactions=interactions,
-        request_group=request_group,
+        session_id=session_id,
     )
 
 
@@ -117,7 +117,7 @@ def test_evaluate_agent_success(mock_chat_completion):
 
         # Create agent success evaluation request
         evaluation_request = AgentSuccessEvaluationRequest(
-            request_id="test_request_id",
+            session_id="test_group",
             agent_version="1.0",
             request_interaction_data_models=[request_interaction],
         )
@@ -153,7 +153,7 @@ def test_empty_interactions(mock_chat_completion):
 
         # Create evaluation request with empty request_interaction_data_models
         evaluation_request = AgentSuccessEvaluationRequest(
-            request_id="test_request_id",
+            session_id="test_group",
             agent_version="1.0",
             request_interaction_data_models=[],
         )
@@ -195,7 +195,7 @@ def test_missing_configs(mock_chat_completion):
 
         # Create evaluation request without setting up configs
         evaluation_request = AgentSuccessEvaluationRequest(
-            request_id="test_request_id",
+            session_id="test_group",
             agent_version="1.0",
             request_interaction_data_models=[request_interaction],
         )
@@ -245,7 +245,7 @@ def test_error_handling(mock_chat_completion):
 
         # Create evaluation request
         evaluation_request = AgentSuccessEvaluationRequest(
-            request_id="test_request_id",
+            session_id="test_group",
             agent_version="1.0",
             request_interaction_data_models=[request_interaction],
         )
@@ -304,7 +304,7 @@ def test_multiple_configs(mock_chat_completion):
 
         # Create evaluation request
         evaluation_request = AgentSuccessEvaluationRequest(
-            request_id="test_request_id",
+            session_id="test_group",
             agent_version="1.0",
             request_interaction_data_models=[request_interaction],
         )
@@ -369,7 +369,7 @@ def test_with_tool_configs(mock_chat_completion):
 
         # Create evaluation request
         evaluation_request = AgentSuccessEvaluationRequest(
-            request_id="test_request_id",
+            session_id="test_group",
             agent_version="1.0",
             request_interaction_data_models=[request_interaction],
         )
@@ -483,7 +483,7 @@ def test_agent_success_message_construction_with_interactions():
 
             # Create evaluation request
             evaluation_request = AgentSuccessEvaluationRequest(
-                request_id="test_request_id",
+                session_id="test_group",
                 agent_version="1.0",
                 request_interaction_data_models=[request_interaction],
             )

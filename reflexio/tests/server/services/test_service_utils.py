@@ -11,7 +11,7 @@ from reflexio_commons.api_schema.service_schemas import (
 from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 from reflexio.server.services.service_utils import (
     format_interactions_to_history_string,
-    format_request_groups_to_history_string,
+    format_sessions_to_history_string,
 )
 
 
@@ -189,18 +189,18 @@ def _create_interaction(
     )
 
 
-def test_format_request_groups_to_history_string_empty():
-    """Test formatting empty request groups list."""
-    result = format_request_groups_to_history_string([])
+def test_format_sessions_to_history_string_empty():
+    """Test formatting empty sessions list."""
+    result = format_sessions_to_history_string([])
     assert result == ""
 
 
-def test_format_request_groups_to_history_string_single_group():
-    """Test formatting a single request group."""
+def test_format_sessions_to_history_string_single_group():
+    """Test formatting a single session."""
     base_time = int(datetime.now(timezone.utc).timestamp())
 
-    request_group = RequestInteractionDataModel(
-        request_group="group_1",
+    session_data = RequestInteractionDataModel(
+        session_id="group_1",
         request=_create_request("req_1", base_time),
         interactions=[
             _create_interaction(1, "Hello", "user", base_time),
@@ -208,20 +208,18 @@ def test_format_request_groups_to_history_string_single_group():
         ],
     )
 
-    result = format_request_groups_to_history_string([request_group])
-    expected = (
-        "=== Request Group: group_1 ===\nuser: ```Hello```\nassistant: ```Hi there!```"
-    )
+    result = format_sessions_to_history_string([session_data])
+    expected = "=== Session: group_1 ===\nuser: ```Hello```\nassistant: ```Hi there!```"
     assert result == expected
 
 
-def test_format_request_groups_to_history_string_consolidates_same_group():
+def test_format_sessions_to_history_string_consolidates_same_group():
     """Test that multiple requests with the same group name are consolidated under one header."""
     base_time = int(datetime.now(timezone.utc).timestamp())
 
-    # Three separate requests, all with the same request_group name
-    request_group_1 = RequestInteractionDataModel(
-        request_group="group_1",
+    # Three separate requests, all with the same session_id name
+    session_id_1 = RequestInteractionDataModel(
+        session_id="group_1",
         request=_create_request("req_1", base_time),
         interactions=[
             _create_interaction(1, "First message", "user", base_time),
@@ -229,8 +227,8 @@ def test_format_request_groups_to_history_string_consolidates_same_group():
         ],
     )
 
-    request_group_2 = RequestInteractionDataModel(
-        request_group="group_1",
+    session_id_2 = RequestInteractionDataModel(
+        session_id="group_1",
         request=_create_request("req_2", base_time + 100),
         interactions=[
             _create_interaction(3, "Second message", "user", base_time + 100),
@@ -238,8 +236,8 @@ def test_format_request_groups_to_history_string_consolidates_same_group():
         ],
     )
 
-    request_group_3 = RequestInteractionDataModel(
-        request_group="group_1",
+    session_id_3 = RequestInteractionDataModel(
+        session_id="group_1",
         request=_create_request("req_3", base_time + 200),
         interactions=[
             _create_interaction(5, "Third message", "user", base_time + 200),
@@ -247,13 +245,13 @@ def test_format_request_groups_to_history_string_consolidates_same_group():
         ],
     )
 
-    result = format_request_groups_to_history_string(
-        [request_group_1, request_group_2, request_group_3]
+    result = format_sessions_to_history_string(
+        [session_id_1, session_id_2, session_id_3]
     )
 
     # All interactions should be under a single header
     expected = (
-        "=== Request Group: group_1 ===\n"
+        "=== Session: group_1 ===\n"
         "user: ```First message```\n"
         "assistant: ```First response```\n"
         "user: ```Second message```\n"
@@ -264,12 +262,12 @@ def test_format_request_groups_to_history_string_consolidates_same_group():
     assert result == expected
 
 
-def test_format_request_groups_to_history_string_multiple_groups():
-    """Test formatting multiple different request groups."""
+def test_format_sessions_to_history_string_multiple_groups():
+    """Test formatting multiple different sessions."""
     base_time = int(datetime.now(timezone.utc).timestamp())
 
     group_a = RequestInteractionDataModel(
-        request_group="session_a",
+        session_id="session_a",
         request=_create_request("req_a", base_time),
         interactions=[
             _create_interaction(1, "Message A", "user", base_time),
@@ -277,30 +275,30 @@ def test_format_request_groups_to_history_string_multiple_groups():
     )
 
     group_b = RequestInteractionDataModel(
-        request_group="session_b",
+        session_id="session_b",
         request=_create_request("req_b", base_time + 100),
         interactions=[
             _create_interaction(2, "Message B", "user", base_time + 100),
         ],
     )
 
-    result = format_request_groups_to_history_string([group_a, group_b])
+    result = format_sessions_to_history_string([group_a, group_b])
     expected = (
-        "=== Request Group: session_a ===\n"
+        "=== Session: session_a ===\n"
         "user: ```Message A```\n\n"
-        "=== Request Group: session_b ===\n"
+        "=== Session: session_b ===\n"
         "user: ```Message B```"
     )
     assert result == expected
 
 
-def test_format_request_groups_to_history_string_mixed_groups():
-    """Test multiple request groups with some sharing the same name."""
+def test_format_sessions_to_history_string_mixed_groups():
+    """Test multiple sessions with some sharing the same name."""
     base_time = int(datetime.now(timezone.utc).timestamp())
 
     # Two requests in group_1
     group_1_req_1 = RequestInteractionDataModel(
-        request_group="group_1",
+        session_id="group_1",
         request=_create_request("req_1", base_time),
         interactions=[
             _create_interaction(1, "Group 1 - Request 1", "user", base_time),
@@ -308,7 +306,7 @@ def test_format_request_groups_to_history_string_mixed_groups():
     )
 
     group_1_req_2 = RequestInteractionDataModel(
-        request_group="group_1",
+        session_id="group_1",
         request=_create_request("req_2", base_time + 100),
         interactions=[
             _create_interaction(2, "Group 1 - Request 2", "user", base_time + 100),
@@ -317,36 +315,36 @@ def test_format_request_groups_to_history_string_mixed_groups():
 
     # One request in group_2 (comes between the two group_1 requests in terms of time)
     group_2_req = RequestInteractionDataModel(
-        request_group="group_2",
+        session_id="group_2",
         request=_create_request("req_3", base_time + 50),
         interactions=[
             _create_interaction(3, "Group 2 - Request 1", "user", base_time + 50),
         ],
     )
 
-    result = format_request_groups_to_history_string(
+    result = format_sessions_to_history_string(
         [group_1_req_1, group_2_req, group_1_req_2]
     )
 
     # Groups should be sorted by earliest request timestamp
     # group_1 (base_time) should come before group_2 (base_time + 50)
     expected = (
-        "=== Request Group: group_1 ===\n"
+        "=== Session: group_1 ===\n"
         "user: ```Group 1 - Request 1```\n"
         "user: ```Group 1 - Request 2```\n\n"
-        "=== Request Group: group_2 ===\n"
+        "=== Session: group_2 ===\n"
         "user: ```Group 2 - Request 1```"
     )
     assert result == expected
 
 
-def test_format_request_groups_to_history_string_preserves_order_within_group():
+def test_format_sessions_to_history_string_preserves_order_within_group():
     """Test that requests within the same group are ordered by created_at."""
     base_time = int(datetime.now(timezone.utc).timestamp())
 
     # Create requests out of order
     late_request = RequestInteractionDataModel(
-        request_group="group_1",
+        session_id="group_1",
         request=_create_request("req_late", base_time + 200),
         interactions=[
             _create_interaction(3, "Late message", "user", base_time + 200),
@@ -354,7 +352,7 @@ def test_format_request_groups_to_history_string_preserves_order_within_group():
     )
 
     early_request = RequestInteractionDataModel(
-        request_group="group_1",
+        session_id="group_1",
         request=_create_request("req_early", base_time),
         interactions=[
             _create_interaction(1, "Early message", "user", base_time),
@@ -362,7 +360,7 @@ def test_format_request_groups_to_history_string_preserves_order_within_group():
     )
 
     middle_request = RequestInteractionDataModel(
-        request_group="group_1",
+        session_id="group_1",
         request=_create_request("req_middle", base_time + 100),
         interactions=[
             _create_interaction(2, "Middle message", "user", base_time + 100),
@@ -370,13 +368,13 @@ def test_format_request_groups_to_history_string_preserves_order_within_group():
     )
 
     # Pass them out of order
-    result = format_request_groups_to_history_string(
+    result = format_sessions_to_history_string(
         [late_request, early_request, middle_request]
     )
 
     # Should be sorted by created_at within the group
     expected = (
-        "=== Request Group: group_1 ===\n"
+        "=== Session: group_1 ===\n"
         "user: ```Early message```\n"
         "user: ```Middle message```\n"
         "user: ```Late message```"

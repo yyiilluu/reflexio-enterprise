@@ -24,7 +24,7 @@ export function ExtractionParamsSection({
           <Sliders className="h-4 w-4 text-slate-400" />
           <div>
             <CardTitle className="text-lg font-semibold text-slate-800">Extraction Parameters</CardTitle>
-            <CardDescription className="text-xs mt-1 text-slate-500">Configure extraction window settings</CardDescription>
+            <CardDescription className="text-xs mt-1 text-muted-foreground">Configure extraction window settings</CardDescription>
           </div>
         </div>
       </CardHeader>

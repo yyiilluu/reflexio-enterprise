@@ -42,18 +42,16 @@ print("Reflexio client initialized successfully")
 
 ## Authentication
 
-After installation, authenticate using one of two methods:
+After installation, authenticate using your API key:
 
 ```python
-# Option 1: Login with email/password (API key is automatically set)
-token = client.login("user@example.com", "password")
-# token.api_key contains your API key - save it for future use (it never expires)
+# Option 1: Direct API key
+client = ReflexioClient(api_key="your-api-key", url_endpoint="http://127.0.0.1:8081/")
 
-# Option 2: Initialize with a previously saved API key (more efficient - skips login)
-client = ReflexioClient(
-    api_key=token.api_key,  # Use the saved token.api_key from a previous login
-    url_endpoint="http://127.0.0.1:8081/"
-)
+# Option 2: Environment variable (recommended)
+# export REFLEXIO_API_KEY="your-api-key"
+# export REFLEXIO_API_URL="http://127.0.0.1:8081/"
+client = ReflexioClient()
 ```
 
 ## Next Steps

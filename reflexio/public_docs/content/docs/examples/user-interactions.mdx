@@ -13,13 +13,13 @@ Comprehensive patterns for working with user interactions in Reflexio.
 import reflexio
 import base64
 
-# Initialize and authenticate (login automatically sets the API key)
-client = reflexio.ReflexioClient(url_endpoint="http://127.0.0.1:8081/")
-token = client.login("your_email@example.com", "your_password")
-# token.api_key contains your API key - save it for future use (it never expires)
+# Option 1: Direct API key
+client = reflexio.ReflexioClient(api_key="your-api-key", url_endpoint="http://127.0.0.1:8081/")
 
-# Or initialize with a previously saved API key (more efficient - skips login)
-# client = reflexio.ReflexioClient(api_key=token.api_key, url_endpoint="http://127.0.0.1:8081/")
+# Option 2: Environment variable
+# export REFLEXIO_API_KEY="your-api-key"
+# export REFLEXIO_API_URL="http://127.0.0.1:8081/"
+# client = reflexio.ReflexioClient()
 ```
 
 ## Text-Based Interactions
@@ -29,9 +29,9 @@ token = client.login("your_email@example.com", "your_password")
 ```python
 # Publishing a customer service conversation
 # Each request contains a user message followed by agent response (one turn)
-# Use the same request_group for all turns in a conversation thread
+# Use the same session_id for all turns in a conversation thread
 
-request_group = "support_session_001"
+session_id = "support_session_001"
 
 # Turn 1: User asks, agent responds
 client.publish_interaction(
@@ -40,29 +40,29 @@ client.publish_interaction(
         {"role": "User", "content": "Hi, I'm having trouble with my account login"},
         {"role": "Agent", "content": "I'm sorry to hear that. Can you tell me what error message you're seeing?"}
     ],
-    request_group=request_group,
+    session_id=session_id,
     source="support_chat"
 )
 
-# Turn 2: User follows up, agent responds (same request_group)
+# Turn 2: User follows up, agent responds (same session_id)
 client.publish_interaction(
     user_id="customer_001",
     interactions=[
         {"role": "User", "content": "It says 'Invalid credentials' but I'm sure my password is correct"},
         {"role": "Agent", "content": "Let me help you reset your password. I'll send you a reset link via email."}
     ],
-    request_group=request_group,
+    session_id=session_id,
     source="support_chat"
 )
 
-# Turn 3: User confirms resolution (same request_group)
+# Turn 3: User confirms resolution (same session_id)
 client.publish_interaction(
     user_id="customer_001",
     interactions=[
         {"role": "User", "content": "Thank you! That worked perfectly."},
         {"role": "Agent", "content": "You're welcome! Is there anything else I can help you with?"}
     ],
-    request_group=request_group,
+    session_id=session_id,
     source="support_chat"
 )
 ```
@@ -90,7 +90,7 @@ client.publish_interaction(
             "user_action": "NONE"
         }
     ],
-    request_group="review_001",
+    session_id="review_001",
     source="product_review"
 )
 
@@ -106,7 +106,7 @@ client.publish_interaction(
             "image_encoding": outfit_image
         }
     ],
-    request_group="styling_001",
+    session_id="styling_001",
     source="styling_consultation"
 )
 ```
@@ -126,7 +126,7 @@ client.publish_interaction(
             "user_action": "NONE"
         }
     ],
-    request_group="ui_feedback_001",
+    session_id="ui_feedback_001",
     source="ui_testing"
 )
 
@@ -143,7 +143,7 @@ client.publish_interaction(
             "user_action_description": "clicked export button in reports section"
         }
     ],
-    request_group="bug_report_001",
+    session_id="bug_report_001",
     source="bug_reports"
 )
 ```
@@ -182,7 +182,7 @@ shopping_actions = [
 client.publish_interaction(
     user_id="shopper_dave",
     interactions=shopping_actions,
-    request_group="shopping_session_001",
+    session_id="shopping_session_001",
     source="ecommerce"
 )
 ```
@@ -282,7 +282,7 @@ client.publish_interaction(
     interactions=[
         {"role": "User", "content": "I'm interested in your enterprise software solution. Can you tell me about pricing?"}
     ],
-    request_group=f"{conversation_thread}_msg_001",
+    session_id=f"{conversation_thread}_msg_001",
     source="sales_inquiry"
 )
 
@@ -293,7 +293,7 @@ client.publish_interaction(
         {"role": "Sales_Rep", "content": "I'd be happy to help! Our enterprise solution starts at $50/user/month. How many users would you need?"},
         {"role": "User", "content": "We have about 150 employees. Do you offer volume discounts?"}
     ],
-    request_group=f"{conversation_thread}_msg_002",
+    session_id=f"{conversation_thread}_msg_002",
     source="sales_inquiry"
 )
 
@@ -304,7 +304,7 @@ client.publish_interaction(
         {"role": "Sales_Rep", "content": "For 150 users, we can offer a 20% discount, bringing it to $40/user/month. Would you like to schedule a demo?"},
         {"role": "User", "content": "That sounds reasonable. Yes, let's schedule a demo for next week."}
     ],
-    request_group=f"{conversation_thread}_msg_003",
+    session_id=f"{conversation_thread}_msg_003",
     source="sales_inquiry"
 )
 ```
@@ -321,11 +321,11 @@ contextual_interaction = {
     "interacted_image_url": "https://portfolio.example.com/designs/modern-website-layout"
 }
 
-# Add metadata through interaction source and request group structure
+# Add metadata through interaction source and session structure
 client.publish_interaction(
     user_id="design_client_georgia",
     interactions=[contextual_interaction],
-    request_group="portfolio_review_2024_jan_15_item_5",
+    session_id="portfolio_review_2024_jan_15_item_5",
     source="portfolio_review",
     agent_version="portfolio_system_v2.1"
 )
@@ -349,13 +349,13 @@ interaction_batches = [
     {
         "user_id": "user_1",
         "interactions": [{"content": "Message 1"}],
-        "request_group": "batch_001",
+        "session_id": "batch_001",
         "source": "batch_test"
     },
     {
         "user_id": "user_2",
         "interactions": [{"content": "Message 2"}],
-        "request_group": "batch_002",
+        "session_id": "batch_002",
         "source": "batch_test"
     },
     # Add more batches...

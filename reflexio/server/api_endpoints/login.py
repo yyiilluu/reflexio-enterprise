@@ -1,3 +1,4 @@
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 import bcrypt
@@ -12,13 +13,13 @@ from reflexio.server.db import db_models
 from reflexio.server.db.db_operations import (
     get_organization_by_email,
     create_organization,
+    get_org_by_api_token,
 )
 
 # to get a string like this run:
 # openssl rand -hex 32
 SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_DAYS = 36500  # 100 years
 VERIFICATION_TOKEN_EXPIRE_DAYS = 7
 VERIFICATION_TOKEN_TYPE = "email_verification"
 PASSWORD_RESET_TOKEN_EXPIRE_HOURS = 1
@@ -31,6 +32,10 @@ ORG_CACHE_TTL_SECONDS = 300
 ORG_CACHE_MAX_SIZE = 1000
 _org_cache: TTLCache = TTLCache(maxsize=ORG_CACHE_MAX_SIZE, ttl=ORG_CACHE_TTL_SECONDS)
 _org_cache_lock = threading.Lock()
+
+# Token cache: maps token string -> Organization (TTL-based)
+_token_cache: TTLCache = TTLCache(maxsize=ORG_CACHE_MAX_SIZE, ttl=ORG_CACHE_TTL_SECONDS)
+_token_cache_lock = threading.Lock()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 app = FastAPI()
@@ -68,15 +73,14 @@ def authenticate_organization(
     return user
 
 
-def create_access_token(data: dict, expires_delta: timedelta | None = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
-    else:
-        expire = datetime.now(timezone.utc) + timedelta(days=7)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+def generate_short_api_key() -> str:
+    """
+    Generate a short API key with the rflx- prefix, 40 chars total.
+
+    Returns:
+        str: API key in format "rflx-" + 35 random chars (40 total)
+    """
+    return "rflx-" + secrets.token_urlsafe(32)[:35]
 
 
 def _get_cached_org(
@@ -106,6 +110,31 @@ def _get_cached_org(
     return org
 
 
+def _get_cached_org_by_token(
+    token_value: str, session: Session
+) -> Optional[db_models.Organization]:
+    """Get organization from token cache or database.
+
+    Args:
+        token_value (str): API token string
+        session (Session): Database session for fallback lookup
+
+    Returns:
+        Optional[db_models.Organization]: Cached or freshly fetched organization
+    """
+    with _token_cache_lock:
+        cached = _token_cache.get(token_value)
+        if cached is not None:
+            return cached
+
+    org = get_org_by_api_token(session=session, token_value=token_value)
+    if org is not None:
+        with _token_cache_lock:
+            _token_cache[token_value] = org
+
+    return org
+
+
 def invalidate_org_cache(org_email: str) -> None:
     """Invalidate cached organization entry.
 
@@ -119,6 +148,16 @@ def invalidate_org_cache(org_email: str) -> None:
         _org_cache.pop(org_email, None)
 
 
+def invalidate_token_cache(token_value: str) -> None:
+    """Invalidate a cached token entry.
+
+    Args:
+        token_value (str): Token string to invalidate from cache
+    """
+    with _token_cache_lock:
+        _token_cache.pop(token_value, None)
+
+
 def clear_org_cache() -> None:
     """Clear the entire organization cache.
 
@@ -126,16 +165,18 @@ def clear_org_cache() -> None:
     """
     with _org_cache_lock:
         _org_cache.clear()
+    with _token_cache_lock:
+        _token_cache.clear()
 
 
 def get_current_org(token: str, session: Session) -> db_models.Organization:
-    """Get the current organization from a JWT token.
+    """Get the current organization from an API token.
 
+    Supports both new rflx- tokens (DB lookup) and legacy JWT tokens (decode).
     Uses TTL-based caching to reduce database lookups.
-    Cache entries expire after ORG_CACHE_TTL_SECONDS (default: 5 minutes).
 
     Args:
-        token (str): JWT access token
+        token (str): API token (rflx-...) or legacy JWT
         session (Session): Database session
 
     Returns:
@@ -149,6 +190,15 @@ def get_current_org(token: str, session: Session) -> db_models.Organization:
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+    # New token format: rflx-... → DB lookup
+    if token.startswith("rflx-"):
+        org = _get_cached_org_by_token(token_value=token, session=session)
+        if org is None:
+            raise credentials_exception
+        return org
+
+    # Legacy JWT fallback for existing tokens
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         org_email = payload.get("sub")
@@ -181,16 +231,28 @@ def get_current_active_org(
 def register_organization(
     org_email: str,
     password: str,
-    api_key: str,
     session: Session,
+    api_key: str = "",
 ) -> db_models.Organization:
+    """
+    Register a new organization.
+
+    Args:
+        org_email (str): Organization email
+        password (str): Plain-text password
+        session (Session): Database session
+        api_key (str): Legacy api_key field value (stored on org for backward compat)
+
+    Returns:
+        db_models.Organization: The created organization
+    """
     org = authenticate_organization(
         org_email=org_email, password=password, session=session
     )
     if org:
         raise HTTPException(
             status_code=status.HTTP_412_PRECONDITION_FAILED,
-            detail="user email has already been registered",
+            detail="This email is already registered. Please sign in or use a different email.",
         )
 
     hashed_password = get_password_hash(password)

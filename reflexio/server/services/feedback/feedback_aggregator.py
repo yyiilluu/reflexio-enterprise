@@ -445,6 +445,7 @@ class FeedbackAggregator:
         raw_feedbacks = self.storage.get_raw_feedbacks(
             feedback_name=feedback_aggregator_request.feedback_name,
             agent_version=self.agent_version,
+            include_embedding=True,
         )
         clusters = self.get_clusters(raw_feedbacks, feedback_aggregator_config)
 

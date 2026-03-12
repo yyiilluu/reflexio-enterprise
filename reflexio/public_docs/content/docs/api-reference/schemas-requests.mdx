@@ -1,6 +1,6 @@
 ---
 title: "Request Models"
-description: "Data structures for requests and request groups — retrieving and deleting requests."
+description: "Data structures for requests and sessions — retrieving and deleting requests."
 ---
 
 # Request Models
@@ -16,7 +16,7 @@ Represents a container for one or more interactions with metadata.
 | `created_at` | integer | Unix timestamp when request was created | Required |
 | `source` | string | Source of the request (e.g., "web_app", "mobile_app") | Empty string |
 | `agent_version` | string | Version of the agent that generated this request | Empty string |
-| `request_group` | string | Group identifier for related requests | Empty string |
+| `session_id` | string | Session identifier for related requests | Empty string |
 
 ## RequestData
 
@@ -27,18 +27,18 @@ Contains a request with its associated interactions.
 | `request` | Request | The request object | Required |
 | `interactions` | array[Interaction] | List of interactions in this request | Required |
 
-## RequestGroup
+## Session
 
-Groups multiple requests by request_group identifier.
+Groups multiple requests by session identifier.
 
 | Field | Type | Description | Default |
 |-------|------|-------------|---------|
-| `request_group` | string | The request group identifier | Required |
-| `requests` | array[RequestData] | List of requests in this group | Required |
+| `session_id` | string | The session identifier | Required |
+| `requests` | array[RequestData] | List of requests in this session | Required |
 
 ## GetRequestsRequest
 
-Request model for getting requests grouped by request_group.
+Request model for getting requests grouped by session.
 
 | Field | Type | Description | Default |
 |-------|------|-------------|---------|
@@ -56,7 +56,7 @@ Response model for getting requests.
 | Field | Type | Description | Default |
 |-------|------|-------------|---------|
 | `success` | boolean | Whether the request was successful | Required |
-| `request_groups` | array[RequestGroup] | List of request groups with their requests | Required |
+| `sessions` | array[Session] | List of sessions with their requests | Required |
 | `has_more` | boolean | Whether there are more results available (for pagination) | `false` |
 | `msg` | string | Additional message | Optional |
 
@@ -77,17 +77,17 @@ Response model for request deletion requests.
 | `success` | boolean | Whether the deletion was successful | Required |
 | `message` | string | Additional information about the operation | Empty string |
 
-## DeleteRequestGroupRequest
+## DeleteSessionRequest
 
-Request model for deleting all requests in a request group.
+Request model for deleting all requests in a session.
 
 | Field | Type | Description | Default |
 |-------|------|-------------|---------|
-| `request_group` | string | Request group identifier | Required |
+| `session_id` | string | Session identifier | Required |
 
-## DeleteRequestGroupResponse
+## DeleteSessionResponse
 
-Response model for request group deletion requests.
+Response model for session deletion requests.
 
 | Field | Type | Description | Default |
 |-------|------|-------------|---------|

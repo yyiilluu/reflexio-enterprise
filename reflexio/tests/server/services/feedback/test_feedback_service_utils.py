@@ -7,12 +7,12 @@ from reflexio_commons.api_schema.service_schemas import Interaction, Request
 from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 from reflexio.server.prompt.prompt_manager import PromptManager
 from reflexio.server.services.feedback.feedback_service_utils import (
-    construct_feedback_extraction_messages_from_request_groups,
+    construct_feedback_extraction_messages_from_sessions,
 )
 
 
-def test_construct_feedback_extraction_messages_with_request_groups():
-    """Test that construct_feedback_extraction_messages_from_request_groups formats interactions correctly in the rendered prompt."""
+def test_construct_feedback_extraction_messages_with_sessions():
+    """Test that construct_feedback_extraction_messages_from_sessions formats interactions correctly in the rendered prompt."""
     # Create test interactions
     interactions = [
         Interaction(
@@ -53,12 +53,12 @@ def test_construct_feedback_extraction_messages_with_request_groups():
         user_id="user_123",
         source="test",
         agent_version="1.0.0",
-        request_group="session_1",
+        session_id="session_1",
     )
 
     request_interaction_data_models = [
         RequestInteractionDataModel(
-            request_group="session_1",
+            session_id="session_1",
             request=request,
             interactions=interactions,
         )
@@ -68,7 +68,7 @@ def test_construct_feedback_extraction_messages_with_request_groups():
     prompt_manager = PromptManager()
 
     # Call the function
-    messages = construct_feedback_extraction_messages_from_request_groups(
+    messages = construct_feedback_extraction_messages_from_sessions(
         prompt_manager=prompt_manager,
         request_interaction_data_models=request_interaction_data_models,
         feedback_definition_prompt="Evaluate the quality of the agent's response",
@@ -108,7 +108,7 @@ def test_construct_feedback_extraction_messages_with_request_groups():
                 "[Intearctions start]" in content
                 or "[Interactions end]" in content
                 or "User and agent interactions:" in content
-                or "Request Group:" in content
+                or "Session:" in content
                 or "user: ```I need help with my account```"
                 in content  # Check directly for content
             ):
@@ -133,16 +133,16 @@ def test_construct_feedback_extraction_messages_with_request_groups():
     assert found_interactions, "Did not find interactions in the rendered prompt"
 
 
-def test_construct_feedback_extraction_messages_with_empty_request_groups():
-    """Test that construct_feedback_extraction_messages_from_request_groups handles empty request groups."""
-    # Empty request groups list
+def test_construct_feedback_extraction_messages_with_empty_sessions():
+    """Test that construct_feedback_extraction_messages_from_sessions handles empty sessions."""
+    # Empty sessions list
     request_interaction_data_models = []
 
     # Create prompt manager
     prompt_manager = PromptManager()
 
     # Call the function
-    messages = construct_feedback_extraction_messages_from_request_groups(
+    messages = construct_feedback_extraction_messages_from_sessions(
         prompt_manager=prompt_manager,
         request_interaction_data_models=request_interaction_data_models,
         feedback_definition_prompt="Evaluate the quality of the agent's response",
@@ -150,7 +150,7 @@ def test_construct_feedback_extraction_messages_with_empty_request_groups():
     )
 
     # Should still create messages (system message + user message with prompt)
-    assert len(messages) > 0, "No messages were created for empty request groups"
+    assert len(messages) > 0, "No messages were created for empty sessions"
 
 
 if __name__ == "__main__":

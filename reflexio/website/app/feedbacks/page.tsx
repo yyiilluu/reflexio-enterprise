@@ -219,10 +219,6 @@ function RawFeedbackRow({ feedback, onDelete }: RawFeedbackRowProps) {
                     <span className="text-slate-500">Created At:</span>
                     <span className="text-xs text-slate-700">{formatTimestamp(feedback.created_at)}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">Embedding:</span>
-                    <span className="text-slate-700">{feedback.embedding.length} dimensions</span>
-                  </div>
                 </div>
               </div>
             </div>
@@ -396,10 +392,6 @@ function FeedbackRow({ feedback, onUpdateStatus, onDelete, isUpdating = false }:
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-500">Created At:</span>
                     <span className="text-xs text-slate-700">{formatTimestamp(feedback.created_at)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">Embedding:</span>
-                    <span className="text-slate-700">{feedback.embedding.length} dimensions</span>
                   </div>
                 </div>
               </div>
@@ -1233,73 +1225,75 @@ export default function FeedbacksPage() {
             </Card>
           ) : (
             <>
-          {/* Statistics Cards */}
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-5">
-            <Card className="border bg-gradient-to-br from-orange-50 to-amber-50 border-orange-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-semibold text-slate-600">Raw Feedbacks</CardTitle>
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-lg">
-                  <FileText className="h-5 w-5 text-white" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-slate-800">{totalRaw}</div>
-                <p className="text-xs text-slate-500 mt-1">Individual feedback items</p>
-              </CardContent>
-            </Card>
-
-            <Card className="border bg-gradient-to-br from-purple-50 to-pink-50 border-purple-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-semibold text-slate-600">Aggregated</CardTitle>
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
-                  <Layers className="h-5 w-5 text-white" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-slate-800">{totalAggregated}</div>
-                <p className="text-xs text-slate-500 mt-1">Processed summaries</p>
-              </CardContent>
-            </Card>
-
-            <Card className="border bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-semibold text-slate-600">Pending Review</CardTitle>
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-500 to-yellow-500 flex items-center justify-center shadow-lg">
-                  <Clock className="h-5 w-5 text-white" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-slate-800">{pending}</div>
-                <p className="text-xs text-slate-500 mt-1">Awaiting approval</p>
-              </CardContent>
-            </Card>
-
-            <Card className="border bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-semibold text-slate-600">Approved</CardTitle>
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg">
-                  <CheckCircle className="h-5 w-5 text-white" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-slate-800">{approved}</div>
-                <p className="text-xs text-slate-500 mt-1">Validated feedbacks</p>
-              </CardContent>
-            </Card>
-
-            <Card className="border bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-semibold text-slate-600">Recent (1h)</CardTitle>
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg">
+          {/* Performance Overview */}
+          <Card className="border-slate-200 bg-white hover:shadow-lg transition-all duration-300">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-500/25">
                   <BarChart3 className="h-5 w-5 text-white" />
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-slate-800">{recentRaw}</div>
-                <p className="text-xs text-slate-500 mt-1">New raw feedbacks</p>
-              </CardContent>
-            </Card>
-          </div>
+                <div>
+                  <CardTitle className="text-lg font-semibold text-slate-800">Feedback Overview</CardTitle>
+                  <CardDescription className="text-xs mt-0.5 text-slate-500">
+                    {totalRaw} raw feedback{totalRaw !== 1 ? "s" : ""} collected
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4 md:flex md:gap-0 md:divide-x md:divide-slate-200">
+                {/* Raw Feedbacks */}
+                <div className="flex flex-col items-center text-center flex-1 md:px-4 py-2">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <FileText className="h-3.5 w-3.5 text-orange-500" />
+                    <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Raw</span>
+                  </div>
+                  <span className="text-2xl font-bold text-slate-800">{totalRaw}</span>
+                  <span className="text-xs text-slate-400 mt-0.5">individual items</span>
+                </div>
+
+                {/* Aggregated */}
+                <div className="flex flex-col items-center text-center flex-1 md:px-4 py-2">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Layers className="h-3.5 w-3.5 text-purple-500" />
+                    <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Aggregated</span>
+                  </div>
+                  <span className="text-2xl font-bold text-slate-800">{totalAggregated}</span>
+                  <span className="text-xs text-slate-400 mt-0.5">processed summaries</span>
+                </div>
+
+                {/* Pending Review */}
+                <div className="flex flex-col items-center text-center flex-1 md:px-4 py-2">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Clock className="h-3.5 w-3.5 text-amber-500" />
+                    <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Pending</span>
+                  </div>
+                  <span className="text-2xl font-bold text-slate-800">{pending}</span>
+                  <span className="text-xs text-slate-400 mt-0.5">awaiting approval</span>
+                </div>
+
+                {/* Approved */}
+                <div className="flex flex-col items-center text-center flex-1 md:px-4 py-2">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
+                    <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Approved</span>
+                  </div>
+                  <span className="text-2xl font-bold text-slate-800">{approved}</span>
+                  <span className="text-xs text-slate-400 mt-0.5">validated feedbacks</span>
+                </div>
+
+                {/* Recent (1h) */}
+                <div className="flex flex-col items-center text-center flex-1 md:px-4 py-2">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <BarChart3 className="h-3.5 w-3.5 text-blue-500" />
+                    <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Recent (1h)</span>
+                  </div>
+                  <span className="text-2xl font-bold text-slate-800">{recentRaw}</span>
+                  <span className="text-xs text-slate-400 mt-0.5">new raw feedbacks</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Tabs */}
           <div className="flex gap-2 border-b border-slate-200 overflow-x-auto pb-px -mb-px">

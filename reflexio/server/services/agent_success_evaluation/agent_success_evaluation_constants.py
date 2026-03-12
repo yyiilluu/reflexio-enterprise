@@ -28,7 +28,6 @@ class AgentSuccessEvaluationOutput(BaseModel):
         is_success (bool): Indicates whether the agent successfully responded to the user
         failure_type (Optional[str]): Type of failure - 'missing_tool', 'wrong_tool', 'insufficient_info_from_tool', or 'wrong_answer'. Required when is_success=False
         failure_reason (Optional[str]): Explanation for the failure and what the agent needs to do differently. Required when is_success=False
-        agent_prompt_update (Optional[str]): Suggested prompt to be added to agent prompt to handle this problem better next time. Required when is_success=False
     """
 
     is_success: bool = Field(
@@ -46,11 +45,10 @@ class AgentSuccessEvaluationOutput(BaseModel):
         default=None,
         description="Explanation for the failure and what the agent needs to do differently. Required when is_success=False",
     )
-    agent_prompt_update: Optional[str] = Field(
-        default=None,
-        description="Suggested prompt to be added to agent prompt to handle this problem better next time. Required when is_success=False",
+    is_escalated: bool = Field(
+        default=False,
+        description="Whether the user was handed off to a human agent or another agent during the session.",
     )
-
     # OpenAI schema parsing requires explicitly forbidding additional properties
     model_config = ConfigDict(
         extra="forbid",
@@ -70,7 +68,6 @@ class AgentSuccessEvaluationWithComparisonOutput(BaseModel):
         is_success (bool): Indicates whether the agent successfully responded (evaluated on regular version)
         failure_type (Optional[str]): Type of failure when is_success=False
         failure_reason (Optional[str]): Explanation for the failure when is_success=False
-        agent_prompt_update (Optional[str]): Suggested prompt improvement when is_success=False
         better_request (str): Which request is better - "1", "2", or "tie"
         is_significantly_better (bool): Whether the better request is significantly better
         comparison_reason (Optional[str]): Brief explanation of why one is better
@@ -92,11 +89,10 @@ class AgentSuccessEvaluationWithComparisonOutput(BaseModel):
         default=None,
         description="Explanation for the failure. Required when is_success=False",
     )
-    agent_prompt_update: Optional[str] = Field(
-        default=None,
-        description="Suggested prompt improvement. Required when is_success=False",
+    is_escalated: bool = Field(
+        default=False,
+        description="Whether the user was handed off to a human agent or another agent during the session.",
     )
-
     # Comparison fields
     better_request: Literal["1", "2", "tie"] = Field(
         description="Which request is better: '1', '2', or 'tie'"

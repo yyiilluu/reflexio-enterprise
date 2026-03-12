@@ -19,4 +19,5 @@ export const PROTECTED_ROUTES = [
   "/evaluations",
   "/skills",
   "/settings",
+  "/account",
 ] as const

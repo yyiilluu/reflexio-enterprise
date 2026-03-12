@@ -21,13 +21,13 @@ class AgentSuccessGenerationServiceConfig:
     """Runtime configuration for agent success evaluation service shared across all extractors.
 
     Attributes:
-        request_id: The request ID
+        session_id: The session being evaluated
         agent_version: The agent version
         request_interaction_data_models: The interactions to evaluate
         source: Source of the interactions
     """
 
-    request_id: str
+    session_id: str
     agent_version: str
     request_interaction_data_models: list[RequestInteractionDataModel]
     source: Optional[str] = None
@@ -46,6 +46,20 @@ class AgentSuccessEvaluationService(
     Runs multiple AgentSuccessEvaluator instances sequentially.
     """
 
+    def __init__(self, llm_client, request_context) -> None:
+        """Initialize service and reset per-run outcome flags."""
+        super().__init__(llm_client=llm_client, request_context=request_context)
+        self.last_run_result_count = 0
+        self.last_run_saved_result_count = 0
+        self.last_run_save_failed = False
+
+    def run(self, request: AgentSuccessEvaluationRequest) -> None:
+        """Run evaluation and reset run outcome flags for this invocation."""
+        self.last_run_result_count = 0
+        self.last_run_saved_result_count = 0
+        self.last_run_save_failed = False
+        super().run(request)
+
     def _load_generation_service_config(
         self, request: AgentSuccessEvaluationRequest
     ) -> AgentSuccessGenerationServiceConfig:
@@ -59,7 +73,7 @@ class AgentSuccessEvaluationService(
             AgentSuccessGenerationServiceConfig object
         """
         return AgentSuccessGenerationServiceConfig(
-            request_id=request.request_id,
+            session_id=request.session_id,
             agent_version=request.agent_version,
             request_interaction_data_models=request.request_interaction_data_models,
             source=request.source,
@@ -109,41 +123,39 @@ class AgentSuccessEvaluationService(
         for result in results:
             if isinstance(result, list):
                 all_results.extend(result)
-
-        # Deduplicate by request_id (keep first result for each request_id)
-        # This handles the case where multiple extractors evaluate the same request
-        seen_request_ids: set[str] = set()
-        deduplicated_results = []
-        for result in all_results:
-            if result.request_id not in seen_request_ids:
-                deduplicated_results.append(result)
-                seen_request_ids.add(result.request_id)
+        self.last_run_result_count = len(all_results)
 
         logger.info(
-            "Successfully completed %d %s evaluations (deduplicated from %d) for request id: %s",
-            len(deduplicated_results),
-            self._get_service_name(),
+            "Successfully completed %d %s evaluations for session: %s",
             len(all_results),
-            self.service_config.request_id,
+            self._get_service_name(),
+            self.service_config.session_id,
         )
 
         # Save results
-        if deduplicated_results:
+        if all_results:
             try:
-                self.storage.save_agent_success_evaluation_results(deduplicated_results)
+                self.storage.save_agent_success_evaluation_results(all_results)
+                self.last_run_saved_result_count = len(all_results)
                 logger.info(
-                    "Saved %d agent success evaluation results for request id: %s",
-                    len(deduplicated_results),
-                    self.service_config.request_id,
+                    "Saved %d agent success evaluation results for session: %s",
+                    len(all_results),
+                    self.service_config.session_id,
                 )
             except Exception as e:
+                self.last_run_save_failed = True
                 logger.error(
-                    "Failed to save %s results for request id: %s due to %s, exception type: %s",
+                    "Failed to save %s results for session: %s due to %s, exception type: %s",
                     self._get_service_name(),
-                    self.service_config.request_id,
+                    self.service_config.session_id,
                     str(e),
                     type(e).__name__,
                 )
+
+    def has_run_failures(self) -> bool:
+        """Return True if extractor execution or result persistence failed."""
+        extractor_failed_count = self._last_extractor_run_stats.get("failed", 0)
+        return extractor_failed_count > 0 or self.last_run_save_failed
 
     def _get_service_name(self) -> str:
         """

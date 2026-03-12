@@ -45,10 +45,10 @@ def create_request_interaction_data_model(
         user_id=user_id,
         source="test",
         agent_version=agent_version,
-        request_group="session_1",
+        session_id="session_1",
     )
     return RequestInteractionDataModel(
-        request_group="session_1",
+        session_id="session_1",
         request=request,
         interactions=interactions,
     )
@@ -444,7 +444,7 @@ def test_feedback_message_construction_with_interactions(
                         "User: ```I need help",
                         "user: ```I need help",
                         "[Interaction",
-                        "Request Group:",
+                        "Session:",
                     ]
                 ):
                     # Validate the interactions are formatted correctly in the rendered prompt

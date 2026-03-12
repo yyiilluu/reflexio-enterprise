@@ -21,13 +21,13 @@ This two-layer approach ensures you can both investigate individual interactions
 ```python
 from reflexio import ReflexioClient
 
-# Initialize and authenticate (login automatically sets the API key)
-client = ReflexioClient(url_endpoint="http://127.0.0.1:8081/")
-token = client.login("your_email@example.com", "your_password")
-# token.api_key contains your API key - save it for future use (it never expires)
+# Option 1: Direct API key
+client = ReflexioClient(api_key="your-api-key", url_endpoint="http://127.0.0.1:8081/")
 
-# Or initialize with a previously saved API key (more efficient - skips login)
-# client = ReflexioClient(api_key=token.api_key, url_endpoint="http://127.0.0.1:8081/")
+# Option 2: Environment variable
+# export REFLEXIO_API_KEY="your-api-key"
+# export REFLEXIO_API_URL="http://127.0.0.1:8081/"
+# client = ReflexioClient()
 ```
 
 ## Configuring Feedback Extraction
@@ -181,7 +181,7 @@ client.publish_interaction(
     interactions=conversation,
     source="order_support",
     agent_version="v2.1.0",
-    request_group="order_issues_batch_001",
+    session_id="order_issues_batch_001",
     wait_for_response=True,
 )
 ```

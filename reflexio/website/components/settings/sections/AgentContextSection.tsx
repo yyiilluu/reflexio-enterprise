@@ -29,7 +29,7 @@ export function AgentContextSection({
           <Brain className="h-4 w-4 text-slate-400" />
           <div>
             <CardTitle className="text-lg font-semibold text-slate-800">Agent Context</CardTitle>
-            <CardDescription className="text-xs mt-1 text-slate-500">Define agent working environment</CardDescription>
+            <CardDescription className="text-xs mt-1 text-muted-foreground">Define agent working environment</CardDescription>
           </div>
         </div>
       </CardHeader>
@@ -44,7 +44,7 @@ export function AgentContextSection({
             placeholder="Define agent working environment, tools available, and action space..."
             rows={8}
           />
-          <p className="text-xs text-slate-500 mt-2">Define the agent's working environment and context</p>
+          <p className="text-xs text-muted-foreground mt-2">Define the agent's working environment and context</p>
         </div>
 
         <div className="mt-6">
@@ -55,7 +55,7 @@ export function AgentContextSection({
               Add Tool
             </Button>
           </div>
-          <p className="text-xs text-slate-500 mb-3">
+          <p className="text-xs text-muted-foreground mb-3">
             Define tools the agent can use. These are shared across success evaluation and feedback extraction.
           </p>
           <div className="space-y-3">

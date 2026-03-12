@@ -4,6 +4,9 @@ from datetime import datetime, timedelta, timezone
 from typing import Callable
 
 from reflexio.reflexio_lib.reflexio_lib import Reflexio
+from reflexio.server.services.agent_success_evaluation.group_evaluation_runner import (
+    run_group_evaluation,
+)
 from reflexio.tests.server.test_utils import skip_in_precommit, skip_low_priority
 from reflexio_commons.api_schema.retriever_schema import (
     GetDashboardStatsRequest,
@@ -14,7 +17,7 @@ from reflexio_commons.api_schema.retriever_schema import (
     SearchUserProfileRequest,
 )
 from reflexio_commons.api_schema.service_schemas import (
-    DeleteRequestGroupRequest,
+    DeleteSessionRequest,
     DeleteRequestRequest,
     DeleteUserInteractionRequest,
     DeleteUserProfileRequest,
@@ -187,25 +190,25 @@ def test_error_handling_end_to_end(
 
 
 @skip_in_precommit
-def test_request_and_request_group_management(
+def test_request_and_session_id_management(
     reflexio_instance: Reflexio,
     sample_interaction_requests: list[InteractionData],
     cleanup_after_test: Callable[[], None],
 ):
-    """Test request and request_group management: get_requests, delete_request, delete_request_group."""
+    """Test request and session_id management: get_requests, delete_request, delete_session."""
     import uuid
 
     user_id = "test_user_requests"
-    request_group = f"test_request_group_{uuid.uuid4().hex[:8]}"
+    session_id = f"test_session_id_{uuid.uuid4().hex[:8]}"
 
-    # Publish multiple interactions with different request_ids but same request_group
+    # Publish multiple interactions with different request_ids but same session_id
     publish_response_1 = reflexio_instance.publish_interaction(
         {
             "user_id": user_id,
             "interaction_data_list": sample_interaction_requests[:2],
             "source": "test_source_1",
             "agent_version": "v1",
-            "request_group": request_group,
+            "session_id": session_id,
         }
     )
     assert publish_response_1.success is True
@@ -216,7 +219,7 @@ def test_request_and_request_group_management(
             "interaction_data_list": sample_interaction_requests[2:4],
             "source": "test_source_2",
             "agent_version": "v1",
-            "request_group": request_group,
+            "session_id": session_id,
         }
     )
     assert publish_response_2.success is True
@@ -226,24 +229,24 @@ def test_request_and_request_group_management(
         GetRequestsRequest(user_id=user_id)
     )
     assert get_requests_response.success is True
-    assert len(get_requests_response.request_groups) > 0
+    assert len(get_requests_response.sessions) > 0
 
-    # Find our request group
-    our_request_group = None
-    for rg in get_requests_response.request_groups:
-        if rg.request_group == request_group:
-            our_request_group = rg
+    # Find our session
+    our_session_id = None
+    for rg in get_requests_response.sessions:
+        if rg.session_id == session_id:
+            our_session_id = rg
             break
 
-    assert our_request_group is not None
-    assert len(our_request_group.requests) == 2  # Two separate requests
+    assert our_session_id is not None
+    assert len(our_session_id.requests) == 2  # Two separate requests
 
     # Verify each request has interactions
-    for request_data in our_request_group.requests:
+    for request_data in our_session_id.requests:
         assert len(request_data.interactions) > 0
 
     # Test delete_request - delete the first request
-    first_request_id = our_request_group.requests[0].request.request_id
+    first_request_id = our_session_id.requests[0].request.request_id
     delete_request_response = reflexio_instance.delete_request(
         DeleteRequestRequest(request_id=first_request_id)
     )
@@ -254,26 +257,26 @@ def test_request_and_request_group_management(
         GetRequestsRequest(user_id=user_id)
     )
     remaining_requests = []
-    for rg in get_requests_after_delete.request_groups:
-        if rg.request_group == request_group:
+    for rg in get_requests_after_delete.sessions:
+        if rg.session_id == session_id:
             remaining_requests = rg.requests
             break
 
     assert len(remaining_requests) == 1  # Only one request should remain
 
-    # Test delete_request_group - delete entire request group
-    delete_group_response = reflexio_instance.delete_request_group(
-        DeleteRequestGroupRequest(request_group=request_group)
+    # Test delete_session - delete entire session
+    delete_group_response = reflexio_instance.delete_session(
+        DeleteSessionRequest(session_id=session_id)
     )
     assert delete_group_response.success is True
     assert delete_group_response.deleted_requests_count > 0
 
-    # Verify the entire request group was deleted
+    # Verify the entire session was deleted
     get_requests_final = reflexio_instance.get_requests(
         GetRequestsRequest(user_id=user_id)
     )
-    for rg in get_requests_final.request_groups:
-        assert rg.request_group != request_group  # Should not find our request group
+    for rg in get_requests_final.sessions:
+        assert rg.session_id != session_id  # Should not find our session
 
 
 @skip_in_precommit
@@ -653,6 +656,7 @@ def test_full_workflow_with_all_features(
     """
     user_id = "test_user_full_workflow"
     agent_version = "test_agent_full"
+    session_id = "test_session_full_workflow"
 
     # Step 1: Publish interactions (all configs are enabled in reflexio_instance)
     publish_response = reflexio_instance.publish_interaction(
@@ -661,6 +665,7 @@ def test_full_workflow_with_all_features(
             "interaction_data_list": sample_interaction_requests,
             "source": "test_full_workflow",
             "agent_version": agent_version,
+            "session_id": session_id,
         }
     )
     assert publish_response.success is True
@@ -686,7 +691,16 @@ def test_full_workflow_with_all_features(
     assert raw_feedbacks[0].feedback_content.strip() != ""
     assert raw_feedbacks[0].agent_version == agent_version
 
-    # Step 4: Verify agent success evaluations were generated
+    # Step 4: Trigger and verify agent success evaluations
+    run_group_evaluation(
+        org_id=reflexio_instance.org_id,
+        user_id=user_id,
+        session_id=session_id,
+        agent_version=agent_version,
+        source="test_full_workflow",
+        request_context=reflexio_instance.request_context,
+        llm_client=reflexio_instance.llm_client,
+    )
     agent_success_results = (
         reflexio_instance.request_context.storage.get_agent_success_evaluation_results(
             agent_version=agent_version
@@ -695,7 +709,7 @@ def test_full_workflow_with_all_features(
     assert (
         len(agent_success_results) > 0
     ), "Agent success evaluations should be generated"
-    assert agent_success_results[0].request_id == request_id
+    assert agent_success_results[0].session_id == session_id
     assert agent_success_results[0].agent_version == agent_version
     assert isinstance(agent_success_results[0].is_success, bool)
 
@@ -751,9 +765,9 @@ def test_full_workflow_with_all_features(
     for feedback in raw_feedbacks:
         assert feedback.request_id == request_id
 
-    # Agent success results should reference the correct request_id
+    # Agent success results should reference the correct session_id
     for result in agent_success_results:
-        assert result.request_id == request_id
+        assert result.session_id == session_id
 
 
 @skip_in_precommit
@@ -774,6 +788,7 @@ def test_rerun_operations_consistency(
     """
     user_id = "test_user_rerun_consistency"
     agent_version = "test_agent_rerun"
+    session_id = "test_session_rerun"
 
     # Step 1: Initial publish
     publish_response = reflexio_instance.publish_interaction(
@@ -782,9 +797,21 @@ def test_rerun_operations_consistency(
             "interaction_data_list": sample_interaction_requests,
             "source": "test_rerun_source",
             "agent_version": agent_version,
+            "session_id": session_id,
         }
     )
     assert publish_response.success is True
+
+    # Trigger group evaluation synchronously (normally delayed)
+    run_group_evaluation(
+        org_id=reflexio_instance.org_id,
+        user_id=user_id,
+        session_id=session_id,
+        agent_version=agent_version,
+        source="test_rerun_source",
+        request_context=reflexio_instance.request_context,
+        llm_client=reflexio_instance.llm_client,
+    )
 
     # Record initial state
     initial_interactions = (

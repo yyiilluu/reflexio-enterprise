@@ -12,6 +12,29 @@ class Token(BaseModel):
     auto_verified: Optional[bool] = None
 
 
+class ApiTokenResponse(BaseModel):
+    id: int
+    name: str
+    token_masked: str
+    created_at: Optional[int] = None
+    last_used_at: Optional[int] = None
+
+
+class ApiTokenCreateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=255, default="Default")
+
+
+class ApiTokenCreateResponse(BaseModel):
+    id: int
+    name: str
+    token: str
+    created_at: Optional[int] = None
+
+
+class ApiTokenListResponse(BaseModel):
+    tokens: list[ApiTokenResponse]
+
+
 class User(BaseModel):
     email: EmailStr
 

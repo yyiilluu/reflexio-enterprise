@@ -10,7 +10,6 @@ Covers:
 6. Cross-field model validators
 """
 
-import os
 from datetime import datetime, timezone
 
 import pytest
@@ -28,33 +27,23 @@ from reflexio_commons.config_schema import (
     FeedbackAggregatorConfig,
     SkillGeneratorConfig,
     StorageConfigLocal,
-    StorageConfigSupabase,
     ToolUseConfig,
 )
 from reflexio_commons.api_schema.service_schemas import (
     Interaction,
     InteractionData,
     UserProfile,
-    RawFeedback,
     Feedback,
     Skill,
-    AgentSuccessEvaluationResult,
     PublishUserInteractionRequest,
-    DeleteUserProfileRequest,
     DeleteUserInteractionRequest,
     DeleteRequestRequest,
-    DeleteRequestGroupRequest,
     DeleteFeedbackRequest,
     DeleteRawFeedbackRequest,
     AddRawFeedbackRequest,
     AddFeedbackRequest,
-    RunFeedbackAggregationRequest,
-    ManualFeedbackGenerationRequest,
     RerunProfileGenerationRequest,
     RerunFeedbackGenerationRequest,
-    UpgradeProfilesRequest,
-    DowngradeProfilesRequest,
-    RunSkillGenerationRequest,
     UpdateSkillStatusRequest,
     DeleteSkillRequest,
     OperationStatusInfo,
@@ -64,21 +53,12 @@ from reflexio_commons.api_schema.retriever_schema import (
     SearchInteractionRequest,
     SearchUserProfileRequest,
     GetInteractionsRequest,
-    GetUserProfilesRequest,
     GetRawFeedbacksRequest,
-    GetFeedbacksRequest,
-    SearchRawFeedbackRequest,
-    SearchFeedbackRequest,
     GetRequestsRequest,
-    UpdateFeedbackStatusRequest,
     GetDashboardStatsRequest,
-    GetSkillsRequest,
-    SearchSkillsRequest,
-    UnifiedSearchRequest,
     ConversationTurn,
     TimeSeriesDataPoint,
     PeriodStats,
-    GetAgentSuccessEvaluationResultsRequest,
 )
 from reflexio_commons.api_schema.login_schema import (
     Token,
@@ -222,9 +202,7 @@ class TestImageURLSSRF:
 
     def test_allows_https_url(self):
         """Public HTTPS URLs are allowed."""
-        data = InteractionData(
-            interacted_image_url="https://example.com/image.png"
-        )
+        data = InteractionData(interacted_image_url="https://example.com/image.png")
         assert "example.com" in data.interacted_image_url
 
     def test_blocks_metadata_ip_in_image_url(self):
@@ -365,9 +343,7 @@ class TestEmbeddingVector:
     def test_wrong_dimension_rejected(self):
         """Non-512 non-empty embedding is rejected."""
         with pytest.raises(ValidationError, match="512"):
-            Interaction(
-                user_id="test", request_id="req-1", embedding=[1.0, 2.0, 3.0]
-            )
+            Interaction(user_id="test", request_id="req-1", embedding=[1.0, 2.0, 3.0])
 
     def test_user_profile_embedding_validation(self):
         """UserProfile also validates embedding dimensions."""
@@ -572,9 +548,7 @@ class TestListMinLength:
     def test_publish_interaction_requires_data(self):
         """PublishUserInteractionRequest requires at least one interaction."""
         with pytest.raises(ValidationError):
-            PublishUserInteractionRequest(
-                user_id="test", interaction_data_list=[]
-            )
+            PublishUserInteractionRequest(user_id="test", interaction_data_list=[])
 
     def test_add_raw_feedback_requires_data(self):
         """AddRawFeedbackRequest requires at least one raw feedback."""

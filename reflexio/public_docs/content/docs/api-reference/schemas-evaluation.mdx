@@ -13,14 +13,16 @@ Represents an agent performance evaluation result.
 |-------|------|-------------|---------|
 | `result_id` | integer | Unique identifier for the evaluation result | 0 |
 | `agent_version` | string | Version of the agent being evaluated | Required |
-| `request_id` | string | Request ID that was evaluated | Required |
+| `session_id` | string | Session ID that was evaluated | Required |
 | `is_success` | boolean | Whether the agent was successful | Required |
-| `failure_type` | string | Type of failure if unsuccessful | Required |
-| `failure_reason` | string | Detailed reason for failure | Required |
-| `agent_prompt_update` | string | Suggested improvement for the agent | Required |
+| `failure_type` | string | Type of failure if unsuccessful | None |
+| `failure_reason` | string | Detailed reason for failure | None |
 | `evaluation_name` | string | Name of the evaluation configuration that generated this result | None |
 | `created_at` | integer | Unix timestamp when evaluation was created | Current time |
 | `regular_vs_shadow` | RegularVsShadow | Comparison result between regular and shadow agent versions (see [RegularVsShadow](/docs/api-reference/schemas-enums#regularvsshadow)) | None |
+| `number_of_correction_per_session` | integer | Count of raw feedbacks linked to this session (DB-computed) | 0 |
+| `user_turns_to_resolution` | integer | Number of user-side turns to reach resolution (only when `is_success=True`, programmatically counted) | None |
+| `is_escalated` | boolean | Whether the user was handed off to a human or another agent (LLM-computed) | False |
 | `embedding` | array[float] | Vector embedding of the evaluation result | Empty array |
 
 ## GetAgentSuccessEvaluationResultsRequest

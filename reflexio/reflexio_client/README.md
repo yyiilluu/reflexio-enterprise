@@ -9,13 +9,13 @@ Description: Python SDK for remote async access to Reflexio API
 ## Purpose
 
 1. **Remote API access** - Async SDK for applications to call Reflexio backend
-2. **Authentication** - Handle login and Bearer token management
+2. **Authentication** - Handle API key and Bearer token management
 3. **Type-safe interface** - Auto-parsing responses into Pydantic models
 
 ## API Methods
 
 **Authentication:**
-- `login(email, password)` - Get auth token
+- API key authentication via constructor or `REFLEXIO_API_KEY` env var
 
 **Publishing:**
 - `publish_interaction(request_id, user_id, interactions, source, agent_version)` - Publish interactions (triggers profile/feedback/evaluation)
@@ -34,9 +34,9 @@ Description: Python SDK for remote async access to Reflexio API
 - `delete_interaction(user_id, interaction_id)` - Delete interaction
 
 **Requests:**
-- `get_requests(request)` - Get request groups with associated interactions
+- `get_requests(request)` - Get sessions with associated interactions
 - `delete_request(request_id)` - Delete a request and its interactions
-- `delete_request_group(request_group)` - Delete all requests in a group
+- `delete_session(session_id)` - Delete all requests in a session
 
 **Feedback:**
 - `get_raw_feedbacks(request)` - Raw feedback from interactions

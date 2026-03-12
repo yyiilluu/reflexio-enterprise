@@ -32,9 +32,9 @@ Key files:
   - **SearchInteractionRequest/Response**: Interaction search
   - **GetUserProfilesRequest/Response**: Get profiles by user_id
   - **GetInteractionsRequest/Response**: Get interactions by user_id
-  - **GetRequestsRequest/Response**: Get requests with filters (user_id, request_id, request_group)
+  - **GetRequestsRequest/Response**: Get requests with filters (user_id, request_id, session_id)
   - **RequestData**: Request with associated interactions
-  - **RequestGroup**: Group of requests sharing a request_group
+  - **Session**: Group of requests sharing a session_id
   - **GetRawFeedbacksRequest/Response**: Get raw feedbacks
   - **GetFeedbacksRequest/Response**: Get aggregated feedbacks
 

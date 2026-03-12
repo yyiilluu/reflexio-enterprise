@@ -28,6 +28,9 @@ load_dotenv()
 # Suppress LiteLLM's verbose logging
 litellm.suppress_debug_info = True
 
+# Python-to-JSON keyword replacements used by _sanitize_json_string.
+_PYTHON_TO_JSON_REPLACEMENTS = {"True": "true", "False": "false", "None": "null"}
+
 
 @dataclass
 class LiteLLMConfig:
@@ -146,6 +149,11 @@ class LiteLLMClient:
         elif model_lower.startswith("openrouter/"):
             if self.config.api_key_config.openrouter:
                 return self.config.api_key_config.openrouter.api_key, None, None
+
+        # MiniMax
+        elif model_lower.startswith("minimax/"):
+            if self.config.api_key_config.minimax:
+                return self.config.api_key_config.minimax.api_key, None, None
 
         # Azure OpenAI
         elif model_lower.startswith("azure/"):
@@ -733,16 +741,23 @@ class LiteLLMClient:
             return content
 
         # Try to parse JSON and convert to Pydantic model
+        # Extract JSON from markdown code blocks if present
+        json_str = self._extract_json_from_string(content)
         try:
-            # Extract JSON from markdown code blocks if present
-            json_str = self._extract_json_from_string(content)
             parsed = json.loads(json_str)
 
             # response_format must be a Pydantic model (validated at entry points)
             return response_format.model_validate(parsed)
-        except (json.JSONDecodeError, Exception) as e:
-            self.logger.warning(f"Failed to parse structured output: {e}")
-            return content
+        except Exception:
+            # LLMs sometimes produce Python-style output (single quotes, True/False,
+            # trailing commas). Try to sanitize before giving up.
+            try:
+                sanitized = self._sanitize_json_string(json_str)
+                parsed = json.loads(sanitized)
+                return response_format.model_validate(parsed)
+            except Exception as e:
+                self.logger.warning(f"Failed to parse structured output: {e}")
+                return content
 
     def _extract_json_from_string(self, content: str) -> str:
         """
@@ -770,6 +785,110 @@ class LiteLLMClient:
                 return content[start_idx : end_idx + 1]
 
         return content
+
+    def _sanitize_json_string(self, json_str: str) -> str:
+        """
+        Sanitize a JSON-like string that uses Python-style syntax into valid JSON.
+
+        Handles common LLM issues: single quotes, Python True/False/None,
+        and trailing commas before closing braces/brackets.
+
+        Args:
+            json_str: A JSON-like string that may contain Python-style syntax.
+
+        Returns:
+            A sanitized string closer to valid JSON.
+        """
+        s = json_str
+
+        # Walk character-by-character to:
+        #   1. Replace single-quoted strings with double-quoted strings
+        #   2. Replace Python True/False/None with JSON true/false/null ONLY outside strings
+        #   3. Handle escaped apostrophes inside single-quoted strings (e.g. 'didn\'t')
+        #   4. Escape literal double quotes that end up inside double-quoted strings
+        result = []
+        in_double = False
+        in_single = False
+        i = 0
+        while i < len(s):
+            ch = s[i]
+            if ch == "\\" and (in_double or in_single):
+                # Escaped character inside a string
+                if i + 1 < len(s):
+                    next_ch = s[i + 1]
+                    if in_single and next_ch == "'":
+                        # \' inside single-quoted string → literal apostrophe
+                        # In JSON double-quoted strings, apostrophe needs no escape
+                        result.append("'")
+                        i += 2
+                        continue
+                    else:
+                        result.append(ch)
+                        result.append(next_ch)
+                        i += 2
+                        continue
+                else:
+                    result.append(ch)
+            elif ch == '"' and not in_single:
+                in_double = not in_double
+                result.append(ch)
+            elif ch == "'" and not in_double:
+                in_single = not in_single
+                result.append('"')  # swap single → double
+            else:
+                # Escape unescaped double quotes inside single-quoted strings
+                # (they become part of a double-quoted JSON string)
+                if in_single and ch == '"':
+                    result.append('\\"')
+                else:
+                    result.append(ch)
+            i += 1
+        s = "".join(result)
+
+        # Replace Python booleans/None with JSON equivalents only outside quoted strings.
+        # We walk the already-double-quoted result so we only need to track double quotes.
+        output = []
+        in_str = False
+        j = 0
+        while j < len(s):
+            if s[j] == "\\" and in_str:
+                output.append(s[j : j + 2])
+                j += 2
+                continue
+            if s[j] == '"':
+                in_str = not in_str
+                output.append(s[j])
+                j += 1
+                continue
+            if not in_str:
+                matched = False
+                for py_val, json_val in _PYTHON_TO_JSON_REPLACEMENTS.items():
+                    if s[j : j + len(py_val)] == py_val:
+                        # Check word boundaries
+                        before = s[j - 1] if j > 0 else " "
+                        after = s[j + len(py_val)] if j + len(py_val) < len(s) else " "
+                        if (
+                            not before.isalnum()
+                            and before != "_"
+                            and not after.isalnum()
+                            and after != "_"
+                        ):
+                            output.append(json_val)
+                            j += len(py_val)
+                            matched = True
+                            break
+                if not matched:
+                    output.append(s[j])
+                    j += 1
+            else:
+                output.append(s[j])
+                j += 1
+        s = "".join(output)
+
+        # Remove trailing commas before } or ]
+        s = re.sub(r",\s*([}\]])", r"\1", s)
+
+        return s
 
     def _is_non_retryable_error(self, error_str: str) -> bool:
         """

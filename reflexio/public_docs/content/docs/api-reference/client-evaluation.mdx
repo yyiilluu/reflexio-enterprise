@@ -39,7 +39,6 @@ response = client.get_agent_success_evaluation_results(
 | `is_success` | bool | Whether the agent was successful |
 | `failure_type` | str | Type of failure if unsuccessful |
 | `failure_reason` | str | Detailed reason for failure |
-| `agent_prompt_update` | str | Suggested improvement for the agent |
 | `evaluation_name` | str | Name of the evaluation configuration (optional) |
 | `created_at` | int | Unix timestamp when evaluation was created |
 | `regular_vs_shadow` | RegularVsShadow | Comparison between regular and shadow versions (optional) |
@@ -59,10 +58,9 @@ print(f"Success rate: {successful/total*100:.1f}%")
 print("\nFailure Analysis:")
 for result in response.results:
     if not result.is_success:
-        print(f"Request: {result.request_id}")
+        print(f"Session: {result.session_id}")
         print(f"  Failure Type: {result.failure_type}")
         print(f"  Reason: {result.failure_reason}")
-        print(f"  Suggestion: {result.agent_prompt_update}")
 
 # Compare agent versions
 v1_results = client.get_agent_success_evaluation_results(

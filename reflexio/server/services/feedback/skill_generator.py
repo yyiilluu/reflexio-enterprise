@@ -425,6 +425,7 @@ class SkillGenerator:
             feedback_name=request.feedback_name,
             agent_version=self.agent_version,
             status_filter=[None],  # Current feedbacks only
+            include_embedding=True,
         )
 
         if not raw_feedbacks:

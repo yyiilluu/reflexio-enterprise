@@ -84,7 +84,7 @@ The following methods use fire-and-forget mode by default (can use `wait_for_res
 - `delete_interaction`
 - `delete_profile`
 - `delete_request`
-- `delete_request_group`
+- `delete_session`
 - `delete_feedback`
 - `delete_raw_feedback`
 
@@ -160,8 +160,7 @@ All client methods are synchronous - no `await` needed. The client handles async
 
 ```python
 # All methods are synchronous
-client = ReflexioClient(url_endpoint="http://127.0.0.1:8081/")
-token = client.login("user@example.com", "password")
+client = ReflexioClient(api_key="your-api-key", url_endpoint="http://127.0.0.1:8081/")
 profiles = client.get_profiles(user_id="user_123")
 # No async/await required
 ```

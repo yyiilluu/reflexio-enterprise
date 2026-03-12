@@ -29,7 +29,7 @@ from reflexio.server.services.base_generation_service import (
 )
 from reflexio.server.services.feedback.feedback_aggregator import FeedbackAggregator
 from reflexio.server.services.service_utils import (
-    format_request_groups_to_history_string,
+    format_sessions_to_history_string,
 )
 
 logger = logging.getLogger(__name__)
@@ -176,7 +176,7 @@ class FeedbackGenerationService(
     def _build_should_run_prompt(
         self,
         scoped_configs: list[AgentFeedbackConfig],
-        request_groups: list[RequestInteractionDataModel],
+        session_data_models: list[RequestInteractionDataModel],
     ) -> str | None:
         """
         Build prompt for consolidated should_generate feedback check.
@@ -186,12 +186,12 @@ class FeedbackGenerationService(
 
         Args:
             scoped_configs: Feedback extractor configs that had scoped interactions
-            request_groups: Deduplicated request interaction groups
+            session_data_models: Deduplicated request interaction data models
 
         Returns:
             str | None: The rendered prompt, or None if no definitions to check
         """
-        new_interactions = format_request_groups_to_history_string(request_groups)
+        new_interactions = format_sessions_to_history_string(session_data_models)
 
         # Combine all feedback definitions into a numbered list
         definitions = []
@@ -481,9 +481,9 @@ class FeedbackGenerationService(
         """
         return {
             "agent_version": request.agent_version,
-            "start_time": request.start_time.isoformat()
-            if request.start_time
-            else None,
+            "start_time": (
+                request.start_time.isoformat() if request.start_time else None
+            ),
             "end_time": request.end_time.isoformat() if request.end_time else None,
             "feedback_name": request.feedback_name,
         }
@@ -511,12 +511,12 @@ class FeedbackGenerationService(
                 agent_version=request.agent_version,
                 user_id=user_id,
                 source=request.source,
-                rerun_start_time=int(request.start_time.timestamp())
-                if request.start_time
-                else None,
-                rerun_end_time=int(request.end_time.timestamp())
-                if request.end_time
-                else None,
+                rerun_start_time=(
+                    int(request.start_time.timestamp()) if request.start_time else None
+                ),
+                rerun_end_time=(
+                    int(request.end_time.timestamp()) if request.end_time else None
+                ),
                 feedback_name=request.feedback_name,
                 auto_run=False,
             )
@@ -598,15 +598,15 @@ class FeedbackGenerationService(
                 )
 
             # 1. Get user_ids with recent interactions
-            requests_dict = self.storage.get_request_groups(
+            requests_dict = self.storage.get_sessions(
                 user_id=None,  # All users
-                top_k=1000,  # Get recent request groups to find users
+                top_k=1000,  # Get recent sessions to find users
             )
 
             # Get unique user_ids
             user_ids_set: set[str] = set()
-            for request_group_requests in requests_dict.values():
-                for rig in request_group_requests:
+            for session_requests in requests_dict.values():
+                for rig in session_requests:
                     # Apply source filter if provided
                     if request.source and rig.request.source != request.source:
                         continue

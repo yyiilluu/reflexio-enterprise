@@ -16,13 +16,13 @@ Agent success evaluation provides automated assessment of your agent's performan
 ```python
 from reflexio import ReflexioClient
 
-# Initialize and authenticate (login automatically sets the API key)
-client = ReflexioClient(url_endpoint="http://127.0.0.1:8081/")
-token = client.login("your_email@example.com", "your_password")
-# token.api_key contains your API key - save it for future use (it never expires)
+# Option 1: Direct API key
+client = ReflexioClient(api_key="your-api-key", url_endpoint="http://127.0.0.1:8081/")
 
-# Or initialize with a previously saved API key (more efficient - skips login)
-# client = ReflexioClient(api_key=token.api_key, url_endpoint="http://127.0.0.1:8081/")
+# Option 2: Environment variable
+# export REFLEXIO_API_KEY="your-api-key"
+# export REFLEXIO_API_URL="http://127.0.0.1:8081/"
+# client = ReflexioClient()
 ```
 
 ## Basic Usage
@@ -41,7 +41,6 @@ for result in response.results:
     if not result.is_success:
         print(f"Failure Type: {result.failure_type}")
         print(f"Failure Reason: {result.failure_reason}")
-    print(f"Suggested Improvement: {result.agent_prompt_update}")
     print("-" * 50)
 ```
 
@@ -87,7 +86,7 @@ for failure_type, count in sorted(failure_types.items(), key=lambda x: x[1], rev
     print(f"  {failure_type}: {count}")
 ```
 
-### Extract Improvement Suggestions
+### Filter by Failure Type
 
 ```python
 response = client.get_agent_success_evaluation_results(
@@ -95,15 +94,16 @@ response = client.get_agent_success_evaluation_results(
     limit=50
 )
 
-# Collect unique improvement suggestions
-improvements = set()
-for result in response.results:
-    if not result.is_success and result.agent_prompt_update:
-        improvements.add(result.agent_prompt_update)
-
-print("Suggested Improvements:")
-for i, improvement in enumerate(improvements, 1):
-    print(f"{i}. {improvement}")
+# Show failures grouped by type
+from collections import Counter
+failure_counts = Counter(
+    result.failure_type for result in response.results if not result.is_success
+)
+for failure_type, count in failure_counts.most_common():
+    print(f"{failure_type}: {count}")
+    for result in response.results:
+        if not result.is_success and result.failure_type == failure_type:
+            print(f"  - {result.failure_reason}")
 ```
 
 ## Version Comparison
@@ -191,14 +191,11 @@ for result in response.results:
             failure_patterns[reason] = {
                 "count": 0,
                 "failure_types": set(),
-                "improvements": set()
             }
 
         failure_patterns[reason]["count"] += 1
         if result.failure_type:
             failure_patterns[reason]["failure_types"].add(result.failure_type)
-        if result.agent_prompt_update:
-            failure_patterns[reason]["improvements"].add(result.agent_prompt_update)
 
 # Display top failure patterns
 print("Top Failure Patterns:")
@@ -207,10 +204,6 @@ for reason, data in sorted_patterns[:5]:
     print(f"\nReason: {reason}")
     print(f"  Occurrences: {data['count']}")
     print(f"  Failure Types: {', '.join(data['failure_types'])}")
-    if data['improvements']:
-        print(f"  Suggested Improvements:")
-        for improvement in list(data['improvements'])[:2]:
-            print(f"    - {improvement}")
 ```
 
 ## Integration Patterns
@@ -258,8 +251,8 @@ check_agent_health("v2.1.0")
 ### Generate Improvement Report
 
 ```python
-def generate_improvement_report(agent_version):
-    """Generate a comprehensive improvement report."""
+def generate_failure_report(agent_version):
+    """Generate a comprehensive failure analysis report."""
     response = client.get_agent_success_evaluation_results(
         agent_version=agent_version,
         limit=200
@@ -269,7 +262,7 @@ def generate_improvement_report(agent_version):
     successful = sum(1 for r in response.results if r.is_success)
     failed = total - successful
 
-    print(f"=== Agent Improvement Report: {agent_version} ===\n")
+    print(f"=== Agent Failure Report: {agent_version} ===\n")
     print(f"Total Evaluations: {total}")
     print(f"Successful: {successful} ({successful/total*100:.2f}%)")
     print(f"Failed: {failed} ({failed/total*100:.2f}%)\n")
@@ -285,18 +278,8 @@ def generate_improvement_report(agent_version):
         for ftype, count in sorted(failure_types.items(), key=lambda x: x[1], reverse=True):
             print(f"  - {ftype}: {count} ({count/failed*100:.2f}%)")
 
-        # Improvement suggestions
-        improvements = {}
-        for r in response.results:
-            if not r.is_success and r.agent_prompt_update:
-                improvements[r.agent_prompt_update] = improvements.get(r.agent_prompt_update, 0) + 1
-
-        print("\nTop Improvement Suggestions:")
-        for suggestion, count in sorted(improvements.items(), key=lambda x: x[1], reverse=True)[:3]:
-            print(f"  {count}x: {suggestion}")
-
 # Generate report
-generate_improvement_report("v2.1.0")
+generate_failure_report("v2.1.0")
 ```
 
 ## Best Practices

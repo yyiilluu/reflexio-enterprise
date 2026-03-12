@@ -1,7 +1,7 @@
 {
-    "should_run_model_name": "gpt-5-nano",
-    "default_generation_model_name": "openrouter/google/gemini-3-flash-preview",
-    "default_evaluate_model_name": "gpt-5-nano",
+    "should_run_model_name": "minimax/MiniMax-M2.5",
+    "default_generation_model_name": "minimax/MiniMax-M2.5",
+    "default_evaluate_model_name": "minimax/MiniMax-M2.5",
     "embedding_model_name": "text-embedding-3-small",
-    "query_rewrite_model_name": "gpt-5-nano"
+    "query_rewrite_model_name": "minimax/MiniMax-M2.5"
 }

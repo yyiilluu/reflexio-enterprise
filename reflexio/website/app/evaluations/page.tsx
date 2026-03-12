@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input"
 import {
   CheckCircle,
   XCircle,
-  TrendingUp,
   Activity,
   Filter,
   Search,
@@ -19,6 +18,9 @@ import {
   RefreshCw,
   GitCompare,
   Loader2,
+  ArrowUpRight,
+  MessageSquare,
+  RotateCcw,
 } from "lucide-react"
 import {
   getAgentSuccessEvaluationResults,
@@ -227,18 +229,6 @@ function FailureDetailsSection({ result }: FailureDetailsSectionProps) {
         </div>
       )}
 
-      {/* Suggested Prompt Update */}
-      {result.agent_prompt_update && (
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="h-4 w-4 text-indigo-600" />
-            <span className="text-sm font-semibold text-slate-800">Suggested Improvement</span>
-          </div>
-          <p className="text-sm text-slate-700 bg-indigo-50 p-3 rounded-lg border border-indigo-100">
-            {result.agent_prompt_update}
-          </p>
-        </div>
-      )}
     </div>
   )
 }
@@ -271,10 +261,10 @@ function EvaluationRow({ result }: EvaluationRowProps) {
     setComparisonError(null)
 
     try {
-      const response = await getRequests({ request_id: result.request_id })
-      if (response.success && response.request_groups.length > 0) {
+      const response = await getRequests({ session_id: result.session_id })
+      if (response.success && response.sessions.length > 0) {
         // Get all interactions from the request
-        const allInteractions = response.request_groups
+        const allInteractions = response.sessions
           .flatMap(group => group.requests)
           .flatMap(rd => rd.interactions)
           .sort((a, b) => a.created_at - b.created_at)
@@ -333,8 +323,8 @@ function EvaluationRow({ result }: EvaluationRowProps) {
             {/* Main Info */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-semibold text-slate-800">
-                  {result.agent_version}
+                <span className="font-semibold text-slate-800 truncate">
+                  Session: {result.session_id}
                 </span>
                 <Badge className={`text-xs ${result.is_success ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100" : "bg-red-100 text-red-700 hover:bg-red-100"}`}>
                   {result.is_success ? "Success" : "Failed"}
@@ -342,6 +332,13 @@ function EvaluationRow({ result }: EvaluationRowProps) {
                 {!result.is_success && result.failure_type && (
                   <Badge variant="outline" className="text-xs border-slate-200 text-slate-600">
                     {result.failure_type}
+                  </Badge>
+                )}
+                {/* Escalation badge */}
+                {result.is_escalated && (
+                  <Badge className="text-xs bg-amber-100 text-amber-700 hover:bg-amber-100">
+                    <ArrowUpRight className="h-3 w-3 mr-1" />
+                    Escalated
                   </Badge>
                 )}
                 {/* Comparison badge */}
@@ -357,7 +354,19 @@ function EvaluationRow({ result }: EvaluationRowProps) {
                     {result.evaluation_name}
                   </Badge>
                 )}
-                <span className="truncate">Request: {result.request_id}</span>
+                <span className="truncate">Version: {result.agent_version}</span>
+                {result.number_of_correction_per_session > 0 && (
+                  <span className="flex items-center gap-1 text-slate-500">
+                    <RotateCcw className="h-3 w-3" />
+                    {result.number_of_correction_per_session} correction{result.number_of_correction_per_session !== 1 ? "s" : ""}
+                  </span>
+                )}
+                {result.is_success && result.user_turns_to_resolution != null && (
+                  <span className="flex items-center gap-1 text-slate-500">
+                    <MessageSquare className="h-3 w-3" />
+                    {result.user_turns_to_resolution} turn{result.user_turns_to_resolution !== 1 ? "s" : ""} to resolve
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -475,6 +484,23 @@ export default function EvaluationsPage() {
     ? (((regularBetter + regularSlightlyBetter - shadowBetter - shadowSlightlyBetter) / evaluationsWithComparison.length) * 100).toFixed(1)
     : "0"
 
+  // Calculate avg corrections per session
+  const avgCorrections = totalEvaluations > 0
+    ? (evaluations.reduce((sum, e) => sum + (e.number_of_correction_per_session || 0), 0) / totalEvaluations).toFixed(1)
+    : "0"
+
+  // Calculate avg turns to resolution (only for successful evals that have the field)
+  const successfulWithTurns = evaluations.filter((e) => e.is_success && e.user_turns_to_resolution != null)
+  const avgTurnsToResolution = successfulWithTurns.length > 0
+    ? (successfulWithTurns.reduce((sum, e) => sum + (e.user_turns_to_resolution || 0), 0) / successfulWithTurns.length).toFixed(1)
+    : null
+
+  // Calculate escalation rate
+  const escalatedCount = evaluations.filter((e) => e.is_escalated).length
+  const escalationRate = totalEvaluations > 0
+    ? ((escalatedCount / totalEvaluations) * 100).toFixed(1)
+    : "0"
+
   // Get unique agent versions
   const agentVersions = Array.from(new Set(evaluations.map((e) => e.agent_version))).sort()
 
@@ -482,7 +508,7 @@ export default function EvaluationsPage() {
   const filteredEvaluations = evaluations.filter((evaluation) => {
     const matchesSearch =
       searchQuery === "" ||
-      evaluation.request_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      evaluation.session_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
       evaluation.agent_version.toLowerCase().includes(searchQuery.toLowerCase()) ||
       evaluation.failure_type.toLowerCase().includes(searchQuery.toLowerCase())
 
@@ -548,60 +574,76 @@ export default function EvaluationsPage() {
             </Card>
           )}
 
-          {/* Statistics Cards */}
+          {/* Performance Overview */}
           {!loading && !error && (
-            <div className="grid gap-5 md:grid-cols-3">
-            <Card className="border bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-semibold text-slate-600">
-                  Total Evaluations
-                </CardTitle>
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg">
-                  <Activity className="h-5 w-5 text-white" />
+            <Card className="border-slate-200 bg-white hover:shadow-lg transition-all duration-300">
+              <CardHeader className="pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+                    <Activity className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg font-semibold text-slate-800">Performance Overview</CardTitle>
+                    <CardDescription className="text-xs mt-0.5 text-slate-500">
+                      {totalEvaluations} evaluation{totalEvaluations !== 1 ? "s" : ""} analyzed
+                    </CardDescription>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-slate-800">{totalEvaluations}</div>
-                <p className="text-xs text-slate-500 mt-1">
-                  Evaluations completed
-                </p>
-              </CardContent>
-            </Card>
+                <div className="grid grid-cols-2 gap-4 md:flex md:gap-0 md:divide-x md:divide-slate-200">
+                  {/* Success Rate */}
+                  <div className="flex flex-col items-center text-center flex-1 md:px-4 py-2">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
+                      <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Success Rate</span>
+                    </div>
+                    <span className="text-2xl font-bold text-slate-800">{successRate}%</span>
+                    <span className="text-xs text-slate-400 mt-0.5">{successCount} of {totalEvaluations}</span>
+                  </div>
 
-            <Card className="border bg-gradient-to-br from-purple-50 to-pink-50 border-purple-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-semibold text-slate-600">
-                  Success Rate
-                </CardTitle>
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
-                  <TrendingUp className="h-5 w-5 text-white" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-slate-800">{successRate}%</div>
-                <p className="text-xs text-slate-500 mt-1">
-                  Agent success percentage
-                </p>
-              </CardContent>
-            </Card>
+                  {/* Avg Corrections */}
+                  <div className="flex flex-col items-center text-center flex-1 md:px-4 py-2">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <RotateCcw className="h-3.5 w-3.5 text-amber-500" />
+                      <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Avg Corrections</span>
+                    </div>
+                    <span className="text-2xl font-bold text-slate-800">{avgCorrections}</span>
+                    <span className="text-xs text-slate-400 mt-0.5">per session</span>
+                  </div>
 
-            <Card className="border bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-semibold text-slate-600">
-                  Regular vs Shadow
-                </CardTitle>
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg">
-                  <GitCompare className="h-5 w-5 text-white" />
+                  {/* Avg Turns to Resolve */}
+                  <div className="flex flex-col items-center text-center flex-1 md:px-4 py-2">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <MessageSquare className="h-3.5 w-3.5 text-blue-500" />
+                      <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Avg Turns to Resolve</span>
+                    </div>
+                    <span className="text-2xl font-bold text-slate-800">{avgTurnsToResolution ?? "N/A"}</span>
+                    <span className="text-xs text-slate-400 mt-0.5">across {successfulWithTurns.length} session{successfulWithTurns.length !== 1 ? "s" : ""}</span>
+                  </div>
+
+                  {/* Escalation Rate */}
+                  <div className="flex flex-col items-center text-center flex-1 md:px-4 py-2">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <ArrowUpRight className="h-3.5 w-3.5 text-red-500" />
+                      <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Escalation Rate</span>
+                    </div>
+                    <span className="text-2xl font-bold text-slate-800">{escalationRate}%</span>
+                    <span className="text-xs text-slate-400 mt-0.5">{escalatedCount} escalated</span>
+                  </div>
+
+                  {/* Regular vs Shadow */}
+                  <div className="flex flex-col items-center text-center flex-1 md:px-4 py-2">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <GitCompare className="h-3.5 w-3.5 text-indigo-500" />
+                      <span className="text-xs font-medium uppercase tracking-wider text-slate-500">Regular vs Shadow</span>
+                    </div>
+                    <span className="text-2xl font-bold text-slate-800">{regularVsShadowWinRate}%</span>
+                    <span className="text-xs text-slate-400 mt-0.5">{evaluationsWithComparison.length} compared</span>
+                  </div>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-slate-800">{regularVsShadowWinRate}%</div>
-                <p className="text-xs text-slate-500 mt-1">
-                  Regular win rate
-                </p>
               </CardContent>
             </Card>
-          </div>
           )}
 
           {/* Filters */}

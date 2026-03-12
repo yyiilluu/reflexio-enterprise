@@ -51,6 +51,8 @@ class OrganizationsStore:
     def __init__(self):
         self.organizations: list[dict] = []
         self.next_id: int = 1
+        self.api_tokens: list[dict] = []
+        self.next_token_id: int = 1
 
     def to_dict(self) -> dict:
         """
@@ -59,7 +61,12 @@ class OrganizationsStore:
         Returns:
             dict: Store data as dictionary
         """
-        return {"organizations": self.organizations, "next_id": self.next_id}
+        return {
+            "organizations": self.organizations,
+            "next_id": self.next_id,
+            "api_tokens": self.api_tokens,
+            "next_token_id": self.next_token_id,
+        }
 
     @classmethod
     def from_dict(cls, data: dict) -> "OrganizationsStore":
@@ -75,6 +82,8 @@ class OrganizationsStore:
         store = cls()
         store.organizations = data.get("organizations", [])
         store.next_id = data.get("next_id", 1)
+        store.api_tokens = data.get("api_tokens", [])
+        store.next_token_id = data.get("next_token_id", 1)
         return store
 
 
@@ -404,6 +413,112 @@ class S3OrganizationStorage:
         """
         orgs = self.store.organizations[skip : skip + limit]
         return [self._dict_to_organization(org_dict) for org_dict in orgs]
+
+    def _dict_to_api_token(self, token_dict: dict) -> db_models.ApiToken:
+        """
+        Convert a dictionary to an ApiToken model instance.
+
+        Args:
+            token_dict: Dictionary from store
+
+        Returns:
+            ApiToken model instance
+        """
+        token = db_models.ApiToken()
+        token.id = token_dict.get("id")
+        token.org_id = token_dict.get("org_id")
+        token.token = token_dict.get("token")
+        token.name = token_dict.get("name", "Default")
+        token.created_at = token_dict.get("created_at")
+        token.last_used_at = token_dict.get("last_used_at")
+        return token
+
+    def create_api_token(
+        self, org_id: int, token_value: str, name: str = "Default"
+    ) -> db_models.ApiToken:
+        """
+        Create a new API token in S3 storage.
+
+        Args:
+            org_id: Organization ID
+            token_value: The token string
+            name: Human-readable name
+
+        Returns:
+            Created ApiToken object
+        """
+        with self._write_lock:
+            token_dict = {
+                "id": self.store.next_token_id,
+                "org_id": org_id,
+                "token": token_value,
+                "name": name,
+                "created_at": int(datetime.now(timezone.utc).timestamp()),
+                "last_used_at": None,
+            }
+            self.store.next_token_id += 1
+            self.store.api_tokens.append(token_dict)
+
+            if not self._save_to_s3():
+                self.store.api_tokens.pop()
+                self.store.next_token_id -= 1
+                raise Exception("Failed to save API token to S3")
+
+            return self._dict_to_api_token(token_dict)
+
+    def get_api_tokens_by_org_id(self, org_id: int) -> list[db_models.ApiToken]:
+        """
+        Get all API tokens for an organization from S3 storage.
+
+        Args:
+            org_id: Organization ID
+
+        Returns:
+            List of ApiToken objects
+        """
+        return [
+            self._dict_to_api_token(t)
+            for t in self.store.api_tokens
+            if t.get("org_id") == org_id
+        ]
+
+    def get_org_by_api_token(
+        self, token_value: str
+    ) -> Optional[db_models.Organization]:
+        """
+        Look up an organization by API token value in S3 storage.
+
+        Args:
+            token_value: The token string
+
+        Returns:
+            Organization or None
+        """
+        for t in self.store.api_tokens:
+            if t.get("token") == token_value:
+                return self.get_organization_by_id(t["org_id"])
+        return None
+
+    def delete_api_token(self, token_id: int, org_id: int) -> bool:
+        """
+        Delete an API token from S3 storage.
+
+        Args:
+            token_id: Token ID
+            org_id: Organization ID (ownership check)
+
+        Returns:
+            True if deleted, False if not found
+        """
+        with self._write_lock:
+            for i, t in enumerate(self.store.api_tokens):
+                if t.get("id") == token_id and t.get("org_id") == org_id:
+                    old_token = self.store.api_tokens.pop(i)
+                    if not self._save_to_s3():
+                        self.store.api_tokens.insert(i, old_token)
+                        raise Exception("Failed to save to S3")
+                    return True
+            return False
 
 
 # Singleton getter

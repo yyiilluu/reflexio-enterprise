@@ -29,7 +29,7 @@ from reflexio.server.services.base_generation_service import (
     StatusChangeOperation,
 )
 from reflexio.server.services.service_utils import (
-    format_request_groups_to_history_string,
+    format_sessions_to_history_string,
 )
 
 
@@ -252,7 +252,7 @@ class ProfileGenerationService(
     def _build_should_run_prompt(
         self,
         scoped_configs: list[ProfileExtractorConfig],
-        request_groups: list[RequestInteractionDataModel],
+        session_data_models: list[RequestInteractionDataModel],
     ) -> str | None:
         """
         Build prompt for consolidated should_extract_profile check.
@@ -262,12 +262,12 @@ class ProfileGenerationService(
 
         Args:
             scoped_configs: Profile extractor configs that had scoped interactions
-            request_groups: Deduplicated request interaction groups
+            session_data_models: Deduplicated request interaction data models
 
         Returns:
             str | None: The rendered prompt, or None if no criteria to check
         """
-        new_interactions = format_request_groups_to_history_string(request_groups)
+        new_interactions = format_sessions_to_history_string(session_data_models)
         agent_context = self.configurator.get_agent_context()
         prompt_manager = self.request_context.prompt_manager
 
@@ -401,9 +401,9 @@ class ProfileGenerationService(
         """
         return {
             "user_id": request.user_id,
-            "start_time": request.start_time.isoformat()
-            if request.start_time
-            else None,
+            "start_time": (
+                request.start_time.isoformat() if request.start_time else None
+            ),
             "end_time": request.end_time.isoformat() if request.end_time else None,
             "source": request.source,
             "extractor_names": request.extractor_names,
@@ -432,12 +432,12 @@ class ProfileGenerationService(
                 request_id=f"rerun_{uuid.uuid4().hex[:8]}",
                 source=request.source,
                 extractor_names=request.extractor_names,
-                rerun_start_time=int(request.start_time.timestamp())
-                if request.start_time
-                else None,
-                rerun_end_time=int(request.end_time.timestamp())
-                if request.end_time
-                else None,
+                rerun_start_time=(
+                    int(request.start_time.timestamp()) if request.start_time else None
+                ),
+                rerun_end_time=(
+                    int(request.end_time.timestamp()) if request.end_time else None
+                ),
                 auto_run=False,
             )
         # Handle manual requests (ManualProfileGenerationRequest)

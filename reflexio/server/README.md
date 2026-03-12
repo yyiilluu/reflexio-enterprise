@@ -31,13 +31,13 @@ Description: FastAPI backend server that processes user interactions to generate
 | `request_context.py` | RequestContext (bundles org_id, storage, configurator, prompt_manager) |
 | `publisher_api.py` | Publishing user interactions |
 | `retriever_api.py` | Retrieving profiles, interactions, requests |
-| `login.py` | Authentication with TTL-cached org lookups (5 min TTL), email verification, password reset |
+| `login.py` | Authentication with TTL-cached token/org lookups (5 min TTL), `rflx-` API key generation, email verification, password reset |
 | `precondition_checks.py` | Request validation |
 | `self_managed_migration.py` | Background migration for self-managed orgs (triggered on login, TTL-throttled 10 min) |
 
 **Key Endpoints**:
 - `POST /api/publish_interaction` - Publish interactions (triggers profile/feedback/evaluation)
-- `POST /api/get_requests` - Get request groups with associated interactions (supports `offset`/`has_more` pagination)
+- `POST /api/get_requests` - Get sessions with associated interactions (supports `offset`/`has_more` pagination)
 - `GET /api/get_all_interactions` - Get all interactions across all users
 - `GET /api/get_profile_statistics` - Profile statistics by status
 - `GET /api/get_all_profiles?status_filter=<status>` - Filter by status (current/pending/archived)
@@ -64,7 +64,9 @@ Description: FastAPI backend server that processes user interactions to generate
 - `GET /api/get_operation_status` - Get background operation status
 - `POST /api/cancel_operation` - Cancel an in-progress operation (rerun or manual generation)
 
-**Login Response**: `POST /token` now returns `feature_flags: dict[str, bool]` alongside `api_key` and `token_type`. Frontend stores these in localStorage to gate UI features. For self-managed orgs (`is_self_managed=True`), login also triggers a background migration check via `self_managed_migration.py`.
+**Login Response**: `POST /token` returns `api_key` (40-char `rflx-` prefixed token), `token_type`, and `feature_flags: dict[str, bool]`. Frontend stores these in localStorage. For self-managed orgs (`is_self_managed=True`), login also triggers a background migration check via `self_managed_migration.py`.
+
+**Authentication**: API keys use `rflx-` prefix format (40 chars). Auth flow: Bearer token → DB lookup in `api_tokens` table → get `org_id` → load org. Legacy JWT tokens are still supported as fallback. Multiple tokens per org are supported.
 
 **Authentication Endpoints**:
 - `POST /api/register` - Register new org (accepts optional `invitation_code` form field; when `invitation_only` flag enabled, code is required and org is auto-verified)
@@ -72,6 +74,11 @@ Description: FastAPI backend server that processes user interactions to generate
 - `POST /api/resend-verification` - Resend verification email
 - `POST /api/forgot-password` - Request password reset email
 - `POST /api/reset-password` - Reset password with token
+
+**API Token Management Endpoints**:
+- `GET /api/tokens` - List all tokens for current org (masked values)
+- `POST /api/tokens` - Create new token (returns full value once), body: `{"name": "..."}`
+- `DELETE /api/tokens/{token_id}` - Delete a token (cannot delete last token)
 
 **Self-Host Mode** (`SELF_HOST=true`): No auth, default org: `self-host-org`, requires S3 config storage (`CONFIG_S3_*` env vars)
 
@@ -83,8 +90,8 @@ Description: FastAPI backend server that processes user interactions to generate
 
 Key files:
 - `database.py`: Connection setup (priority: S3 in self-host → Supabase → SQLite)
-- `db_models.py`: SQLAlchemy models (users, tokens, configs, invitation codes)
-- `db_operations.py`: CRUD operations with retry logic (tenacity: 3 attempts, exponential backoff), invitation code management (claim/release/create)
+- `db_models.py`: SQLAlchemy models (Organization, ApiToken, InvitationCode)
+- `db_operations.py`: CRUD operations with retry logic (tenacity: 3 attempts, exponential backoff), invitation code management (claim/release/create), API token management (create/list/lookup/delete)
 - `login_supabase_client.py`: Cloud Supabase client for auth (see `supabase_login/README.md`)
 - `s3_org_storage.py`: S3-based organization storage for self-host mode (singleton, cached in memory)
 
@@ -211,7 +218,8 @@ python -m reflexio.server.scripts.manage_invitation_codes list --show-used
 
 Main orchestrator flow:
 1. Save interactions to storage
-2. Run ProfileGenerationService, FeedbackGenerationService, AgentSuccessEvaluationService in parallel (ThreadPoolExecutor, 3 workers)
+2. Run ProfileGenerationService, FeedbackGenerationService in parallel (ThreadPoolExecutor, 2 workers)
+3. Schedule deferred agent success evaluation via `GroupEvaluationScheduler` when `session_id` is present (10 min delay after last request in session)
 
 **Timeout Protection**: Two-layer timeout strategy:
 - **Service level**: `GENERATION_SERVICE_TIMEOUT_SECONDS = 600` (10 min) — outer timeout for each parallel service
@@ -399,12 +407,16 @@ Similar to profiles, raw feedbacks support versioning:
 **Directory**: `services/agent_success_evaluation/`
 
 Key files:
-- `agent_success_evaluation_service.py`: Service orchestrator
-- `agent_success_evaluator.py`: Evaluates success and improvement areas
+- `agent_success_evaluation_service.py`: Service orchestrator (tracks run outcome flags: `last_run_result_count`, `has_run_failures()`)
+- `agent_success_evaluator.py`: Evaluates success at session level (all interactions as one group)
 - `agent_success_evaluation_constants.py`: Output schemas (`AgentSuccessEvaluationOutput`, `AgentSuccessEvaluationWithComparisonOutput`)
 - `agent_success_evaluation_utils.py`: Message construction utilities
+- `delayed_group_evaluator.py`: `GroupEvaluationScheduler` singleton - min-heap priority queue with daemon thread, defers evaluation until 10 min after last request in session
+- `group_evaluation_runner.py`: `run_group_evaluation()` - fetches all requests/interactions for a session, builds `RequestInteractionDataModel` list, runs evaluation
 
-**Flow**: Interactions → AgentSuccessEvaluator → AgentSuccessEvaluationResult → Storage
+**Flow**: Interactions → (deferred 10 min) → GroupEvaluationScheduler → run_group_evaluation → AgentSuccessEvaluator → AgentSuccessEvaluationResult → Storage
+
+**Session-Level Evaluation**: Evaluator treats all `request_interaction_data_models` in a session as a single conversation. Sampling rate checked once per session (not per-request). Result keyed by `session_id` (not `request_id`).
 
 **Tool Context**: Reads `tool_can_use` from root `Config` level (shared with feedback extraction).
 
@@ -453,7 +465,7 @@ Skills search gated behind `skill_generation` feature flag. Pre-computed embeddi
 
 **Key Methods**:
 - CRUD: profiles, interactions, feedbacks, results, requests, skills, feedback aggregation change logs
-- `get_request_groups(offset, top_k)` → `dict[str, list[RequestInteractionDataModel]]` (groups by request_id, supports offset/limit pagination)
+- `get_sessions(offset, top_k, session_id)` → `dict[str, list[RequestInteractionDataModel]]` (groups by session_id, supports offset/limit pagination)
 - `get_rerun_user_ids(user_id, start_time, end_time, source, agent_version)` → `list[str]` - Get distinct user IDs matching filters for rerun workflows (pushes filtering to storage layer)
 - `get_feedbacks(status_filter, feedback_status_filter)` - Filter by profile status and approval status
 - `save_feedbacks()` → returns `list[Feedback]` with `feedback_id` populated (callers can ignore return)
@@ -496,7 +508,7 @@ API Request (api.py)
         -> GenerationService
           ├─> ProfileGenerationService → Storage
           ├─> FeedbackGenerationService → Storage
-          └─> AgentSuccessEvaluationService → Storage
+          └─> GroupEvaluationScheduler (deferred 10 min) → run_group_evaluation → Storage
 ```
 
 ```mermaid
@@ -526,8 +538,9 @@ flowchart TB
     end
 
     subgraph EvalService["AgentSuccessEvaluationService"]
-        E --> H1[AgentSuccessEvaluator 1]
-        E --> H2[AgentSuccessEvaluator N]
+        E -.->|deferred 10 min| SCH[GroupEvaluationScheduler]
+        SCH --> H1[AgentSuccessEvaluator 1]
+        SCH --> H2[AgentSuccessEvaluator N]
     end
 
     PU --> I[(Storage)]

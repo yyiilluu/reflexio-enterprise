@@ -288,7 +288,6 @@ def migrate_20260202000000_reembed_512(
                     [
                         r.get("failure_type"),
                         r.get("failure_reason"),
-                        r.get("agent_prompt_update"),
                     ],
                 )
             ),

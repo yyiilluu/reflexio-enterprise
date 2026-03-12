@@ -27,13 +27,13 @@ if TYPE_CHECKING:
 from reflexio.server.services.profile.profile_generation_service_utils import (
     ProfileUpdates,
     ProfileUpdateOutput,
-    construct_profile_extraction_messages_from_request_groups,
+    construct_profile_extraction_messages_from_sessions,
     calculate_expiration_timestamp,
     check_string_token_overlap,
 )
 from reflexio.server.services.service_utils import (
     format_messages_for_logging,
-    format_request_groups_to_history_string,
+    format_sessions_to_history_string,
     extract_interactions_from_request_interaction_data_models,
     log_model_response,
 )
@@ -154,14 +154,14 @@ class ProfileExtractor:
         storage = self.request_context.storage
 
         # Get window interactions with time range filter
-        request_groups, _ = storage.get_last_k_interactions_grouped(
+        session_data_models, _ = storage.get_last_k_interactions_grouped(
             user_id=self.service_config.user_id,
             k=window_size,
             sources=effective_source,
             start_time=self.service_config.rerun_start_time,
             end_time=self.service_config.rerun_end_time,
         )
-        return request_groups
+        return session_data_models
 
     def _update_operation_state(
         self, request_interaction_data_models: list[RequestInteractionDataModel]
@@ -205,7 +205,7 @@ class ProfileExtractor:
         # should_extract check is handled at the service level (consolidated across all extractors)
 
         try:
-            raw_updates = self._generate_raw_updates_from_request_groups(
+            raw_updates = self._generate_raw_updates_from_sessions(
                 request_interaction_data_models=request_interaction_data_models,
                 existing_profiles=existing_profiles,
             )
@@ -355,7 +355,7 @@ class ProfileExtractor:
 
         return profile_updates_result
 
-    def _generate_raw_updates_from_request_groups(
+    def _generate_raw_updates_from_sessions(
         self,
         request_interaction_data_models: list[RequestInteractionDataModel],
         existing_profiles: list[UserProfile],
@@ -374,7 +374,7 @@ class ProfileExtractor:
         mock_env_for_raw = os.getenv("MOCK_LLM_RESPONSE", "")
         if mock_env_for_raw.lower() == "true":
             # Return mock profile updates based on interactions
-            return self._generate_profile_updates_from_request_groups(
+            return self._generate_profile_updates_from_sessions(
                 request_interaction_data_models=request_interaction_data_models,
                 existing_profiles=existing_profiles,
             )
@@ -404,7 +404,7 @@ class ProfileExtractor:
                 ),
             )
         else:
-            messages = construct_profile_extraction_messages_from_request_groups(
+            messages = construct_profile_extraction_messages_from_sessions(
                 prompt_manager=self.request_context.prompt_manager,
                 request_interaction_data_models=request_interaction_data_models,
                 agent_context_prompt=self.agent_context,
@@ -423,19 +423,19 @@ class ProfileExtractor:
             )
         # Messages are already in dict format from construct_messages_from_interactions
         messages_dict = messages
-        request_group_count = len(request_interaction_data_models)
+        session_count = len(request_interaction_data_models)
         interaction_count = sum(
-            len(request_group.interactions)
-            for request_group in request_interaction_data_models
+            len(data_model.interactions)
+            for data_model in request_interaction_data_models
         )
         history_chars = len(
-            format_request_groups_to_history_string(request_interaction_data_models)
+            format_sessions_to_history_string(request_interaction_data_models)
         )
         logger.info(
-            "event=profile_extract_llm_start user_id=%s extractor_name=%s request_groups=%d interactions=%d history_chars=%d existing_profiles=%d model=%s timeout=%d max_retries=%d response_format=%s",
+            "event=profile_extract_llm_start user_id=%s extractor_name=%s sessions=%d interactions=%d history_chars=%d existing_profiles=%d model=%s timeout=%d max_retries=%d response_format=%s",
             self.service_config.user_id,
             self.config.extractor_name,
-            request_group_count,
+            session_count,
             interaction_count,
             history_chars,
             len(existing_profiles),
@@ -535,7 +535,7 @@ class ProfileExtractor:
                 return True
         return False
 
-    def _generate_profile_updates_from_request_groups(
+    def _generate_profile_updates_from_sessions(
         self,
         request_interaction_data_models: list[RequestInteractionDataModel],
         existing_profiles: list[UserProfile],
@@ -553,7 +553,7 @@ class ProfileExtractor:
         Returns:
             dict[str, Any]: Mock profile updates in the expected format
         """
-        # Extract flat interactions from request groups
+        # Extract flat interactions from sessions
         interactions = extract_interactions_from_request_interaction_data_models(
             request_interaction_data_models
         )

@@ -177,6 +177,7 @@ tmp/
 sql_app.db
 data/
 reflexio/data
+!reflexio/data/__init__.py
 experiments/
 evaluation_results/
 
@@ -202,6 +203,7 @@ site/
 
 # super admin scripts
 reflexio/scripts/super_admin/init_db.sh
+local_script/
 
 # Spell
 .cspell/*

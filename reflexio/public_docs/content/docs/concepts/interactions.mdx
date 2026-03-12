@@ -202,9 +202,9 @@ support_profiles = client.search_profiles(
 )
 ```
 
-## Request Group Patterns for Organization
+## Session Patterns for Organization
 
-Request groups serve multiple purposes beyond simple identification:
+Sessions serve multiple purposes beyond simple identification:
 
 ### Conversation Threading
 
@@ -216,7 +216,7 @@ client.publish_interaction(
     user_id="user_123",
     interactions=[initial_message],
     source="support_chat",
-    request_group=conversation_group
+    session_id=conversation_group
 )
 
 # Follow-up exchange
@@ -224,7 +224,7 @@ client.publish_interaction(
     user_id="user_123",
     interactions=[followup_messages],
     source="support_chat",
-    request_group=conversation_group
+    session_id=conversation_group
 )
 ```
 
@@ -239,7 +239,7 @@ for action in user_actions:
         user_id=user_id,
         interactions=[action],
         source="ecommerce",
-        request_group=session_id
+        session_id=session_id
     )
 ```
 
@@ -403,13 +403,13 @@ class InteractionChain:
 
     def add_interaction(self, client, interaction_request, source="default"):
         self.interaction_count += 1
-        request_group = f"{self.context_name}_{self.user_id}"
+        session_id = f"{self.context_name}_{self.user_id}"
 
         return client.publish_interaction(
             user_id=self.user_id,
             interactions=[interaction_request],
             source=source,
-            request_group=request_group
+            session_id=session_id
         )
 
 # Usage

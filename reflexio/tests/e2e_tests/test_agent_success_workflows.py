@@ -3,6 +3,9 @@
 from typing import Callable
 
 from reflexio.reflexio_lib.reflexio_lib import Reflexio
+from reflexio.server.services.agent_success_evaluation.group_evaluation_runner import (
+    run_group_evaluation,
+)
 from reflexio.tests.server.test_utils import skip_in_precommit, skip_low_priority
 from reflexio_commons.api_schema.retriever_schema import (
     GetAgentSuccessEvaluationResultsRequest,
@@ -15,6 +18,29 @@ from reflexio_commons.api_schema.service_schemas import (
 )
 
 
+def _trigger_group_evaluation(
+    instance: Reflexio,
+    user_id: str,
+    session_id: str,
+    agent_version: str,
+    source: str | None = None,
+) -> None:
+    """Trigger group evaluation synchronously for e2e tests.
+
+    In production, evaluation is scheduled via the delayed group evaluator.
+    This helper calls the runner directly so tests don't have to wait.
+    """
+    run_group_evaluation(
+        org_id=instance.org_id,
+        user_id=user_id,
+        session_id=session_id,
+        agent_version=agent_version,
+        source=source,
+        request_context=instance.request_context,
+        llm_client=instance.llm_client,
+    )
+
+
 @skip_in_precommit
 def test_publish_interaction_agent_success_only(
     reflexio_instance_agent_success_only: Reflexio,
@@ -24,6 +50,7 @@ def test_publish_interaction_agent_success_only(
     """Test interaction publishing with only agent success evaluation enabled."""
     user_id = "test_user_agent_success_only"
     agent_version = "test_agent_success"
+    session_id = "test_group_agent_success_only"
 
     # Publish interactions (request_id will be auto-generated)
     response = reflexio_instance_agent_success_only.publish_interaction(
@@ -32,6 +59,7 @@ def test_publish_interaction_agent_success_only(
             "interaction_data_list": sample_interaction_requests,
             "source": "test_conversation",
             "agent_version": agent_version,
+            "session_id": session_id,
         }
     )
 
@@ -44,17 +72,33 @@ def test_publish_interaction_agent_success_only(
         reflexio_instance_agent_success_only.request_context.storage.get_all_interactions()
     )
     assert len(final_interactions) == len(sample_interaction_requests)
-    # Get the auto-generated request_id
-    request_id = final_interactions[0].request_id
+
+    # Trigger group evaluation synchronously (normally delayed)
+    _trigger_group_evaluation(
+        reflexio_instance_agent_success_only,
+        user_id,
+        session_id,
+        agent_version,
+        source="test_conversation",
+    )
 
     # Verify agent success evaluation results were created
     agent_success_results = reflexio_instance_agent_success_only.request_context.storage.get_agent_success_evaluation_results(
         agent_version=agent_version
     )
     assert len(agent_success_results) > 0
-    assert agent_success_results[0].request_id == request_id
+    assert agent_success_results[0].session_id == session_id
     assert agent_success_results[0].agent_version == agent_version
     assert isinstance(agent_success_results[0].is_success, bool)
+    # Verify new evaluation metric fields
+    assert isinstance(agent_success_results[0].number_of_correction_per_session, int)
+    assert isinstance(agent_success_results[0].is_escalated, bool)
+    if agent_success_results[0].is_success:
+        assert agent_success_results[0].user_turns_to_resolution is None or isinstance(
+            agent_success_results[0].user_turns_to_resolution, int
+        )
+    else:
+        assert agent_success_results[0].user_turns_to_resolution is None
 
     # Verify NO profiles were generated (since profile config is not enabled)
     final_profiles = (
@@ -69,8 +113,10 @@ def test_publish_interaction_agent_success_only(
     assert len(final_change_logs) == 0
 
     # Verify NO feedbacks were generated (since feedback config is not enabled)
-    raw_feedbacks = reflexio_instance_agent_success_only.request_context.storage.get_raw_feedbacks(
-        feedback_name="test_feedback"
+    raw_feedbacks = (
+        reflexio_instance_agent_success_only.request_context.storage.get_raw_feedbacks(
+            feedback_name="test_feedback"
+        )
     )
     assert len(raw_feedbacks) == 0
 
@@ -92,6 +138,7 @@ def test_get_agent_success_evaluations_end_to_end(
     """
     user_id = "test_user_get_evaluations"
     agent_version = "test_agent_v1"
+    session_id = "test_group_get_evaluations"
 
     # Step 1: Publish interactions to generate evaluations
     publish_response = reflexio_instance_agent_success_only.publish_interaction(
@@ -100,16 +147,19 @@ def test_get_agent_success_evaluations_end_to_end(
             "interaction_data_list": sample_interaction_requests,
             "source": "test_evaluations_source",
             "agent_version": agent_version,
+            "session_id": session_id,
         }
     )
     assert publish_response.success is True
 
-    # Get the auto-generated request_id
-    stored_interactions = (
-        reflexio_instance_agent_success_only.request_context.storage.get_all_interactions()
+    # Trigger group evaluation synchronously (normally delayed)
+    _trigger_group_evaluation(
+        reflexio_instance_agent_success_only,
+        user_id,
+        session_id,
+        agent_version,
+        source="test_evaluations_source",
     )
-    assert len(stored_interactions) > 0
-    request_id = stored_interactions[0].request_id
 
     # Step 2: Get agent success evaluations via API
     get_response = (
@@ -122,12 +172,11 @@ def test_get_agent_success_evaluations_end_to_end(
 
     # Step 3: Verify result fields
     result = get_response.agent_success_evaluation_results[0]
-    assert result.request_id == request_id
+    assert result.session_id == session_id
     assert result.agent_version == agent_version
     assert isinstance(result.is_success, bool)
     assert isinstance(result.failure_type, str)
     assert isinstance(result.failure_reason, str)
-    assert isinstance(result.agent_prompt_update, str)
     assert result.created_at > 0
 
     # Step 4: Test filtering by agent_version (non-existent version)
@@ -178,6 +227,7 @@ def test_agent_success_evaluation_statistics(
     """
     user_id = "test_user_stats"
     agent_version = "test_agent_stats"
+    session_id = "test_group_stats"
 
     # Step 1: Publish interactions to generate evaluations
     publish_response = reflexio_instance_agent_success_only.publish_interaction(
@@ -186,9 +236,19 @@ def test_agent_success_evaluation_statistics(
             "interaction_data_list": sample_interaction_requests,
             "source": "test_stats_source",
             "agent_version": agent_version,
+            "session_id": session_id,
         }
     )
     assert publish_response.success is True
+
+    # Trigger group evaluation synchronously (normally delayed)
+    _trigger_group_evaluation(
+        reflexio_instance_agent_success_only,
+        user_id,
+        session_id,
+        agent_version,
+        source="test_stats_source",
+    )
 
     # Verify evaluations were created
     evaluations = reflexio_instance_agent_success_only.request_context.storage.get_agent_success_evaluation_results(
@@ -239,6 +299,9 @@ def test_multiple_agent_versions_evaluation(
     agent_version_v1 = "test_agent_v1.0"
     agent_version_v2 = "test_agent_v2.0"
     agent_version_v3 = "test_agent_v3.0"
+    session_id_v1 = "test_session_v1"
+    session_id_v2 = "test_session_v2"
+    session_id_v3 = "test_session_v3"
 
     # Step 1: Publish interactions with different agent versions
     # Version 1
@@ -248,6 +311,7 @@ def test_multiple_agent_versions_evaluation(
             "interaction_data_list": sample_interaction_requests[:2],
             "source": "source_v1",
             "agent_version": agent_version_v1,
+            "session_id": session_id_v1,
         }
     )
     assert publish_v1.success is True
@@ -259,6 +323,7 @@ def test_multiple_agent_versions_evaluation(
             "interaction_data_list": sample_interaction_requests[1:3],
             "source": "source_v2",
             "agent_version": agent_version_v2,
+            "session_id": session_id_v2,
         }
     )
     assert publish_v2.success is True
@@ -270,9 +335,33 @@ def test_multiple_agent_versions_evaluation(
             "interaction_data_list": sample_interaction_requests,
             "source": "source_v3",
             "agent_version": agent_version_v3,
+            "session_id": session_id_v3,
         }
     )
     assert publish_v3.success is True
+
+    # Trigger group evaluations synchronously (normally delayed)
+    _trigger_group_evaluation(
+        reflexio_instance_agent_success_only,
+        user_id,
+        session_id_v1,
+        agent_version_v1,
+        source="source_v1",
+    )
+    _trigger_group_evaluation(
+        reflexio_instance_agent_success_only,
+        f"{user_id}_v2",
+        session_id_v2,
+        agent_version_v2,
+        source="source_v2",
+    )
+    _trigger_group_evaluation(
+        reflexio_instance_agent_success_only,
+        f"{user_id}_v3",
+        session_id_v3,
+        agent_version_v3,
+        source="source_v3",
+    )
 
     # Step 2: Get evaluations for each version separately
     results_v1 = (
@@ -322,31 +411,30 @@ def test_multiple_agent_versions_evaluation(
     assert len(all_results.agent_success_evaluation_results) >= total_expected
 
     # Step 4: Verify version isolation - v1 results don't appear in v2 query
-    v1_request_ids = {r.request_id for r in results_v1.agent_success_evaluation_results}
-    v2_request_ids = {r.request_id for r in results_v2.agent_success_evaluation_results}
-    v3_request_ids = {r.request_id for r in results_v3.agent_success_evaluation_results}
+    v1_session_ids = {r.session_id for r in results_v1.agent_success_evaluation_results}
+    v2_session_ids = {r.session_id for r in results_v2.agent_success_evaluation_results}
+    v3_session_ids = {r.session_id for r in results_v3.agent_success_evaluation_results}
 
-    # Request IDs should be unique across versions (different publishes)
+    # Session IDs should be unique across versions (different publishes)
     assert (
-        len(v1_request_ids & v2_request_ids) == 0
-    ), "V1 and V2 should have different request_ids"
+        len(v1_session_ids & v2_session_ids) == 0
+    ), "V1 and V2 should have different session_ids"
     assert (
-        len(v2_request_ids & v3_request_ids) == 0
-    ), "V2 and V3 should have different request_ids"
+        len(v2_session_ids & v3_session_ids) == 0
+    ), "V2 and V3 should have different session_ids"
     assert (
-        len(v1_request_ids & v3_request_ids) == 0
-    ), "V1 and V3 should have different request_ids"
+        len(v1_session_ids & v3_session_ids) == 0
+    ), "V1 and V3 should have different session_ids"
 
     # Step 5: Verify each result has proper structure
     for results in [results_v1, results_v2, results_v3]:
         for result in results.agent_success_evaluation_results:
             assert result.result_id >= 0
-            assert result.request_id != ""
+            assert result.session_id != ""
             assert result.agent_version != ""
             assert isinstance(result.is_success, bool)
             assert isinstance(result.failure_type, str)
             assert isinstance(result.failure_reason, str)
-            assert isinstance(result.agent_prompt_update, str)
             assert result.created_at > 0
 
 
@@ -365,6 +453,7 @@ def test_evaluate_regular_vs_shadow_content(
     """
     user_id = "test_user_shadow_comparison"
     agent_version = "test_agent_shadow"
+    session_id = "test_session_shadow"
 
     # Create interactions with shadow_content
     # Regular: Sales rep gives a brief response
@@ -401,6 +490,7 @@ def test_evaluate_regular_vs_shadow_content(
             "interaction_data_list": interactions_with_shadow,
             "source": "test_shadow_comparison",
             "agent_version": agent_version,
+            "session_id": session_id,
         }
     )
     assert publish_response.success is True
@@ -414,6 +504,15 @@ def test_evaluate_regular_vs_shadow_content(
     # Verify shadow_content was stored
     shadow_interactions = [i for i in stored_interactions if i.shadow_content]
     assert len(shadow_interactions) > 0, "Shadow content should be stored"
+
+    # Trigger group evaluation synchronously (normally delayed)
+    _trigger_group_evaluation(
+        reflexio_instance_agent_success_only,
+        user_id,
+        session_id,
+        agent_version,
+        source="test_shadow_comparison",
+    )
 
     # Step 3: Get agent success evaluations
     get_response = (
@@ -461,6 +560,7 @@ def test_evaluate_without_shadow_content(
     """
     user_id = "test_user_no_shadow"
     agent_version = "test_agent_no_shadow"
+    session_id = "test_session_no_shadow"
 
     # Step 1: Publish interactions WITHOUT shadow content
     publish_response = reflexio_instance_agent_success_only.publish_interaction(
@@ -469,9 +569,19 @@ def test_evaluate_without_shadow_content(
             "interaction_data_list": sample_interaction_requests,
             "source": "test_no_shadow",
             "agent_version": agent_version,
+            "session_id": session_id,
         }
     )
     assert publish_response.success is True
+
+    # Trigger group evaluation synchronously (normally delayed)
+    _trigger_group_evaluation(
+        reflexio_instance_agent_success_only,
+        user_id,
+        session_id,
+        agent_version,
+        source="test_no_shadow",
+    )
 
     # Step 2: Get agent success evaluations
     get_response = (

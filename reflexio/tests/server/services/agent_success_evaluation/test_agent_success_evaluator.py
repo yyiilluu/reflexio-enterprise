@@ -128,12 +128,12 @@ def sample_request_interaction_models(sample_interactions):
     )
     return [
         RequestInteractionDataModel(
-            request_group="req1",
+            session_id="req1",
             request=request1,
             interactions=sample_interactions[:2],
         ),
         RequestInteractionDataModel(
-            request_group="req2",
+            session_id="req2",
             request=request2,
             interactions=sample_interactions[2:],
         ),
@@ -145,7 +145,7 @@ def service_config(sample_request_interaction_models):
     """Create a service config with required request_interaction_data_models."""
     return AgentSuccessGenerationServiceConfig(
         agent_version="1.0.0",
-        request_id="test_request",
+        session_id="test_group",
         request_interaction_data_models=sample_request_interaction_models,
         source="api",
     )
@@ -198,7 +198,7 @@ class TestRun:
 
         service_config = AgentSuccessGenerationServiceConfig(
             agent_version="1.0.0",
-            request_id="test_request",
+            session_id="test_group",
             request_interaction_data_models=sample_request_interaction_models,
             source="api",
         )
@@ -271,12 +271,12 @@ class TestSourceFiltering:
         )
         models = [
             RequestInteractionDataModel(
-                request_group="req1",
+                session_id="req1",
                 request=request1,
                 interactions=sample_interactions[:2],
             ),
             RequestInteractionDataModel(
-                request_group="req2",
+                session_id="req2",
                 request=request2,
                 interactions=sample_interactions[2:],
             ),
@@ -291,7 +291,7 @@ class TestSourceFiltering:
 
         service_config = AgentSuccessGenerationServiceConfig(
             agent_version="1.0.0",
-            request_id="test_request",
+            session_id="test_group",
             request_interaction_data_models=models,
             source="api",
         )
@@ -310,3 +310,150 @@ class TestSourceFiltering:
         # Should process only the api source interaction
         assert result is not None
         assert isinstance(result, list)
+
+
+# ===============================
+# Unit tests for helper methods
+# ===============================
+
+
+class TestCountUserTurns:
+    """Tests for AgentSuccessEvaluator._count_user_turns."""
+
+    @pytest.fixture
+    def evaluator(self, mock_llm_client, request_context):
+        config = AgentSuccessConfig(
+            evaluation_name="test",
+            success_definition_prompt="test",
+        )
+        service_config = AgentSuccessGenerationServiceConfig(
+            session_id="test_session",
+            agent_version="v1",
+            request_interaction_data_models=[],
+            source="api",
+        )
+        return AgentSuccessEvaluator(
+            request_context=request_context,
+            llm_client=mock_llm_client,
+            extractor_config=config,
+            service_config=service_config,
+            agent_context="Test agent",
+        )
+
+    def _interaction(self, role, content):
+        return Interaction(role=role, content=content, user_id="u1", request_id="r1")
+
+    def _rdm(self, request_id, interactions):
+        return RequestInteractionDataModel(
+            session_id="s1",
+            request=Request(request_id=request_id, session_id="s1", user_id="u1"),
+            interactions=interactions,
+        )
+
+    def test_counts_user_turns_only(self, evaluator):
+        """User turns are counted; agent/system turns are excluded."""
+        models = [
+            self._rdm(
+                "r1",
+                [
+                    self._interaction("user", "hello"),
+                    self._interaction("assistant", "hi"),
+                    self._interaction("user", "question"),
+                    self._interaction("tool", "result"),
+                    self._interaction("system", "info"),
+                ],
+            )
+        ]
+        assert evaluator._count_user_turns(models) == 2
+
+    def test_multiple_request_models(self, evaluator):
+        """User turns across multiple RequestInteractionDataModels are summed."""
+        models = [
+            self._rdm("r1", [self._interaction("user", "a")]),
+            self._rdm(
+                "r2",
+                [
+                    self._interaction("user", "b"),
+                    self._interaction("agent", "c"),
+                ],
+            ),
+        ]
+        assert evaluator._count_user_turns(models) == 2
+
+    def test_empty_interactions(self, evaluator):
+        """Empty interactions return 0."""
+        assert evaluator._count_user_turns([]) == 0
+
+    def test_case_insensitive_role_matching(self, evaluator):
+        """Role matching is case-insensitive."""
+        models = [
+            self._rdm(
+                "r1",
+                [
+                    self._interaction("Assistant", "hi"),
+                    self._interaction("USER", "hello"),
+                ],
+            )
+        ]
+        # "Assistant" should be excluded, "USER" should be counted
+        assert evaluator._count_user_turns(models) == 1
+
+
+class TestGetCorrectionCount:
+    """Tests for AgentSuccessEvaluator._get_correction_count."""
+
+    def test_returns_zero_on_storage_exception(self, mock_llm_client, temp_storage_dir):
+        """_get_correction_count returns 0 when storage raises."""
+        config = AgentSuccessConfig(
+            evaluation_name="test",
+            success_definition_prompt="test",
+        )
+        service_config = AgentSuccessGenerationServiceConfig(
+            session_id="test_session",
+            agent_version="v1",
+            request_interaction_data_models=[],
+            source="api",
+        )
+        request_context = RequestContext(
+            org_id="test_org", storage_base_dir=temp_storage_dir
+        )
+        request_context.storage = MagicMock()
+        request_context.storage.count_raw_feedbacks_by_session.side_effect = (
+            RuntimeError("db down")
+        )
+
+        evaluator = AgentSuccessEvaluator(
+            request_context=request_context,
+            llm_client=mock_llm_client,
+            extractor_config=config,
+            service_config=service_config,
+            agent_context="Test agent",
+        )
+        assert evaluator._get_correction_count() == 0
+
+    def test_returns_count_from_storage(self, mock_llm_client, temp_storage_dir):
+        """_get_correction_count returns the value from storage."""
+        config = AgentSuccessConfig(
+            evaluation_name="test",
+            success_definition_prompt="test",
+        )
+        service_config = AgentSuccessGenerationServiceConfig(
+            session_id="test_session",
+            agent_version="v1",
+            request_interaction_data_models=[],
+            source="api",
+        )
+        request_context = RequestContext(
+            org_id="test_org", storage_base_dir=temp_storage_dir
+        )
+        request_context.storage = MagicMock()
+        request_context.storage.count_raw_feedbacks_by_session.return_value = 5
+
+        evaluator = AgentSuccessEvaluator(
+            request_context=request_context,
+            llm_client=mock_llm_client,
+            extractor_config=config,
+            service_config=service_config,
+            agent_context="Test agent",
+        )
+        assert evaluator._get_correction_count() == 5

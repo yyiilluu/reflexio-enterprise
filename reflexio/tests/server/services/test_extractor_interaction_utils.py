@@ -282,7 +282,7 @@ class TestShouldExtractorRunByStride:
 
 
 def _create_mock_request_interaction_model(
-    num_interactions: int, source: str = "api", request_group: str = "test_group"
+    num_interactions: int, source: str = "api", session_id: str = "test_group"
 ) -> RequestInteractionDataModel:
     """Helper to create a RequestInteractionDataModel with specified number of interactions."""
     request = Request(
@@ -302,7 +302,7 @@ def _create_mock_request_interaction_model(
         for i in range(num_interactions)
     ]
     return RequestInteractionDataModel(
-        request_group=request_group, request=request, interactions=interactions
+        session_id=session_id, request=request, interactions=interactions
     )
 
 

@@ -8,7 +8,6 @@ from reflexio_commons.api_schema.service_schemas import (
     PublishUserInteractionRequest,
     Request,
 )
-from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 from reflexio.server.api_endpoints.request_context import RequestContext
 from reflexio.server.llm.litellm_client import LiteLLMClient
 from reflexio.server.services.feedback.feedback_generation_service import (
@@ -23,11 +22,11 @@ from reflexio.server.services.profile.profile_generation_service import (
 from reflexio.server.services.profile.profile_generation_service_utils import (
     ProfileGenerationRequest,
 )
-from reflexio.server.services.agent_success_evaluation.agent_success_evaluation_service import (
-    AgentSuccessEvaluationService,
+from reflexio.server.services.agent_success_evaluation.delayed_group_evaluator import (
+    GroupEvaluationScheduler,
 )
-from reflexio.server.services.agent_success_evaluation.agent_success_evaluation_utils import (
-    AgentSuccessEvaluationRequest,
+from reflexio.server.services.agent_success_evaluation.group_evaluation_runner import (
+    run_group_evaluation,
 )
 
 
@@ -76,7 +75,11 @@ class GenerationService:
         """
         Process a user interaction request by storing interactions and triggering generation services.
 
-        Each generation service (profile, feedback, agent_success) handles its own:
+        Profile and feedback generation services run inline in parallel. Agent success
+        evaluation is deferred via GroupEvaluationScheduler when a session_id is present,
+        so the full session can be evaluated after a period of inactivity.
+
+        Each generation service (profile, feedback) handles its own:
         - Data collection based on extractor-specific configs
         - Stride checking based on extractor-specific settings
         - Operation state tracking per extractor
@@ -100,10 +103,10 @@ class GenerationService:
             # Always generate a new UUID for request_id
             request_id = str(uuid.uuid4())
 
-            new_interactions: list[
-                Interaction
-            ] = GenerationService.get_interaction_from_publish_user_interaction_request(
-                publish_user_interaction_request, request_id
+            new_interactions: list[Interaction] = (
+                GenerationService.get_interaction_from_publish_user_interaction_request(
+                    publish_user_interaction_request, request_id
+                )
             )
 
             if not new_interactions:
@@ -120,7 +123,7 @@ class GenerationService:
                 user_id=user_id,
                 source=publish_user_interaction_request.source,
                 agent_version=publish_user_interaction_request.agent_version,
-                request_group=publish_user_interaction_request.request_group or None,
+                session_id=publish_user_interaction_request.session_id or None,
             )
             self.storage.add_request(new_request)
 
@@ -153,27 +156,12 @@ class GenerationService:
                 source=source,
             )
 
-            request_interaction_data_model = RequestInteractionDataModel(
-                request_group=new_request.request_group or "",
-                request=new_request,
-                interactions=new_interactions,
-            )
-            agent_success_evaluation_service = AgentSuccessEvaluationService(
-                llm_client=self.client, request_context=self.request_context
-            )
-            agent_success_evaluation_request = AgentSuccessEvaluationRequest(
-                request_id=request_id,
-                agent_version=publish_user_interaction_request.agent_version,
-                source=source,
-                request_interaction_data_models=[request_interaction_data_model],
-            )
-
-            # Run all generation services in parallel
+            # Run profile and feedback generation services in parallel
             # Each service creates its own internal ThreadPoolExecutor for extractors
             # This is safe because we create separate, independent pool instances
             # Uses manual executor management to avoid blocking on shutdown(wait=True)
             # when threads are hung on LLM calls
-            executor = ThreadPoolExecutor(max_workers=3)
+            executor = ThreadPoolExecutor(max_workers=2)
             try:
                 futures = [
                     executor.submit(
@@ -181,10 +169,6 @@ class GenerationService:
                     ),
                     executor.submit(
                         feedback_generation_service.run, feedback_generation_request
-                    ),
-                    executor.submit(
-                        agent_success_evaluation_service.run,
-                        agent_success_evaluation_request,
                     ),
                 ]
 
@@ -208,6 +192,39 @@ class GenerationService:
                         )
             finally:
                 executor.shutdown(wait=False, cancel_futures=True)
+
+            # Schedule delayed group evaluation if session_id is present
+            session_id = new_request.session_id
+            if session_id:
+                scheduler = GroupEvaluationScheduler.get_instance()
+                key = (self.org_id, user_id, session_id)
+
+                def make_callback(_org_id, _user_id, _sid, _av, _src, _rc, _llm):
+                    def callback():
+                        run_group_evaluation(
+                            org_id=_org_id,
+                            user_id=_user_id,
+                            session_id=_sid,
+                            agent_version=_av,
+                            source=_src,
+                            request_context=_rc,
+                            llm_client=_llm,
+                        )
+
+                    return callback
+
+                scheduler.schedule(
+                    key,
+                    make_callback(
+                        self.org_id,
+                        user_id,
+                        session_id,
+                        publish_user_interaction_request.agent_version,
+                        source,
+                        self.request_context,
+                        self.client,
+                    ),
+                )
 
         except Exception as e:
             # log exception

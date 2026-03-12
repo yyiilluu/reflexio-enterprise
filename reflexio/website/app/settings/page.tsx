@@ -46,6 +46,7 @@ import type {
   AzureOpenAIConfig,
   AnthropicConfig,
   OpenRouterConfig,
+  MiniMaxConfig,
   LLMConfig,
   ToolUseConfig,
 } from "./types"
@@ -140,6 +141,13 @@ export default function SettingsPage() {
     setConfig({
       ...config,
       api_key_config: { ...config.api_key_config, openrouter: { api_key: config.api_key_config?.openrouter?.api_key || "", ...config.api_key_config?.openrouter, ...updates } },
+    })
+  }
+
+  const updateMiniMaxConfig = (updates: Partial<MiniMaxConfig>) => {
+    setConfig({
+      ...config,
+      api_key_config: { ...config.api_key_config, minimax: { api_key: "", ...(config.api_key_config?.minimax || {}), ...updates } },
     })
   }
 
@@ -445,6 +453,7 @@ export default function SettingsPage() {
                   onUpdateAzureOpenAI={updateAzureOpenAIConfig}
                   onUpdateAnthropic={updateAnthropicConfig}
                   onUpdateOpenRouter={updateOpenRouterConfig}
+                  onUpdateMiniMax={updateMiniMaxConfig}
                   onUpdateLLM={updateLLMConfig}
                 />
               </div>

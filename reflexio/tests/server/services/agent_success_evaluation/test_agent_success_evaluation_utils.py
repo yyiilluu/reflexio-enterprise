@@ -7,12 +7,12 @@ from reflexio_commons.api_schema.service_schemas import Interaction, Request
 from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 from reflexio.server.prompt.prompt_manager import PromptManager
 from reflexio.server.services.agent_success_evaluation.agent_success_evaluation_utils import (
-    construct_agent_success_evaluation_messages_from_request_groups,
+    construct_agent_success_evaluation_messages_from_sessions,
 )
 
 
-def test_construct_agent_success_evaluation_messages_with_request_groups():
-    """Test that construct_agent_success_evaluation_messages_from_request_groups formats interactions correctly in the rendered prompt."""
+def test_construct_agent_success_evaluation_messages_with_sessions():
+    """Test that construct_agent_success_evaluation_messages_from_sessions formats interactions correctly in the rendered prompt."""
     # Create test interactions with both content and actions
     interactions = [
         Interaction(
@@ -53,7 +53,7 @@ def test_construct_agent_success_evaluation_messages_with_request_groups():
         user_id="user_123",
         source="test",
         agent_version="v1.0",
-        request_group="test_group",
+        session_id="test_group",
         created_at=int(datetime.now(timezone.utc).timestamp()),
     )
 
@@ -62,7 +62,7 @@ def test_construct_agent_success_evaluation_messages_with_request_groups():
         RequestInteractionDataModel(
             request=test_request,
             interactions=interactions,
-            request_group="test_group",
+            session_id="test_group",
         )
     ]
 
@@ -70,7 +70,7 @@ def test_construct_agent_success_evaluation_messages_with_request_groups():
     prompt_manager = PromptManager()
 
     # Call the function
-    messages = construct_agent_success_evaluation_messages_from_request_groups(
+    messages = construct_agent_success_evaluation_messages_from_sessions(
         prompt_manager=prompt_manager,
         request_interaction_data_models=request_interaction_data_models,
         agent_context_prompt="Test agent context",
@@ -133,16 +133,16 @@ def test_construct_agent_success_evaluation_messages_with_request_groups():
     assert found_interactions, "Did not find interactions in the rendered prompt"
 
 
-def test_construct_agent_success_evaluation_messages_with_empty_request_groups():
-    """Test that construct_agent_success_evaluation_messages_from_request_groups handles empty request groups."""
-    # Empty request groups list
+def test_construct_agent_success_evaluation_messages_with_empty_sessions():
+    """Test that construct_agent_success_evaluation_messages_from_sessions handles empty sessions."""
+    # Empty sessions list
     request_interaction_data_models = []
 
     # Create prompt manager
     prompt_manager = PromptManager()
 
     # Call the function
-    messages = construct_agent_success_evaluation_messages_from_request_groups(
+    messages = construct_agent_success_evaluation_messages_from_sessions(
         prompt_manager=prompt_manager,
         request_interaction_data_models=request_interaction_data_models,
         agent_context_prompt="Test agent context",
@@ -152,7 +152,7 @@ def test_construct_agent_success_evaluation_messages_with_empty_request_groups()
     )
 
     # Should still create messages (user message with prompt)
-    assert len(messages) > 0, "No messages were created for empty request groups"
+    assert len(messages) > 0, "No messages were created for empty sessions"
 
 
 if __name__ == "__main__":

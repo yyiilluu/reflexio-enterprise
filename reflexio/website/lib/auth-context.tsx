@@ -126,8 +126,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: "Registration failed" }))
-        return { success: false, error: error.detail || "Registration failed" }
+        let message = "Registration failed"
+        try {
+          const error = await response.json()
+          if (typeof error.detail === "string") {
+            message = error.detail
+          } else if (Array.isArray(error.detail)) {
+            message = error.detail.map((e: { msg?: string }) => e.msg || String(e)).join("; ")
+          }
+        } catch {
+          if (response.statusText) {
+            message = response.statusText
+          }
+        }
+        return { success: false, error: message }
       }
 
       const data = await response.json()
