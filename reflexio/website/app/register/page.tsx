@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { UserPlus, Loader2, AlertCircle, Mail, CheckCircle } from "lucide-react"
+import { UserPlus, Loader2, AlertCircle, Mail, CheckCircle, Check, X } from "lucide-react"
 import Link from "next/link"
 
 export default function RegisterPage() {
@@ -20,6 +20,15 @@ export default function RegisterPage() {
   const [showAutoVerifiedNotice, setShowAutoVerifiedNotice] = useState(false)
   const { register, isAuthenticated, isSelfHost } = useAuth()
   const router = useRouter()
+
+  const passwordChecks = {
+    minLength: password.length >= 12,
+    hasUppercase: /[A-Z]/.test(password),
+    hasLowercase: /[a-z]/.test(password),
+    hasNumber: /[0-9]/.test(password),
+    hasSpecial: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password),
+  }
+  const allChecksPassed = Object.values(passwordChecks).every(Boolean)
 
   // Redirect if already authenticated or in self-host mode
   useEffect(() => {
@@ -211,6 +220,28 @@ export default function RegisterPage() {
                   disabled={isLoading}
                   placeholder="••••••••"
                 />
+                {password.length > 0 && (
+                  <ul className="space-y-1 text-sm mt-2">
+                    {([
+                      [passwordChecks.minLength, "At least 12 characters"],
+                      [passwordChecks.hasUppercase, "One uppercase letter (A-Z)"],
+                      [passwordChecks.hasLowercase, "One lowercase letter (a-z)"],
+                      [passwordChecks.hasNumber, "One number (0-9)"],
+                      [passwordChecks.hasSpecial, "One special character (!@#$%^&*)"],
+                    ] as [boolean, string][]).map(([passed, label]) => (
+                      <li key={label} className="flex items-center gap-2">
+                        {passed ? (
+                          <Check className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <X className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <span className={passed ? "text-green-600" : "text-muted-foreground"}>
+                          {label}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
               {/* Confirm Password Field */}
@@ -255,7 +286,7 @@ export default function RegisterPage() {
               {/* Submit Button */}
               <Button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || !allChecksPassed}
                 className="w-full"
               >
                 {isLoading ? (
