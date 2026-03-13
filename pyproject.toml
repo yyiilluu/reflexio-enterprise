@@ -56,6 +56,8 @@ black = "^24.10.0"
 moto = "^5.0.28"
 jupyterlab = "^4.4.3"
 matplotlib = "^3.10.8"
+ruff = ">=0.15.0"
+pyright = ">=1.1.400"
 
 [tool.pytest.ini_options]
 # Parallel test execution with pytest-xdist
@@ -68,3 +70,41 @@ asyncio_default_fixture_loop_scope = "function"
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "F",      # pyflakes (unused imports, undefined names)
+    "W",      # pycodestyle warnings
+    "B",      # flake8-bugbear (likely bugs & design problems)
+    "UP",     # pyupgrade (modern Python syntax)
+    "I",      # isort (import sorting)
+    "C4",     # flake8-comprehensions (correct dict/list/set usage)
+    "SIM",    # flake8-simplify (code simplification patterns)
+    "RET",    # flake8-return (return statement quality)
+    "PERF",   # perflint (performance anti-patterns)
+    "C90",    # McCabe complexity
+    "S",      # flake8-bandit (security checks)
+    "N",      # pep8-naming conventions
+    "ARG",    # flake8-unused-arguments
+]
+ignore = [
+    "E501",   # line too long (handled by formatter/black)
+    "E402",   # module-level import not at top (common in __init__.py)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401", "F403"]
+"reflexio/tests/**" = ["S101", "ARG001", "ARG002"]
+"conftest.py" = ["ARG001"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

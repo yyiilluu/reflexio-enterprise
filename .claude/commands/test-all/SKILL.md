@@ -1,6 +1,6 @@
 ---
 name: test-all
-description: Run all tests including e2e tests and tests skipped during pre-commit. Investigates failures to determine if they are application bugs or test issues, and fixes application bugs rather than weakening tests.
+description: Run lint checks, type checks, and all tests including e2e tests and tests skipped during pre-commit. Investigates failures to determine if they are application bugs or test issues, and fixes application bugs rather than weakening tests.
 ---
 
 # Test All
@@ -10,6 +10,8 @@ Run the complete test suite including tests that are normally skipped during pre
 ## Overview
 
 This command runs all tests in the repository:
+- **Lint checks** via ruff (code quality, security, complexity)
+- **Type checks** via pyright (type safety)
 - **Unit tests** in `reflexio/tests/` (excluding e2e and tests under reflexio/tests/server/llm/)
 - **E2E tests** in `reflexio/tests/e2e_tests/` (skip all the low priority test by NOT setting RUN_LOW_PRIORITY env variable)
 - **Tests skipped during pre-commit** (those decorated with `@skip_in_precommit`)
@@ -26,6 +28,30 @@ source $(poetry env info --path)/bin/activate
 ## Test Execution
 
 **IMPORTANT**: Run all tests sequentially using `-n 0` to avoid test conflicts. The default pytest config uses parallel execution (`-n auto`), but this can cause race conditions and shared state issues between tests.
+
+### Step 0: Run Lint and Type Checks
+
+Run lint and type checks across the full codebase before running tests.
+
+**0a. Ruff auto-fix:**
+```bash
+ruff check --fix reflexio/
+ruff format reflexio/
+```
+
+**0b. Ruff remaining errors:**
+```bash
+ruff check reflexio/
+```
+If any errors remain that ruff could not auto-fix, **read each error, understand the issue, and fix the code yourself**. Do NOT skip unfixed lint errors.
+
+**0c. Pyright type check:**
+```bash
+pyright
+```
+Pyright uses `pyrightconfig.json` for scope. If any type errors are reported, **read each error, understand the type issue, and fix the code yourself**. Do NOT skip unfixed type errors.
+
+**Only proceed to tests after all lint and type errors are resolved.**
 
 ### Step 1: Run All Unit Tests (excluding e2e)
 
