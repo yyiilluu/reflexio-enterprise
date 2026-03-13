@@ -630,8 +630,6 @@ def _stream_baseline_simulation(req: RunComparisonRequest):
 
     Yields:
         str: SSE event strings
-
-    Returns via final 'done' yield: baseline_filename is embedded in the done event
     """
     yield _sse_event(
         "status",
