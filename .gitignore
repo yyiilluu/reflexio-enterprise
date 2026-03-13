@@ -212,3 +212,6 @@ local_script/
 
 # skip integration docs
 docs/integrations/*
+
+# Planning artifacts
+plan.md
