@@ -278,7 +278,8 @@ def _print_summary(result) -> None:
     print("=" * 70)
 
 
-def main():
+def _parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
         description="Run paired conversation comparisons (baseline vs Reflexio-enhanced)."
     )
@@ -333,29 +334,41 @@ def main():
         metavar=("BASELINE", "ENHANCED"),
         help="Skip simulation, just evaluate two existing JSONL files",
     )
+    return parser.parse_args()
 
-    args = parser.parse_args()
 
-    # Mode 1: Evaluate only
-    if args.evaluate_only:
-        baseline_path = Path(args.evaluate_only[0])
-        enhanced_path = Path(args.evaluate_only[1])
+def _run_evaluate_only(args: argparse.Namespace) -> None:
+    """
+    Evaluate two existing JSONL conversation files without running simulations.
 
-        if not baseline_path.exists():
-            print(f"Error: baseline file not found: {baseline_path}")
-            sys.exit(1)
-        if not enhanced_path.exists():
-            print(f"Error: enhanced file not found: {enhanced_path}")
-            sys.exit(1)
+    Args:
+        args (argparse.Namespace): Parsed CLI arguments with evaluate_only and judge_model
+    """
+    baseline_path = Path(args.evaluate_only[0])
+    enhanced_path = Path(args.evaluate_only[1])
 
-        print(f"Evaluating: {baseline_path.name} vs {enhanced_path.name}")
-        result = compare_conversations(baseline_path, enhanced_path, args.judge_model)
-        eval_path = save_evaluation(result)
-        print(f"Saved evaluation to: {eval_path}")
-        _print_summary(result)
-        return
+    if not baseline_path.exists():
+        print(f"Error: baseline file not found: {baseline_path}")
+        sys.exit(1)
+    if not enhanced_path.exists():
+        print(f"Error: enhanced file not found: {enhanced_path}")
+        sys.exit(1)
 
-    # Mode 2: Full pipeline
+    print(f"Evaluating: {baseline_path.name} vs {enhanced_path.name}")
+    result = compare_conversations(baseline_path, enhanced_path, args.judge_model)
+    eval_path = save_evaluation(result)
+    print(f"Saved evaluation to: {eval_path}")
+    _print_summary(result)
+
+
+def _run_full_pipeline(args: argparse.Namespace) -> None:
+    """
+    Run the full comparison pipeline: baseline simulation, Reflexio publish,
+    enhanced simulation, and evaluation.
+
+    Args:
+        args (argparse.Namespace): Parsed CLI arguments
+    """
     if not args.scenario:
         print("Error: --scenario is required unless using --evaluate-only")
         sys.exit(1)
@@ -410,6 +423,15 @@ def main():
     print(f"  Saved evaluation to: {eval_path}")
 
     _print_summary(result)
+
+
+def main():
+    args = _parse_args()
+
+    if args.evaluate_only:
+        _run_evaluate_only(args)
+    else:
+        _run_full_pipeline(args)
 
 
 if __name__ == "__main__":
