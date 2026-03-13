@@ -31,7 +31,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env")
 
 from evaluate_conversations import compare_conversations, save_evaluation
-from reflexio.reflexio_client.reflexio import InteractionData, ReflexioClient, ToolUsed
 from reflexio_commons.config_schema import (
     AgentFeedbackConfig,
     FeedbackAggregatorConfig,
@@ -41,6 +40,8 @@ from reflexio_commons.config_schema import (
 )
 from scenarios import SCENARIOS
 from simulate_conversation import simulate
+
+from reflexio.reflexio_client.reflexio import InteractionData, ReflexioClient, ToolUsed
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +71,7 @@ def _setup_reflexio_config(client: ReflexioClient) -> None:
         demo_storage_dir = str(Path(__file__).resolve().parent / "reflexio_storage")
         config.storage_config = StorageConfigLocal(dir_path=demo_storage_dir)
         print(f"  Using local storage at {demo_storage_dir}")
-        print(f"  WARNING: Set TEST_SUPABASE_URL/KEY/DB_URL in .env for semantic search")
+        print("  WARNING: Set TEST_SUPABASE_URL/KEY/DB_URL in .env for semantic search")
 
     config.profile_extractor_configs = [
         ProfileExtractorConfig(
@@ -111,9 +112,13 @@ def _setup_reflexio_config(client: ReflexioClient) -> None:
         )
     print("Configured extractors:")
     for pc in config.profile_extractor_configs:
-        print(f"  Profile: name={pc.extractor_name}, stride={pc.extraction_window_stride_override}, window={pc.extraction_window_size_override}")
+        print(
+            f"  Profile: name={pc.extractor_name}, stride={pc.extraction_window_stride_override}, window={pc.extraction_window_size_override}"
+        )
     for fc in config.agent_feedback_configs:
-        print(f"  Feedback: name={fc.feedback_name}, stride={fc.extraction_window_stride_override}, window={fc.extraction_window_size_override}")
+        print(
+            f"  Feedback: name={fc.feedback_name}, stride={fc.extraction_window_stride_override}, window={fc.extraction_window_size_override}"
+        )
 
 
 def _publish_to_reflexio(
@@ -163,7 +168,9 @@ def _publish_to_reflexio(
         wait_for_response=True,
     )
     if resp and resp.success:
-        print(f"Published {len(interactions)} interactions to Reflexio (extraction triggered synchronously)")
+        print(
+            f"Published {len(interactions)} interactions to Reflexio (extraction triggered synchronously)"
+        )
         if resp.message:
             print(f"  Server message: {resp.message}")
     else:
@@ -188,9 +195,13 @@ def _display_reflexio_insights(client: ReflexioClient, user_id: str) -> None:
         profile_resp = client.get_profiles(user_id=user_id, force_refresh=True)
         profiles = profile_resp.user_profiles if profile_resp.success else []
         if not profile_resp.success:
-            print(f"  WARNING: get_profiles returned success=False — {profile_resp.msg}")
+            print(
+                f"  WARNING: get_profiles returned success=False — {profile_resp.msg}"
+            )
         elif not profiles:
-            print(f"  DEBUG: get_profiles success=True but 0 profiles returned (msg={profile_resp.msg})")
+            print(
+                f"  DEBUG: get_profiles success=True but 0 profiles returned (msg={profile_resp.msg})"
+            )
     except Exception as e:
         print(f"  FAILED to fetch profiles: {e}")
         profiles = []
@@ -201,7 +212,9 @@ def _display_reflexio_insights(client: ReflexioClient, user_id: str) -> None:
         for i, p in enumerate(profiles, 1):
             emb_len = len(p.embedding) if p.embedding else 0
             print(f"  {i}. {p.profile_content}")
-            print(f"     (embedding: {'yes, dim=' + str(emb_len) if emb_len else 'NONE — search will use substring matching only'})")
+            print(
+                f"     (embedding: {'yes, dim=' + str(emb_len) if emb_len else 'NONE — search will use substring matching only'})"
+            )
     else:
         print("  (none)")
 
@@ -210,14 +223,18 @@ def _display_reflexio_insights(client: ReflexioClient, user_id: str) -> None:
         feedback_resp = client.get_raw_feedbacks()
         feedbacks = feedback_resp.raw_feedbacks if feedback_resp.success else []
         if not feedback_resp.success:
-            print(f"  WARNING: get_raw_feedbacks returned success=False — {feedback_resp.msg}")
+            print(
+                f"  WARNING: get_raw_feedbacks returned success=False — {feedback_resp.msg}"
+            )
         elif not feedbacks:
-            print(f"  DEBUG: get_raw_feedbacks success=True but 0 feedbacks returned (msg={feedback_resp.msg})")
+            print(
+                f"  DEBUG: get_raw_feedbacks success=True but 0 feedbacks returned (msg={feedback_resp.msg})"
+            )
     except Exception as e:
         print(f"  FAILED to fetch raw feedbacks: {e}")
         feedbacks = []
 
-    print(f"\n  Raw Feedbacks:")
+    print("\n  Raw Feedbacks:")
     print("  " + "-" * 66)
     if feedbacks:
         for i, fb in enumerate(feedbacks, 1):
@@ -229,11 +246,15 @@ def _display_reflexio_insights(client: ReflexioClient, user_id: str) -> None:
                 print(f"     DON'T: {fb.do_not_action}")
             if fb.when_condition:
                 print(f"     WHEN:  {fb.when_condition}")
-            print(f"     (embedding: {'yes, dim=' + str(emb_len) if emb_len else 'NONE — search will use substring matching only'})")
+            print(
+                f"     (embedding: {'yes, dim=' + str(emb_len) if emb_len else 'NONE — search will use substring matching only'})"
+            )
     else:
         print("  (none)")
 
-    print(f"\n  Extraction result: {len(profiles)} profile(s), {len(feedbacks)} feedback(s)")
+    print(
+        f"\n  Extraction result: {len(profiles)} profile(s), {len(feedbacks)} feedback(s)"
+    )
     if not profiles and not feedbacks:
         print("  WARNING: No insights extracted. Check the server logs for LLM errors")
         print("           (e.g. missing API key, model auth failure, timeout).")
@@ -254,13 +275,23 @@ def _print_summary(result) -> None:
     em = result.enhanced_metrics
 
     print(f"  {'Metric':<30} {'Baseline':>10} {'Enhanced':>10}")
-    print(f"  {'-'*30} {'-'*10} {'-'*10}")
-    print(f"  {'Resolution':<30} {'Yes' if bm.resolution_success else 'No':>10} {'Yes' if em.resolution_success else 'No':>10}")
+    print(f"  {'-' * 30} {'-' * 10} {'-' * 10}")
+    print(
+        f"  {'Resolution':<30} {'Yes' if bm.resolution_success else 'No':>10} {'Yes' if em.resolution_success else 'No':>10}"
+    )
     print(f"  {'Total Turns':<30} {bm.total_turns:>10} {em.total_turns:>10}")
-    print(f"  {'User Corrections':<30} {bm.user_correction_count:>10} {em.user_correction_count:>10}")
-    print(f"  {'Proactivity (1-5)':<30} {bm.agent_proactivity_score:>10} {em.agent_proactivity_score:>10}")
-    print(f"  {'Solution Quality (1-5)':<30} {bm.solution_quality_score:>10} {em.solution_quality_score:>10}")
-    print(f"  {'Satisfaction (1-5)':<30} {bm.customer_satisfaction_score:>10} {em.customer_satisfaction_score:>10}")
+    print(
+        f"  {'User Corrections':<30} {bm.user_correction_count:>10} {em.user_correction_count:>10}"
+    )
+    print(
+        f"  {'Proactivity (1-5)':<30} {bm.agent_proactivity_score:>10} {em.agent_proactivity_score:>10}"
+    )
+    print(
+        f"  {'Solution Quality (1-5)':<30} {bm.solution_quality_score:>10} {em.solution_quality_score:>10}"
+    )
+    print(
+        f"  {'Satisfaction (1-5)':<30} {bm.customer_satisfaction_score:>10} {em.customer_satisfaction_score:>10}"
+    )
     print(f"  {'Overall (1-10)':<30} {bm.overall_score:>10} {em.overall_score:>10}")
     print("-" * 70)
 
@@ -290,13 +321,13 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--model",
-        default="gpt-5-mini",
-        help="Simulation model (default: gpt-5-mini)",
+        default="minimax/MiniMax-M2.5",
+        help="Simulation model (default: minimax/MiniMax-M2.5)",
     )
     parser.add_argument(
         "--judge-model",
-        default="gpt-5-mini",
-        help="Evaluation judge model (default: gpt-5-mini)",
+        default="minimax/MiniMax-M2.5",
+        help="Evaluation judge model (default: minimax/MiniMax-M2.5)",
     )
     parser.add_argument(
         "--max-turns",

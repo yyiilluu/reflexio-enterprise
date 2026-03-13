@@ -18,7 +18,6 @@ from pathlib import Path
 
 import litellm
 from dotenv import load_dotenv
-
 from scenarios import DEFAULT_SCENARIO, SCENARIOS
 
 logger = logging.getLogger(__name__)
@@ -53,7 +52,7 @@ def get_reflexio_context(reflexio_config: dict, query: str) -> str:
         user_id = reflexio_config["user_id"]
         agent_version = reflexio_config["agent_version"]
 
-        print(f"  [Reflexio] Searching with query: \"{query[:80]}\"")
+        print(f'  [Reflexio] Searching with query: "{query[:80]}"')
 
         profile_section = ""
         profiles_found = []
@@ -63,14 +62,14 @@ def get_reflexio_context(reflexio_config: dict, query: str) -> str:
             )
             if profile_resp.success and profile_resp.user_profiles:
                 profiles_found = profile_resp.user_profiles
-                lines = []
-                for p in profile_resp.user_profiles:
-                    lines.append(f"- {p.profile_content}")
+                lines = [f"- {p.profile_content}" for p in profile_resp.user_profiles]
                 profile_section = (
                     "\n## Known User Preferences & Information\n" + "\n".join(lines)
                 )
             else:
-                print(f"    Profiles: 0 results (success={profile_resp.success}, msg={profile_resp.msg})")
+                print(
+                    f"    Profiles: 0 results (success={profile_resp.success}, msg={profile_resp.msg})"
+                )
         except Exception as e:
             print(f"    Profiles: FAILED — {e}")
 
@@ -100,27 +99,43 @@ def get_reflexio_context(reflexio_config: dict, query: str) -> str:
                     + "\n\n".join(lines)
                 )
             else:
-                print(f"    Feedbacks: 0 results (success={feedback_resp.success}, msg={feedback_resp.msg})")
+                print(
+                    f"    Feedbacks: 0 results (success={feedback_resp.success}, msg={feedback_resp.msg})"
+                )
         except Exception as e:
             print(f"    Feedbacks: FAILED — {e}")
 
         if not profile_section and not feedback_section:
-            print(f"    -> No context injected (local storage uses substring matching, not semantic search)")
+            print(
+                "    -> No context injected (local storage uses substring matching, not semantic search)"
+            )
             return ""
 
         # Display retrieved context for this turn
-        print(f"    -> Matched {len(profiles_found)} profile(s), {len(feedbacks_found)} feedback(s)")
+        print(
+            f"    -> Matched {len(profiles_found)} profile(s), {len(feedbacks_found)} feedback(s)"
+        )
         if profiles_found:
             print("    Profiles:")
             for p in profiles_found:
-                emb_status = f"embedding[{len(p.embedding)}]" if p.embedding else "no-embedding"
-                snippet = p.profile_content[:120] + ("..." if len(p.profile_content) > 120 else "")
+                emb_status = (
+                    f"embedding[{len(p.embedding)}]" if p.embedding else "no-embedding"
+                )
+                snippet = p.profile_content[:120] + (
+                    "..." if len(p.profile_content) > 120 else ""
+                )
                 print(f"      - [{emb_status}] {snippet}")
         if feedbacks_found:
             print("    Feedbacks:")
             for fb in feedbacks_found:
-                emb_status = f"embedding[{len(fb.embedding)}]" if fb.embedding else "no-embedding"
-                snippet = fb.feedback_content[:120] + ("..." if len(fb.feedback_content) > 120 else "")
+                emb_status = (
+                    f"embedding[{len(fb.embedding)}]"
+                    if fb.embedding
+                    else "no-embedding"
+                )
+                snippet = fb.feedback_content[:120] + (
+                    "..." if len(fb.feedback_content) > 120 else ""
+                )
                 print(f"      - [{emb_status}] {snippet}")
 
         return (
@@ -255,9 +270,7 @@ def get_completion(model: str, messages: list[dict], tools: list | None = None) 
             content = (choice.message.content or "").strip()
             return {
                 "content": content,
-                "tool_interactions": collected_interactions
-                if collected_interactions
-                else None,
+                "tool_interactions": collected_interactions or None,
             }
 
         # Append the assistant message (with tool_calls) to local history
@@ -301,7 +314,7 @@ def get_completion(model: str, messages: list[dict], tools: list | None = None) 
             break
     return {
         "content": last_content.strip(),
-        "tool_interactions": collected_interactions if collected_interactions else None,
+        "tool_interactions": collected_interactions or None,
     }
 
 
@@ -445,8 +458,7 @@ def simulate(
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w") as f:
-        for turn in turns:
-            f.write(json.dumps(turn) + "\n")
+        f.writelines(json.dumps(turn) + "\n" for turn in turns)
 
     print(f"\nWrote {len(turns)} turns to {output_path}")
     return output_path
@@ -628,8 +640,8 @@ def main():
     )
     parser.add_argument(
         "--model",
-        default="gpt-5-mini",
-        help="LLM model to use (default: gpt-5-mini)",
+        default="minimax/MiniMax-M2.5",
+        help="LLM model to use (default: minimax/MiniMax-M2.5)",
     )
     parser.add_argument(
         "--max-turns",
