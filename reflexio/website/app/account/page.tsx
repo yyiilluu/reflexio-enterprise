@@ -134,9 +134,10 @@ client = ReflexioClient()`
     try {
       await deleteAccount(deleteAccountPassword)
       setDeleteAccountOpen(false)
-      await logout()
+      sessionStorage.setItem("account_deleted", "true")
       setDeleteAccountSuccess(true)
       setCountdown(10)
+      await logout(true)
     } catch (error) {
       setDeleteAccountError(error instanceof Error ? error.message : "Failed to delete account")
     } finally {
@@ -150,6 +151,7 @@ client = ReflexioClient()`
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(interval)
+          sessionStorage.removeItem("account_deleted")
           router.push("/register")
           return 0
         }
@@ -316,10 +318,10 @@ client = ReflexioClient()`
                 </p>
               </div>
               <DialogFooter className="gap-2 sm:gap-0">
-                <Button variant="outline" onClick={() => router.push("/")}>
+                <Button variant="outline" onClick={() => { sessionStorage.removeItem("account_deleted"); router.push("/") }}>
                   Go to Home
                 </Button>
-                <Button onClick={() => router.push("/register")}>
+                <Button onClick={() => { sessionStorage.removeItem("account_deleted"); router.push("/register") }}>
                   Sign Up
                 </Button>
               </DialogFooter>

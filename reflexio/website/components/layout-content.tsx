@@ -22,6 +22,7 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
     }
 
     if (!isAuthenticated && isProtectedRoute) {
+      if (sessionStorage.getItem("account_deleted")) return
       router.push("/login")
     }
   }, [isAuthenticated, isSelfHost, isAuthPage, isLandingPage, isProtectedRoute, pathname, router])
@@ -37,7 +38,8 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
   }
 
   // Don't render protected pages until auth check is complete
-  if (!isSelfHost && !isAuthenticated) {
+  // Allow rendering during account deletion flow so success dialog can show
+  if (!isSelfHost && !isAuthenticated && !sessionStorage.getItem("account_deleted")) {
     return null
   }
 

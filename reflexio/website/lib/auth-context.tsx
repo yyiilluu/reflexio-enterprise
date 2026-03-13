@@ -17,7 +17,7 @@ interface AuthContextType {
   token: string | null
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
   register: (email: string, password: string, invitationCode?: string) => Promise<{ success: boolean; autoVerified?: boolean; error?: string }>
-  logout: () => Promise<void>
+  logout: (skipRedirect?: boolean) => Promise<void>
   isSelfHost: boolean
   featureFlags: Record<string, boolean>
   isFeatureEnabled: (name: string) => boolean
@@ -150,7 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const logout = async () => {
+  const logout = async (skipRedirect?: boolean) => {
     // Call logout API to invalidate server-side cache
     try {
       if (token) {
@@ -177,7 +177,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setFeatureFlags({})
 
     // Redirect to landing page
-    router.push("/")
+    if (!skipRedirect) {
+      router.push("/")
+    }
   }
 
   const isFeatureEnabled = (name: string): boolean => {
