@@ -31,7 +31,6 @@ class Organization(Base):
     is_verified = Column(Boolean, default=False)
     interaction_count = Column(Integer, default=0)
     configuration_json = Column(String, default="")
-    api_key = Column(String, default="")
     is_self_managed = Column(Boolean, default=False)
 
 

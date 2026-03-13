@@ -232,7 +232,6 @@ def register_organization(
     org_email: str,
     password: str,
     session: Session,
-    api_key: str = "",
 ) -> db_models.Organization:
     """
     Register a new organization.
@@ -241,7 +240,6 @@ def register_organization(
         org_email (str): Organization email
         password (str): Plain-text password
         session (Session): Database session
-        api_key (str): Legacy api_key field value (stored on org for backward compat)
 
     Returns:
         db_models.Organization: The created organization
@@ -257,7 +255,7 @@ def register_organization(
 
     hashed_password = get_password_hash(password)
     org_model = db_models.Organization(
-        email=org_email, hashed_password=hashed_password, api_key=api_key
+        email=org_email, hashed_password=hashed_password
     )
     org = create_organization(organization=org_model, session=session)
     return org

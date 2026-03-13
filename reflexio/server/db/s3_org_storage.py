@@ -256,7 +256,6 @@ class S3OrganizationStorage:
         org.is_verified = org_dict.get("is_verified", True)  # Auto-verify in self-host
         org.interaction_count = org_dict.get("interaction_count", 0)
         org.configuration_json = org_dict.get("configuration_json", "")
-        org.api_key = org_dict.get("api_key", "")
         org.is_self_managed = org_dict.get("is_self_managed", False)
         return org
 
@@ -281,7 +280,6 @@ class S3OrganizationStorage:
             if org.interaction_count is not None
             else 0,
             "configuration_json": org.configuration_json or "",
-            "api_key": org.api_key or "",
             "is_self_managed": org.is_self_managed
             if org.is_self_managed is not None
             else False,

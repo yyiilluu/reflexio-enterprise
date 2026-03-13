@@ -508,7 +508,6 @@ def register(
             org_email=form_data.username,
             password=form_data.password,
             session=session,
-            api_key=api_key,
         )
         # Create the api_token record
         create_api_token(
