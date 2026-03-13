@@ -20,9 +20,9 @@ The key difference from pre-commit is that `PRECOMMIT` env var is NOT set, so al
 
 ## Prerequisites
 
-Before running tests, activate the poetry environment:
+Before running tests, activate the virtual environment:
 ```bash
-source $(poetry env info --path)/bin/activate
+source .venv/bin/activate
 ```
 
 ## Test Execution

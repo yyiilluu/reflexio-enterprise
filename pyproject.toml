@@ -1,63 +1,73 @@
-[tool.poetry]
+[project]
 name = "reflexio"
 version = "0.1.2"
 description = "A Python library for the Reflexio"
-authors = ["Reflexio Team"]
+authors = [{name = "Reflexio Team"}]
 readme = "README.md"
-packages = [{include = "reflexio"}]
 license = "MIT"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.111.1",
+    "psycopg2-binary>=2.9.9",
+    "boto3>=1.34.149",
+    "sqlalchemy>=2.0.31",
+    "python-jose>=3.3.0",
+    "passlib>=1.7.4",
+    "openai>=2.8.0",
+    "tenacity>=9.0.0",
+    "duckduckgo-search>=7.0.1",
+    "bcrypt>=4.2.1",
+    "reflexio-commons",
+    "uvicorn>=0.34.0",
+    "xlsxwriter>=3.2.2",
+    "aiohttp>=3.11.12",
+    "supabase>=2.15.1",
+    "python-dotenv>=1.1.0",
+    "hdbscan>=0.8.40",
+    "redis>=6.2.0",
+    "websocket-client>=1.8.0",
+    "tiktoken>=0.12.0",
+    "anthropic>=0.72.0",
+    "litellm>=1.80.11",
+    "slowapi>=0.1.9",
+    "cachetools>=6.2.4",
+    "colorlog>=6.10.1",
+    "httpx>=0.28.1",
+]
 
-[tool.poetry.dependencies]
-python = "^3.10"
-fastapi = "^0.111.1"
-psycopg2-binary = "^2.9.9"
-boto3 = "^1.34.149"
-sqlalchemy = "^2.0.31"
-python-jose = "^3.3.0"
-passlib = "^1.7.4"
-openai = ">=2.8.0"
-tenacity = "^9.0.0"
-duckduckgo-search = "^7.0.1"
-bcrypt = "^4.2.1"
-reflexio-commons = {path = "reflexio/reflexio_commons", develop = true}
-uvicorn = "^0.34.0"
-xlsxwriter = "^3.2.2"
-aiohttp = "^3.11.12"
-supabase = "^2.15.1"
-python-dotenv = "^1.1.0"
-hdbscan = "^0.8.40"
-redis = "^6.2.0"
-websocket-client = "^1.8.0"
-tiktoken = "^0.12.0"
-anthropic = "^0.72.0"
-litellm = "^1.80.11"
-slowapi = "^0.1.9"
-cachetools = "^6.2.4"
-colorlog = "^6.10.1"
-httpx = "^0.28.1"
+[dependency-groups]
+dev = [
+    "pre-commit>=4.0.1",
+    "pytest>=8.3.4",
+    "pytest-asyncio>=0.25.0",
+    "pytest-xdist>=3.8.0",
+    "black>=24.10.0",
+    "moto>=5.0.28",
+    "jupyterlab>=4.4.3",
+    "matplotlib>=3.10.8",
+    "ruff>=0.15.0",
+    "pyright>=1.1.400",
+]
+docs = [
+    "mkdocs>=1.5.3",
+    "mkdocs-material>=9.5.3",
+    "mkdocstrings[python]>=0.24.0",
+    "griffe>=0.38.0",
+    "mkdocstrings-python>=1.7.0",
+]
 
-[tool.poetry.group.docs]
-optional = true
+[tool.uv.workspace]
+members = ["reflexio/reflexio_commons", "reflexio/reflexio_client"]
 
-[tool.poetry.group.docs.dependencies]
-mkdocs = "^1.5.3"
-mkdocs-material = "^9.5.3"
-mkdocstrings = {extras = ["python"], version = "^0.24.0"}
-griffe = "^0.38.0"
-mkdocstrings-python = "^1.7.0"
+[tool.uv.sources]
+reflexio-commons = { workspace = true }
 
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.poetry.group.dev.dependencies]
-pre-commit = "^4.0.1"
-pytest = "^8.3.4"
-pytest-asyncio = "^0.25.0"
-pytest-xdist = "^3.8.0"
-black = "^24.10.0"
-moto = "^5.0.28"
-jupyterlab = "^4.4.3"
-matplotlib = "^3.10.8"
-ruff = ">=0.15.0"
-pyright = ">=1.1.400"
+[tool.hatch.build.targets.wheel]
+packages = ["reflexio"]
 
 [tool.pytest.ini_options]
 # Parallel test execution with pytest-xdist
@@ -66,10 +76,6 @@ pyright = ">=1.1.400"
 addopts = "-n auto --dist loadfile"
 testpaths = ["reflexio/tests"]
 asyncio_default_fixture_loop_scope = "function"
-
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
 target-version = "py310"

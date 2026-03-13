@@ -1,32 +1,36 @@
-[tool.poetry]
+[project]
 name = "reflexio-client"
 version = "0.1.0.3"
 description = "A Python client for the Reflexio API"
-authors = ["Reflexio Team"]
+authors = [{name = "Reflexio Team"}]
 readme = "README.md"
-packages = [{include = "reflexio"}]
 license = "MIT"
+requires-python = ">=3.10"
+dependencies = [
+    "requests>=2.25.0",
+    "pydantic>=2.0.0",
+    "python-dateutil>=2.8.0",
+    "reflexio-commons==0.1.0.2",
+    "aiohttp>=3.12.9",
+]
 
-[tool.poetry.dependencies]
-python = "^3.10"
-requests = "^2.25.0"
-pydantic = "^2.0.0"
-python-dateutil = "^2.8.0"
-reflexio-commons = "0.1.0.2"
-mkdocstrings = {version = ">=0.18.0", extras = ["python"]}
-griffe = "0.48.0"
-aiohttp = "^3.12.9"
-mkdocs-with-pdf = "^0.9.3"
-weasyprint = "^66.0"
+[dependency-groups]
+dev = [
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.5.50",
+    "mkdocstrings[python]>=0.27.0",
+    "mkdocstrings[python]>=0.18.0",
+    "griffe==0.48.0",
+    "mkdocs-with-pdf>=0.9.3",
+    "weasyprint>=66.0",
+]
+
+[tool.uv.sources]
+reflexio-commons = { workspace = true }
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.poetry.group.dev.dependencies]
-mkdocs = "^1.6.1"
-mkdocs-material = "^9.5.50"
-mkdocstrings = {extras = ["python"], version = "^0.27.0"}
-
-[tool.poetry.group.local.dependencies]
-reflexio-commons = {path = "../reflexio_commons", develop = true}
+[tool.hatch.build.targets.wheel]
+packages = ["reflexio"]

@@ -33,15 +33,15 @@ Client (SDK/Web)
 | Tool | Version | Purpose |
 |------|---------|---------|
 | Python | >= 3.10 | Backend runtime |
-| Poetry | latest | Python dependency management |
+| uv | latest | Python dependency management |
 | Node.js + npm | >= 18 | Frontend and docs build |
 | Supabase CLI | latest | Local database (optional for self-host) |
 
 ## Quick Start
 
 ```shell
-poetry install
-source $(poetry env info --path)/bin/activate
+uv sync
+source .venv/bin/activate
 ./run_services.sh   # Starts API (8081), Website (8080), Docs (8082)
 ./stop_services.sh  # Stop all services
 ```
@@ -108,8 +108,8 @@ sh reflexio/scripts/deploy_ecs.sh
 
 ```shell
 # Update versions in pyproject.toml files first
-cd reflexio/reflexio_commons && poetry build && poetry publish
-cd reflexio/reflexio_client && poetry build && poetry publish
+cd reflexio/reflexio_commons && uv build && uv publish
+cd reflexio/reflexio_client && uv build && uv publish
 ```
 
 ## Key Rules

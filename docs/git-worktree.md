@@ -42,8 +42,8 @@ cd /Users/yilu/repos/reflexio-feature-x
 
 ```bash
 cd ../reflexio-feature-x
-poetry install
-source $(poetry env info --path)/bin/activate
+uv sync
+source .venv/bin/activate
 ```
 
 ## Merging Commits Between Worktrees
