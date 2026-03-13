@@ -141,6 +141,3 @@ if __name__ == "__main__":
     import pytest
 
     pytest.main([__file__])
-    # pytest.main(
-    #     [__file__, "-k", "test_load_config", "-v", "--tb=short"]
-    # )
