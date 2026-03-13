@@ -9,20 +9,20 @@ Tests the extractor's new responsibilities for:
 - Integration of run() method
 """
 
-import pytest
 import os
 import tempfile
 from unittest.mock import MagicMock, patch
 
+import pytest
+from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 from reflexio_commons.api_schema.service_schemas import (
     Interaction,
     Request,
-    UserProfile,
 )
-from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 from reflexio_commons.config_schema import ProfileExtractorConfig
 
 from reflexio.server.api_endpoints.request_context import RequestContext
+from reflexio.server.llm.litellm_client import LiteLLMClient
 from reflexio.server.services.profile.profile_extractor import ProfileExtractor
 from reflexio.server.services.profile.profile_generation_service import (
     ProfileGenerationServiceConfig,
@@ -30,8 +30,6 @@ from reflexio.server.services.profile.profile_generation_service import (
 from reflexio.server.services.profile.profile_generation_service_utils import (
     StructuredProfilesOutput,
 )
-from reflexio.server.llm.litellm_client import LiteLLMClient
-
 
 # ===============================
 # Fixtures

@@ -11,7 +11,6 @@ import logging
 import os
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 from urllib.parse import urlencode
 
 import httpx
@@ -21,19 +20,19 @@ from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
 from reflexio.server.api_endpoints.login import (
-    SECRET_KEY,
     ALGORITHM,
+    SECRET_KEY,
     generate_short_api_key,
     register_organization,
 )
 from reflexio.server.db.db_operations import (
-    get_db_session,
-    get_organization_by_email,
+    claim_invitation_code,
     create_api_token,
     get_api_tokens_by_org_id,
-    update_organization,
-    claim_invitation_code,
+    get_db_session,
+    get_organization_by_email,
     release_invitation_code,
+    update_organization,
 )
 from reflexio.server.site_var.feature_flags import (
     get_all_feature_flags,
@@ -64,11 +63,11 @@ OAUTH_PROVIDERS = {
 }
 
 
-def _get_client_id(provider: str) -> Optional[str]:
+def _get_client_id(provider: str) -> str | None:
     return os.getenv(f"{provider.upper()}_CLIENT_ID")
 
 
-def _get_client_secret(provider: str) -> Optional[str]:
+def _get_client_secret(provider: str) -> str | None:
     return os.getenv(f"{provider.upper()}_CLIENT_SECRET")
 
 
@@ -79,11 +78,7 @@ def get_configured_oauth_providers() -> list[str]:
     Returns:
         list[str]: List of provider names (e.g. ["google", "github"])
     """
-    return [
-        p
-        for p in OAUTH_PROVIDERS
-        if _get_client_id(p) and _get_client_secret(p)
-    ]
+    return [p for p in OAUTH_PROVIDERS if _get_client_id(p) and _get_client_secret(p)]
 
 
 def _get_frontend_url(request: Request) -> str:
@@ -111,6 +106,7 @@ def _get_frontend_url(request: Request) -> str:
     referer = request.headers.get("referer")
     if referer:
         from urllib.parse import urlparse
+
         parsed = urlparse(referer)
         return f"{parsed.scheme}://{parsed.netloc}"
 
@@ -139,7 +135,7 @@ def _get_callback_url(request: Request, provider: str) -> str:
 def _create_oauth_state(
     action: str,
     provider: str,
-    invitation_code: Optional[str] = None,
+    invitation_code: str | None = None,
 ) -> str:
     """
     Create a signed JWT state token for OAuth flow.
@@ -164,7 +160,7 @@ def _create_oauth_state(
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def _verify_oauth_state(state: str) -> Optional[dict]:
+def _verify_oauth_state(state: str) -> dict | None:
     """
     Verify and decode an OAuth state JWT.
 
@@ -175,15 +171,14 @@ def _verify_oauth_state(state: str) -> Optional[dict]:
         dict with action, provider, invitation_code (if present), or None if invalid
     """
     try:
-        payload = jwt.decode(state, SECRET_KEY, algorithms=[ALGORITHM])
-        return payload
+        return jwt.decode(state, SECRET_KEY, algorithms=[ALGORITHM])
     except JWTError:
         return None
 
 
 async def _exchange_code_for_token(
     provider: str, code: str, redirect_uri: str
-) -> Optional[str]:
+) -> str | None:
     """
     Exchange an authorization code for an access token.
 
@@ -215,18 +210,14 @@ async def _exchange_code_for_token(
     async with httpx.AsyncClient() as client:
         resp = await client.post(config["token_url"], data=data, headers=headers)
         if resp.status_code != 200:
-            logger.error(f"OAuth token exchange failed for {provider}: {resp.text}")
+            logger.error("OAuth token exchange failed for %s: %s", provider, resp.text)
             return None
 
-        if provider == "github":
-            token_data = resp.json()
-        else:
-            token_data = resp.json()
-
+        token_data = resp.json()
         return token_data.get("access_token")
 
 
-async def _get_user_email(provider: str, access_token: str) -> Optional[str]:
+async def _get_user_email(provider: str, access_token: str) -> str | None:
     """
     Get the user's primary email from the OAuth provider.
 
@@ -243,14 +234,14 @@ async def _get_user_email(provider: str, access_token: str) -> Optional[str]:
     async with httpx.AsyncClient() as client:
         resp = await client.get(config["userinfo_url"], headers=headers)
         if resp.status_code != 200:
-            logger.error(f"Failed to get user info from {provider}: {resp.text}")
+            logger.error("Failed to get user info from %s: %s", provider, resp.text)
             return None
 
         user_data = resp.json()
 
         if provider == "google":
             return user_data.get("email")
-        elif provider == "github":
+        if provider == "github":
             email = user_data.get("email")
             if email:
                 return email
@@ -277,7 +268,7 @@ def _redirect_frontend_success(
     frontend_url: str,
     token: str,
     email: str,
-    feature_flags: Optional[dict] = None,
+    feature_flags: dict | None = None,
 ) -> RedirectResponse:
     """Build a redirect to the frontend callback page with success data."""
     params = {
@@ -290,7 +281,7 @@ def _redirect_frontend_success(
 
 
 @router.get("/{provider}/login")
-def oauth_login(provider: str, request: Request):
+def oauth_login(provider: str, request: Request) -> RedirectResponse:
     """
     Initiate OAuth login flow.
 
@@ -324,17 +315,15 @@ def oauth_login(provider: str, request: Request):
         params["response_type"] = "code"
         params["access_type"] = "offline"
 
-    return RedirectResponse(
-        url=f"{config['authorize_url']}?{urlencode(params)}"
-    )
+    return RedirectResponse(url=f"{config['authorize_url']}?{urlencode(params)}")
 
 
 @router.get("/{provider}/register")
 def oauth_register(
     provider: str,
     request: Request,
-    invitation_code: Optional[str] = None,
-):
+    invitation_code: str | None = None,
+) -> RedirectResponse:
     """
     Initiate OAuth registration flow.
 
@@ -373,20 +362,18 @@ def oauth_register(
         params["response_type"] = "code"
         params["access_type"] = "offline"
 
-    return RedirectResponse(
-        url=f"{config['authorize_url']}?{urlencode(params)}"
-    )
+    return RedirectResponse(url=f"{config['authorize_url']}?{urlencode(params)}")
 
 
 @router.get("/{provider}/callback")
 async def oauth_callback(
     provider: str,
     request: Request,
-    code: Optional[str] = None,
-    state: Optional[str] = None,
-    error: Optional[str] = None,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
     session: Session = Depends(get_db_session),
-):
+) -> RedirectResponse:
     """
     Handle OAuth provider callback.
 
@@ -432,13 +419,10 @@ async def oauth_callback(
     email = email.lower().strip()
 
     if action == "register":
-        return _handle_register(
-            session, frontend_url, provider, email, invitation_code
-        )
-    elif action == "login":
+        return _handle_register(session, frontend_url, provider, email, invitation_code)
+    if action == "login":
         return _handle_login(session, frontend_url, provider, email)
-    else:
-        return _redirect_frontend_error(frontend_url, "oauth_failed")
+    return _redirect_frontend_error(frontend_url, "oauth_failed")
 
 
 def _handle_register(
@@ -446,7 +430,7 @@ def _handle_register(
     frontend_url: str,
     provider: str,
     email: str,
-    invitation_code: Optional[str],
+    invitation_code: str | None,
 ) -> RedirectResponse:
     """
     Handle OAuth registration callback.
@@ -468,9 +452,7 @@ def _handle_register(
     if invitation_only:
         if not invitation_code:
             return _redirect_frontend_error(frontend_url, "invitation_required")
-        inv = claim_invitation_code(
-            session=session, code=invitation_code, email=email
-        )
+        inv = claim_invitation_code(session=session, code=invitation_code, email=email)
         if inv is None:
             return _redirect_frontend_error(frontend_url, "invalid_invitation")
 
@@ -489,13 +471,16 @@ def _handle_register(
         return _redirect_frontend_error(frontend_url, "oauth_failed")
 
     # Auto-verify OAuth accounts
-    org.is_verified = True
+    org.is_verified = True  # type: ignore[reportAttributeAccessIssue]
     update_organization(session=session, organization=org)
 
     # Create API token
     api_key = generate_short_api_key()
     create_api_token(
-        session=session, org_id=org.id, token_value=api_key, name="Default"
+        session=session,
+        org_id=org.id,  # type: ignore[reportArgumentType]
+        token_value=api_key,
+        name="Default",  # type: ignore[reportArgumentType]
     )
 
     feature_flags = get_all_feature_flags(str(org.id))
@@ -533,16 +518,22 @@ def _handle_login(
         return _redirect_frontend_error(frontend_url, "oauth_failed")
 
     # Get or create API token (same pattern as /token endpoint)
-    existing_tokens = get_api_tokens_by_org_id(session=session, org_id=org.id)
+    existing_tokens = get_api_tokens_by_org_id(session=session, org_id=org.id)  # type: ignore[reportArgumentType]
     if existing_tokens:
         api_key = existing_tokens[0].token
     else:
         api_key = generate_short_api_key()
         create_api_token(
-            session=session, org_id=org.id, token_value=api_key, name="Default"
+            session=session,
+            org_id=org.id,  # type: ignore[reportArgumentType]
+            token_value=api_key,
+            name="Default",  # type: ignore[reportArgumentType]
         )
 
     feature_flags = get_all_feature_flags(str(org.id))
     return _redirect_frontend_success(
-        frontend_url, token=api_key, email=email, feature_flags=feature_flags
+        frontend_url,
+        token=api_key,  # type: ignore[reportArgumentType]
+        email=email,
+        feature_flags=feature_flags,  # type: ignore[reportArgumentType]
     )

@@ -3,13 +3,15 @@ Profile deduplication service that merges duplicate profiles from multiple extra
 and against existing profiles in the database using hybrid search and LLM.
 """
 
-from datetime import datetime, timezone
 import logging
 import os
-from typing import Optional
 import uuid
+from datetime import datetime, timezone
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+from reflexio_commons.api_schema.retriever_schema import SearchUserProfileRequest
+from reflexio_commons.api_schema.service_schemas import UserProfile
+from reflexio_commons.config_schema import EMBEDDING_DIMENSIONS
 
 from reflexio.server.api_endpoints.request_context import RequestContext
 from reflexio.server.llm.litellm_client import LiteLLMClient
@@ -21,9 +23,6 @@ from reflexio.server.services.profile.profile_generation_service_utils import (
     ProfileTimeToLive,
     calculate_expiration_timestamp,
 )
-from reflexio_commons.api_schema.service_schemas import UserProfile
-from reflexio_commons.api_schema.retriever_schema import SearchUserProfileRequest
-from reflexio_commons.config_schema import EMBEDDING_DIMENSIONS
 
 logger = logging.getLogger(__name__)
 
@@ -180,9 +179,7 @@ class ProfileDeduplicator(BaseDeduplicator):
             Tuple of (new_profiles_text, existing_profiles_text)
         """
         new_text = self._format_profiles_with_prefix(new_profiles, "NEW")
-        existing_text = self._format_profiles_with_prefix(
-            existing_profiles, "EXISTING"
-        )
+        existing_text = self._format_profiles_with_prefix(existing_profiles, "EXISTING")
         return new_text, existing_text
 
     def _retrieve_existing_profiles(
@@ -217,7 +214,9 @@ class ProfileDeduplicator(BaseDeduplicator):
 
         # Batch-generate embeddings
         try:
-            embeddings = self.client.get_embeddings(query_texts, dimensions=EMBEDDING_DIMENSIONS)
+            embeddings = self.client.get_embeddings(
+                query_texts, dimensions=EMBEDDING_DIMENSIONS
+            )
         except Exception as e:
             logger.warning("Failed to generate embeddings for dedup search: %s", e)
             embeddings = [None] * len(query_texts)
@@ -228,7 +227,7 @@ class ProfileDeduplicator(BaseDeduplicator):
 
         for i, query_text in enumerate(query_texts):
             try:
-                results = storage.search_user_profile(
+                results = storage.search_user_profile(  # type: ignore[reportOptionalMemberAccess]
                     SearchUserProfileRequest(
                         query=query_text,
                         user_id=user_id,
@@ -242,7 +241,7 @@ class ProfileDeduplicator(BaseDeduplicator):
                     if profile.profile_id and profile.profile_id not in seen_ids:
                         seen_ids.add(profile.profile_id)
                         existing_profiles.append(profile)
-            except Exception as e:
+            except Exception as e:  # noqa: PERF203
                 logger.warning(
                     "Failed to search existing profiles for query %d: %s", i, e
                 )
@@ -398,23 +397,19 @@ class ProfileDeduplicator(BaseDeduplicator):
                         superseded_profiles.append(existing_profiles[eidx])
 
             # Get template from first NEW profile in group (for metadata)
-            template_profile: Optional[UserProfile] = None
+            template_profile: UserProfile | None = None
             if group_new_indices:
                 first_new_idx = group_new_indices[0]
                 if 0 <= first_new_idx < len(new_profiles):
                     template_profile = new_profiles[first_new_idx]
 
             if template_profile is None:
-                logger.warning(
-                    "Could not find template profile for group, skipping"
-                )
+                logger.warning("Could not find template profile for group, skipping")
                 continue
 
             # Merge custom_features from all NEW profiles in group
             group_new_profiles = [
-                new_profiles[i]
-                for i in group_new_indices
-                if 0 <= i < len(new_profiles)
+                new_profiles[i] for i in group_new_indices if 0 <= i < len(new_profiles)
             ]
             merged_custom_features = self._merge_custom_features(group_new_profiles)
 
@@ -453,7 +448,11 @@ class ProfileDeduplicator(BaseDeduplicator):
             if parsed is None:
                 continue
             prefix, idx = parsed
-            if prefix == "NEW" and idx not in handled_new_indices and 0 <= idx < len(new_profiles):
+            if (
+                prefix == "NEW"
+                and idx not in handled_new_indices
+                and 0 <= idx < len(new_profiles)
+            ):
                 result_profiles.append(new_profiles[idx])
                 handled_new_indices.add(idx)
 
@@ -468,7 +467,7 @@ class ProfileDeduplicator(BaseDeduplicator):
 
         return result_profiles, existing_ids_to_delete, superseded_profiles
 
-    def _merge_custom_features(self, profiles: list[UserProfile]) -> Optional[dict]:
+    def _merge_custom_features(self, profiles: list[UserProfile]) -> dict | None:
         """
         Merge custom_features from multiple profiles.
 
@@ -483,11 +482,9 @@ class ProfileDeduplicator(BaseDeduplicator):
             if profile.custom_features:
                 merged.update(profile.custom_features)
 
-        return merged if merged else None
+        return merged or None
 
-    def _merge_extractor_names(
-        self, profiles: list[UserProfile]
-    ) -> Optional[list[str]]:
+    def _merge_extractor_names(self, profiles: list[UserProfile]) -> list[str] | None:
         """
         Merge extractor_names from multiple profiles, preserving order and removing duplicates.
 
@@ -505,4 +502,4 @@ class ProfileDeduplicator(BaseDeduplicator):
                     if name not in seen:
                         seen.add(name)
                         merged.append(name)
-        return merged if merged else None
+        return merged or None

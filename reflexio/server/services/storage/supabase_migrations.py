@@ -5,11 +5,17 @@ Each function receives (conn, cursor) and must NOT commit or rollback —
 the caller (execute_migration) manages the transaction.
 """
 
+from __future__ import annotations
+
 import logging
 import re
-from typing import Callable, Optional
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import psycopg2.extensions
+
+if TYPE_CHECKING:
+    from reflexio.server.llm.litellm_client import LiteLLMClient
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +44,7 @@ _SENTENCE_RE = re.compile(
 
 def _parse_feedback_content(
     text: str,
-) -> tuple[Optional[str], Optional[str], Optional[str]]:
+) -> tuple[str | None, str | None, str | None]:
     """
     Parse feedback_content text into structured fields.
 
@@ -74,7 +80,7 @@ def _parse_feedback_content(
     return None, None, None
 
 
-def _strip_trailing_dot(s: Optional[str]) -> Optional[str]:
+def _strip_trailing_dot(s: str | None) -> str | None:
     """Strip trailing period and whitespace from a string, if present."""
     if s is None:
         return None
@@ -124,7 +130,7 @@ def _backfill_table(
 
 
 def migrate_20260124120000_structured_feedback_fields(
-    conn: psycopg2.extensions.connection,
+    conn: psycopg2.extensions.connection,  # noqa: ARG001
     cursor: psycopg2.extensions.cursor,
 ) -> None:
     """
@@ -150,7 +156,7 @@ def migrate_20260124120000_structured_feedback_fields(
 
 def _reembed_table(
     cursor: psycopg2.extensions.cursor,
-    llm_client: "LiteLLMClient",
+    llm_client: LiteLLMClient,
     table: str,
     id_column: str,
     text_builder: Callable,
@@ -178,7 +184,7 @@ def _reembed_table(
         int: Number of rows updated
     """
     cursor.execute(f"SELECT * FROM {table} WHERE embedding IS NULL")  # noqa: S608
-    columns = [desc[0] for desc in cursor.description]
+    columns = [desc[0] for desc in cursor.description]  # type: ignore[reportOptionalIterable]
     rows = cursor.fetchall()
 
     if not rows:
@@ -186,7 +192,7 @@ def _reembed_table(
         return 0
 
     # Convert to list of dicts for easier access
-    row_dicts = [dict(zip(columns, row)) for row in rows]
+    row_dicts = [dict(zip(columns, row, strict=False)) for row in rows]
 
     updated = 0
     for i in range(0, len(row_dicts), batch_size):
@@ -206,7 +212,7 @@ def _reembed_table(
             valid_texts, model=embedding_model, dimensions=dimensions
         )
 
-        for row_id, embedding in zip(valid_ids, embeddings):
+        for row_id, embedding in zip(valid_ids, embeddings, strict=False):
             cursor.execute(
                 f"UPDATE {table} SET embedding = %s WHERE {id_column} = %s",  # noqa: S608
                 (str(embedding), row_id),
@@ -225,7 +231,7 @@ def _reembed_table(
 
 
 def migrate_20260202000000_reembed_512(
-    conn: psycopg2.extensions.connection,
+    conn: psycopg2.extensions.connection,  # noqa: ARG001
     cursor: psycopg2.extensions.cursor,
 ) -> None:
     """
@@ -241,8 +247,8 @@ def migrate_20260202000000_reembed_512(
     import os
 
     from dotenv import load_dotenv
-
     from reflexio_commons.config_schema import EMBEDDING_DIMENSIONS
+
     from reflexio.server.llm.litellm_client import LiteLLMClient, LiteLLMConfig
 
     load_dotenv()

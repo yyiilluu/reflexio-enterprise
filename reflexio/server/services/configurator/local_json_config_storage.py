@@ -1,14 +1,15 @@
 import json
-import os
 import traceback
-from typing import Optional
-from reflexio.server.services.configurator.config_storage import ConfigStorage
+from pathlib import Path
+
 from reflexio_commons.config_schema import (
     Config,
     StorageConfigLocal,
 )
+
+from reflexio import data
 from reflexio.server import FERNET_KEYS
-import reflexio.data as data
+from reflexio.server.services.configurator.config_storage import ConfigStorage
 from reflexio.utils.encrypt_manager import EncryptManager
 
 
@@ -18,24 +19,25 @@ class LocalJsonConfigStorage(ConfigStorage):
     Saves/loads configuration to/from local JSON files with encryption.
     """
 
-    def __init__(self, org_id: str, base_dir: Optional[str] = None):
+    def __init__(self, org_id: str, base_dir: str | None = None):
         super().__init__(org_id=org_id)
         if base_dir:
             # Ensure base_dir is absolute
+            base_path = Path(base_dir)
             abs_base_dir = (
-                os.path.abspath(base_dir) if not os.path.isabs(base_dir) else base_dir
+                str(base_path.resolve()) if not base_path.is_absolute() else base_dir
             )
-            self.base_dir = os.path.join(abs_base_dir, "configs")
-            self.config_file = os.path.join(self.base_dir, f"config_{org_id}.json")
+            self.base_dir = str(Path(abs_base_dir) / "configs")
+            self.config_file = str(Path(self.base_dir) / f"config_{org_id}.json")
             print(
                 f"LocalJsonConfigStorage will save config for {org_id} to a local file at {self.config_file}"
             )
         else:
-            self.base_dir = os.path.join(os.path.dirname(data.__file__), "configs")
-            self.config_file = os.path.join(self.base_dir, f"config_{org_id}.json")
+            self.base_dir = str(Path(data.__file__).parent / "configs")
+            self.config_file = str(Path(self.base_dir) / f"config_{org_id}.json")
 
         # Load fernet key from environment and set up the encryption manager.
-        self.encrypt_manager: Optional[EncryptManager] = None
+        self.encrypt_manager: EncryptManager | None = None
         if FERNET_KEYS:
             self.encrypt_manager = EncryptManager(fernet_keys=FERNET_KEYS)
 
@@ -46,10 +48,9 @@ class LocalJsonConfigStorage(ConfigStorage):
         Returns:
             Config: Default configuration with local storage type
         """
+        base_path = Path(self.base_dir)
         abs_base_dir = (
-            os.path.abspath(self.base_dir)
-            if not os.path.isabs(self.base_dir)
-            else self.base_dir
+            str(base_path.resolve()) if not base_path.is_absolute() else self.base_dir
         )
         return Config(
             storage_config=StorageConfigLocal(dir_path=abs_base_dir),
@@ -63,13 +64,13 @@ class LocalJsonConfigStorage(ConfigStorage):
         Returns:
             Config: Loaded configuration object
         """
-        if not os.path.exists(self.config_file):
+        if not Path(self.config_file).exists():
             config = self.get_default_config()
             self._save_config_to_local_dir(config=config)
             return config
 
         try:
-            with open(self.config_file, encoding="utf-8") as f:
+            with Path(self.config_file).open(encoding="utf-8") as f:
                 config_raw = f.read()
                 config_content = None
                 if config_raw:
@@ -110,13 +111,12 @@ class LocalJsonConfigStorage(ConfigStorage):
         Args:
             config (Config): Configuration object to save
         """
-        assert (
-            self.base_dir and self.config_file
-        ), "base_dir and config_file must be set"
+        if not (self.base_dir and self.config_file):
+            raise ValueError("base_dir and config_file must be set")
 
-        os.makedirs(self.base_dir, exist_ok=True)
+        Path(self.base_dir).mkdir(parents=True, exist_ok=True)
         try:
-            with open(self.config_file, "w", encoding="utf-8") as f:
+            with Path(self.config_file).open("w", encoding="utf-8") as f:
                 config_raw: str = config.model_dump_json()
                 if self.encrypt_manager:
                     config_raw_encrypted = self.encrypt_manager.encrypt(
@@ -125,7 +125,7 @@ class LocalJsonConfigStorage(ConfigStorage):
                 else:
                     config_raw_encrypted = config_raw
 
-                f.write(config_raw_encrypted)
+                f.write(config_raw_encrypted)  # type: ignore[reportArgumentType]
         except Exception as e:
             print(f"{str(e)}")
             tbs = traceback.format_exc().split("\n")

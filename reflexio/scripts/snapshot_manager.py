@@ -85,9 +85,7 @@ def _public_tables_are_empty(db_url: str) -> tuple[bool, list[str]]:
 
         non_empty: list[str] = []
         for table in tables:
-            cursor.execute(
-                f'SELECT EXISTS (SELECT 1 FROM public."{table}" LIMIT 1)'
-            )  # noqa: S608
+            cursor.execute(f'SELECT EXISTS (SELECT 1 FROM public."{table}" LIMIT 1)')  # noqa: S608
             if cursor.fetchone()[0]:
                 non_empty.append(table)
 
@@ -166,7 +164,7 @@ def cmd_create(args: argparse.Namespace) -> int:
     ]
 
     logger.info("Running pg_dump ...")
-    result = subprocess.run(cmd, env=env, capture_output=True, text=True)
+    result = subprocess.run(cmd, env=env, capture_output=True, text=True)  # noqa: S603
 
     if result.returncode != 0:
         logger.error("pg_dump failed:\n%s", result.stderr)
@@ -191,7 +189,7 @@ def cmd_create(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_restore(args: argparse.Namespace) -> int:
+def cmd_restore(args: argparse.Namespace) -> int:  # noqa: C901
     """
     Restore a snapshot into the local Supabase database.
 
@@ -238,7 +236,7 @@ def cmd_restore(args: argparse.Namespace) -> int:
             ", ".join(non_empty),
         )
         return 1
-    elif not all_empty:
+    if not all_empty:
         logger.warning(
             "Tables not empty (--force): %s. Truncating before restore.",
             ", ".join(non_empty),
@@ -281,7 +279,7 @@ def cmd_restore(args: argparse.Namespace) -> int:
         "-",  # output to stdout
         str(dump_file),
     ]
-    convert_result = subprocess.run(
+    convert_result = subprocess.run(  # noqa: S603
         convert_cmd, env=env, capture_output=True, text=True
     )
     if convert_result.returncode != 0 and not convert_result.stdout:
@@ -421,7 +419,7 @@ def cmd_restore(args: argparse.Namespace) -> int:
         "-v",
         "ON_ERROR_STOP=1",
     ]
-    result = subprocess.run(
+    result = subprocess.run(  # noqa: S603
         psql_cmd, env=env, input=restore_sql, capture_output=True, text=True
     )
 
@@ -468,7 +466,7 @@ def cmd_restore(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_list(args: argparse.Namespace) -> int:
+def cmd_list(args: argparse.Namespace) -> int:  # noqa: ARG001
     """
     List available snapshots with their metadata.
 
@@ -522,7 +520,7 @@ def cmd_list(args: argparse.Namespace) -> int:
         print()
 
     print("-" * 70)
-    print(f"Restore with: python -m reflexio.scripts.snapshot_manager restore <name>")
+    print("Restore with: python -m reflexio.scripts.snapshot_manager restore <name>")
     return 0
 
 
@@ -592,9 +590,9 @@ def main() -> int:
 
     if args.command == "create":
         return cmd_create(args)
-    elif args.command == "restore":
+    if args.command == "restore":
         return cmd_restore(args)
-    elif args.command == "list":
+    if args.command == "list":
         return cmd_list(args)
 
     return 0

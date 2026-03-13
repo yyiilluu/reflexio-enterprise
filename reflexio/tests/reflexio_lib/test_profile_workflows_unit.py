@@ -5,27 +5,28 @@ but real storage (LocalJsonStorage in temp directory) and real services.
 """
 
 import datetime
-from datetime import timezone
-import pytest
 import tempfile
+from datetime import timezone
 
-from reflexio.reflexio_lib.reflexio_lib import Reflexio
+import pytest
+from reflexio_commons.api_schema.retriever_schema import (
+    GetDashboardStatsRequest,
+    GetInteractionsRequest,
+    GetRequestsRequest,
+    GetUserProfilesRequest,
+    SearchInteractionRequest,
+    SearchUserProfileRequest,
+)
 from reflexio_commons.api_schema.service_schemas import (
-    PublishUserInteractionRequest,
+    DowngradeProfilesRequest,
     InteractionData,
+    PublishUserInteractionRequest,
     RerunProfileGenerationRequest,
     Status,
     UpgradeProfilesRequest,
-    DowngradeProfilesRequest,
 )
-from reflexio_commons.api_schema.retriever_schema import (
-    SearchInteractionRequest,
-    SearchUserProfileRequest,
-    GetInteractionsRequest,
-    GetUserProfilesRequest,
-    GetDashboardStatsRequest,
-    GetRequestsRequest,
-)
+
+from reflexio.reflexio_lib.reflexio_lib import Reflexio
 from reflexio.server.services.profile.profile_extractor import (
     ProfileExtractorConfig,
 )
@@ -121,7 +122,7 @@ def test_publish_interaction_success(reflexio_with_config):
             if "profiles" in user_data:
                 print(f"[DEBUG] Profiles in storage: {len(user_data['profiles'])}")
             else:
-                print(f"[DEBUG] No 'profiles' key in user data!")
+                print("[DEBUG] No 'profiles' key in user data!")
             if "interactions" in user_data:
                 print(
                     f"[DEBUG] Interactions in storage: {len(user_data['interactions'])}"

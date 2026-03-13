@@ -10,13 +10,12 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 import pytest
+from reflexio_commons.api_schema.service_schemas import Interaction, OperationStatus
 
 from reflexio.server.services.operation_state_utils import (
     GENERATION_STALE_LOCK_SECONDS,
     OperationStateManager,
 )
-from reflexio_commons.api_schema.service_schemas import Interaction, OperationStatus
-
 
 # ===============================
 # Fixtures

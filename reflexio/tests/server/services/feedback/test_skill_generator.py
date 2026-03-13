@@ -4,7 +4,6 @@ import time
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from reflexio_commons.api_schema.service_schemas import (
     BlockingIssue,
     BlockingIssueKind,
@@ -20,6 +19,7 @@ from reflexio_commons.config_schema import (
     StorageConfigLocal,
     ToolUseConfig,
 )
+
 from reflexio.server.services.feedback.feedback_service_utils import (
     SkillGenerationOutput,
     SkillGeneratorRequest,
@@ -29,7 +29,6 @@ from reflexio.server.services.feedback.skill_generator import (
     render_skills_markdown,
 )
 from reflexio.tests.server.test_utils import skip_low_priority
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -49,7 +48,7 @@ def mock_llm_client():
 def mock_config():
     """Create a Config with skill generator enabled."""
     return Config(
-        storage_config=StorageConfigLocal(dir_path="/tmp/test_skill_gen"),
+        storage_config=StorageConfigLocal(dir_path="/tmp/test_skill_gen"),  # noqa: S108
         agent_feedback_configs=[
             AgentFeedbackConfig(
                 feedback_name="test_feedback",
@@ -665,10 +664,10 @@ class TestSkillGeneratorRun:
         skill_generator.storage.get_skills.return_value = []
 
         # Mock clustering to return a single cluster with 1 feedback (below min of 2)
-        with patch.object(skill_generator, "_generate_new_skill") as mock_gen:
+        with patch.object(skill_generator, "_generate_new_skill") as mock_gen:  # noqa: SIM117
             with patch(
                 "reflexio.server.services.feedback.skill_generator.FeedbackAggregator"
-            ) as MockAgg:
+            ) as MockAgg:  # noqa: N806
                 mock_agg_instance = MagicMock()
                 mock_agg_instance.get_clusters.return_value = {0: feedbacks}
                 MockAgg.return_value = mock_agg_instance
@@ -697,7 +696,7 @@ class TestSkillGeneratorRun:
         # Mock clustering to return one cluster with all feedbacks
         with patch(
             "reflexio.server.services.feedback.skill_generator.FeedbackAggregator"
-        ) as MockAgg:
+        ) as MockAgg:  # noqa: N806
             mock_agg_instance = MagicMock()
             mock_agg_instance.get_clusters.return_value = {0: sample_raw_feedbacks}
             MockAgg.return_value = mock_agg_instance
@@ -731,7 +730,7 @@ class TestSkillGeneratorRun:
 
         with patch(
             "reflexio.server.services.feedback.skill_generator.FeedbackAggregator"
-        ) as MockAgg:
+        ) as MockAgg:  # noqa: N806
             mock_agg_instance = MagicMock()
             mock_agg_instance.get_clusters.return_value = {0: sample_raw_feedbacks}
             MockAgg.return_value = mock_agg_instance
@@ -764,7 +763,7 @@ class TestSkillGeneratorRun:
 
         with patch(
             "reflexio.server.services.feedback.skill_generator.FeedbackAggregator"
-        ) as MockAgg:
+        ) as MockAgg:  # noqa: N806
             mock_agg_instance = MagicMock()
             mock_agg_instance.get_clusters.return_value = {0: sample_raw_feedbacks}
             MockAgg.return_value = mock_agg_instance
@@ -797,7 +796,7 @@ class TestSkillGeneratorRun:
 
         with patch(
             "reflexio.server.services.feedback.skill_generator.FeedbackAggregator"
-        ) as MockAgg:
+        ) as MockAgg:  # noqa: N806
             mock_agg_instance = MagicMock()
             mock_agg_instance.get_clusters.return_value = {0: sample_raw_feedbacks}
             MockAgg.return_value = mock_agg_instance

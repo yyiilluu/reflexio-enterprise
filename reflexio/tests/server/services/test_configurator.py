@@ -1,14 +1,15 @@
-import os
 import json
-import pytest
+import os
 
-from reflexio.server.services.configurator.configurator import SimpleConfigurator
+import pytest
 from reflexio_commons.config_schema import (
     Config,
-    StorageConfigLocal,
     ProfileExtractorConfig,
+    StorageConfigLocal,
     StorageConfigSupabase,
 )
+
+from reflexio.server.services.configurator.configurator import SimpleConfigurator
 
 
 @pytest.fixture
@@ -28,7 +29,7 @@ def configurator(temp_dir, test_org_id):
 
 def test_init_creates_config_file(temp_dir, test_org_id):
     # Test that initialization creates config file if it doesn't exist
-    config = SimpleConfigurator(org_id=test_org_id, base_dir=temp_dir)
+    _config = SimpleConfigurator(org_id=test_org_id, base_dir=temp_dir)
     config_file = os.path.join(temp_dir, "configs", f"config_{test_org_id}.json")
 
     assert os.path.exists(config_file)

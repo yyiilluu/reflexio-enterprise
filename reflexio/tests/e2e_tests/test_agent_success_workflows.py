@@ -1,12 +1,7 @@
 """End-to-end tests for agent success evaluation workflows."""
 
-from typing import Callable
+from collections.abc import Callable
 
-from reflexio.reflexio_lib.reflexio_lib import Reflexio
-from reflexio.server.services.agent_success_evaluation.group_evaluation_runner import (
-    run_group_evaluation,
-)
-from reflexio.tests.server.test_utils import skip_in_precommit, skip_low_priority
 from reflexio_commons.api_schema.retriever_schema import (
     GetAgentSuccessEvaluationResultsRequest,
     GetDashboardStatsRequest,
@@ -16,6 +11,12 @@ from reflexio_commons.api_schema.service_schemas import (
     RegularVsShadow,
     UserActionType,
 )
+
+from reflexio.reflexio_lib.reflexio_lib import Reflexio
+from reflexio.server.services.agent_success_evaluation.group_evaluation_runner import (
+    run_group_evaluation,
+)
+from reflexio.tests.server.test_utils import skip_in_precommit, skip_low_priority
 
 
 def _trigger_group_evaluation(
@@ -68,9 +69,7 @@ def test_publish_interaction_agent_success_only(
     assert response.message == ""
 
     # Verify interactions were added to storage
-    final_interactions = (
-        reflexio_instance_agent_success_only.request_context.storage.get_all_interactions()
-    )
+    final_interactions = reflexio_instance_agent_success_only.request_context.storage.get_all_interactions()
     assert len(final_interactions) == len(sample_interaction_requests)
 
     # Trigger group evaluation synchronously (normally delayed)
@@ -107,9 +106,7 @@ def test_publish_interaction_agent_success_only(
     assert len(final_profiles) == 0
 
     # Verify NO profile change logs were created (since profile config is not enabled)
-    final_change_logs = (
-        reflexio_instance_agent_success_only.request_context.storage.get_profile_change_logs()
-    )
+    final_change_logs = reflexio_instance_agent_success_only.request_context.storage.get_profile_change_logs()
     assert len(final_change_logs) == 0
 
     # Verify NO feedbacks were generated (since feedback config is not enabled)
@@ -416,15 +413,15 @@ def test_multiple_agent_versions_evaluation(
     v3_session_ids = {r.session_id for r in results_v3.agent_success_evaluation_results}
 
     # Session IDs should be unique across versions (different publishes)
-    assert (
-        len(v1_session_ids & v2_session_ids) == 0
-    ), "V1 and V2 should have different session_ids"
-    assert (
-        len(v2_session_ids & v3_session_ids) == 0
-    ), "V2 and V3 should have different session_ids"
-    assert (
-        len(v1_session_ids & v3_session_ids) == 0
-    ), "V1 and V3 should have different session_ids"
+    assert len(v1_session_ids & v2_session_ids) == 0, (
+        "V1 and V2 should have different session_ids"
+    )
+    assert len(v2_session_ids & v3_session_ids) == 0, (
+        "V2 and V3 should have different session_ids"
+    )
+    assert len(v1_session_ids & v3_session_ids) == 0, (
+        "V1 and V3 should have different session_ids"
+    )
 
     # Step 5: Verify each result has proper structure
     for results in [results_v1, results_v2, results_v3]:
@@ -496,9 +493,7 @@ def test_evaluate_regular_vs_shadow_content(
     assert publish_response.success is True
 
     # Step 2: Verify interactions were stored
-    stored_interactions = (
-        reflexio_instance_agent_success_only.request_context.storage.get_all_interactions()
-    )
+    stored_interactions = reflexio_instance_agent_success_only.request_context.storage.get_all_interactions()
     assert len(stored_interactions) == len(interactions_with_shadow)
 
     # Verify shadow_content was stored
@@ -529,15 +524,15 @@ def test_evaluate_regular_vs_shadow_content(
     assert isinstance(result.is_success, bool)
 
     # The regular_vs_shadow should be populated when shadow content exists
-    assert (
-        result.regular_vs_shadow is not None
-    ), "regular_vs_shadow should be populated when shadow content exists"
+    assert result.regular_vs_shadow is not None, (
+        "regular_vs_shadow should be populated when shadow content exists"
+    )
 
     # Step 5: Verify the value is a valid RegularVsShadow enum
     valid_values = [e.value for e in RegularVsShadow]
-    assert (
-        result.regular_vs_shadow in valid_values
-    ), f"regular_vs_shadow should be one of {valid_values}, got {result.regular_vs_shadow}"
+    assert result.regular_vs_shadow in valid_values, (
+        f"regular_vs_shadow should be one of {valid_values}, got {result.regular_vs_shadow}"
+    )
 
     # Step 6: Log the comparison result for debugging
     print(f"Evaluation result: is_success={result.is_success}")
@@ -596,6 +591,6 @@ def test_evaluate_without_shadow_content(
     result = get_response.agent_success_evaluation_results[0]
     assert result.agent_version == agent_version
     assert isinstance(result.is_success, bool)
-    assert (
-        result.regular_vs_shadow is None
-    ), "regular_vs_shadow should be None when no shadow content exists"
+    assert result.regular_vs_shadow is None, (
+        "regular_vs_shadow should be None when no shadow content exists"
+    )

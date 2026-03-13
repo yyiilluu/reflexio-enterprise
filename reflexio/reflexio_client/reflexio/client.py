@@ -1,73 +1,77 @@
+import asyncio
+import logging
 import os
 import time
 import warnings
-import aiohttp
-import asyncio
-import logging
-from urllib.parse import urljoin
-import requests
+from collections.abc import Callable, Coroutine
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from typing import Optional, TypeVar, Union
+from typing import Any, TypeVar
+from urllib.parse import urljoin
+
+import aiohttp
+import requests
+from dotenv import load_dotenv
 from reflexio_commons.api_schema.retriever_schema import (
     ConversationTurn,
-    SearchInteractionRequest,
-    SearchInteractionResponse,
-    SearchUserProfileRequest,
-    SearchUserProfileResponse,
-    SearchRawFeedbackRequest,
-    SearchRawFeedbackResponse,
-    SearchFeedbackRequest,
-    SearchFeedbackResponse,
-    GetInteractionsRequest,
-    GetInteractionsResponse,
-    GetUserProfilesRequest,
-    GetUserProfilesResponse,
-    GetRawFeedbacksRequest,
-    GetRawFeedbacksResponse,
-    GetFeedbacksRequest,
-    GetFeedbacksResponse,
-    GetRequestsRequest,
-    GetRequestsResponse,
     GetAgentSuccessEvaluationResultsRequest,
     GetAgentSuccessEvaluationResultsResponse,
+    GetFeedbacksRequest,
+    GetFeedbacksResponse,
+    GetInteractionsRequest,
+    GetInteractionsResponse,
+    GetRawFeedbacksRequest,
+    GetRawFeedbacksResponse,
+    GetRequestsRequest,
+    GetRequestsResponse,
     GetSkillsRequest,
     GetSkillsResponse,
+    GetUserProfilesRequest,
+    GetUserProfilesResponse,
+    SearchFeedbackRequest,
+    SearchFeedbackResponse,
+    SearchInteractionRequest,
+    SearchInteractionResponse,
+    SearchRawFeedbackRequest,
+    SearchRawFeedbackResponse,
     SearchSkillsRequest,
     SearchSkillsResponse,
+    SearchUserProfileRequest,
+    SearchUserProfileResponse,
     UnifiedSearchRequest,
     UnifiedSearchResponse,
 )
-from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
 
 IS_TEST_ENV = os.environ.get("IS_TEST_ENV", "false").strip() == "true"
 
-if IS_TEST_ENV:
-    BACKEND_URL = "http://127.0.0.1:8000"  # Local server for testing
-else:
-    BACKEND_URL = "https://www.reflexio.com/"  # Main server url
+BACKEND_URL = "http://127.0.0.1:8000" if IS_TEST_ENV else "https://www.reflexio.com/"
 
+from reflexio_commons.api_schema.login_schema import Token
 from reflexio_commons.api_schema.service_schemas import (
     AddFeedbackRequest,
     AddFeedbackResponse,
     AddRawFeedbackRequest,
     AddRawFeedbackResponse,
-    DeleteSessionRequest,
-    Feedback,
-    DeleteSessionResponse,
-    DeleteRequestRequest,
-    DeleteRequestResponse,
-    DeleteUserInteractionRequest,
-    DeleteUserInteractionResponse,
-    DeleteUserProfileRequest,
-    DeleteUserProfileResponse,
     DeleteFeedbackRequest,
     DeleteFeedbackResponse,
     DeleteRawFeedbackRequest,
     DeleteRawFeedbackResponse,
+    DeleteRequestRequest,
+    DeleteRequestResponse,
+    DeleteSessionRequest,
+    DeleteSessionResponse,
+    DeleteSkillRequest,
+    DeleteSkillResponse,
+    DeleteUserInteractionRequest,
+    DeleteUserInteractionResponse,
+    DeleteUserProfileRequest,
+    DeleteUserProfileResponse,
+    ExportSkillsRequest,
+    ExportSkillsResponse,
+    Feedback,
     FeedbackStatus,
     GetOperationStatusResponse,
     InteractionData,
@@ -86,17 +90,13 @@ from reflexio_commons.api_schema.service_schemas import (
     RunFeedbackAggregationResponse,
     RunSkillGenerationRequest,
     RunSkillGenerationResponse,
-    UpdateSkillStatusRequest,
-    UpdateSkillStatusResponse,
-    DeleteSkillRequest,
-    DeleteSkillResponse,
-    ExportSkillsRequest,
-    ExportSkillsResponse,
     SkillStatus,
     Status,
+    UpdateSkillStatusRequest,
+    UpdateSkillStatusResponse,
 )
-from reflexio_commons.api_schema.login_schema import Token
 from reflexio_commons.config_schema import Config
+
 from .cache import InMemoryCache
 
 logger = logging.getLogger(__name__)
@@ -110,7 +110,9 @@ class ReflexioClient:
     # Shared thread pool for all instances to maximize efficiency
     _thread_pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="reflexio")
 
-    def __init__(self, api_key: str = "", url_endpoint: str = "", timeout: int = 300):
+    def __init__(
+        self, api_key: str = "", url_endpoint: str = "", timeout: int = 300
+    ) -> None:
         """Initialize the Reflexio client.
 
         The client authenticates using an API key. You can provide the key directly
@@ -144,7 +146,7 @@ class ReflexioClient:
             }
         return {}
 
-    def _convert_to_model(self, data: Union[dict, object], model_class):
+    def _convert_to_model(self, data: dict | object, model_class: type[T]) -> T:
         """Convert dict to model instance if needed.
 
         Args:
@@ -156,13 +158,13 @@ class ReflexioClient:
         """
         if isinstance(data, dict):
             return model_class(**data)
-        return data
+        return data  # type: ignore[reportReturnType]
 
     def _build_request(
         self,
-        request: Optional[Union[T, dict]],
+        request: T | dict | None,
         model_class: type[T],
-        **kwargs,
+        **kwargs: Any,
     ) -> T:
         """Build request object from request param or kwargs.
 
@@ -175,12 +177,17 @@ class ReflexioClient:
             An instance of model_class
         """
         if request is not None:
-            return self._convert_to_model(request, model_class)
+            return self._convert_to_model(request, model_class)  # type: ignore[reportReturnType]
         # Filter out None values and build from kwargs
         filtered_kwargs = {k: v for k, v in kwargs.items() if v is not None}
         return model_class(**filtered_kwargs)
 
-    def _fire_and_forget(self, async_func, *args, **kwargs):
+    def _fire_and_forget(
+        self,
+        async_func: Callable[..., Coroutine[Any, Any, Any]],
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
         """Execute an async request in fire-and-forget mode.
 
         Args:
@@ -195,8 +202,8 @@ class ReflexioClient:
             self._thread_pool.submit(lambda: asyncio.run(async_func(*args, **kwargs)))
 
     async def _make_async_request(
-        self, method: str, endpoint: str, headers: Optional[dict] = None, **kwargs
-    ):
+        self, method: str, endpoint: str, headers: dict | None = None, **kwargs: Any
+    ) -> Any:
         """Make an async HTTP request to the API."""
         url = urljoin(self.base_url, endpoint)
 
@@ -213,8 +220,8 @@ class ReflexioClient:
             return await response.json()
 
     def _make_request(
-        self, method: str, endpoint: str, headers: Optional[dict] = None, **kwargs
-    ):
+        self, method: str, endpoint: str, headers: dict | None = None, **kwargs: Any
+    ) -> Any:
         """Make an HTTP request to the API.
 
         Args:
@@ -320,12 +327,12 @@ class ReflexioClient:
     def publish_interaction(
         self,
         user_id: str,
-        interactions: list[Union[InteractionData, dict]],
+        interactions: list[InteractionData | dict],
         source: str = "",
         agent_version: str = "",
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
         wait_for_response: bool = False,
-    ) -> Optional[PublishUserInteractionResponse]:
+    ) -> PublishUserInteractionResponse | None:
         """Publish user interactions.
 
         This method is optimized for resource efficiency:
@@ -361,22 +368,21 @@ class ReflexioClient:
         if wait_for_response:
             # Synchronous blocking call — server processes synchronously too
             return self._publish_interaction_sync(request, wait_for_response=True)
-        else:
-            # Non-blocking fire-and-forget
-            self._fire_and_forget(self._publish_interaction_async, request)
-            return None
+        # Non-blocking fire-and-forget
+        self._fire_and_forget(self._publish_interaction_async, request)
+        return None
 
     def search_interactions(
         self,
-        request: Optional[Union[SearchInteractionRequest, dict]] = None,
+        request: SearchInteractionRequest | dict | None = None,
         *,
-        user_id: Optional[str] = None,
-        request_id: Optional[str] = None,
-        query: Optional[str] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
-        top_k: Optional[int] = None,
-        most_recent_k: Optional[int] = None,
+        user_id: str | None = None,
+        request_id: str | None = None,
+        query: str | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        top_k: int | None = None,
+        most_recent_k: int | None = None,
     ) -> SearchInteractionResponse:
         """Search for user interactions.
 
@@ -413,19 +419,19 @@ class ReflexioClient:
 
     def search_profiles(
         self,
-        request: Optional[Union[SearchUserProfileRequest, dict]] = None,
+        request: SearchUserProfileRequest | dict | None = None,
         *,
-        user_id: Optional[str] = None,
-        generated_from_request_id: Optional[str] = None,
-        query: Optional[str] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
-        top_k: Optional[int] = None,
-        source: Optional[str] = None,
-        custom_feature: Optional[str] = None,
-        extractor_name: Optional[str] = None,
-        threshold: Optional[float] = None,
-        query_rewrite: Optional[bool] = None,
+        user_id: str | None = None,
+        generated_from_request_id: str | None = None,
+        query: str | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        top_k: int | None = None,
+        source: str | None = None,
+        custom_feature: str | None = None,
+        extractor_name: str | None = None,
+        threshold: float | None = None,
+        query_rewrite: bool | None = None,
     ) -> SearchUserProfileResponse:
         """Search for user profiles.
 
@@ -468,18 +474,18 @@ class ReflexioClient:
 
     def search_raw_feedbacks(
         self,
-        request: Optional[Union[SearchRawFeedbackRequest, dict]] = None,
+        request: SearchRawFeedbackRequest | dict | None = None,
         *,
-        query: Optional[str] = None,
-        user_id: Optional[str] = None,
-        agent_version: Optional[str] = None,
-        feedback_name: Optional[str] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
-        status_filter: Optional[list[Optional[Status]]] = None,
-        top_k: Optional[int] = None,
-        threshold: Optional[float] = None,
-        query_rewrite: Optional[bool] = None,
+        query: str | None = None,
+        user_id: str | None = None,
+        agent_version: str | None = None,
+        feedback_name: str | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        status_filter: list[Status | None] | None = None,
+        top_k: int | None = None,
+        threshold: float | None = None,
+        query_rewrite: bool | None = None,
     ) -> SearchRawFeedbackResponse:
         """Search for raw feedbacks with semantic/text search and filtering.
 
@@ -520,18 +526,18 @@ class ReflexioClient:
 
     def search_feedbacks(
         self,
-        request: Optional[Union[SearchFeedbackRequest, dict]] = None,
+        request: SearchFeedbackRequest | dict | None = None,
         *,
-        query: Optional[str] = None,
-        agent_version: Optional[str] = None,
-        feedback_name: Optional[str] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
-        status_filter: Optional[list[Optional[Status]]] = None,
-        feedback_status_filter: Optional[FeedbackStatus] = None,
-        top_k: Optional[int] = None,
-        threshold: Optional[float] = None,
-        query_rewrite: Optional[bool] = None,
+        query: str | None = None,
+        agent_version: str | None = None,
+        feedback_name: str | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        status_filter: list[Status | None] | None = None,
+        feedback_status_filter: FeedbackStatus | None = None,
+        top_k: int | None = None,
+        threshold: float | None = None,
+        query_rewrite: bool | None = None,
     ) -> SearchFeedbackResponse:
         """Search for aggregated feedbacks with semantic/text search and filtering.
 
@@ -598,7 +604,7 @@ class ReflexioClient:
         profile_id: str = "",
         search_query: str = "",
         wait_for_response: bool = False,
-    ) -> Optional[DeleteUserProfileResponse]:
+    ) -> DeleteUserProfileResponse | None:
         """Delete user profiles.
 
         This method is optimized for resource efficiency:
@@ -623,10 +629,9 @@ class ReflexioClient:
         if wait_for_response:
             # Synchronous blocking call
             return self._delete_profile_sync(request)
-        else:
-            # Non-blocking fire-and-forget
-            self._fire_and_forget(self._delete_profile_async, request)
-            return None
+        # Non-blocking fire-and-forget
+        self._fire_and_forget(self._delete_profile_async, request)
+        return None
 
     def _delete_interaction_sync(
         self, request: DeleteUserInteractionRequest
@@ -652,7 +657,7 @@ class ReflexioClient:
 
     def delete_interaction(
         self, user_id: str, interaction_id: str, wait_for_response: bool = False
-    ) -> Optional[DeleteUserInteractionResponse]:
+    ) -> DeleteUserInteractionResponse | None:
         """Delete a user interaction.
 
         This method is optimized for resource efficiency:
@@ -668,16 +673,16 @@ class ReflexioClient:
             Optional[DeleteUserInteractionResponse]: Response containing success status and message if wait_for_response=True, None otherwise
         """
         request = DeleteUserInteractionRequest(
-            user_id=user_id, interaction_id=interaction_id
+            user_id=user_id,
+            interaction_id=interaction_id,  # type: ignore[reportArgumentType]
         )
 
         if wait_for_response:
             # Synchronous blocking call
             return self._delete_interaction_sync(request)
-        else:
-            # Non-blocking fire-and-forget
-            self._fire_and_forget(self._delete_interaction_async, request)
-            return None
+        # Non-blocking fire-and-forget
+        self._fire_and_forget(self._delete_interaction_async, request)
+        return None
 
     def _delete_request_sync(
         self, request: DeleteRequestRequest
@@ -703,7 +708,7 @@ class ReflexioClient:
 
     def delete_request(
         self, request_id: str, wait_for_response: bool = False
-    ) -> Optional[DeleteRequestResponse]:
+    ) -> DeleteRequestResponse | None:
         """Delete a request and all its associated interactions.
 
         This method is optimized for resource efficiency:
@@ -722,10 +727,9 @@ class ReflexioClient:
         if wait_for_response:
             # Synchronous blocking call
             return self._delete_request_sync(request)
-        else:
-            # Non-blocking fire-and-forget
-            self._fire_and_forget(self._delete_request_async, request)
-            return None
+        # Non-blocking fire-and-forget
+        self._fire_and_forget(self._delete_request_async, request)
+        return None
 
     def _delete_session_sync(
         self, request: DeleteSessionRequest
@@ -751,7 +755,7 @@ class ReflexioClient:
 
     def delete_session(
         self, session_id: str, wait_for_response: bool = False
-    ) -> Optional[DeleteSessionResponse]:
+    ) -> DeleteSessionResponse | None:
         """Delete all requests and interactions in a session.
 
         This method is optimized for resource efficiency:
@@ -770,10 +774,9 @@ class ReflexioClient:
         if wait_for_response:
             # Synchronous blocking call
             return self._delete_session_sync(request)
-        else:
-            # Non-blocking fire-and-forget
-            self._fire_and_forget(self._delete_session_async, request)
-            return None
+        # Non-blocking fire-and-forget
+        self._fire_and_forget(self._delete_session_async, request)
+        return None
 
     def _delete_feedback_sync(
         self, request: DeleteFeedbackRequest
@@ -799,7 +802,7 @@ class ReflexioClient:
 
     def delete_feedback(
         self, feedback_id: int, wait_for_response: bool = False
-    ) -> Optional[DeleteFeedbackResponse]:
+    ) -> DeleteFeedbackResponse | None:
         """Delete a feedback by ID.
 
         This method is optimized for resource efficiency:
@@ -818,10 +821,9 @@ class ReflexioClient:
         if wait_for_response:
             # Synchronous blocking call
             return self._delete_feedback_sync(request)
-        else:
-            # Non-blocking fire-and-forget
-            self._fire_and_forget(self._delete_feedback_async, request)
-            return None
+        # Non-blocking fire-and-forget
+        self._fire_and_forget(self._delete_feedback_async, request)
+        return None
 
     def _delete_raw_feedback_sync(
         self, request: DeleteRawFeedbackRequest
@@ -847,7 +849,7 @@ class ReflexioClient:
 
     def delete_raw_feedback(
         self, raw_feedback_id: int, wait_for_response: bool = False
-    ) -> Optional[DeleteRawFeedbackResponse]:
+    ) -> DeleteRawFeedbackResponse | None:
         """Delete a raw feedback by ID.
 
         This method is optimized for resource efficiency:
@@ -866,10 +868,9 @@ class ReflexioClient:
         if wait_for_response:
             # Synchronous blocking call
             return self._delete_raw_feedback_sync(request)
-        else:
-            # Non-blocking fire-and-forget
-            self._fire_and_forget(self._delete_raw_feedback_async, request)
-            return None
+        # Non-blocking fire-and-forget
+        self._fire_and_forget(self._delete_raw_feedback_async, request)
+        return None
 
     def get_profile_change_log(self) -> ProfileChangeLogResponse:
         """Get profile change log.
@@ -882,12 +883,12 @@ class ReflexioClient:
 
     def get_interactions(
         self,
-        request: Optional[Union[GetInteractionsRequest, dict]] = None,
+        request: GetInteractionsRequest | dict | None = None,
         *,
-        user_id: Optional[str] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
-        top_k: Optional[int] = None,
+        user_id: str | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        top_k: int | None = None,
     ) -> GetInteractionsResponse:
         """Get user interactions.
 
@@ -918,14 +919,14 @@ class ReflexioClient:
 
     def get_profiles(
         self,
-        request: Optional[Union[GetUserProfilesRequest, dict]] = None,
+        request: GetUserProfilesRequest | dict | None = None,
         force_refresh: bool = False,
         *,
-        user_id: Optional[str] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
-        top_k: Optional[int] = None,
-        status_filter: Optional[list[Optional[Union[Status, str]]]] = None,
+        user_id: str | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        top_k: int | None = None,
+        status_filter: list[Status | str | None] | None = None,
     ) -> GetUserProfilesResponse:
         """Get user profiles.
 
@@ -1015,7 +1016,7 @@ class ReflexioClient:
         )
         return GetUserProfilesResponse(**response)
 
-    def set_config(self, config: Union[Config, dict]) -> dict:
+    def set_config(self, config: Config | dict) -> dict:
         """Set configuration for the organization.
 
         Args:
@@ -1024,13 +1025,12 @@ class ReflexioClient:
         Returns:
             dict: Response containing success status and message
         """
-        config = self._convert_to_model(config, Config)
-        response = self._make_request(
+        config = self._convert_to_model(config, Config)  # type: ignore[reportAssignmentType]
+        return self._make_request(
             "POST",
             "/api/set_config",
-            json=config.model_dump(),
+            json=config.model_dump(),  # type: ignore[reportAttributeAccessIssue]
         )
-        return response
 
     def get_config(self) -> Config:
         """Get configuration for the organization.
@@ -1046,11 +1046,11 @@ class ReflexioClient:
 
     def get_raw_feedbacks(
         self,
-        request: Optional[Union[GetRawFeedbacksRequest, dict]] = None,
+        request: GetRawFeedbacksRequest | dict | None = None,
         *,
-        limit: Optional[int] = None,
-        feedback_name: Optional[str] = None,
-        status_filter: Optional[list[Optional[Status]]] = None,
+        limit: int | None = None,
+        feedback_name: str | None = None,
+        status_filter: list[Status | None] | None = None,
     ) -> GetRawFeedbacksResponse:
         """Get raw feedbacks.
 
@@ -1079,7 +1079,7 @@ class ReflexioClient:
 
     def add_raw_feedback(
         self,
-        raw_feedbacks: list[Union[RawFeedback, dict]],
+        raw_feedbacks: list[RawFeedback | dict],
     ) -> AddRawFeedbackResponse:
         """Add raw feedback directly to storage.
 
@@ -1108,7 +1108,7 @@ class ReflexioClient:
 
     def add_feedbacks(
         self,
-        feedbacks: list[Union[Feedback, dict]],
+        feedbacks: list[Feedback | dict],
     ) -> AddFeedbackResponse:
         """Add aggregated feedback directly to storage.
 
@@ -1138,13 +1138,13 @@ class ReflexioClient:
 
     def get_feedbacks(
         self,
-        request: Optional[Union[GetFeedbacksRequest, dict]] = None,
+        request: GetFeedbacksRequest | dict | None = None,
         force_refresh: bool = False,
         *,
-        limit: Optional[int] = None,
-        feedback_name: Optional[str] = None,
-        status_filter: Optional[list[Optional[Status]]] = None,
-        feedback_status_filter: Optional[FeedbackStatus] = None,
+        limit: int | None = None,
+        feedback_name: str | None = None,
+        status_filter: list[Status | None] | None = None,
+        feedback_status_filter: FeedbackStatus | None = None,
     ) -> GetFeedbacksResponse:
         """Get feedbacks.
 
@@ -1202,13 +1202,13 @@ class ReflexioClient:
 
     def get_requests(
         self,
-        request: Optional[Union[GetRequestsRequest, dict]] = None,
+        request: GetRequestsRequest | dict | None = None,
         *,
-        user_id: Optional[str] = None,
-        request_id: Optional[str] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
-        top_k: Optional[int] = None,
+        user_id: str | None = None,
+        request_id: str | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        top_k: int | None = None,
     ) -> GetRequestsResponse:
         """Get requests with their associated interactions, grouped by session.
 
@@ -1241,10 +1241,10 @@ class ReflexioClient:
 
     def get_agent_success_evaluation_results(
         self,
-        request: Optional[Union[GetAgentSuccessEvaluationResultsRequest, dict]] = None,
+        request: GetAgentSuccessEvaluationResultsRequest | dict | None = None,
         *,
-        limit: Optional[int] = None,
-        agent_version: Optional[str] = None,
+        limit: int | None = None,
+        agent_version: str | None = None,
     ) -> GetAgentSuccessEvaluationResultsResponse:
         """Get agent success evaluation results.
 
@@ -1341,16 +1341,15 @@ class ReflexioClient:
                     msg="Profile generation completed",
                     profiles_generated=op.processed_users,
                 )
-            elif op and op.status == OperationStatus.FAILED:
+            if op and op.status == OperationStatus.FAILED:
                 return RerunProfileGenerationResponse(
                     success=False,
                     msg=op.error_message or "Profile generation failed",
                 )
-            else:
-                return RerunProfileGenerationResponse(
-                    success=False,
-                    msg="Profile generation was cancelled",
-                )
+            return RerunProfileGenerationResponse(
+                success=False,
+                msg="Profile generation was cancelled",
+            )
         except (TimeoutError, Exception) as e:
             logger.warning("Error while polling profile generation status: %s", e)
             return initial
@@ -1368,15 +1367,15 @@ class ReflexioClient:
 
     def rerun_profile_generation(
         self,
-        request: Optional[Union[RerunProfileGenerationRequest, dict]] = None,
+        request: RerunProfileGenerationRequest | dict | None = None,
         wait_for_response: bool = False,
         *,
-        user_id: Optional[str] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
-        source: Optional[str] = None,
-        extractor_names: Optional[list[str]] = None,
-    ) -> Optional[RerunProfileGenerationResponse]:
+        user_id: str | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        source: str | None = None,
+        extractor_names: list[str] | None = None,
+    ) -> RerunProfileGenerationResponse | None:
         """Rerun profile generation for users.
 
         This method is optimized for resource efficiency:
@@ -1407,9 +1406,8 @@ class ReflexioClient:
 
         if wait_for_response:
             return self._rerun_profile_generation_sync(req)
-        else:
-            self._fire_and_forget(self._rerun_profile_generation_async, req)
-            return None
+        self._fire_and_forget(self._rerun_profile_generation_async, req)
+        return None
 
     async def _manual_profile_generation_async(
         self, request: ManualProfileGenerationRequest
@@ -1423,11 +1421,11 @@ class ReflexioClient:
 
     def manual_profile_generation(
         self,
-        request: Optional[Union[ManualProfileGenerationRequest, dict]] = None,
+        request: ManualProfileGenerationRequest | dict | None = None,
         *,
-        user_id: Optional[str] = None,
-        source: Optional[str] = None,
-        extractor_names: Optional[list[str]] = None,
+        user_id: str | None = None,
+        source: str | None = None,
+        extractor_names: list[str] | None = None,
     ) -> None:
         """Manually trigger profile generation with window-sized interactions (fire-and-forget).
 
@@ -1481,16 +1479,15 @@ class ReflexioClient:
                     msg="Feedback generation completed",
                     feedbacks_generated=op.processed_users,
                 )
-            elif op and op.status == OperationStatus.FAILED:
+            if op and op.status == OperationStatus.FAILED:
                 return RerunFeedbackGenerationResponse(
                     success=False,
                     msg=op.error_message or "Feedback generation failed",
                 )
-            else:
-                return RerunFeedbackGenerationResponse(
-                    success=False,
-                    msg="Feedback generation was cancelled",
-                )
+            return RerunFeedbackGenerationResponse(
+                success=False,
+                msg="Feedback generation was cancelled",
+            )
         except (TimeoutError, Exception) as e:
             logger.warning("Error while polling feedback generation status: %s", e)
             return initial
@@ -1508,14 +1505,14 @@ class ReflexioClient:
 
     def rerun_feedback_generation(
         self,
-        request: Optional[Union[RerunFeedbackGenerationRequest, dict]] = None,
+        request: RerunFeedbackGenerationRequest | dict | None = None,
         wait_for_response: bool = False,
         *,
-        agent_version: Optional[str] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
-        feedback_name: Optional[str] = None,
-    ) -> Optional[RerunFeedbackGenerationResponse]:
+        agent_version: str | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        feedback_name: str | None = None,
+    ) -> RerunFeedbackGenerationResponse | None:
         """Rerun feedback generation for an agent version.
 
         This method is optimized for resource efficiency:
@@ -1544,9 +1541,8 @@ class ReflexioClient:
 
         if wait_for_response:
             return self._rerun_feedback_generation_sync(req)
-        else:
-            self._fire_and_forget(self._rerun_feedback_generation_async, req)
-            return None
+        self._fire_and_forget(self._rerun_feedback_generation_async, req)
+        return None
 
     async def _manual_feedback_generation_async(
         self, request: ManualFeedbackGenerationRequest
@@ -1560,11 +1556,11 @@ class ReflexioClient:
 
     def manual_feedback_generation(
         self,
-        request: Optional[Union[ManualFeedbackGenerationRequest, dict]] = None,
+        request: ManualFeedbackGenerationRequest | dict | None = None,
         *,
-        agent_version: Optional[str] = None,
-        source: Optional[str] = None,
-        feedback_name: Optional[str] = None,
+        agent_version: str | None = None,
+        source: str | None = None,
+        feedback_name: str | None = None,
     ) -> None:
         """Manually trigger feedback generation with window-sized interactions (fire-and-forget).
 
@@ -1616,12 +1612,12 @@ class ReflexioClient:
 
     def run_feedback_aggregation(
         self,
-        request: Optional[Union[RunFeedbackAggregationRequest, dict]] = None,
+        request: RunFeedbackAggregationRequest | dict | None = None,
         wait_for_response: bool = False,
         *,
-        agent_version: Optional[str] = None,
-        feedback_name: Optional[str] = None,
-    ) -> Optional[RunFeedbackAggregationResponse]:
+        agent_version: str | None = None,
+        feedback_name: str | None = None,
+    ) -> RunFeedbackAggregationResponse | None:
         """Run feedback aggregation to cluster similar raw feedbacks.
 
         This method is optimized for resource efficiency:
@@ -1646,9 +1642,8 @@ class ReflexioClient:
 
         if wait_for_response:
             return self._run_feedback_aggregation_sync(req)
-        else:
-            self._fire_and_forget(self._run_feedback_aggregation_async, req)
-            return None
+        self._fire_and_forget(self._run_feedback_aggregation_async, req)
+        return None
 
     def _run_skill_generation_sync(
         self, request: RunSkillGenerationRequest
@@ -1674,12 +1669,12 @@ class ReflexioClient:
 
     def run_skill_generation(
         self,
-        request: Optional[Union[RunSkillGenerationRequest, dict]] = None,
+        request: RunSkillGenerationRequest | dict | None = None,
         wait_for_response: bool = False,
         *,
-        agent_version: Optional[str] = None,
-        feedback_name: Optional[str] = None,
-    ) -> Optional[RunSkillGenerationResponse]:
+        agent_version: str | None = None,
+        feedback_name: str | None = None,
+    ) -> RunSkillGenerationResponse | None:
         """Run skill generation to create skills from clustered feedback.
 
         Args:
@@ -1699,18 +1694,17 @@ class ReflexioClient:
         )
         if wait_for_response:
             return self._run_skill_generation_sync(req)
-        else:
-            self._fire_and_forget(self._run_skill_generation_async, req)
-            return None
+        self._fire_and_forget(self._run_skill_generation_async, req)
+        return None
 
     def get_skills(
         self,
-        request: Optional[Union[GetSkillsRequest, dict]] = None,
+        request: GetSkillsRequest | dict | None = None,
         *,
-        limit: Optional[int] = None,
-        feedback_name: Optional[str] = None,
-        agent_version: Optional[str] = None,
-        skill_status: Optional[SkillStatus] = None,
+        limit: int | None = None,
+        feedback_name: str | None = None,
+        agent_version: str | None = None,
+        skill_status: SkillStatus | None = None,
     ) -> GetSkillsResponse:
         """Get skills.
 
@@ -1737,14 +1731,14 @@ class ReflexioClient:
 
     def search_skills(
         self,
-        request: Optional[Union[SearchSkillsRequest, dict]] = None,
+        request: SearchSkillsRequest | dict | None = None,
         *,
-        query: Optional[str] = None,
-        feedback_name: Optional[str] = None,
-        agent_version: Optional[str] = None,
-        skill_status: Optional[SkillStatus] = None,
-        threshold: Optional[float] = None,
-        top_k: Optional[int] = None,
+        query: str | None = None,
+        feedback_name: str | None = None,
+        agent_version: str | None = None,
+        skill_status: SkillStatus | None = None,
+        threshold: float | None = None,
+        top_k: int | None = None,
     ) -> SearchSkillsResponse:
         """Search skills with hybrid search.
 
@@ -1777,16 +1771,16 @@ class ReflexioClient:
 
     def search(
         self,
-        request: Optional[Union[UnifiedSearchRequest, dict]] = None,
+        request: UnifiedSearchRequest | dict | None = None,
         *,
-        query: Optional[str] = None,
-        top_k: Optional[int] = None,
-        threshold: Optional[float] = None,
-        agent_version: Optional[str] = None,
-        feedback_name: Optional[str] = None,
-        user_id: Optional[str] = None,
-        query_rewrite: Optional[bool] = None,
-        conversation_history: Optional[list[ConversationTurn]] = None,
+        query: str | None = None,
+        top_k: int | None = None,
+        threshold: float | None = None,
+        agent_version: str | None = None,
+        feedback_name: str | None = None,
+        user_id: str | None = None,
+        query_rewrite: bool | None = None,
+        conversation_history: list[ConversationTurn] | None = None,
     ) -> UnifiedSearchResponse:
         """Search across all entity types (profiles, feedbacks, raw_feedbacks, skills).
 
@@ -1858,11 +1852,11 @@ class ReflexioClient:
 
     def export_skills(
         self,
-        request: Optional[Union[ExportSkillsRequest, dict]] = None,
+        request: ExportSkillsRequest | dict | None = None,
         *,
-        feedback_name: Optional[str] = None,
-        agent_version: Optional[str] = None,
-        skill_status: Optional[SkillStatus] = None,
+        feedback_name: str | None = None,
+        agent_version: str | None = None,
+        skill_status: SkillStatus | None = None,
     ) -> ExportSkillsResponse:
         """Export skills as markdown.
 

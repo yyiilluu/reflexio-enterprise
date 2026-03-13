@@ -1,8 +1,10 @@
 """Integration tests for FeedbackGenerationService with Supabase storage."""
 
-import pytest
-from unittest.mock import MagicMock
+import contextlib
 from datetime import datetime, timezone
+from unittest.mock import MagicMock
+
+import pytest
 
 
 # Disable global mock mode for the message construction test so LLM client mock is used
@@ -12,6 +14,17 @@ def disable_mock_llm_response(monkeypatch):
     monkeypatch.delenv("MOCK_LLM_RESPONSE", raising=False)
 
 
+from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
+from reflexio_commons.api_schema.service_schemas import (
+    Interaction,
+    RawFeedback,
+    Request,
+)
+from reflexio_commons.config_schema import (
+    AgentFeedbackConfig,
+    FeedbackAggregatorConfig,
+)
+
 from reflexio.server.api_endpoints.request_context import RequestContext
 from reflexio.server.services.feedback.feedback_generation_service import (
     FeedbackGenerationService,
@@ -20,16 +33,6 @@ from reflexio.server.services.feedback.feedback_service_utils import (
     FeedbackGenerationRequest,
     StructuredFeedbackContent,
 )
-from reflexio_commons.config_schema import (
-    AgentFeedbackConfig,
-    FeedbackAggregatorConfig,
-)
-from reflexio_commons.api_schema.service_schemas import (
-    Interaction,
-    RawFeedback,
-    Request,
-)
-from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 from reflexio.tests.server.test_utils import skip_in_precommit, skip_low_priority
 
 
@@ -93,7 +96,7 @@ def feedback_generation_service(mock_request_context):
     service = FeedbackGenerationService(
         llm_client=mock_client, request_context=mock_request_context
     )
-    return service
+    return service  # noqa: RET504
 
 
 @pytest.fixture
@@ -152,12 +155,11 @@ def _setup_mock_chat_completion(
         ):
             return "true" if should_generate else "false"
         # Otherwise, this is a feedback extraction call - return flat fields (new schema)
-        else:
-            return StructuredFeedbackContent(
-                do_action=feedback_content,
-                do_not_action=None,
-                when_condition="interacting with users",
-            )
+        return StructuredFeedbackContent(
+            do_action=feedback_content,
+            do_not_action=None,
+            when_condition="interacting with users",
+        )
 
     service.client.generate_chat_response = MagicMock(
         side_effect=mock_generate_chat_response
@@ -251,9 +253,7 @@ def test_feedback_generation_with_no_feedback_config(
     _setup_mock_chat_completion(feedback_generation_service)
 
     # Set empty feedback config
-    mock_request_context.configurator.get_config.return_value.agent_feedback_configs = (
-        []
-    )
+    mock_request_context.configurator.get_config.return_value.agent_feedback_configs = []
 
     # Create request interaction data model
     request_interaction_data_model = create_request_interaction_data_model(
@@ -328,8 +328,9 @@ def test_feedback_message_construction_with_interactions(
 ):
     """Test that interactions are formatted correctly in rendered feedback prompts."""
     from unittest.mock import patch
-    from reflexio.server.prompt.prompt_manager import PromptManager
+
     from reflexio.server.llm.litellm_client import LiteLLMClient, LiteLLMConfig
+    from reflexio.server.prompt.prompt_manager import PromptManager
 
     # Create test interactions
     interactions = [
@@ -393,13 +394,12 @@ def test_feedback_message_construction_with_interactions(
 
         if "Output just a boolean value" in prompt_content:
             return "true"
-        else:
-            # Return flat fields expected by new schema
-            return StructuredFeedbackContent(
-                do_action="The agent was helpful",
-                do_not_action=None,
-                when_condition="assisting users",
-            )
+        # Return flat fields expected by new schema
+        return StructuredFeedbackContent(
+            do_action="The agent was helpful",
+            do_not_action=None,
+            when_condition="assisting users",
+        )
 
     with patch(
         "reflexio.server.llm.litellm_client.LiteLLMClient.generate_chat_response",
@@ -414,11 +414,9 @@ def test_feedback_message_construction_with_interactions(
         )
 
         # Run feedback generation
-        try:
-            service.run(request)
-        except:
+        with contextlib.suppress(Exception):
             # We're just validating message construction, errors are ok
-            pass
+            service.run(request)
 
     # Validate that messages were captured
     assert len(captured_messages) > 0, "No messages were captured"
@@ -466,6 +464,6 @@ def test_feedback_message_construction_with_interactions(
         if found_interactions_in_prompt:
             break
 
-    assert (
-        found_interactions_in_prompt
-    ), "Did not find interactions in any rendered prompt"
+    assert found_interactions_in_prompt, (
+        "Did not find interactions in any rendered prompt"
+    )

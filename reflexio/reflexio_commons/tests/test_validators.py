@@ -14,61 +14,59 @@ from datetime import datetime, timezone
 
 import pytest
 from pydantic import ValidationError
-
+from reflexio_commons.api_schema.login_schema import (
+    ForgotPasswordRequest,
+    ResendVerificationRequest,
+    ResetPasswordRequest,
+    Token,
+    User,
+    VerifyEmailRequest,
+)
+from reflexio_commons.api_schema.retriever_schema import (
+    ConversationTurn,
+    GetDashboardStatsRequest,
+    GetInteractionsRequest,
+    GetRawFeedbacksRequest,
+    GetRequestsRequest,
+    PeriodStats,
+    SearchInteractionRequest,
+    SearchUserProfileRequest,
+    TimeSeriesDataPoint,
+)
+from reflexio_commons.api_schema.service_schemas import (
+    AddFeedbackRequest,
+    AddRawFeedbackRequest,
+    DeleteFeedbackRequest,
+    DeleteRawFeedbackRequest,
+    DeleteRequestRequest,
+    DeleteSkillRequest,
+    DeleteUserInteractionRequest,
+    Feedback,
+    Interaction,
+    InteractionData,
+    OperationStatus,
+    OperationStatusInfo,
+    PublishUserInteractionRequest,
+    RerunFeedbackGenerationRequest,
+    RerunProfileGenerationRequest,
+    Skill,
+    UpdateSkillStatusRequest,
+    UserProfile,
+)
 from reflexio_commons.config_schema import (
-    Config,
-    CustomEndpointConfig,
-    OpenAIConfig,
-    AzureOpenAIConfig,
-    AnthropicConfig,
-    ProfileExtractorConfig,
     AgentFeedbackConfig,
     AgentSuccessConfig,
+    AnthropicConfig,
+    AzureOpenAIConfig,
+    Config,
+    CustomEndpointConfig,
     FeedbackAggregatorConfig,
+    OpenAIConfig,
+    ProfileExtractorConfig,
     SkillGeneratorConfig,
     StorageConfigLocal,
     ToolUseConfig,
 )
-from reflexio_commons.api_schema.service_schemas import (
-    Interaction,
-    InteractionData,
-    UserProfile,
-    Feedback,
-    Skill,
-    PublishUserInteractionRequest,
-    DeleteUserInteractionRequest,
-    DeleteRequestRequest,
-    DeleteFeedbackRequest,
-    DeleteRawFeedbackRequest,
-    AddRawFeedbackRequest,
-    AddFeedbackRequest,
-    RerunProfileGenerationRequest,
-    RerunFeedbackGenerationRequest,
-    UpdateSkillStatusRequest,
-    DeleteSkillRequest,
-    OperationStatusInfo,
-    OperationStatus,
-)
-from reflexio_commons.api_schema.retriever_schema import (
-    SearchInteractionRequest,
-    SearchUserProfileRequest,
-    GetInteractionsRequest,
-    GetRawFeedbacksRequest,
-    GetRequestsRequest,
-    GetDashboardStatsRequest,
-    ConversationTurn,
-    TimeSeriesDataPoint,
-    PeriodStats,
-)
-from reflexio_commons.api_schema.login_schema import (
-    Token,
-    User,
-    VerifyEmailRequest,
-    ResendVerificationRequest,
-    ForgotPasswordRequest,
-    ResetPasswordRequest,
-)
-
 
 # =============================================================================
 # Fixtures
@@ -237,7 +235,7 @@ class TestPromptInjectionMitigation:
             profile_content_definition_prompt="Extract\x00preferences",
         )
         assert "\x00" not in config.profile_content_definition_prompt
-        assert "Extractpreferences" == config.profile_content_definition_prompt
+        assert config.profile_content_definition_prompt == "Extractpreferences"
 
     def test_strips_escape_sequences(self):
         """Escape sequences (\x1b) are stripped from prompt fields."""
@@ -734,19 +732,19 @@ class TestLoginSchema:
     def test_token_non_empty(self):
         """Token.api_key and token_type must be non-empty."""
         with pytest.raises(ValidationError):
-            Token(api_key="", token_type="bearer")
+            Token(api_key="", token_type="bearer")  # noqa: S106
         with pytest.raises(ValidationError):
             Token(api_key="test-key", token_type="")
 
     def test_verify_token_non_empty(self):
         """VerifyEmailRequest.token must be non-empty."""
         with pytest.raises(ValidationError):
-            VerifyEmailRequest(token="  ")
+            VerifyEmailRequest(token="  ")  # noqa: S106
 
     def test_reset_password_min_length(self):
         """ResetPasswordRequest.new_password must have min_length=1."""
         with pytest.raises(ValidationError):
-            ResetPasswordRequest(token="valid-token", new_password="")
+            ResetPasswordRequest(token="valid-token", new_password="")  # noqa: S106
 
 
 # =============================================================================

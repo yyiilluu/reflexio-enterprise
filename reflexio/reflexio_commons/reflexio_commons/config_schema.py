@@ -1,14 +1,13 @@
-from enum import IntEnum, Enum
-from typing import Optional, Self
+from enum import Enum, IntEnum
 
 from pydantic import BaseModel, Field, model_validator
+from typing_extensions import Self
 
 from reflexio_commons.api_schema.validators import (
     NonEmptyStr,
     SafeHttpUrl,
     SanitizedNonEmptyStr,
 )
-
 
 # Embedding vector dimensions. Changing this requires a DB migration and re-embedding,
 # so it is intentionally a constant rather than a configurable setting.
@@ -55,14 +54,14 @@ class AzureOpenAIConfig(BaseModel):
     api_key: NonEmptyStr
     endpoint: SafeHttpUrl  # e.g., "https://your-resource.openai.azure.com/"
     api_version: str = "2024-02-15-preview"
-    deployment_name: Optional[str] = None  # Optional, can be specified per request
+    deployment_name: str | None = None  # Optional, can be specified per request
 
 
 class OpenAIConfig(BaseModel):
     """OpenAI API configuration (direct or Azure)."""
 
-    api_key: Optional[str] = None  # Direct OpenAI API key
-    azure_config: Optional[AzureOpenAIConfig] = None  # Azure OpenAI configuration
+    api_key: str | None = None  # Direct OpenAI API key
+    azure_config: AzureOpenAIConfig | None = None  # Azure OpenAI configuration
 
     @model_validator(mode="after")
     def check_at_least_one_auth(self) -> Self:
@@ -123,30 +122,28 @@ class APIKeyConfig(BaseModel):
     it takes priority over all other providers for LLM completion calls (but not embeddings).
     """
 
-    custom_endpoint: Optional[CustomEndpointConfig] = None
-    openai: Optional[OpenAIConfig] = None
-    anthropic: Optional[AnthropicConfig] = None
-    openrouter: Optional[OpenRouterConfig] = None
-    gemini: Optional[GeminiConfig] = None
-    minimax: Optional[MiniMaxConfig] = None
+    custom_endpoint: CustomEndpointConfig | None = None
+    openai: OpenAIConfig | None = None
+    anthropic: AnthropicConfig | None = None
+    openrouter: OpenRouterConfig | None = None
+    gemini: GeminiConfig | None = None
+    minimax: MiniMaxConfig | None = None
 
 
 class ProfileExtractorConfig(BaseModel):
     extractor_name: NonEmptyStr
     profile_content_definition_prompt: SanitizedNonEmptyStr
-    context_prompt: Optional[str] = None
-    metadata_definition_prompt: Optional[str] = None
-    should_extract_profile_prompt_override: Optional[str] = None
-    request_sources_enabled: Optional[list[str]] = (
+    context_prompt: str | None = None
+    metadata_definition_prompt: str | None = None
+    should_extract_profile_prompt_override: str | None = None
+    request_sources_enabled: list[str] | None = (
         None  # default enabled for all sources, if set, only extract profiles from the enabled request sources
     )
-    manual_trigger: bool = (
-        False  # require manual triggering (rerun) to run extraction and skip auto extraction if set to True
-    )
-    extraction_window_size_override: Optional[int] = Field(
+    manual_trigger: bool = False  # require manual triggering (rerun) to run extraction and skip auto extraction if set to True
+    extraction_window_size_override: int | None = Field(
         default=None, gt=0
     )  # override global extraction_window_size for this extractor
-    extraction_window_stride_override: Optional[int] = Field(
+    extraction_window_stride_override: int | None = Field(
         default=None, gt=0
     )  # override global extraction_window_stride for this extractor
 
@@ -168,16 +165,16 @@ class AgentFeedbackConfig(BaseModel):
     feedback_name: NonEmptyStr
     # define what success looks like
     feedback_definition_prompt: SanitizedNonEmptyStr
-    metadata_definition_prompt: Optional[str] = None
-    feedback_aggregator_config: Optional[FeedbackAggregatorConfig] = None
-    skill_generator_config: Optional[SkillGeneratorConfig] = None
-    request_sources_enabled: Optional[list[str]] = (
+    metadata_definition_prompt: str | None = None
+    feedback_aggregator_config: FeedbackAggregatorConfig | None = None
+    skill_generator_config: SkillGeneratorConfig | None = None
+    request_sources_enabled: list[str] | None = (
         None  # default enabled for all sources, if set, only extract feedbacks from the enabled request sources
     )
-    extraction_window_size_override: Optional[int] = Field(
+    extraction_window_size_override: int | None = Field(
         default=None, gt=0
     )  # override global extraction_window_size for this extractor
-    extraction_window_stride_override: Optional[int] = Field(
+    extraction_window_stride_override: int | None = Field(
         default=None, gt=0
     )  # override global extraction_window_stride for this extractor
 
@@ -191,14 +188,14 @@ class ToolUseConfig(BaseModel):
 class AgentSuccessConfig(BaseModel):
     evaluation_name: NonEmptyStr
     success_definition_prompt: SanitizedNonEmptyStr
-    metadata_definition_prompt: Optional[str] = None
+    metadata_definition_prompt: str | None = None
     sampling_rate: float = Field(
         default=1.0, ge=0.0, le=1.0
     )  # fraction of batch of interactions to be sampled for success evaluation
-    extraction_window_size_override: Optional[int] = Field(
+    extraction_window_size_override: int | None = Field(
         default=None, gt=0
     )  # override global extraction_window_size for this extractor
-    extraction_window_stride_override: Optional[int] = Field(
+    extraction_window_stride_override: int | None = Field(
         default=None, gt=0
     )  # override global extraction_window_stride for this extractor
 
@@ -211,43 +208,44 @@ class LLMConfig(BaseModel):
     If a field is None, the default from site variable is used.
     """
 
-    should_run_model_name: Optional[str] = (
-        None  # Model for "should run extraction" checks
-    )
-    generation_model_name: Optional[str] = (
+    should_run_model_name: str | None = None  # Model for "should run extraction" checks
+    generation_model_name: str | None = (
         None  # Model for generation and evaluation tasks
     )
-    embedding_model_name: Optional[str] = None  # Model for embedding generation
+    embedding_model_name: str | None = None  # Model for embedding generation
 
 
 class Config(BaseModel):
     # define where user configuration is stored at
     storage_config: StorageConfig
-    storage_config_test: Optional[StorageConfigTest] = StorageConfigTest.UNKNOWN
+    storage_config_test: StorageConfigTest | None = StorageConfigTest.UNKNOWN
     # define agent working environment, tool can use and action space
-    agent_context_prompt: Optional[str] = None
+    agent_context_prompt: str | None = None
     # tools agent can use (shared across success evaluation and feedback extraction)
-    tool_can_use: Optional[list[ToolUseConfig]] = None
+    tool_can_use: list[ToolUseConfig] | None = None
     # user level memory
-    profile_extractor_configs: Optional[list[ProfileExtractorConfig]] = None
+    profile_extractor_configs: list[ProfileExtractorConfig] | None = None
     # agent level feedback
-    agent_feedback_configs: Optional[list[AgentFeedbackConfig]] = None
+    agent_feedback_configs: list[AgentFeedbackConfig] | None = None
     # agent level success
-    agent_success_configs: Optional[list[AgentSuccessConfig]] = None
+    agent_success_configs: list[AgentSuccessConfig] | None = None
     # sliding window parameters for extraction
-    extraction_window_size: Optional[int] = Field(default=None, gt=0)
-    extraction_window_stride: Optional[int] = Field(default=None, gt=0)
+    extraction_window_size: int | None = Field(default=None, gt=0)
+    extraction_window_stride: int | None = Field(default=None, gt=0)
     # API key configuration for LLM providers
-    api_key_config: Optional[APIKeyConfig] = None
+    api_key_config: APIKeyConfig | None = None
     # LLM model configuration overrides
-    llm_config: Optional[LLMConfig] = None
+    llm_config: LLMConfig | None = None
 
     @model_validator(mode="after")
     def check_stride_le_window(self) -> Self:
         """Validate that extraction_window_stride <= extraction_window_size when both are set."""
-        if self.extraction_window_size and self.extraction_window_stride:
-            if self.extraction_window_stride > self.extraction_window_size:
-                raise ValueError(
-                    "extraction_window_stride must be <= extraction_window_size"
-                )
+        if (
+            self.extraction_window_size
+            and self.extraction_window_stride
+            and self.extraction_window_stride > self.extraction_window_size
+        ):
+            raise ValueError(
+                "extraction_window_stride must be <= extraction_window_size"
+            )
         return self

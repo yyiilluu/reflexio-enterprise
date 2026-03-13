@@ -1,7 +1,8 @@
-import sys
 import os
+import sys
+from pathlib import Path
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 # Remove OPENAI_API_KEY from environment if it exists
 if "OPENAI_API_KEY" in os.environ:
@@ -11,9 +12,7 @@ from reflexio.server import OPENAI_API_KEY
 
 
 def check_for_api_keys() -> bool:
-    if OPENAI_API_KEY != "":
-        return True
-    return False
+    return OPENAI_API_KEY != ""
 
 
 def main() -> int:

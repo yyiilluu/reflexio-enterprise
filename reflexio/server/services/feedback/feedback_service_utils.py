@@ -1,25 +1,24 @@
 import logging
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
-from reflexio_commons.api_schema.service_schemas import RawFeedback, BlockingIssue
-from pydantic import BaseModel, Field, ConfigDict, model_validator
+from reflexio_commons.api_schema.service_schemas import BlockingIssue, RawFeedback
 
 logger = logging.getLogger(__name__)
 
+from reflexio.server.prompt.prompt_manager import PromptManager
 from reflexio.server.services.feedback.feedback_service_constants import (
     FeedbackServiceConstants,
 )
-from reflexio.server.prompt.prompt_manager import PromptManager
 from reflexio.server.services.service_utils import (
-    PromptConfig,
     MessageConstructionConfig,
+    PromptConfig,
     construct_messages_from_interactions,
-    format_sessions_to_history_string,
     extract_interactions_from_request_interaction_data_models,
+    format_sessions_to_history_string,
 )
-
 
 # ===============================
 # Pydantic classes for raw_feedback_extraction_main prompt output schema
@@ -38,19 +37,19 @@ class StructuredFeedbackContent(BaseModel):
     At least one of do_action or do_not_action must be provided when when_condition is set.
     """
 
-    do_action: Optional[str] = Field(
+    do_action: str | None = Field(
         default=None,
         description="The preferred behavior the agent should adopt",
     )
-    do_not_action: Optional[str] = Field(
+    do_not_action: str | None = Field(
         default=None,
         description="The mistaken behavior the agent should avoid",
     )
-    when_condition: Optional[str] = Field(
+    when_condition: str | None = Field(
         default=None,
         description="The condition or context when this rule applies",
     )
-    blocking_issue: Optional[BlockingIssue] = Field(
+    blocking_issue: BlockingIssue | None = Field(
         default=None,
         description="Present only when the agent could not complete the user's request due to a capability limitation",
     )
@@ -91,11 +90,14 @@ class StructuredFeedbackContent(BaseModel):
     @model_validator(mode="after")
     def validate_feedback_fields(self) -> "StructuredFeedbackContent":
         """Ensure at least one action is provided when condition is present."""
-        if self.when_condition is not None:
-            if self.do_action is None and self.do_not_action is None:
-                raise ValueError(
-                    "At least one of 'do_action' or 'do_not_action' must be provided when 'when_condition' is set"
-                )
+        if (
+            self.when_condition is not None
+            and self.do_action is None
+            and self.do_not_action is None
+        ):
+            raise ValueError(
+                "At least one of 'do_action' or 'do_not_action' must be provided when 'when_condition' is set"
+            )
         return self
 
     @property
@@ -120,7 +122,7 @@ class FeedbackAggregationOutput(BaseModel):
     (e.g., when it duplicates existing approved feedback).
     """
 
-    feedback: Optional[StructuredFeedbackContent] = Field(
+    feedback: StructuredFeedbackContent | None = Field(
         default=None,
         description="The consolidated feedback, or null if no new feedback should be generated",
     )
@@ -193,11 +195,11 @@ class SkillGeneratorRequest:
 class FeedbackGenerationRequest(BaseModel):
     request_id: str
     agent_version: str
-    user_id: Optional[str] = None  # for per-user feedback extraction
-    source: Optional[str] = None
-    rerun_start_time: Optional[int] = None  # Unix timestamp for rerun flows
-    rerun_end_time: Optional[int] = None  # Unix timestamp for rerun flows
-    feedback_name: Optional[str] = None  # Filter to run only specific extractor
+    user_id: str | None = None  # for per-user feedback extraction
+    source: str | None = None
+    rerun_start_time: int | None = None  # Unix timestamp for rerun flows
+    rerun_end_time: int | None = None  # Unix timestamp for rerun flows
+    feedback_name: str | None = None  # Filter to run only specific extractor
     auto_run: bool = (
         True  # True for regular flow (checks stride), False for rerun/manual
     )
@@ -214,7 +216,7 @@ def construct_feedback_extraction_messages_from_sessions(
     request_interaction_data_models: list[RequestInteractionDataModel],
     agent_context_prompt: str,
     feedback_definition_prompt: str,
-    tool_can_use: Optional[str] = None,
+    tool_can_use: str | None = None,
 ) -> list[dict]:
     """
     Construct LLM messages for feedback extraction from sessions.
@@ -274,8 +276,8 @@ def construct_incremental_feedback_extraction_messages(
     request_interaction_data_models: list[RequestInteractionDataModel],
     agent_context_prompt: str,
     feedback_definition_prompt: str,
-    previously_extracted: Optional[list[RawFeedback]] = None,
-    tool_can_use: Optional[str] = None,
+    previously_extracted: list[RawFeedback] | None = None,
+    tool_can_use: str | None = None,
 ) -> list[dict]:
     """
     Construct LLM messages for incremental feedback extraction.

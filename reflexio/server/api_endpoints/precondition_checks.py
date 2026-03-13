@@ -21,9 +21,11 @@ def validate_publish_user_interaction_request(
         return False, "No interaction data provided"
 
     for interaction_data in request.interaction_data_list:
-        if interaction_data.user_action != UserActionType.NONE:
-            if not interaction_data.user_action_description:
-                return False, "User action description is required for user action"
+        if (
+            interaction_data.user_action != UserActionType.NONE
+            and not interaction_data.user_action_description
+        ):
+            return False, "User action description is required for user action"
 
         if interaction_data.interacted_image_url and interaction_data.image_encoding:
             return (

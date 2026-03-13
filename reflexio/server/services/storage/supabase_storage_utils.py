@@ -2,33 +2,39 @@
 Utility functions for Supabase storage operations
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import re
 from datetime import datetime, timezone
-from typing import Any, Optional
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
+if TYPE_CHECKING:
+    from supabase import Client
+
+import psycopg2
 from reflexio_commons.api_schema.service_schemas import (
-    UserProfile,
-    Interaction,
-    Request,
-    ProfileTimeToLive,
-    UserActionType,
-    ProfileChangeLog,
-    RawFeedback,
-    Feedback,
-    FeedbackSnapshot,
-    FeedbackUpdateEntry,
-    FeedbackAggregationChangeLog,
-    Skill,
-    SkillStatus,
     AgentSuccessEvaluationResult,
     BlockingIssue,
     BlockingIssueKind,
+    Feedback,
+    FeedbackAggregationChangeLog,
+    FeedbackSnapshot,
+    FeedbackUpdateEntry,
+    Interaction,
+    ProfileChangeLog,
+    ProfileTimeToLive,
+    RawFeedback,
+    Request,
+    Skill,
+    SkillStatus,
     ToolUsed,
+    UserActionType,
+    UserProfile,
 )
-import psycopg2
 
 logger = logging.getLogger(__name__)
 
@@ -547,14 +553,14 @@ def response_to_skill(item: dict[str, Any]) -> Skill:
     blocking_issues = []
     blocking_issues_data = item.get("blocking_issues")
     if blocking_issues_data and isinstance(blocking_issues_data, list):
-        for bi in blocking_issues_data:
-            if isinstance(bi, dict):
-                blocking_issues.append(
-                    BlockingIssue(
-                        kind=BlockingIssueKind(bi["kind"]),
-                        details=bi.get("details", ""),
-                    )
-                )
+        blocking_issues.extend(
+            BlockingIssue(
+                kind=BlockingIssueKind(bi["kind"]),
+                details=bi.get("details", ""),
+            )
+            for bi in blocking_issues_data
+            if isinstance(bi, dict)
+        )
 
     # Parse created_at timestamp
     created_at = item.get("created_at")
@@ -609,26 +615,23 @@ def is_localhost_url(db_url: str) -> bool:
         return False
 
 
-def get_latest_migration_version() -> Optional[str]:
+def get_latest_migration_version() -> str | None:
     """
     Get the version prefix of the latest migration file on disk.
 
     Returns:
         str | None: The version string of the latest migration, or None if no migrations found
     """
-    import os
-    import glob
     from pathlib import Path
+
     import reflexio
 
-    migration_dir = (
-        Path(os.path.dirname(reflexio.__file__)).parent / "supabase" / "migrations"
-    )
-    migration_files = sorted(glob.glob(os.path.join(migration_dir, "*.sql")))
+    migration_dir = Path(reflexio.__file__).parent.parent / "supabase" / "migrations"
+    migration_files = sorted(migration_dir.glob("*.sql"))
     if not migration_files:
         return None
 
-    filename = os.path.basename(migration_files[-1])
+    filename = migration_files[-1].name
     return filename.split("_")[0]
 
 
@@ -662,14 +665,14 @@ def check_migration_needed(db_url: str) -> bool:
         cursor.close()
         return row is None
     except Exception as e:
-        logger.debug(f"check_migration_needed failed for {db_url}: {e}")
+        logger.debug("check_migration_needed failed for %s: %s", db_url, e)
         return False
     finally:
         if conn is not None:
             conn.close()
 
 
-def extract_db_url_from_config_json(config_json_str: str) -> Optional[str]:
+def extract_db_url_from_config_json(config_json_str: str) -> str | None:
     """
     Parse a (already-decrypted) config JSON string and extract the database URL.
 
@@ -684,10 +687,10 @@ def extract_db_url_from_config_json(config_json_str: str) -> Optional[str]:
         storage_config = config_data.get("storage_config")
         if storage_config and "db_url" in storage_config:
             db_url = storage_config["db_url"]
-            return db_url if db_url else None
+            return db_url or None
         return None
     except Exception as e:
-        logger.debug(f"extract_db_url_from_config_json failed: {e}")
+        logger.debug("extract_db_url_from_config_json failed: %s", e)
         return None
 
 
@@ -708,7 +711,7 @@ def execute_sql_file_direct(db_url: str, file_path: str) -> list[Any]:
         cursor = conn.cursor()
 
         # Read and execute SQL file
-        with open(file_path, encoding="utf-8") as file:
+        with Path(file_path).open(encoding="utf-8") as file:
             sql_content = file.read()
 
         # Execute the SQL (split by semicolons for multiple statements)
@@ -749,18 +752,17 @@ def execute_migration(db_url: str) -> tuple[bool, str]:
     Returns:
         tuple[bool, str]: (success, message)
     """
-    import os
-    import glob
     from pathlib import Path
+
     import reflexio
     from reflexio.server.services.storage.supabase_migrations import DATA_MIGRATIONS
 
     try:
         # Get migration files
         migration_dir = (
-            Path(os.path.dirname(reflexio.__file__)).parent / "supabase" / "migrations"
+            Path(reflexio.__file__).parent.parent / "supabase" / "migrations"
         )
-        migration_files = sorted(glob.glob(os.path.join(migration_dir, "*.sql")))
+        migration_files = sorted(migration_dir.glob("*.sql"))
         if not migration_files:
             return False, "No migration files found"
 
@@ -785,7 +787,7 @@ def execute_migration(db_url: str) -> tuple[bool, str]:
 
         for migration_file in migration_files:
             # Extract version from filename
-            filename = os.path.basename(migration_file)
+            filename = Path(migration_file).name
             version = filename.split("_")[0]
 
             # Check if migration already executed
@@ -796,7 +798,7 @@ def execute_migration(db_url: str) -> tuple[bool, str]:
 
             if cursor.fetchone() is None:
                 # Read and execute migration
-                with open(migration_file, encoding="utf-8") as f:
+                with Path(migration_file).open(encoding="utf-8") as f:
                     migration_sql = f.read()
 
                 try:
@@ -829,8 +831,7 @@ def execute_migration(db_url: str) -> tuple[bool, str]:
 
         if executed_migrations:
             return True, f"Executed migrations: {', '.join(executed_migrations)}"
-        else:
-            return True, "All migrations already applied"
+        return True, "All migrations already applied"
 
     except psycopg2.OperationalError as e:
         error_msg = str(e)
@@ -842,18 +843,17 @@ def execute_migration(db_url: str) -> tuple[bool, str]:
                 False,
                 f"DNS resolution failed. Try using the pooler URL (port 6543) for IPv4 support. Error: {error_msg}",
             )
-        elif "connection refused" in error_msg.lower():
+        if "connection refused" in error_msg.lower():
             return (
                 False,
                 f"Connection refused. Check if your IP is allowed in Supabase network settings. Error: {error_msg}",
             )
-        else:
-            return False, f"Database connection error: {error_msg}"
+        return False, f"Database connection error: {error_msg}"
     except Exception as e:
         return False, str(e)
 
 
-def get_organization_config(client, org_id: str) -> str | None:
+def get_organization_config(client: Client, org_id: str) -> str | None:
     """
     Get the configuration_json for an organization from Supabase.
 
@@ -877,7 +877,7 @@ def get_organization_config(client, org_id: str) -> str | None:
     return response.data[0].get("configuration_json")
 
 
-def set_organization_config(client, org_id: str, config_json: str) -> bool:
+def set_organization_config(client: Client, org_id: str, config_json: str) -> bool:
     """
     Set the configuration_json for an organization in Supabase.
 

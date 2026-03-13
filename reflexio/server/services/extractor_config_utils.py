@@ -3,7 +3,7 @@ Utility functions for filtering extractor configurations.
 """
 
 import logging
-from typing import Optional, TypeVar
+from typing import TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +31,9 @@ def get_extractor_name(config: TExtractorConfig) -> str:
 
 def filter_extractor_configs(
     extractor_configs: list[TExtractorConfig],
-    source: Optional[str] = None,
+    source: str | None = None,
     allow_manual_trigger: bool = False,
-    extractor_names: Optional[list[str]] = None,
+    extractor_names: list[str] | None = None,
 ) -> list[TExtractorConfig]:
     """
     Filter extractor configs based on source, manual_trigger, and extractor names.
@@ -59,7 +59,7 @@ def filter_extractor_configs(
     for config in extractor_configs:
         # Check if config has request_sources_enabled attribute
         if hasattr(config, "request_sources_enabled"):
-            sources_enabled = config.request_sources_enabled
+            sources_enabled = config.request_sources_enabled  # type: ignore[reportAttributeAccessIssue]
             # Skip if source filtering applies and source is not in enabled list
             if sources_enabled and source and source not in sources_enabled:
                 logger.debug(

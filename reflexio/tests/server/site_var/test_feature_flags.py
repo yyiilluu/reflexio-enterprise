@@ -2,12 +2,11 @@ import unittest
 from unittest.mock import patch
 
 from reflexio.server.site_var.feature_flags import (
-    is_feature_enabled,
     get_all_feature_flags,
-    is_skill_generation_enabled,
     is_deduplicator_enabled,
+    is_feature_enabled,
+    is_skill_generation_enabled,
 )
-
 
 MOCK_CONFIG = {
     "skill_generation": {

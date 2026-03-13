@@ -7,21 +7,21 @@ for OpenAI, Claude, Azure OpenAI, and other LLM providers.
 
 from .litellm_client import (
     LiteLLMClient,
-    LiteLLMConfig,
     LiteLLMClientError,
+    LiteLLMConfig,
     create_litellm_client,
 )
 
 # Legacy imports for backward compatibility
-from .openai_client import OpenAIClient, OpenAIConfig, OpenAIClientError
+from .openai_client import OpenAIClient, OpenAIClientError, OpenAIConfig
 
 # Make Claude client optional
 try:
     from .claude_client import (
         ClaudeClient,
+        ClaudeClientError,
         ClaudeConfig,
         create_claude_client,
-        ClaudeClientError,
     )
 
     CLAUDE_AVAILABLE = True

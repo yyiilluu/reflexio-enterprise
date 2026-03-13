@@ -1,8 +1,8 @@
 import json
 import logging
-import os
+from pathlib import Path
+
 import redis
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ class SiteVarManager:
     Supports both .json and .txt files.
     """
 
-    def __init__(self, source_dir: Optional[str] = None, enable_redis: bool = False):
+    def __init__(self, source_dir: str | None = None, enable_redis: bool = False):
         """
         Initialize the SiteVarManager with a source directory for site variable files.
 
@@ -22,9 +22,7 @@ class SiteVarManager:
             source_dir (Optional[str]): Directory containing JSON or text files for site variables
             enable_redis (bool): Whether to enable Redis caching (default: False)
         """
-        self.source_dir = source_dir or os.path.join(
-            os.path.dirname(__file__), "site_var_sources"
-        )
+        self.source_dir = source_dir or str(Path(__file__).parent / "site_var_sources")
         self.enable_redis = enable_redis
         self.redis = (
             redis.Redis(host="localhost", port=6379, db=0) if enable_redis else None
@@ -34,13 +32,13 @@ class SiteVarManager:
         self._cache: dict[str, str | dict] = {}
 
         # Ensure source directory exists
-        if not os.path.exists(self.source_dir):
+        if not Path(self.source_dir).exists():
             logger.warning(
                 "Source directory %s does not exist, creating it", self.source_dir
             )
-            os.makedirs(self.source_dir, exist_ok=True)
+            Path(self.source_dir).mkdir(parents=True, exist_ok=True)
 
-    def get_site_var(self, name: str) -> Optional[str | dict]:
+    def get_site_var(self, name: str) -> str | dict | None:
         """
         Get a site variable by name. Checks in-memory cache first, then Redis cache (if enabled), then loads from file.
         Supports both JSON and text files.
@@ -62,7 +60,7 @@ class SiteVarManager:
                 cached_value = self.redis.get(name)
                 if cached_value is not None:
                     logger.debug("Retrieved site var %s from Redis cache", name)
-                    decoded_value = cached_value.decode("utf-8")
+                    decoded_value = cached_value.decode("utf-8")  # type: ignore[reportAttributeAccessIssue]
                     # Try to parse as JSON for dict values
                     try:
                         parsed_value = json.loads(decoded_value)
@@ -88,9 +86,8 @@ class SiteVarManager:
                     self.redis.set(name, redis_value)
                     logger.debug("Cached site var %s in Redis", name)
                 return content
-            else:
-                logger.warning("Site var %s not found in Redis or files", name)
-                return None
+            logger.warning("Site var %s not found in Redis or files", name)
+            return None
 
         except redis.RedisError as e:
             logger.error("Redis error while getting site var %s: %s", name, str(e))
@@ -135,11 +132,11 @@ class SiteVarManager:
         site_vars = {}
 
         try:
-            if not os.path.exists(self.source_dir):
+            if not Path(self.source_dir).exists():
                 logger.warning("Source directory %s does not exist", self.source_dir)
                 return site_vars
 
-            for filename in os.listdir(self.source_dir):
+            for filename in [p.name for p in Path(self.source_dir).iterdir()]:
                 if filename.endswith((".json", ".txt")):
                     name = self._get_name_from_filename(filename)
                     value = self.get_site_var(name)  # This will use cache automatically
@@ -166,22 +163,20 @@ class SiteVarManager:
             list[str]: List of site variable names
         """
         try:
-            if not os.path.exists(self.source_dir):
+            if not Path(self.source_dir).exists():
                 return []
 
-            site_vars = []
-            for filename in os.listdir(self.source_dir):
-                if filename.endswith((".json", ".txt")):
-                    file_name, _ = os.path.splitext(filename)
-                    site_vars.append(file_name)
-
-            return site_vars
+            return [
+                entry.stem
+                for entry in Path(self.source_dir).iterdir()
+                if entry.name.endswith((".json", ".txt"))
+            ]
 
         except Exception as e:
             logger.error("Error listing site variables: %s", str(e))
             return []
 
-    def _find_file_path(self, name: str) -> Optional[str]:
+    def _find_file_path(self, name: str) -> str | None:
         """
         Find the file path for a site variable, checking both .json and .txt extensions.
 
@@ -191,17 +186,16 @@ class SiteVarManager:
         Returns:
             Optional[str]: Path to the file if found, None otherwise
         """
-        json_path = os.path.join(self.source_dir, f"{name}.json")
-        txt_path = os.path.join(self.source_dir, f"{name}.txt")
+        json_path = Path(self.source_dir) / f"{name}.json"
+        txt_path = Path(self.source_dir) / f"{name}.txt"
 
-        if os.path.exists(json_path):
-            return json_path
-        elif os.path.exists(txt_path):
-            return txt_path
-        else:
-            return None
+        if json_path.exists():
+            return str(json_path)
+        if txt_path.exists():
+            return str(txt_path)
+        return None
 
-    def _load_file_content(self, file_path: str) -> Optional[str | dict]:
+    def _load_file_content(self, file_path: str) -> str | dict | None:
         """
         Load content from a file, handling both JSON and text files.
 
@@ -212,19 +206,17 @@ class SiteVarManager:
             Optional[str]: File content as string, or None if error
         """
         try:
-            if not os.path.exists(file_path):
+            if not Path(file_path).exists():
                 logger.error("File %s does not exist", file_path)
                 return None
 
             if file_path.endswith(".txt"):
-                with open(file_path, encoding="utf-8") as f:
-                    content = f.read().strip()
-                # For text files, return content as-is
-                return content
-            elif file_path.endswith(".json"):
+                with Path(file_path).open(encoding="utf-8") as f:
+                    return f.read().strip()
+            if file_path.endswith(".json"):
                 try:
                     # Parse to validate JSON, then return as string
-                    with open(file_path, encoding="utf-8") as f:
+                    with Path(file_path).open(encoding="utf-8") as f:
                         return json.load(f)
                 except json.JSONDecodeError as e:
                     logger.error("Invalid JSON in file %s: %s", file_path, str(e))
@@ -239,7 +231,7 @@ class SiteVarManager:
             logger.error("Error reading file %s: %s", file_path, str(e))
             return None
 
-    def _load_from_file(self, name: str) -> Optional[str | dict]:
+    def _load_from_file(self, name: str) -> str | dict | None:
         """
         Load a site variable directly from file (fallback method).
 
@@ -266,7 +258,6 @@ class SiteVarManager:
         """
         if filename.endswith(".json"):
             return filename[:-5]
-        elif filename.endswith(".txt"):
+        if filename.endswith(".txt"):
             return filename[:-4]
-        else:
-            return filename
+        return filename

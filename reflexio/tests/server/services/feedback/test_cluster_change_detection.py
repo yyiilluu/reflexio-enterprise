@@ -5,9 +5,11 @@ Tests fingerprint computation, change detection logic, selective LLM invocation,
 and clustering stability.
 """
 
+import contextlib
+from unittest.mock import MagicMock
+
 import numpy as np
 import pytest
-from unittest.mock import MagicMock
 
 
 # Disable mock mode for clustering tests so actual clustering algorithms are used
@@ -23,10 +25,11 @@ from reflexio_commons.api_schema.service_schemas import (
     RawFeedback,
 )
 from reflexio_commons.config_schema import FeedbackAggregatorConfig
+
 from reflexio.server.services.feedback.feedback_aggregator import FeedbackAggregator
 from reflexio.server.services.feedback.feedback_service_utils import (
-    FeedbackAggregatorRequest,
     FeedbackAggregationOutput,
+    FeedbackAggregatorRequest,
     StructuredFeedbackContent,
 )
 
@@ -47,7 +50,7 @@ def create_similar_embeddings(n: int, base_seed: int = 42) -> list[list[float]]:
     base = base / np.linalg.norm(base)
 
     embeddings = []
-    for i in range(n):
+    for _i in range(n):
         noise = np.random.randn(512) * 0.001
         vec = base + noise
         vec = vec / np.linalg.norm(vec)
@@ -69,7 +72,7 @@ def create_dissimilar_embeddings(n: int, base_seed: int = 42) -> list[list[float
     """
     np.random.seed(base_seed)
     embeddings = []
-    for i in range(n):
+    for _i in range(n):
         vec = np.random.randn(512)
         vec = vec / np.linalg.norm(vec)
         embeddings.append(vec.tolist())
@@ -121,7 +124,7 @@ def mock_feedback_aggregator():
         request_context=mock_request_context,
         agent_version="1.0",
     )
-    return aggregator
+    return aggregator  # noqa: RET504
 
 
 class TestClusterFingerprint:
@@ -514,7 +517,7 @@ class TestAggregatorRunWithChangeDetection:
                 feedback_content=f"Existing feedback {cid}",
                 feedback_status=FeedbackStatus.PENDING,
             )
-            for cid in clusters.keys()
+            for cid in clusters
         ]
 
         aggregator, mock_storage, mock_llm_client = self._setup_aggregator_for_run(
@@ -903,7 +906,6 @@ import tempfile
 
 from reflexio.tests.server.test_utils import skip_in_precommit
 
-
 # Unique feedback name to avoid collisions with other tests
 E2E_FEEDBACK_NAME = "e2e_change_detect_feedback"
 E2E_AGENT_VERSION = "1.0.0"
@@ -928,7 +930,7 @@ def _resolve_supabase_config():
 
         try:
             result = subprocess.run(
-                ["supabase", "status"],
+                ["supabase", "status"],  # noqa: S607
                 capture_output=True,
                 text=True,
                 timeout=10,
@@ -955,8 +957,9 @@ def _resolve_supabase_config():
 @pytest.fixture
 def supabase_storage():
     """Create a SupabaseStorage instance for e2e tests."""
-    from reflexio.server.services.storage.supabase_storage import SupabaseStorage
     from reflexio_commons.config_schema import StorageConfigSupabase
+
+    from reflexio.server.services.storage.supabase_storage import SupabaseStorage
 
     url, key, db_url = _resolve_supabase_config()
     config = StorageConfigSupabase(url=url, key=key, db_url=db_url)
@@ -968,26 +971,20 @@ def e2e_cleanup(supabase_storage):
     """Clean up test data before and after the e2e test."""
 
     def _cleanup():
-        try:
+        with contextlib.suppress(Exception):
             supabase_storage.client.table("feedbacks").delete().eq(
                 "feedback_name", E2E_FEEDBACK_NAME
             ).execute()
-        except Exception:
-            pass
-        try:
+        with contextlib.suppress(Exception):
             supabase_storage.client.table("raw_feedbacks").delete().eq(
                 "feedback_name", E2E_FEEDBACK_NAME
             ).execute()
-        except Exception:
-            pass
         # Clean up operation state entries for this test
         bookmark_key = f"feedback_aggregator::{E2E_ORG_ID}::{E2E_FEEDBACK_NAME}::{E2E_AGENT_VERSION}"
         cluster_key = f"{bookmark_key}::clusters"
         for key in [bookmark_key, cluster_key]:
-            try:
+            with contextlib.suppress(Exception):
                 supabase_storage.delete_operation_state(key)
-            except Exception:
-                pass
 
     _cleanup()
     yield
@@ -1097,12 +1094,13 @@ class TestClusterChangeDetectionE2E:
 
     def test_change_detection_full_cycle(self, supabase_storage, e2e_cleanup):
         """Full e2e cycle: create → aggregate → add more → re-aggregate with change detection."""
-        from reflexio.server.api_endpoints.request_context import RequestContext
-        from reflexio.server.llm.litellm_client import LiteLLMClient, LiteLLMConfig
         from reflexio_commons.config_schema import (
             AgentFeedbackConfig,
             StorageConfigSupabase,
         )
+
+        from reflexio.server.api_endpoints.request_context import RequestContext
+        from reflexio.server.llm.litellm_client import LiteLLMClient, LiteLLMConfig
 
         # Check that OPENAI_API_KEY (or equivalent) is available
         openai_key = os.environ.get("OPENAI_API_KEY", "")
@@ -1163,9 +1161,9 @@ class TestClusterChangeDetectionE2E:
             saved_raw = supabase_storage.get_raw_feedbacks(
                 feedback_name=E2E_FEEDBACK_NAME
             )
-            assert (
-                len(saved_raw) == 6
-            ), f"Expected 6 raw feedbacks, got {len(saved_raw)}"
+            assert len(saved_raw) == 6, (
+                f"Expected 6 raw feedbacks, got {len(saved_raw)}"
+            )
 
             # ── Step 2: First aggregation → LLM called for all clusters ──
             aggregator.run(request)
@@ -1176,9 +1174,9 @@ class TestClusterChangeDetectionE2E:
                 feedback_status_filter=[FeedbackStatus.PENDING],
             )
             run1_count = len(feedbacks_after_run1)
-            assert (
-                run1_count >= 1
-            ), f"Expected at least 1 feedback after first run, got {run1_count}"
+            assert run1_count >= 1, (
+                f"Expected at least 1 feedback after first run, got {run1_count}"
+            )
             run1_feedback_ids = {fb.feedback_id for fb in feedbacks_after_run1}
 
             # ── Step 3: Second aggregation (no new data) → should skip LLM ──
@@ -1206,9 +1204,9 @@ class TestClusterChangeDetectionE2E:
             saved_raw = supabase_storage.get_raw_feedbacks(
                 feedback_name=E2E_FEEDBACK_NAME
             )
-            assert (
-                len(saved_raw) == 9
-            ), f"Expected 9 raw feedbacks, got {len(saved_raw)}"
+            assert len(saved_raw) == 9, (
+                f"Expected 9 raw feedbacks, got {len(saved_raw)}"
+            )
 
             # ── Step 5: Third aggregation → detect change in verbose cluster ──
             aggregator.run(request)
@@ -1219,9 +1217,9 @@ class TestClusterChangeDetectionE2E:
                 feedback_status_filter=[FeedbackStatus.PENDING],
             )
             run3_count = len(feedbacks_after_run3)
-            assert (
-                run3_count >= 1
-            ), f"Expected at least 1 feedback after third run, got {run3_count}"
+            assert run3_count >= 1, (
+                f"Expected at least 1 feedback after third run, got {run3_count}"
+            )
 
             # ── Step 6: Verify fingerprints are stored ──
             from reflexio.server.services.operation_state_utils import (
@@ -1241,12 +1239,12 @@ class TestClusterChangeDetectionE2E:
 
             # Each fingerprint should have raw_feedback_ids
             for fp_hash, fp_data in stored_fingerprints.items():
-                assert (
-                    "raw_feedback_ids" in fp_data
-                ), f"Fingerprint {fp_hash} missing raw_feedback_ids"
-                assert (
-                    len(fp_data["raw_feedback_ids"]) >= 2
-                ), f"Fingerprint {fp_hash} has too few raw_feedback_ids"
+                assert "raw_feedback_ids" in fp_data, (
+                    f"Fingerprint {fp_hash} missing raw_feedback_ids"
+                )
+                assert len(fp_data["raw_feedback_ids"]) >= 2, (
+                    f"Fingerprint {fp_hash} has too few raw_feedback_ids"
+                )
 
 
 if __name__ == "__main__":

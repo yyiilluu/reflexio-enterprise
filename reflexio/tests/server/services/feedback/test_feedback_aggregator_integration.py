@@ -1,27 +1,29 @@
+import contextlib
+import csv
+import os
+import tempfile
+from unittest.mock import patch
+
+import pytest
 from reflexio_commons.api_schema.service_schemas import (
     Feedback,
     FeedbackStatus,
     RawFeedback,
 )
-import pytest
-import csv
-import os
+from reflexio_commons.config_schema import (
+    AgentFeedbackConfig,
+    FeedbackAggregatorConfig,
+    StorageConfigSupabase,
+)
+
+import reflexio.tests.test_data as test_data
 from reflexio.server.api_endpoints.request_context import RequestContext
+from reflexio.server.llm.litellm_client import LiteLLMClient, LiteLLMConfig
 from reflexio.server.services.feedback.feedback_aggregator import FeedbackAggregator
 from reflexio.server.services.feedback.feedback_service_utils import (
     FeedbackAggregatorRequest,
 )
 from reflexio.server.services.storage.supabase_storage import SupabaseStorage
-from reflexio.server.llm.litellm_client import LiteLLMClient, LiteLLMConfig
-from reflexio_commons.config_schema import (
-    AgentFeedbackConfig,
-    StorageConfigSupabase,
-    FeedbackAggregatorConfig,
-)
-import reflexio.tests.test_data as test_data
-import tempfile
-from unittest.mock import patch
-
 from reflexio.tests.server.test_utils import skip_in_precommit, skip_low_priority
 
 
@@ -47,7 +49,7 @@ def supabase_storage():
         db_url=supabase_db_url,
     )
     storage = SupabaseStorage(org_id="test", config=config)
-    return storage
+    return storage  # noqa: RET504
 
 
 TEST_FEEDBACK_NAME = "test_feedback"
@@ -84,15 +86,15 @@ def load_mock_feedbacks():
 
     with open(csv_path, encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        for row in reader:
-            raw_feedbacks.append(
-                RawFeedback(
-                    agent_version=row["agent_version"],
-                    request_id=row["request_id"],
-                    feedback_content=row["feedback_content"],
-                    feedback_name=row["feedback_name"],
-                )
+        raw_feedbacks.extend(
+            RawFeedback(
+                agent_version=row["agent_version"],
+                request_id=row["request_id"],
+                feedback_content=row["feedback_content"],
+                feedback_name=row["feedback_name"],
             )
+            for row in reader
+        )
     return raw_feedbacks
 
 
@@ -100,12 +102,10 @@ def load_mock_feedbacks():
 def setup_mock_feedbacks(supabase_storage, cleanup_after_test):
     """Fixture to load and save mock feedbacks before each test."""
     # Clean up any existing test raw_feedbacks first to ensure a clean state
-    try:
+    with contextlib.suppress(Exception):
         supabase_storage.client.table("raw_feedbacks").delete().eq(
             "feedback_name", TEST_FEEDBACK_NAME
         ).execute()
-    except Exception:
-        pass
 
     # Load mock feedbacks from CSV
     raw_feedbacks = load_mock_feedbacks()

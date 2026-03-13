@@ -1,19 +1,19 @@
 from datetime import datetime
-from typing import Optional, Self
 
 from pydantic import BaseModel, Field, model_validator
+from typing_extensions import Self
 
 from reflexio_commons.api_schema.service_schemas import (
-    Interaction,
-    Request,
-    UserProfile,
-    RawFeedback,
-    Feedback,
-    Skill,
     AgentSuccessEvaluationResult,
+    Feedback,
     FeedbackStatus,
+    Interaction,
+    RawFeedback,
+    Request,
+    Skill,
     SkillStatus,
     Status,
+    UserProfile,
 )
 from reflexio_commons.api_schema.validators import (
     NonEmptyStr,
@@ -23,12 +23,12 @@ from reflexio_commons.api_schema.validators import (
 
 class SearchInteractionRequest(BaseModel):
     user_id: NonEmptyStr
-    request_id: Optional[str] = None
-    query: Optional[str] = None
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-    top_k: Optional[int] = Field(default=None, gt=0)
-    most_recent_k: Optional[int] = Field(default=None, gt=0)
+    request_id: str | None = None
+    query: str | None = None
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+    top_k: int | None = Field(default=None, gt=0)
+    most_recent_k: int | None = Field(default=None, gt=0)
 
     @model_validator(mode="after")
     def check_time_range(self) -> Self:
@@ -39,16 +39,16 @@ class SearchInteractionRequest(BaseModel):
 
 class SearchUserProfileRequest(BaseModel):
     user_id: NonEmptyStr
-    generated_from_request_id: Optional[str] = None
-    query: Optional[str] = None
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-    top_k: Optional[int] = Field(default=10, gt=0)
-    source: Optional[str] = None
-    custom_feature: Optional[str] = None
-    extractor_name: Optional[str] = None
-    threshold: Optional[float] = Field(default=0.5, ge=0.0, le=1.0)
-    query_rewrite: Optional[bool] = False
+    generated_from_request_id: str | None = None
+    query: str | None = None
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+    top_k: int | None = Field(default=10, gt=0)
+    source: str | None = None
+    custom_feature: str | None = None
+    extractor_name: str | None = None
+    threshold: float | None = Field(default=0.5, ge=0.0, le=1.0)
+    query_rewrite: bool | None = False
 
     @model_validator(mode="after")
     def check_time_range(self) -> Self:
@@ -60,20 +60,20 @@ class SearchUserProfileRequest(BaseModel):
 class SearchInteractionResponse(BaseModel):
     success: bool
     interactions: list[Interaction]
-    msg: Optional[str] = None
+    msg: str | None = None
 
 
 class SearchUserProfileResponse(BaseModel):
     success: bool
     user_profiles: list[UserProfile]
-    msg: Optional[str] = None
+    msg: str | None = None
 
 
 class GetInteractionsRequest(BaseModel):
     user_id: NonEmptyStr
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-    top_k: Optional[int] = Field(default=30, gt=0)
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+    top_k: int | None = Field(default=30, gt=0)
 
     @model_validator(mode="after")
     def check_time_range(self) -> Self:
@@ -85,15 +85,15 @@ class GetInteractionsRequest(BaseModel):
 class GetInteractionsResponse(BaseModel):
     success: bool
     interactions: list[Interaction]
-    msg: Optional[str] = None
+    msg: str | None = None
 
 
 class GetUserProfilesRequest(BaseModel):
     user_id: NonEmptyStr
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-    top_k: Optional[int] = Field(default=30, gt=0)
-    status_filter: Optional[list[Optional[Status]]] = None
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+    top_k: int | None = Field(default=30, gt=0)
+    status_filter: list[Status | None] | None = None
 
     @model_validator(mode="after")
     def check_time_range(self) -> Self:
@@ -105,7 +105,7 @@ class GetUserProfilesRequest(BaseModel):
 class GetUserProfilesResponse(BaseModel):
     success: bool
     user_profiles: list[UserProfile]
-    msg: Optional[str] = None
+    msg: str | None = None
 
 
 class GetProfileStatisticsResponse(BaseModel):
@@ -114,37 +114,37 @@ class GetProfileStatisticsResponse(BaseModel):
     pending_count: int = 0
     archived_count: int = 0
     expiring_soon_count: int = 0
-    msg: Optional[str] = None
+    msg: str | None = None
 
 
 class SetConfigResponse(BaseModel):
     success: bool
-    msg: Optional[str] = None
+    msg: str | None = None
 
 
 class GetRawFeedbacksRequest(BaseModel):
-    limit: Optional[int] = Field(default=100, gt=0)
-    feedback_name: Optional[str] = None
-    status_filter: Optional[list[Optional[Status]]] = None
+    limit: int | None = Field(default=100, gt=0)
+    feedback_name: str | None = None
+    status_filter: list[Status | None] | None = None
 
 
 class GetRawFeedbacksResponse(BaseModel):
     success: bool
     raw_feedbacks: list[RawFeedback]
-    msg: Optional[str] = None
+    msg: str | None = None
 
 
 class GetFeedbacksRequest(BaseModel):
-    limit: Optional[int] = Field(default=100, gt=0)
-    feedback_name: Optional[str] = None
-    status_filter: Optional[list[Optional[Status]]] = None
-    feedback_status_filter: Optional[FeedbackStatus] = None
+    limit: int | None = Field(default=100, gt=0)
+    feedback_name: str | None = None
+    status_filter: list[Status | None] | None = None
+    feedback_status_filter: FeedbackStatus | None = None
 
 
 class GetFeedbacksResponse(BaseModel):
     success: bool
     feedbacks: list[Feedback]
-    msg: Optional[str] = None
+    msg: str | None = None
 
 
 class SearchRawFeedbackRequest(BaseModel):
@@ -162,16 +162,16 @@ class SearchRawFeedbackRequest(BaseModel):
         threshold (float, optional): Similarity threshold for vector search. Defaults to 0.5
     """
 
-    query: Optional[str] = None
-    user_id: Optional[str] = None
-    agent_version: Optional[str] = None
-    feedback_name: Optional[str] = None
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-    status_filter: Optional[list[Optional[Status]]] = None
-    top_k: Optional[int] = Field(default=10, gt=0)
-    threshold: Optional[float] = Field(default=0.5, ge=0.0, le=1.0)
-    query_rewrite: Optional[bool] = False
+    query: str | None = None
+    user_id: str | None = None
+    agent_version: str | None = None
+    feedback_name: str | None = None
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+    status_filter: list[Status | None] | None = None
+    top_k: int | None = Field(default=10, gt=0)
+    threshold: float | None = Field(default=0.5, ge=0.0, le=1.0)
+    query_rewrite: bool | None = False
 
     @model_validator(mode="after")
     def check_time_range(self) -> Self:
@@ -191,7 +191,7 @@ class SearchRawFeedbackResponse(BaseModel):
 
     success: bool
     raw_feedbacks: list[RawFeedback]
-    msg: Optional[str] = None
+    msg: str | None = None
 
 
 class SearchFeedbackRequest(BaseModel):
@@ -209,16 +209,16 @@ class SearchFeedbackRequest(BaseModel):
         threshold (float, optional): Similarity threshold for vector search. Defaults to 0.5
     """
 
-    query: Optional[str] = None
-    agent_version: Optional[str] = None
-    feedback_name: Optional[str] = None
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-    status_filter: Optional[list[Optional[Status]]] = None
-    feedback_status_filter: Optional[FeedbackStatus] = None
-    top_k: Optional[int] = Field(default=10, gt=0)
-    threshold: Optional[float] = Field(default=0.5, ge=0.0, le=1.0)
-    query_rewrite: Optional[bool] = False
+    query: str | None = None
+    agent_version: str | None = None
+    feedback_name: str | None = None
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+    status_filter: list[Status | None] | None = None
+    feedback_status_filter: FeedbackStatus | None = None
+    top_k: int | None = Field(default=10, gt=0)
+    threshold: float | None = Field(default=0.5, ge=0.0, le=1.0)
+    query_rewrite: bool | None = False
 
     @model_validator(mode="after")
     def check_time_range(self) -> Self:
@@ -238,28 +238,28 @@ class SearchFeedbackResponse(BaseModel):
 
     success: bool
     feedbacks: list[Feedback]
-    msg: Optional[str] = None
+    msg: str | None = None
 
 
 class GetAgentSuccessEvaluationResultsRequest(BaseModel):
-    limit: Optional[int] = Field(default=100, gt=0)
-    agent_version: Optional[str] = None
+    limit: int | None = Field(default=100, gt=0)
+    agent_version: str | None = None
 
 
 class GetAgentSuccessEvaluationResultsResponse(BaseModel):
     success: bool
     agent_success_evaluation_results: list[AgentSuccessEvaluationResult]
-    msg: Optional[str] = None
+    msg: str | None = None
 
 
 class GetRequestsRequest(BaseModel):
-    user_id: Optional[str] = None
-    request_id: Optional[str] = None
-    session_id: Optional[str] = None
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-    top_k: Optional[int] = Field(default=30, gt=0)
-    offset: Optional[int] = Field(default=0, ge=0)
+    user_id: str | None = None
+    request_id: str | None = None
+    session_id: str | None = None
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+    top_k: int | None = Field(default=30, gt=0)
+    offset: int | None = Field(default=0, ge=0)
 
     @model_validator(mode="after")
     def check_time_range(self) -> Self:
@@ -282,7 +282,7 @@ class GetRequestsResponse(BaseModel):
     success: bool
     sessions: list[Session]
     has_more: bool = False
-    msg: Optional[str] = None
+    msg: str | None = None
 
 
 class UpdateFeedbackStatusRequest(BaseModel):
@@ -292,7 +292,7 @@ class UpdateFeedbackStatusRequest(BaseModel):
 
 class UpdateFeedbackStatusResponse(BaseModel):
     success: bool
-    msg: Optional[str] = None
+    msg: str | None = None
 
 
 class TimeSeriesDataPoint(BaseModel):
@@ -329,15 +329,15 @@ class GetDashboardStatsRequest(BaseModel):
         days_back (int): Number of days to include in time series data. Defaults to 30.
     """
 
-    days_back: Optional[int] = Field(default=30, gt=0)
+    days_back: int | None = Field(default=30, gt=0)
 
 
 class GetDashboardStatsResponse(BaseModel):
     """Response containing dashboard statistics."""
 
     success: bool
-    stats: Optional[DashboardStats] = None
-    msg: Optional[str] = None
+    stats: DashboardStats | None = None
+    msg: str | None = None
 
 
 # ===============================
@@ -346,31 +346,31 @@ class GetDashboardStatsResponse(BaseModel):
 
 
 class GetSkillsRequest(BaseModel):
-    limit: Optional[int] = Field(default=100, gt=0)
-    feedback_name: Optional[str] = None
-    agent_version: Optional[str] = None
-    skill_status: Optional[SkillStatus] = None
+    limit: int | None = Field(default=100, gt=0)
+    feedback_name: str | None = None
+    agent_version: str | None = None
+    skill_status: SkillStatus | None = None
 
 
 class GetSkillsResponse(BaseModel):
     success: bool
     skills: list[Skill] = []
-    msg: Optional[str] = None
+    msg: str | None = None
 
 
 class SearchSkillsRequest(BaseModel):
-    query: Optional[str] = None
-    feedback_name: Optional[str] = None
-    agent_version: Optional[str] = None
-    skill_status: Optional[SkillStatus] = None
-    threshold: Optional[float] = Field(default=0.5, ge=0.0, le=1.0)
-    top_k: Optional[int] = Field(default=10, gt=0)
+    query: str | None = None
+    feedback_name: str | None = None
+    agent_version: str | None = None
+    skill_status: SkillStatus | None = None
+    threshold: float | None = Field(default=0.5, ge=0.0, le=1.0)
+    top_k: int | None = Field(default=10, gt=0)
 
 
 class SearchSkillsResponse(BaseModel):
     success: bool
     skills: list[Skill] = []
-    msg: Optional[str] = None
+    msg: str | None = None
 
 
 # ===============================
@@ -419,13 +419,13 @@ class UnifiedSearchRequest(BaseModel):
     """
 
     query: NonEmptyStr
-    top_k: Optional[int] = Field(default=5, gt=0)
-    threshold: Optional[float] = Field(default=0.3, ge=0.0, le=1.0)
-    agent_version: Optional[str] = None
-    feedback_name: Optional[str] = None
-    user_id: Optional[str] = None
-    conversation_history: Optional[list[ConversationTurn]] = None
-    query_rewrite: Optional[bool] = False
+    top_k: int | None = Field(default=5, gt=0)
+    threshold: float | None = Field(default=0.3, ge=0.0, le=1.0)
+    agent_version: str | None = None
+    feedback_name: str | None = None
+    user_id: str | None = None
+    conversation_history: list[ConversationTurn] | None = None
+    query_rewrite: bool | None = False
 
 
 class UnifiedSearchResponse(BaseModel):
@@ -446,5 +446,5 @@ class UnifiedSearchResponse(BaseModel):
     feedbacks: list[Feedback] = []
     raw_feedbacks: list[RawFeedback] = []
     skills: list[Skill] = []
-    rewritten_query: Optional[str] = None
-    msg: Optional[str] = None
+    rewritten_query: str | None = None
+    msg: str | None = None

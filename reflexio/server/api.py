@@ -1,7 +1,8 @@
 import asyncio
 import logging
 import os
-from typing import Annotated, Optional
+from typing import Annotated, Any
+
 from fastapi import (
     BackgroundTasks,
     Depends,
@@ -13,19 +14,126 @@ from fastapi import (
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import (
-    OAuth2PasswordRequestForm,
-    HTTPBearer,
     HTTPAuthorizationCredentials,
+    HTTPBearer,
+    OAuth2PasswordRequestForm,
 )
+from reflexio_commons.api_schema.login_schema import (
+    ApiTokenCreateRequest,
+    ApiTokenCreateResponse,
+    ApiTokenListResponse,
+    ApiTokenResponse,
+    ForgotPasswordRequest,
+    ForgotPasswordResponse,
+    ResendVerificationRequest,
+    ResendVerificationResponse,
+    ResetPasswordRequest,
+    ResetPasswordResponse,
+    Token,
+    User,
+    VerifyEmailRequest,
+    VerifyEmailResponse,
+)
+from reflexio_commons.api_schema.retriever_schema import (
+    GetAgentSuccessEvaluationResultsRequest,
+    GetAgentSuccessEvaluationResultsResponse,
+    GetDashboardStatsRequest,
+    GetDashboardStatsResponse,
+    GetFeedbacksRequest,
+    GetFeedbacksResponse,
+    GetInteractionsRequest,
+    GetInteractionsResponse,
+    GetProfileStatisticsResponse,
+    GetRawFeedbacksRequest,
+    GetRawFeedbacksResponse,
+    GetRequestsRequest,
+    GetRequestsResponse,
+    GetSkillsRequest,
+    GetSkillsResponse,
+    GetUserProfilesRequest,
+    GetUserProfilesResponse,
+    SearchFeedbackRequest,
+    SearchFeedbackResponse,
+    SearchInteractionRequest,
+    SearchInteractionResponse,
+    SearchRawFeedbackRequest,
+    SearchRawFeedbackResponse,
+    SearchSkillsRequest,
+    SearchSkillsResponse,
+    SearchUserProfileRequest,
+    SearchUserProfileResponse,
+    SetConfigResponse,
+    UnifiedSearchRequest,
+    UnifiedSearchResponse,
+    UpdateFeedbackStatusRequest,
+    UpdateFeedbackStatusResponse,
+)
+from reflexio_commons.api_schema.service_schemas import (
+    AddFeedbackRequest,
+    AddFeedbackResponse,
+    AddRawFeedbackRequest,
+    AddRawFeedbackResponse,
+    CancelOperationRequest,
+    CancelOperationResponse,
+    DeleteFeedbackRequest,
+    DeleteFeedbackResponse,
+    DeleteRawFeedbackRequest,
+    DeleteRawFeedbackResponse,
+    DeleteRequestRequest,
+    DeleteRequestResponse,
+    DeleteSessionRequest,
+    DeleteSessionResponse,
+    DeleteSkillRequest,
+    DeleteSkillResponse,
+    DeleteUserInteractionRequest,
+    DeleteUserInteractionResponse,
+    DeleteUserProfileRequest,
+    DeleteUserProfileResponse,
+    DowngradeProfilesRequest,
+    DowngradeProfilesResponse,
+    DowngradeRawFeedbacksRequest,
+    DowngradeRawFeedbacksResponse,
+    ExportSkillsRequest,
+    ExportSkillsResponse,
+    FeedbackAggregationChangeLogResponse,
+    GetOperationStatusRequest,
+    GetOperationStatusResponse,
+    ManualFeedbackGenerationRequest,
+    ManualFeedbackGenerationResponse,
+    ManualProfileGenerationRequest,
+    ManualProfileGenerationResponse,
+    ProfileChangeLogResponse,
+    PublishUserInteractionRequest,
+    PublishUserInteractionResponse,
+    RerunFeedbackGenerationRequest,
+    RerunFeedbackGenerationResponse,
+    RerunProfileGenerationRequest,
+    RerunProfileGenerationResponse,
+    RunFeedbackAggregationRequest,
+    RunFeedbackAggregationResponse,
+    RunSkillGenerationRequest,
+    RunSkillGenerationResponse,
+    Status,
+    UpdateSkillStatusRequest,
+    UpdateSkillStatusResponse,
+    UpgradeProfilesRequest,
+    UpgradeProfilesResponse,
+    UpgradeRawFeedbacksRequest,
+    UpgradeRawFeedbacksResponse,
+)
+from reflexio_commons.config_schema import Config
 from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from starlette.middleware.base import BaseHTTPMiddleware
+from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.responses import Response
+
+from reflexio.server.api_endpoints import publisher_api, retriever_api
 from reflexio.server.api_endpoints.login import (
     authenticate_organization,
-    create_verification_token,
     create_password_reset_token,
+    create_verification_token,
     generate_short_api_key,
     get_current_active_org,
     get_password_hash,
@@ -37,142 +145,38 @@ from reflexio.server.api_endpoints.login import (
     verify_password,
     verify_password_reset_token,
 )
-from reflexio_commons.api_schema.service_schemas import (
-    DeleteUserInteractionRequest,
-    DeleteUserInteractionResponse,
-    DeleteUserProfileRequest,
-    DeleteUserProfileResponse,
-    DeleteRequestRequest,
-    DeleteRequestResponse,
-    DeleteSessionRequest,
-    DeleteSessionResponse,
-    DeleteFeedbackRequest,
-    DeleteFeedbackResponse,
-    DeleteRawFeedbackRequest,
-    DeleteRawFeedbackResponse,
-    ProfileChangeLogResponse,
-    FeedbackAggregationChangeLogResponse,
-    Status,
-    PublishUserInteractionRequest,
-    PublishUserInteractionResponse,
-    AddRawFeedbackRequest,
-    AddRawFeedbackResponse,
-    AddFeedbackRequest,
-    AddFeedbackResponse,
-    RunFeedbackAggregationRequest,
-    RunFeedbackAggregationResponse,
-    RunSkillGenerationRequest,
-    RunSkillGenerationResponse,
-    UpdateSkillStatusRequest,
-    UpdateSkillStatusResponse,
-    DeleteSkillRequest,
-    DeleteSkillResponse,
-    ExportSkillsRequest,
-    ExportSkillsResponse,
-    RerunProfileGenerationRequest,
-    RerunProfileGenerationResponse,
-    ManualProfileGenerationRequest,
-    ManualProfileGenerationResponse,
-    RerunFeedbackGenerationRequest,
-    RerunFeedbackGenerationResponse,
-    ManualFeedbackGenerationRequest,
-    ManualFeedbackGenerationResponse,
-    UpgradeProfilesRequest,
-    UpgradeProfilesResponse,
-    DowngradeProfilesRequest,
-    DowngradeProfilesResponse,
-    UpgradeRawFeedbacksRequest,
-    UpgradeRawFeedbacksResponse,
-    DowngradeRawFeedbacksRequest,
-    DowngradeRawFeedbacksResponse,
-    GetOperationStatusRequest,
-    GetOperationStatusResponse,
-    CancelOperationRequest,
-    CancelOperationResponse,
-)
-from reflexio_commons.api_schema.retriever_schema import (
-    GetInteractionsRequest,
-    GetInteractionsResponse,
-    GetUserProfilesRequest,
-    GetUserProfilesResponse,
-    SearchUserProfileRequest,
-    SearchUserProfileResponse,
-    SearchInteractionRequest,
-    SearchInteractionResponse,
-    GetRawFeedbacksRequest,
-    GetRawFeedbacksResponse,
-    GetFeedbacksRequest,
-    GetFeedbacksResponse,
-    SearchRawFeedbackRequest,
-    SearchRawFeedbackResponse,
-    SearchFeedbackRequest,
-    SearchFeedbackResponse,
-    SetConfigResponse,
-    GetRequestsRequest,
-    GetRequestsResponse,
-    UpdateFeedbackStatusRequest,
-    UpdateFeedbackStatusResponse,
-    GetAgentSuccessEvaluationResultsRequest,
-    GetAgentSuccessEvaluationResultsResponse,
-    GetDashboardStatsRequest,
-    GetDashboardStatsResponse,
-    GetProfileStatisticsResponse,
-    GetSkillsRequest,
-    GetSkillsResponse,
-    SearchSkillsRequest,
-    SearchSkillsResponse,
-    UnifiedSearchRequest,
-    UnifiedSearchResponse,
-)
-from reflexio.server.db.db_operations import (
-    get_db_session,
-    create_api_token,
-    get_api_tokens_by_org_id,
-    delete_api_token,
-    delete_all_api_tokens_for_org,
-    delete_organization,
-)
-from reflexio.server.site_var.feature_flags import (
-    get_all_feature_flags,
-    is_invitation_only_enabled,
-    is_skill_generation_enabled,
-)
-from reflexio_commons.api_schema.login_schema import (
-    Token,
-    User,
-    VerifyEmailRequest,
-    VerifyEmailResponse,
-    ResendVerificationRequest,
-    ResendVerificationResponse,
-    ForgotPasswordRequest,
-    ForgotPasswordResponse,
-    ResetPasswordRequest,
-    ResetPasswordResponse,
-    ApiTokenCreateRequest,
-    ApiTokenCreateResponse,
-    ApiTokenListResponse,
-    ApiTokenResponse,
-)
-from reflexio_commons.config_schema import Config
+from reflexio.server.api_endpoints.oauth import get_configured_oauth_providers
+from reflexio.server.api_endpoints.oauth import router as oauth_router
 from reflexio.server.cache.reflexio_cache import (
     get_reflexio,
     invalidate_reflexio_cache,
 )
-from reflexio.server.api_endpoints import publisher_api, retriever_api
-from reflexio.server.api_endpoints.oauth import router as oauth_router, get_configured_oauth_providers
-from reflexio.server.services.email.email_service import get_email_service
 from reflexio.server.db.db_operations import (
     claim_invitation_code,
-    release_invitation_code,
+    create_api_token,
+    delete_all_api_tokens_for_org,
+    delete_api_token,
+    delete_organization,
+    get_api_tokens_by_org_id,
+    get_db_session,
     get_organization_by_email,
+    release_invitation_code,
     update_organization,
+)
+from reflexio.server.services.email.email_service import get_email_service
+from reflexio.server.site_var.feature_flags import (
+    get_all_feature_flags,
+    is_invitation_only_enabled,
+    is_skill_generation_enabled,
 )
 
 logger = logging.getLogger(__name__)
 
 # Bot protection configuration
 REQUEST_TIMEOUT_SECONDS = 60
-SYNC_REQUEST_TIMEOUT_SECONDS = 600  # Longer timeout for synchronous processing (wait_for_response=true)
+SYNC_REQUEST_TIMEOUT_SECONDS = (
+    600  # Longer timeout for synchronous processing (wait_for_response=true)
+)
 SUSPICIOUS_USER_AGENTS = ["bot", "crawler", "spider", "scraper", "curl", "wget"]
 ALLOWED_EMPTY_UA_PATHS = ["/health", "/"]  # Paths that allow empty user agents
 
@@ -198,12 +202,14 @@ limiter = Limiter(key_func=get_rate_limit_key)
 class BotProtectionMiddleware(BaseHTTPMiddleware):
     """Middleware to detect and block suspicious bot-like requests."""
 
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         """Process request and block suspicious patterns.
 
         Args:
             request (Request): The incoming request
-            call_next: Next middleware/handler in chain
+            call_next (RequestResponseEndpoint): Next middleware/handler in chain
 
         Returns:
             Response: The response from the next handler or a 403 JSON response
@@ -236,12 +242,14 @@ class BotProtectionMiddleware(BaseHTTPMiddleware):
 class TimeoutMiddleware(BaseHTTPMiddleware):
     """Middleware to enforce request timeout."""
 
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         """Process request with timeout enforcement.
 
         Args:
             request (Request): The incoming request
-            call_next: Next middleware/handler in chain
+            call_next (RequestResponseEndpoint): Next middleware/handler in chain
 
         Returns:
             Response: The response from the next handler or a 504 JSON response
@@ -254,9 +262,7 @@ class TimeoutMiddleware(BaseHTTPMiddleware):
             timeout = SYNC_REQUEST_TIMEOUT_SECONDS
 
         try:
-            return await asyncio.wait_for(
-                call_next(request), timeout=timeout
-            )
+            return await asyncio.wait_for(call_next(request), timeout=timeout)
         except asyncio.TimeoutError:
             return JSONResponse(
                 status_code=status.HTTP_504_GATEWAY_TIMEOUT,
@@ -268,7 +274,7 @@ app = FastAPI(docs_url="/docs")
 
 # Configure rate limiter
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[reportArgumentType]
 
 # Add middlewares (order matters: last added = first executed)
 # 1. CORS (outermost)
@@ -301,7 +307,7 @@ DEFAULT_ORG_ID = "self-host-org"
 optional_oauth2_scheme = HTTPBearer(auto_error=False)
 
 
-def get_optional_db_session():
+def get_optional_db_session() -> Session | None:
     """Get database session only if not in self-host mode."""
     if SELF_HOST_MODE:
         return None
@@ -309,9 +315,7 @@ def get_optional_db_session():
 
 
 def get_org_id_for_self_host(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(
-        optional_oauth2_scheme
-    ),
+    credentials: HTTPAuthorizationCredentials | None = Depends(optional_oauth2_scheme),
 ) -> str:
     """Get organization ID, either from token or use default for self-host mode.
 
@@ -335,7 +339,7 @@ def get_org_id_for_self_host(
     session = next(get_db_session())
     try:
         token = credentials.credentials
-        current_org = get_current_active_org(token=token, session=session)
+        current_org = get_current_active_org(token=token, session=session)  # type: ignore[reportArgumentType]
         return str(current_org.id)
     finally:
         if session is not None:
@@ -365,7 +369,7 @@ def require_skill_generation(
 
 
 @app.get("/")
-def root():
+def root() -> dict[str, str]:
     return {
         "service": "Reflexio API",
         "docs": "/docs",
@@ -374,13 +378,13 @@ def root():
 
 
 @app.get("/health")
-def health_check():
+def health_check() -> dict[str, str]:
     """Health check endpoint for ECS/container orchestration."""
     return {"status": "healthy"}
 
 
 @app.get("/api/registration-config")
-def get_registration_config():
+def get_registration_config() -> dict[str, Any]:
     """Return public registration configuration (no auth required)."""
     return {
         "invitation_code_required": is_invitation_only_enabled(),
@@ -388,11 +392,10 @@ def get_registration_config():
     }
 
 
-
 @app.post("/api/logout")
 def logout_endpoint(
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> dict[str, Any]:
     """Invalidate cache on logout.
 
     Args:
@@ -412,8 +415,8 @@ def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     background_tasks: BackgroundTasks,
     session: Session = Depends(get_db_session),
-):
-    logger.info(f"Logging in for access token for user: {form_data.username}")
+) -> dict[str, Any]:
+    logger.info("Logging in for access token for user: %s", form_data.username)
     # Check if this email uses an OAuth provider before attempting password auth
     existing_org = get_organization_by_email(session=session, email=form_data.username)
     if existing_org:
@@ -451,7 +454,7 @@ def login_for_access_token(
         )
 
     # Schedule background migration check for self-managed orgs
-    if org.is_self_managed:
+    if org.is_self_managed:  # type: ignore[reportGeneralTypeIssues]
         from reflexio.server.api_endpoints.self_managed_migration import (
             check_and_migrate_self_managed_org,
         )
@@ -464,7 +467,7 @@ def login_for_access_token(
     feature_flags = get_all_feature_flags(str(org.id))
 
     # Look up existing api_tokens for this org
-    existing_tokens = get_api_tokens_by_org_id(session=session, org_id=org.id)
+    existing_tokens = get_api_tokens_by_org_id(session=session, org_id=org.id)  # type: ignore[reportArgumentType]
     if existing_tokens:
         # Return the first existing token
         api_key = existing_tokens[0].token
@@ -473,7 +476,7 @@ def login_for_access_token(
         api_key = generate_short_api_key()
         create_api_token(
             session=session,
-            org_id=org.id,
+            org_id=org.id,  # type: ignore[reportArgumentType]
             token_value=api_key,
             name="Default",
         )
@@ -485,10 +488,9 @@ def login_for_access_token(
 def get_user(
     token: str = Depends(oauth2_scheme),
     session: Session = Depends(get_db_session),
-):
+) -> User:
     current_user = get_current_active_org(token=token, session=session)
-    user = User(email=str(current_user.email))
-    return user
+    return User(email=str(current_user.email))
 
 
 @app.post("/api/register", response_model=Token, response_model_exclude_none=True)
@@ -498,8 +500,8 @@ def register(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     background_tasks: BackgroundTasks,
     session: Session = Depends(get_db_session),
-    invitation_code: Optional[str] = Form(None),
-):
+    invitation_code: str | None = Form(None),
+) -> dict[str, Any]:
     invitation_only = is_invitation_only_enabled()
 
     # Validate and atomically claim invitation code if invitation-only mode is enabled
@@ -528,7 +530,7 @@ def register(
         # Create the api_token record
         create_api_token(
             session=session,
-            org_id=org.id,
+            org_id=org.id,  # type: ignore[reportArgumentType]
             token_value=api_key,
             name="Default",
         )
@@ -539,7 +541,7 @@ def register(
         raise
     if invitation_only:
         # Auto-verify the organization (code already claimed atomically above)
-        org.is_verified = True
+        org.is_verified = True  # type: ignore[reportAttributeAccessIssue]
         update_organization(session=session, organization=org)
         return {
             "api_key": api_key,
@@ -568,10 +570,8 @@ def _mask_token(token_value: str) -> str:
 
 @app.get("/api/tokens", response_model=ApiTokenListResponse)
 def list_api_tokens(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(
-        optional_oauth2_scheme
-    ),
-):
+    credentials: HTTPAuthorizationCredentials | None = Depends(optional_oauth2_scheme),
+) -> ApiTokenListResponse:
     """
     List all API tokens for the current organization. Token values are masked.
 
@@ -591,17 +591,18 @@ def list_api_tokens(
     session = next(get_db_session())
     try:
         current_org = get_current_active_org(
-            token=credentials.credentials, session=session
+            token=credentials.credentials,
+            session=session,  # type: ignore[reportArgumentType]
         )
-        tokens = get_api_tokens_by_org_id(session=session, org_id=current_org.id)
+        tokens = get_api_tokens_by_org_id(session=session, org_id=current_org.id)  # type: ignore[reportArgumentType]
         return ApiTokenListResponse(
             tokens=[
                 ApiTokenResponse(
-                    id=t.id,
-                    name=t.name,
-                    token_masked=_mask_token(t.token),
-                    created_at=t.created_at,
-                    last_used_at=t.last_used_at,
+                    id=t.id,  # type: ignore[reportArgumentType]
+                    name=t.name,  # type: ignore[reportArgumentType]
+                    token_masked=_mask_token(t.token),  # type: ignore[reportArgumentType]
+                    created_at=t.created_at,  # type: ignore[reportArgumentType]
+                    last_used_at=t.last_used_at,  # type: ignore[reportArgumentType]
                 )
                 for t in tokens
             ]
@@ -614,10 +615,8 @@ def list_api_tokens(
 @app.get("/api/tokens/{token_id}/reveal")
 def reveal_api_token(
     token_id: int,
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(
-        optional_oauth2_scheme
-    ),
-):
+    credentials: HTTPAuthorizationCredentials | None = Depends(optional_oauth2_scheme),
+) -> dict[str, Any]:
     """
     Reveal the full value of an API token by ID.
 
@@ -643,11 +642,12 @@ def reveal_api_token(
     session = next(get_db_session())
     try:
         current_org = get_current_active_org(
-            token=credentials.credentials, session=session
+            token=credentials.credentials,
+            session=session,  # type: ignore[reportArgumentType]
         )
-        tokens = get_api_tokens_by_org_id(session=session, org_id=current_org.id)
+        tokens = get_api_tokens_by_org_id(session=session, org_id=current_org.id)  # type: ignore[reportArgumentType]
         for t in tokens:
-            if t.id == token_id:
+            if t.id == token_id:  # type: ignore[reportGeneralTypeIssues]
                 return {"token": t.token}
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -661,10 +661,8 @@ def reveal_api_token(
 @app.post("/api/tokens", response_model=ApiTokenCreateResponse)
 def create_new_api_token(
     payload: ApiTokenCreateRequest,
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(
-        optional_oauth2_scheme
-    ),
-):
+    credentials: HTTPAuthorizationCredentials | None = Depends(optional_oauth2_scheme),
+) -> ApiTokenCreateResponse:
     """
     Create a new API token for the current organization.
     Returns the full token value — it is only shown once.
@@ -691,20 +689,21 @@ def create_new_api_token(
     session = next(get_db_session())
     try:
         current_org = get_current_active_org(
-            token=credentials.credentials, session=session
+            token=credentials.credentials,
+            session=session,  # type: ignore[reportArgumentType]
         )
         new_token_value = generate_short_api_key()
         api_token = create_api_token(
-            session=session,
-            org_id=current_org.id,
+            session=session,  # type: ignore[reportArgumentType]
+            org_id=current_org.id,  # type: ignore[reportArgumentType]
             token_value=new_token_value,
             name=payload.name,
         )
         return ApiTokenCreateResponse(
-            id=api_token.id,
-            name=api_token.name,
-            token=api_token.token,
-            created_at=api_token.created_at,
+            id=api_token.id,  # type: ignore[reportArgumentType]
+            name=api_token.name,  # type: ignore[reportArgumentType]
+            token=api_token.token,  # type: ignore[reportArgumentType]
+            created_at=api_token.created_at,  # type: ignore[reportArgumentType]
         )
     finally:
         if session is not None:
@@ -714,10 +713,8 @@ def create_new_api_token(
 @app.delete("/api/tokens/{token_id}")
 def delete_api_token_endpoint(
     token_id: int,
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(
-        optional_oauth2_scheme
-    ),
-):
+    credentials: HTTPAuthorizationCredentials | None = Depends(optional_oauth2_scheme),
+) -> dict[str, Any]:
     """
     Delete an API token by ID.
 
@@ -743,11 +740,13 @@ def delete_api_token_endpoint(
     session = next(get_db_session())
     try:
         current_org = get_current_active_org(
-            token=credentials.credentials, session=session
+            token=credentials.credentials,
+            session=session,  # type: ignore[reportArgumentType]
         )
         # Prevent deleting the last token
         existing_tokens = get_api_tokens_by_org_id(
-            session=session, org_id=current_org.id
+            session=session,  # type: ignore[reportArgumentType]
+            org_id=current_org.id,  # type: ignore[reportArgumentType]
         )
         if len(existing_tokens) <= 1:
             raise HTTPException(
@@ -756,7 +755,9 @@ def delete_api_token_endpoint(
             )
 
         deleted = delete_api_token(
-            session=session, token_id=token_id, org_id=current_org.id
+            session=session,  # type: ignore[reportArgumentType]
+            token_id=token_id,
+            org_id=current_org.id,  # type: ignore[reportArgumentType]
         )
         if not deleted:
             raise HTTPException(
@@ -766,8 +767,8 @@ def delete_api_token_endpoint(
 
         # Invalidate cache for the deleted token
         for t in existing_tokens:
-            if t.id == token_id:
-                invalidate_token_cache(t.token)
+            if t.id == token_id:  # type: ignore[reportGeneralTypeIssues]
+                invalidate_token_cache(t.token)  # type: ignore[reportArgumentType]
                 break
 
         return {"success": True, "message": "Token deleted"}
@@ -781,10 +782,8 @@ def delete_api_token_endpoint(
 def delete_account(
     request: Request,
     payload: dict,
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(
-        optional_oauth2_scheme
-    ),
-):
+    credentials: HTTPAuthorizationCredentials | None = Depends(optional_oauth2_scheme),
+) -> dict[str, Any]:
     """
     Permanently delete the current user's account and all associated data.
     Requires password re-verification. Disabled in self-host mode.
@@ -819,7 +818,8 @@ def delete_account(
     session = next(get_db_session())
     try:
         current_org = get_current_active_org(
-            token=credentials.credentials, session=session
+            token=credentials.credentials,
+            session=session,  # type: ignore[reportArgumentType]
         )
 
         # Verify password
@@ -852,24 +852,27 @@ def delete_account(
             for method_name in delete_methods:
                 try:
                     getattr(storage, method_name)()
-                except Exception as e:
+                except Exception as e:  # noqa: PERF203
                     logger.warning(
-                        f"Failed to call {method_name} for org {org_id}: {e}"
+                        "Failed to call %s for org %s: %s",
+                        method_name,
+                        org_id,
+                        e,
                     )
         except Exception as e:
-            logger.warning(f"Failed to delete storage data for org {org_id}: {e}")
+            logger.warning("Failed to delete storage data for org %s: %s", org_id, e)
 
         # 2. Delete all API tokens
         try:
-            tokens = get_api_tokens_by_org_id(session=session, org_id=current_org.id)
+            tokens = get_api_tokens_by_org_id(session=session, org_id=current_org.id)  # type: ignore[reportArgumentType]
             for t in tokens:
-                invalidate_token_cache(t.token)
-            delete_all_api_tokens_for_org(session=session, org_id=current_org.id)
+                invalidate_token_cache(t.token)  # type: ignore[reportArgumentType]
+            delete_all_api_tokens_for_org(session=session, org_id=current_org.id)  # type: ignore[reportArgumentType]
         except Exception as e:
-            logger.warning(f"Failed to delete API tokens for org {org_id}: {e}")
+            logger.warning("Failed to delete API tokens for org %s: %s", org_id, e)
 
         # 3. Delete organization record
-        deleted = delete_organization(session=session, org_id=current_org.id)
+        deleted = delete_organization(session=session, org_id=current_org.id)  # type: ignore[reportArgumentType]
         if not deleted:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -892,7 +895,7 @@ def verify_email(
     request: Request,
     payload: VerifyEmailRequest,
     session: Session = Depends(get_db_session),
-):
+) -> VerifyEmailResponse:
     """
     Verify a user's email address using the verification token.
 
@@ -921,11 +924,11 @@ def verify_email(
         )
 
     # Check if already verified
-    if org.is_verified:
+    if org.is_verified:  # type: ignore[reportGeneralTypeIssues]
         return VerifyEmailResponse(success=True, message="Email already verified")
 
     # Update verification status
-    org.is_verified = True
+    org.is_verified = True  # type: ignore[reportAttributeAccessIssue]
     update_organization(session=session, organization=org)
 
     # Invalidate cache to ensure fresh data on next login
@@ -941,7 +944,7 @@ def resend_verification_email(
     payload: ResendVerificationRequest,
     background_tasks: BackgroundTasks,
     session: Session = Depends(get_db_session),
-):
+) -> ResendVerificationResponse:
     """
     Resend verification email to a user.
 
@@ -963,7 +966,7 @@ def resend_verification_email(
         "a verification link has been sent"
     )
 
-    if org is None or org.is_verified:
+    if org is None or org.is_verified:  # type: ignore[reportGeneralTypeIssues]
         return ResendVerificationResponse(success=True, message=generic_message)
 
     # Send verification email
@@ -985,7 +988,7 @@ def forgot_password(
     payload: ForgotPasswordRequest,
     background_tasks: BackgroundTasks,
     session: Session = Depends(get_db_session),
-):
+) -> ForgotPasswordResponse:
     """
     Request a password reset email.
 
@@ -1003,7 +1006,7 @@ def forgot_password(
 
     # Always return success to prevent email enumeration
     generic_message = (
-        "If an account exists with this email, " "a password reset link has been sent"
+        "If an account exists with this email, a password reset link has been sent"
     )
 
     # Only send email if account exists
@@ -1025,7 +1028,7 @@ def reset_password(
     request: Request,
     payload: ResetPasswordRequest,
     session: Session = Depends(get_db_session),
-):
+) -> ResetPasswordResponse:
     """
     Reset password using a valid reset token.
 
@@ -1061,7 +1064,7 @@ def reset_password(
         )
 
     # Update password
-    org.hashed_password = get_password_hash(payload.new_password)
+    org.hashed_password = get_password_hash(payload.new_password)  # type: ignore[reportAttributeAccessIssue]
     update_organization(session=session, organization=org)
 
     # Invalidate cache to ensure fresh data on next login
@@ -1082,18 +1085,17 @@ def publish_user_interaction(
     background_tasks: BackgroundTasks,
     org_id: str = Depends(get_org_id_for_self_host),
     wait_for_response: bool = False,
-):
+) -> PublishUserInteractionResponse:
     if wait_for_response:
         # Process synchronously so the caller gets the real result
         return publisher_api.add_user_interaction(org_id=org_id, request=payload)
-    else:
-        # Run in background — caller gets immediate acknowledgement
-        background_tasks.add_task(
-            publisher_api.add_user_interaction, org_id=org_id, request=payload
-        )
-        return PublishUserInteractionResponse(
-            success=True, message="Interaction queued for processing"
-        )
+    # Run in background — caller gets immediate acknowledgement
+    background_tasks.add_task(
+        publisher_api.add_user_interaction, org_id=org_id, request=payload
+    )
+    return PublishUserInteractionResponse(
+        success=True, message="Interaction queued for processing"
+    )
 
 
 @app.post(
@@ -1106,7 +1108,7 @@ def add_raw_feedback_endpoint(
     request: Request,
     payload: AddRawFeedbackRequest,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> AddRawFeedbackResponse:
     """Add raw feedback directly to storage.
 
     Args:
@@ -1130,7 +1132,7 @@ def add_feedback_endpoint(
     request: Request,
     payload: AddFeedbackRequest,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> AddFeedbackResponse:
     """Add aggregated feedback directly to storage.
 
     Args:
@@ -1154,7 +1156,7 @@ def search_profiles(
     request: Request,
     payload: SearchUserProfileRequest,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> SearchUserProfileResponse:
     return retriever_api.search_user_profiles(org_id=org_id, request=payload)
 
 
@@ -1168,7 +1170,7 @@ def search_interactions(
     request: Request,
     payload: SearchInteractionRequest,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> SearchInteractionResponse:
     return retriever_api.search_interactions(org_id=org_id, request=payload)
 
 
@@ -1182,7 +1184,7 @@ def search_raw_feedbacks_endpoint(
     request: Request,
     payload: SearchRawFeedbackRequest,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> SearchRawFeedbackResponse:
     """Search raw feedbacks with semantic search and advanced filtering.
 
     Supports filtering by user_id (via request_id linkage), agent_version,
@@ -1213,7 +1215,7 @@ def search_feedbacks_endpoint(
     request: Request,
     payload: SearchFeedbackRequest,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> SearchFeedbackResponse:
     """Search aggregated feedbacks with semantic search and advanced filtering.
 
     Supports filtering by agent_version, feedback_name, datetime range,
@@ -1244,7 +1246,7 @@ def unified_search_endpoint(
     request: Request,
     payload: UnifiedSearchRequest,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> UnifiedSearchResponse:
     """Search across all entity types (profiles, feedbacks, raw_feedbacks, skills).
 
     Runs query rewriting and embedding generation in parallel, then searches
@@ -1274,7 +1276,7 @@ def unified_search_endpoint(
 @app.get("/api/profile_change_log", response_model=ProfileChangeLogResponse)
 def get_profile_change_log(
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> ProfileChangeLogResponse:
     return retriever_api.get_profile_change_logs(org_id=org_id)
 
 
@@ -1286,7 +1288,7 @@ def get_feedback_aggregation_change_logs(
     feedback_name: str,
     agent_version: str,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> FeedbackAggregationChangeLogResponse:
     return retriever_api.get_feedback_aggregation_change_logs(
         org_id=org_id,
         feedback_name=feedback_name,
@@ -1302,7 +1304,7 @@ def get_feedback_aggregation_change_logs(
 def delete_profile(
     request: DeleteUserProfileRequest,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> DeleteUserProfileResponse:
     return publisher_api.delete_user_profile(org_id=org_id, request=request)
 
 
@@ -1314,7 +1316,7 @@ def delete_profile(
 def delete_interaction(
     request: DeleteUserInteractionRequest,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> DeleteUserInteractionResponse:
     return publisher_api.delete_user_interaction(org_id=org_id, request=request)
 
 
@@ -1326,7 +1328,7 @@ def delete_interaction(
 def delete_request(
     request: DeleteRequestRequest,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> DeleteRequestResponse:
     return publisher_api.delete_request(org_id=org_id, request=request)
 
 
@@ -1338,7 +1340,7 @@ def delete_request(
 def delete_session(
     request: DeleteSessionRequest,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> DeleteSessionResponse:
     return publisher_api.delete_session(org_id=org_id, request=request)
 
 
@@ -1350,7 +1352,7 @@ def delete_session(
 def delete_feedback(
     request: DeleteFeedbackRequest,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> DeleteFeedbackResponse:
     return publisher_api.delete_feedback(org_id=org_id, request=request)
 
 
@@ -1362,7 +1364,7 @@ def delete_feedback(
 def delete_raw_feedback(
     request: DeleteRawFeedbackRequest,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> DeleteRawFeedbackResponse:
     return publisher_api.delete_raw_feedback(org_id=org_id, request=request)
 
 
@@ -1374,7 +1376,7 @@ def delete_raw_feedback(
 def get_interactions(
     request: GetInteractionsRequest,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> GetInteractionsResponse:
     return retriever_api.get_user_interactions(org_id=org_id, request=request)
 
 
@@ -1386,7 +1388,7 @@ def get_interactions(
 def get_all_interactions(
     limit: int = 100,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> GetInteractionsResponse:
     """Get all user interactions across all users.
 
     Args:
@@ -1417,7 +1419,7 @@ def get_all_interactions(
 def get_requests_endpoint(
     request: GetRequestsRequest,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> GetRequestsResponse:
     """Get requests with their associated interactions.
 
     Args:
@@ -1438,7 +1440,7 @@ def get_requests_endpoint(
 def get_profiles(
     request: GetUserProfilesRequest,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> GetUserProfilesResponse:
     return retriever_api.get_user_profiles(org_id=org_id, request=request)
 
 
@@ -1449,9 +1451,9 @@ def get_profiles(
 )
 def get_all_profiles(
     limit: int = 100,
-    status_filter: Optional[str] = None,
+    status_filter: str | None = None,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> GetUserProfilesResponse:
     """Get all user profiles across all users.
 
     Args:
@@ -1475,7 +1477,7 @@ def get_all_profiles(
         status_filter_list = [Status.ARCHIVED]
 
     # Get all profiles using Reflexio's get_all_profiles method
-    response = reflexio.get_all_profiles(limit=limit, status_filter=status_filter_list)
+    response = reflexio.get_all_profiles(limit=limit, status_filter=status_filter_list)  # type: ignore[reportArgumentType]
 
     # Filter out embedding fields from profiles
     for profile in response.user_profiles:
@@ -1491,7 +1493,7 @@ def get_all_profiles(
 )
 def get_profile_statistics(
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> GetProfileStatisticsResponse:
     """Get efficient profile statistics using storage layer queries.
 
     Args:
@@ -1504,9 +1506,7 @@ def get_profile_statistics(
     reflexio = get_reflexio(org_id=org_id)
 
     # Get profile statistics using Reflexio's method
-    response = reflexio.get_profile_statistics()
-
-    return response
+    return reflexio.get_profile_statistics()
 
 
 @app.post(
@@ -1519,7 +1519,7 @@ def run_feedback_aggregation(
     request: Request,
     payload: RunFeedbackAggregationRequest,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> RunFeedbackAggregationResponse:
     return publisher_api.run_feedback_aggregation(org_id=org_id, request=payload)
 
 
@@ -1533,7 +1533,7 @@ def run_skill_generation(
     request: Request,
     payload: RunSkillGenerationRequest,
     org_id: str = Depends(require_skill_generation),
-):
+) -> RunSkillGenerationResponse:
     return publisher_api.run_skill_generation(org_id=org_id, request=payload)
 
 
@@ -1547,7 +1547,7 @@ def get_skills(
     request: Request,
     payload: GetSkillsRequest,
     org_id: str = Depends(require_skill_generation),
-):
+) -> GetSkillsResponse:
     reflexio = get_reflexio(org_id)
     skills = reflexio.get_skills(
         limit=payload.limit or 100,
@@ -1568,7 +1568,7 @@ def search_skills(
     request: Request,
     payload: SearchSkillsRequest,
     org_id: str = Depends(require_skill_generation),
-):
+) -> SearchSkillsResponse:
     reflexio = get_reflexio(org_id)
     skills = reflexio.search_skills(
         query=payload.query,
@@ -1591,7 +1591,7 @@ def update_skill_status(
     request: Request,
     payload: UpdateSkillStatusRequest,
     org_id: str = Depends(require_skill_generation),
-):
+) -> UpdateSkillStatusResponse:
     reflexio = get_reflexio(org_id)
     try:
         reflexio.update_skill_status(payload.skill_id, payload.skill_status)
@@ -1610,7 +1610,7 @@ def delete_skill(
     request: Request,
     payload: DeleteSkillRequest,
     org_id: str = Depends(require_skill_generation),
-):
+) -> DeleteSkillResponse:
     reflexio = get_reflexio(org_id)
     try:
         reflexio.delete_skill(payload.skill_id)
@@ -1629,7 +1629,7 @@ def export_skills(
     request: Request,
     payload: ExportSkillsRequest,
     org_id: str = Depends(require_skill_generation),
-):
+) -> ExportSkillsResponse:
     reflexio = get_reflexio(org_id)
     try:
         markdown = reflexio.export_skills(
@@ -1672,7 +1672,7 @@ def set_config(
 @app.get("/api/get_config", response_model=Config)
 def get_config(
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> Config:
     """Get configuration for the organization.
 
     Args:
@@ -1696,7 +1696,7 @@ def get_config(
 def get_raw_feedbacks(
     request: GetRawFeedbacksRequest,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> GetRawFeedbacksResponse:
     """Get raw feedbacks with embeddings filtered out.
 
     Args:
@@ -1727,7 +1727,7 @@ def get_raw_feedbacks(
 def get_feedbacks(
     request: GetFeedbacksRequest,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> GetFeedbacksResponse:
     """Get feedbacks with embeddings filtered out.
 
     Args:
@@ -1758,7 +1758,7 @@ def get_feedbacks(
 def get_agent_success_evaluation_results(
     request: GetAgentSuccessEvaluationResultsRequest,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> GetAgentSuccessEvaluationResultsResponse:
     """Get agent success evaluation results.
 
     Args:
@@ -1772,9 +1772,7 @@ def get_agent_success_evaluation_results(
     reflexio = get_reflexio(org_id=org_id)
 
     # Get agent success evaluation results using Reflexio's method
-    response = reflexio.get_agent_success_evaluation_results(request)
-
-    return response
+    return reflexio.get_agent_success_evaluation_results(request)
 
 
 @app.put(
@@ -1785,7 +1783,7 @@ def get_agent_success_evaluation_results(
 def update_feedback_status_endpoint(
     request: UpdateFeedbackStatusRequest,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> UpdateFeedbackStatusResponse:
     """Update the status of a specific feedback.
 
     Args:
@@ -1806,7 +1804,7 @@ def update_feedback_status_endpoint(
 def get_dashboard_stats(
     request: GetDashboardStatsRequest,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> GetDashboardStatsResponse:
     """Get comprehensive dashboard statistics including counts and time-series data.
 
     Args:
@@ -1820,9 +1818,7 @@ def get_dashboard_stats(
     reflexio = get_reflexio(org_id=org_id)
 
     # Get dashboard stats using Reflexio's method
-    response = reflexio.get_dashboard_stats(request)
-
-    return response
+    return reflexio.get_dashboard_stats(request)
 
 
 @app.post(
@@ -1836,7 +1832,7 @@ def rerun_profile_generation_endpoint(
     payload: RerunProfileGenerationRequest,
     background_tasks: BackgroundTasks,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> RerunProfileGenerationResponse:
     """Rerun profile generation for a user with filtered interactions.
 
     Args:
@@ -1870,7 +1866,7 @@ def manual_profile_generation_endpoint(
     request: Request,
     payload: ManualProfileGenerationRequest,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> ManualProfileGenerationResponse:
     """Manually trigger profile generation with window-sized interactions and CURRENT output.
 
     This behaves like regular generation (uses extraction_window_size from config,
@@ -1888,9 +1884,7 @@ def manual_profile_generation_endpoint(
     reflexio = get_reflexio(org_id=org_id)
 
     # Call manual_profile_generation
-    response = reflexio.manual_profile_generation(payload)
-
-    return response
+    return reflexio.manual_profile_generation(payload)
 
 
 @app.post(
@@ -1904,7 +1898,7 @@ def rerun_feedback_generation_endpoint(
     payload: RerunFeedbackGenerationRequest,
     background_tasks: BackgroundTasks,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> RerunFeedbackGenerationResponse:
     """Rerun feedback generation with filtered interactions.
 
     Args:
@@ -1938,7 +1932,7 @@ def manual_feedback_generation_endpoint(
     request: Request,
     payload: ManualFeedbackGenerationRequest,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> ManualFeedbackGenerationResponse:
     """Manually trigger feedback generation with window-sized interactions and CURRENT output.
 
     This behaves like regular generation (uses extraction_window_size from config,
@@ -1956,9 +1950,7 @@ def manual_feedback_generation_endpoint(
     reflexio = get_reflexio(org_id=org_id)
 
     # Call manual_feedback_generation
-    response = reflexio.manual_feedback_generation(payload)
-
-    return response
+    return reflexio.manual_feedback_generation(payload)
 
 
 @app.post(
@@ -1969,7 +1961,7 @@ def manual_feedback_generation_endpoint(
 def upgrade_all_profiles_endpoint(
     request: UpgradeProfilesRequest,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> UpgradeProfilesResponse:
     """Upgrade all profiles by deleting old ARCHIVED, archiving CURRENT, and promoting PENDING.
 
     This operation performs three atomic steps:
@@ -1988,9 +1980,7 @@ def upgrade_all_profiles_endpoint(
     reflexio = get_reflexio(org_id=org_id)
 
     # Call upgrade_all_profiles with request
-    response = reflexio.upgrade_all_profiles(request=request)
-
-    return response
+    return reflexio.upgrade_all_profiles(request=request)
 
 
 @app.post(
@@ -2001,7 +1991,7 @@ def upgrade_all_profiles_endpoint(
 def downgrade_all_profiles_endpoint(
     request: DowngradeProfilesRequest,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> DowngradeProfilesResponse:
     """Downgrade all profiles by demoting CURRENT to PENDING and restoring ARCHIVED.
 
     This operation performs two atomic steps:
@@ -2019,9 +2009,7 @@ def downgrade_all_profiles_endpoint(
     reflexio = get_reflexio(org_id=org_id)
 
     # Call downgrade_all_profiles with request
-    response = reflexio.downgrade_all_profiles(request=request)
-
-    return response
+    return reflexio.downgrade_all_profiles(request=request)
 
 
 @app.post(
@@ -2032,7 +2020,7 @@ def downgrade_all_profiles_endpoint(
 def upgrade_all_raw_feedbacks_endpoint(
     request: UpgradeRawFeedbacksRequest,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> UpgradeRawFeedbacksResponse:
     """Upgrade all raw feedbacks by deleting old ARCHIVED, archiving CURRENT, and promoting PENDING.
 
     This operation performs three atomic steps:
@@ -2051,9 +2039,7 @@ def upgrade_all_raw_feedbacks_endpoint(
     reflexio = get_reflexio(org_id=org_id)
 
     # Call upgrade_all_raw_feedbacks with request
-    response = reflexio.upgrade_all_raw_feedbacks(request=request)
-
-    return response
+    return reflexio.upgrade_all_raw_feedbacks(request=request)
 
 
 @app.post(
@@ -2064,7 +2050,7 @@ def upgrade_all_raw_feedbacks_endpoint(
 def downgrade_all_raw_feedbacks_endpoint(
     request: DowngradeRawFeedbacksRequest,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> DowngradeRawFeedbacksResponse:
     """Downgrade all raw feedbacks by archiving CURRENT and restoring ARCHIVED.
 
     This operation performs three atomic steps:
@@ -2083,9 +2069,7 @@ def downgrade_all_raw_feedbacks_endpoint(
     reflexio = get_reflexio(org_id=org_id)
 
     # Call downgrade_all_raw_feedbacks with request
-    response = reflexio.downgrade_all_raw_feedbacks(request=request)
-
-    return response
+    return reflexio.downgrade_all_raw_feedbacks(request=request)
 
 
 @app.get(
@@ -2096,7 +2080,7 @@ def downgrade_all_raw_feedbacks_endpoint(
 def get_operation_status_endpoint(
     service_name: str = "profile_generation",
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> GetOperationStatusResponse:
     """Get the status of an operation (e.g., profile generation rerun or manual).
 
     Args:
@@ -2111,9 +2095,7 @@ def get_operation_status_endpoint(
 
     # Get operation status
     request = GetOperationStatusRequest(service_name=service_name)
-    response = reflexio.get_operation_status(request)
-
-    return response
+    return reflexio.get_operation_status(request)
 
 
 @app.post(
@@ -2126,7 +2108,7 @@ def cancel_operation_endpoint(
     request: Request,
     payload: CancelOperationRequest,
     org_id: str = Depends(get_org_id_for_self_host),
-):
+) -> CancelOperationResponse:
     """Cancel an in-progress operation (rerun or manual generation).
 
     Args:

@@ -1,16 +1,17 @@
 import datetime
-from datetime import timezone
-import pytest
 import tempfile
+from datetime import timezone
 from unittest.mock import patch
 
-from reflexio.server.api_endpoints.request_context import RequestContext
-from reflexio.server.llm.litellm_client import LiteLLMClient, LiteLLMConfig
-from reflexio.server.services.generation_service import GenerationService
+import pytest
 from reflexio_commons.api_schema.service_schemas import (
     InteractionData,
     PublishUserInteractionRequest,
 )
+
+from reflexio.server.api_endpoints.request_context import RequestContext
+from reflexio.server.llm.litellm_client import LiteLLMClient, LiteLLMConfig
+from reflexio.server.services.generation_service import GenerationService
 
 
 @pytest.fixture
@@ -28,10 +29,9 @@ def mock_llm_responses():
         if "Output just a boolean value" in prompt_content:
             return "false"  # Don't extract profiles in this test
         # For structured output parsing
-        elif kwargs.get("parse_structured_output", False):
+        if kwargs.get("parse_structured_output", False):
             return {"add": [], "update": [], "delete": []}
-        else:
-            return '```json\n{"add": [], "update": [], "delete": []}\n```'
+        return '```json\n{"add": [], "update": [], "delete": []}\n```'
 
     with patch(
         "reflexio.server.llm.litellm_client.LiteLLMClient.generate_chat_response",

@@ -1,20 +1,19 @@
 """Utility functions for agent success evaluation service"""
 
-from typing import Optional
 from pydantic import BaseModel
-
 from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 from reflexio_commons.api_schema.service_schemas import Interaction, UserActionType
+
 from reflexio.server.prompt.prompt_manager import PromptManager
-from reflexio.server.services.service_utils import (
-    PromptConfig,
-    MessageConstructionConfig,
-    construct_messages_from_interactions,
-    format_sessions_to_history_string,
-    extract_interactions_from_request_interaction_data_models,
-)
 from reflexio.server.services.agent_success_evaluation.agent_success_evaluation_constants import (
     AgentSuccessEvaluationConstants,
+)
+from reflexio.server.services.service_utils import (
+    MessageConstructionConfig,
+    PromptConfig,
+    construct_messages_from_interactions,
+    extract_interactions_from_request_interaction_data_models,
+    format_sessions_to_history_string,
 )
 
 
@@ -24,7 +23,7 @@ class AgentSuccessEvaluationRequest(BaseModel):
     session_id: str
     agent_version: str
     request_interaction_data_models: list[RequestInteractionDataModel]
-    source: Optional[str] = None
+    source: str | None = None
 
 
 def construct_agent_success_evaluation_messages_from_sessions(
@@ -33,7 +32,7 @@ def construct_agent_success_evaluation_messages_from_sessions(
     agent_context_prompt: str,
     success_definition_prompt: str,
     tool_can_use: str,
-    metadata_definition_prompt: Optional[str] = None,
+    metadata_definition_prompt: str | None = None,
 ) -> list[dict]:
     """
     Construct LLM messages for agent success evaluation from request interaction groups.
@@ -140,8 +139,8 @@ def construct_agent_success_evaluation_with_comparison_messages(
     agent_context_prompt: str,
     success_definition_prompt: str,
     tool_can_use: str,
-    metadata_definition_prompt: Optional[str] = None,
-    interactions_for_images: Optional[list[Interaction]] = None,
+    metadata_definition_prompt: str | None = None,
+    interactions_for_images: list[Interaction] | None = None,
 ) -> list[dict]:
     """
     Construct LLM messages for combined agent success evaluation with comparison.

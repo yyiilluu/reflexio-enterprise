@@ -2,10 +2,12 @@
 Unit tests for PromptManager
 """
 
-import pytest
-import tempfile
 import json
+import tempfile
 from pathlib import Path
+
+import pytest
+
 import reflexio.server.prompt as prompt
 from reflexio.server.prompt.prompt_manager import PromptManager
 from reflexio.server.prompt.prompt_schema import Prompt, PromptBank
@@ -322,11 +324,11 @@ class TestPromptManager:
                     "description",
                     "versions",
                 ]
-                for field in required_top_level_fields:
-                    if field not in metadata:
-                        schema_errors.append(
-                            f"{prompt_name}: Missing required field '{field}'"
-                        )
+                schema_errors.extend(
+                    f"{prompt_name}: Missing required field '{field}'"
+                    for field in required_top_level_fields
+                    if field not in metadata
+                )
 
                 # Validate versions structure
                 if "versions" in metadata:
@@ -339,11 +341,11 @@ class TestPromptManager:
 
                         # Check required version fields
                         required_version_fields = ["created_at", "variables"]
-                        for field in required_version_fields:
-                            if field not in version_data:
-                                schema_errors.append(
-                                    f"{prompt_name} v{version_key}: Missing required field '{field}'"
-                                )
+                        schema_errors.extend(
+                            f"{prompt_name} v{version_key}: Missing required field '{field}'"
+                            for field in required_version_fields
+                            if field not in version_data
+                        )
 
                         # Validate variables field
                         if "variables" in version_data:
@@ -352,11 +354,11 @@ class TestPromptManager:
                                     f"{prompt_name} v{version_key}: 'variables' must be a list"
                                 )
                             else:
-                                for var in version_data["variables"]:
-                                    if not isinstance(var, str):
-                                        schema_errors.append(
-                                            f"{prompt_name} v{version_key}: All variables must be strings"
-                                        )
+                                schema_errors.extend(
+                                    f"{prompt_name} v{version_key}: All variables must be strings"
+                                    for var in version_data["variables"]
+                                    if not isinstance(var, str)
+                                )
 
             except json.JSONDecodeError as e:
                 failed_files.append(f"{prompt_name}: Invalid JSON - {e}")

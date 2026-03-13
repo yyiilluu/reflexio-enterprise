@@ -1,3 +1,4 @@
+# ruff: noqa: S101
 #!/usr/bin/env python3
 """
 Simple test script to verify the new config storage classes work correctly.
@@ -10,6 +11,7 @@ from reflexio_commons.config_schema import (
     StorageConfigLocal,
     StorageConfigSupabase,
 )
+
 from reflexio.server.services.configurator.local_json_config_storage import (
     LocalJsonConfigStorage,
 )

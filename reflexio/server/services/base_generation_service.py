@@ -8,8 +8,9 @@ import os
 import time
 import uuid
 from abc import ABC, abstractmethod
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
-from typing import Any, Generic, Optional, TypeVar
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeoutError
+from typing import Any, Generic, TypeVar
 
 from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 from reflexio_commons.api_schema.service_schemas import Status
@@ -101,7 +102,7 @@ class BaseGenerationService(
         self.org_id = request_context.org_id
         self.configurator = request_context.configurator
         self.request_context = request_context
-        self.service_config: Optional[TGenerationServiceConfig] = None
+        self.service_config: TGenerationServiceConfig | None = None
         self._is_batch_mode: bool = False
         self._last_extractor_run_stats: dict[str, int] = {
             "total": 0,
@@ -196,7 +197,7 @@ class BaseGenerationService(
         """
 
     @abstractmethod
-    def _get_lock_scope_id(self, request: TRequest) -> Optional[str]:
+    def _get_lock_scope_id(self, request: TRequest) -> str | None:
         """
         Get the scope ID for lock key construction.
 
@@ -236,7 +237,7 @@ class BaseGenerationService(
             extractor_names=extractor_names,
         )
 
-    def _get_extractor_state_service_name(self) -> Optional[str]:
+    def _get_extractor_state_service_name(self) -> str | None:
         """
         Get the service name used for extractor state (stride bookmark) lookups.
 
@@ -288,7 +289,9 @@ class BaseGenerationService(
         )
 
         state_manager = OperationStateManager(
-            self.storage, self.org_id, state_service_name
+            self.storage,  # type: ignore[reportArgumentType]
+            self.org_id,
+            state_service_name,  # type: ignore[reportArgumentType]
         )
 
         passing_configs: list[TExtractorConfig] = []
@@ -338,7 +341,9 @@ class BaseGenerationService(
             OperationStateManager instance configured for this service
         """
         return OperationStateManager(
-            self.storage, self.org_id, self._get_base_service_name()
+            self.storage,  # type: ignore[reportArgumentType]
+            self.org_id,
+            self._get_base_service_name(),  # type: ignore[reportArgumentType]
         )
 
     def run(self, request: TRequest) -> None:
@@ -445,7 +450,7 @@ class BaseGenerationService(
 
             if not extractor_configs:
                 source = getattr(self.service_config, "source", "N/A")
-                source_display = source if source else "N/A"
+                source_display = source or "N/A"
                 logger.info(
                     "No %s extractor configs enabled for source: %s",
                     self._get_service_name(),
@@ -491,10 +496,10 @@ class BaseGenerationService(
                     self._update_config_for_incremental(previously_extracted)
 
                 extractor = self._create_extractor(config, self.service_config)
-                executor: Optional[ThreadPoolExecutor] = None
+                executor: ThreadPoolExecutor | None = None
                 try:
                     executor = ThreadPoolExecutor(max_workers=1)
-                    future = executor.submit(extractor.run)
+                    future = executor.submit(extractor.run)  # type: ignore[reportAttributeAccessIssue]
                     result = future.result(timeout=EXTRACTOR_TIMEOUT_SECONDS)
                     if result:
                         all_results.append(result)
@@ -626,7 +631,7 @@ class BaseGenerationService(
                 f"Consolidated {self._get_service_name()} should_run response",
                 content,
             )
-            decision = bool(content and "true" in content.lower())
+            decision = bool(content and "true" in content.lower())  # type: ignore[reportAttributeAccessIssue]
             logger.info(
                 "event=consolidated_should_run_end service=%s identifier=%s elapsed_seconds=%.3f decision=%s",
                 self._get_service_name(),
@@ -645,9 +650,9 @@ class BaseGenerationService(
 
     def _build_should_run_prompt(
         self,
-        scoped_configs: list[TExtractorConfig],
-        session_data_models: list[RequestInteractionDataModel],
-    ) -> Optional[str]:
+        scoped_configs: list[TExtractorConfig],  # noqa: ARG002
+        session_data_models: list[RequestInteractionDataModel],  # noqa: ARG002
+    ) -> str | None:
         """
         Build the prompt for the consolidated should_run LLM check.
 
@@ -705,7 +710,7 @@ class BaseGenerationService(
                 config, global_window_size, global_stride
             )
             fetch_k = window_size
-            session_data_models, _ = self.storage.get_last_k_interactions_grouped(
+            session_data_models, _ = self.storage.get_last_k_interactions_grouped(  # type: ignore[reportOptionalMemberAccess]
                 user_id=getattr(self.service_config, "user_id", None),
                 k=fetch_k,
                 sources=effective_source,
@@ -758,7 +763,7 @@ class BaseGenerationService(
         return (
             llm_config.should_run_model_name
             if llm_config and llm_config.should_run_model_name
-            else model_setting.get("should_run_model_name", "gpt-5-nano")
+            else model_setting.get("should_run_model_name", "gpt-5-nano")  # type: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
         )
 
     def _update_config_for_incremental(self, previously_extracted: list) -> None:
@@ -1009,9 +1014,7 @@ class BaseGenerationService(
     # Upgrade/Downgrade methods (optional - override to enable)
     # ===============================
 
-    def _has_items_with_status(
-        self, status: Optional[Status], request: TRequest
-    ) -> bool:
+    def _has_items_with_status(self, status: Status | None, request: TRequest) -> bool:
         """Check if items exist with given status and filters from request.
 
         Override this method to enable upgrade/downgrade functionality for the service.
@@ -1041,10 +1044,10 @@ class BaseGenerationService(
 
     def _update_items_status(
         self,
-        old_status: Optional[Status],
-        new_status: Optional[Status],
+        old_status: Status | None,
+        new_status: Status | None,
         request: TRequest,
-        user_ids: Optional[list[str]] = None,
+        user_ids: list[str] | None = None,
     ) -> int:
         """Update items from old_status to new_status with request filters.
 
@@ -1061,9 +1064,7 @@ class BaseGenerationService(
         """
         raise NotImplementedError("Upgrade/downgrade not supported by this service")
 
-    def _get_affected_user_ids_for_upgrade(
-        self, request: TRequest
-    ) -> Optional[list[str]]:
+    def _get_affected_user_ids_for_upgrade(self, request: TRequest) -> list[str] | None:  # noqa: ARG002
         """Get user IDs to filter by for upgrade operations.
 
         Override this method to support the only_affected_users flag.
@@ -1078,8 +1079,9 @@ class BaseGenerationService(
         return None
 
     def _get_affected_user_ids_for_downgrade(
-        self, request: TRequest
-    ) -> Optional[list[str]]:
+        self,
+        request: TRequest,  # noqa: ARG002
+    ) -> list[str] | None:
         """Get user IDs to filter by for downgrade operations.
 
         Override this method to support the only_affected_users flag.

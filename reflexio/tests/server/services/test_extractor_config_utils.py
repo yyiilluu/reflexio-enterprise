@@ -2,12 +2,11 @@
 Unit tests for extractor_config_utils module.
 """
 
-import pytest
 from dataclasses import dataclass
-from typing import Optional
+
+import pytest
 
 from reflexio.server.services.extractor_config_utils import filter_extractor_configs
-
 
 # ===============================
 # Test Data Classes
@@ -19,7 +18,7 @@ class MockExtractorConfig:
     """Mock extractor config for testing."""
 
     extractor_name: str
-    request_sources_enabled: Optional[list[str]] = None
+    request_sources_enabled: list[str] | None = None
     manual_trigger: bool = False
 
 
@@ -28,7 +27,7 @@ class MockFeedbackConfig:
     """Mock feedback config with feedback_name instead of extractor_name."""
 
     feedback_name: str
-    request_sources_enabled: Optional[list[str]] = None
+    request_sources_enabled: list[str] | None = None
     manual_trigger: bool = False
 
 
@@ -37,7 +36,7 @@ class MockEvaluationConfig:
     """Mock evaluation config with evaluation_name instead of extractor_name."""
 
     evaluation_name: str
-    request_sources_enabled: Optional[list[str]] = None
+    request_sources_enabled: list[str] | None = None
 
 
 # ===============================

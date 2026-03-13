@@ -1,27 +1,28 @@
 """End-to-end tests for feedback workflows."""
 
 import os
-from typing import Callable
+from collections.abc import Callable
 
-from reflexio.reflexio_lib.reflexio_lib import Reflexio
-from reflexio.tests.e2e_tests.conftest import save_raw_feedbacks
-from reflexio.tests.server.test_utils import skip_in_precommit, skip_low_priority
-from reflexio_commons.api_schema.service_schemas import (
-    AddRawFeedbackRequest,
-    InteractionData,
-    FeedbackStatus,
-    ManualFeedbackGenerationRequest,
-    RawFeedback,
-    RerunFeedbackGenerationRequest,
-    Status,
-    UpgradeRawFeedbacksRequest,
-    DowngradeRawFeedbacksRequest,
-)
 from reflexio_commons.api_schema.retriever_schema import (
     GetFeedbacksRequest,
     GetRawFeedbacksRequest,
     UpdateFeedbackStatusRequest,
 )
+from reflexio_commons.api_schema.service_schemas import (
+    AddRawFeedbackRequest,
+    DowngradeRawFeedbacksRequest,
+    FeedbackStatus,
+    InteractionData,
+    ManualFeedbackGenerationRequest,
+    RawFeedback,
+    RerunFeedbackGenerationRequest,
+    Status,
+    UpgradeRawFeedbacksRequest,
+)
+
+from reflexio.reflexio_lib.reflexio_lib import Reflexio
+from reflexio.tests.e2e_tests.conftest import save_raw_feedbacks
+from reflexio.tests.server.test_utils import skip_in_precommit, skip_low_priority
 
 
 @skip_in_precommit
@@ -69,9 +70,7 @@ def test_publish_interaction_feedback_only(
     assert len(final_profiles) == 0
 
     # Verify NO profile change logs were created (since profile config is not enabled)
-    final_change_logs = (
-        reflexio_instance_feedback_only.request_context.storage.get_profile_change_logs()
-    )
+    final_change_logs = reflexio_instance_feedback_only.request_context.storage.get_profile_change_logs()
     assert len(final_change_logs) == 0
 
     # Verify NO agent success evaluation results were created (since agent success config is not enabled)
@@ -166,9 +165,9 @@ def test_get_feedbacks_with_feedback_status_filter(
             )
         )
         assert initial_response.success is True
-        assert (
-            len(initial_response.feedbacks) >= 3
-        ), "Need at least 3 feedbacks to test different status filters"
+        assert len(initial_response.feedbacks) >= 3, (
+            "Need at least 3 feedbacks to test different status filters"
+        )
 
         # Update some feedbacks to different statuses to enable proper testing
         # Keep one as PENDING, update one to APPROVED, update one to REJECTED
@@ -194,12 +193,12 @@ def test_get_feedbacks_with_feedback_status_filter(
         # Verify that default (no filter) returns feedbacks of different statuses
         statuses_in_default = {f.feedback_status for f in response_default.feedbacks}
         # Should have at least APPROVED and REJECTED (PENDING depends on how many feedbacks we started with)
-        assert (
-            FeedbackStatus.APPROVED in statuses_in_default
-        ), "Default should return APPROVED feedbacks when no filter is specified"
-        assert (
-            FeedbackStatus.REJECTED in statuses_in_default
-        ), "Default should return REJECTED feedbacks when no filter is specified"
+        assert FeedbackStatus.APPROVED in statuses_in_default, (
+            "Default should return APPROVED feedbacks when no filter is specified"
+        )
+        assert FeedbackStatus.REJECTED in statuses_in_default, (
+            "Default should return REJECTED feedbacks when no filter is specified"
+        )
 
         # Test with explicit approved filter - should ONLY return APPROVED feedbacks
         response_approved = reflexio_instance_feedback_only.get_feedbacks(
@@ -209,9 +208,9 @@ def test_get_feedbacks_with_feedback_status_filter(
             )
         )
         assert response_approved.success is True
-        assert (
-            len(response_approved.feedbacks) >= 1
-        ), "Should have at least 1 APPROVED feedback"
+        assert len(response_approved.feedbacks) >= 1, (
+            "Should have at least 1 APPROVED feedback"
+        )
         for feedback in response_approved.feedbacks:
             assert feedback.feedback_status == FeedbackStatus.APPROVED
 
@@ -224,9 +223,9 @@ def test_get_feedbacks_with_feedback_status_filter(
         )
         assert response_pending.success is True
         # We left at least one feedback as PENDING
-        assert (
-            len(response_pending.feedbacks) >= 1
-        ), "Should have at least 1 PENDING feedback"
+        assert len(response_pending.feedbacks) >= 1, (
+            "Should have at least 1 PENDING feedback"
+        )
         for feedback in response_pending.feedbacks:
             assert feedback.feedback_status == FeedbackStatus.PENDING
 
@@ -238,20 +237,20 @@ def test_get_feedbacks_with_feedback_status_filter(
             )
         )
         assert response_rejected.success is True
-        assert (
-            len(response_rejected.feedbacks) >= 1
-        ), "Should have at least 1 REJECTED feedback"
+        assert len(response_rejected.feedbacks) >= 1, (
+            "Should have at least 1 REJECTED feedback"
+        )
         for feedback in response_rejected.feedbacks:
             assert feedback.feedback_status == FeedbackStatus.REJECTED
 
         # Verify filtered counts are less than default (no filter) count
         # This confirms that filters are actually excluding feedbacks
-        assert len(response_approved.feedbacks) < len(
-            response_default.feedbacks
-        ), "APPROVED filter should return fewer feedbacks than no filter"
-        assert len(response_rejected.feedbacks) < len(
-            response_default.feedbacks
-        ), "REJECTED filter should return fewer feedbacks than no filter"
+        assert len(response_approved.feedbacks) < len(response_default.feedbacks), (
+            "APPROVED filter should return fewer feedbacks than no filter"
+        )
+        assert len(response_rejected.feedbacks) < len(response_default.feedbacks), (
+            "REJECTED filter should return fewer feedbacks than no filter"
+        )
 
     finally:
         if original_env is None:
@@ -605,7 +604,7 @@ def test_add_raw_feedback_end_to_end(
     assert len(stored_feedbacks.raw_feedbacks) == 3
 
     # Step 4: Verify feedback content
-    for i, feedback in enumerate(stored_feedbacks.raw_feedbacks):
+    for _i, feedback in enumerate(stored_feedbacks.raw_feedbacks):
         assert feedback.agent_version == agent_version
         assert feedback.feedback_name == feedback_name
         assert "Added feedback content" in feedback.feedback_content
@@ -804,9 +803,9 @@ def test_rerun_feedback_generation_end_to_end(
             )
         )
         assert pending_feedbacks.success is True
-        assert (
-            len(pending_feedbacks.raw_feedbacks) > 0
-        ), "PENDING feedbacks should be created"
+        assert len(pending_feedbacks.raw_feedbacks) > 0, (
+            "PENDING feedbacks should be created"
+        )
 
         # Step 4: Verify current feedbacks unchanged
         current_feedbacks_after = reflexio_instance_feedback_only.get_raw_feedbacks(
@@ -949,9 +948,9 @@ def test_feedback_source_filtering_with_matching_source(
     # At least one feedback should exist from api_feedback or all_sources_feedback
     # (they may get deduplicated into a single feedback with the first extractor's name)
     total_feedbacks = len(api_feedbacks) + len(all_sources_feedbacks)
-    assert (
-        total_feedbacks > 0
-    ), "At least one feedback should be generated from api_feedback or all_sources_feedback extractors"
+    assert total_feedbacks > 0, (
+        "At least one feedback should be generated from api_feedback or all_sources_feedback extractors"
+    )
 
     # Verify source field is set correctly for all feedbacks
     for feedback in api_feedbacks:
@@ -960,9 +959,9 @@ def test_feedback_source_filtering_with_matching_source(
         assert feedback.source == "api", "all_sources_feedback should have source='api'"
 
     # webhook_feedback should NOT have been generated (source "api" doesn't match "webhook")
-    assert (
-        len(webhook_feedbacks) == 0
-    ), "webhook_feedback should NOT be generated for source='api'"
+    assert len(webhook_feedbacks) == 0, (
+        "webhook_feedback should NOT be generated for source='api'"
+    )
 
 
 @skip_in_precommit
@@ -1001,23 +1000,23 @@ def test_feedback_source_filtering_with_non_matching_source(
     )
 
     # api_feedback should NOT have been generated (source "other" doesn't match "api")
-    assert (
-        len(api_feedbacks) == 0
-    ), "api_feedback should NOT be generated for source='other'"
+    assert len(api_feedbacks) == 0, (
+        "api_feedback should NOT be generated for source='other'"
+    )
 
     # webhook_feedback should NOT have been generated (source "other" doesn't match "webhook")
-    assert (
-        len(webhook_feedbacks) == 0
-    ), "webhook_feedback should NOT be generated for source='other'"
+    assert len(webhook_feedbacks) == 0, (
+        "webhook_feedback should NOT be generated for source='other'"
+    )
 
     # all_sources_feedback should have been generated (no source filter)
-    assert (
-        len(all_sources_feedbacks) > 0
-    ), "all_sources_feedback should be generated for any source"
+    assert len(all_sources_feedbacks) > 0, (
+        "all_sources_feedback should be generated for any source"
+    )
     for feedback in all_sources_feedbacks:
-        assert (
-            feedback.source == "other"
-        ), "all_sources_feedback should have source='other'"
+        assert feedback.source == "other", (
+            "all_sources_feedback should have source='other'"
+        )
 
 
 @skip_in_precommit
@@ -1058,26 +1057,26 @@ def test_feedback_source_filtering_webhook_source(
     )
 
     # api_feedback should NOT have been generated (source "webhook" doesn't match "api")
-    assert (
-        len(api_feedbacks) == 0
-    ), "api_feedback should NOT be generated for source='webhook'"
+    assert len(api_feedbacks) == 0, (
+        "api_feedback should NOT be generated for source='webhook'"
+    )
 
     # At least one feedback should exist from webhook_feedback or all_sources_feedback
     # (they may get deduplicated into a single feedback with the first extractor's name)
     total_feedbacks = len(webhook_feedbacks) + len(all_sources_feedbacks)
-    assert (
-        total_feedbacks > 0
-    ), "At least one feedback should be generated from webhook_feedback or all_sources_feedback extractors"
+    assert total_feedbacks > 0, (
+        "At least one feedback should be generated from webhook_feedback or all_sources_feedback extractors"
+    )
 
     # Verify source field is set correctly for all feedbacks
     for feedback in webhook_feedbacks:
-        assert (
-            feedback.source == "webhook"
-        ), "webhook_feedback should have source='webhook'"
+        assert feedback.source == "webhook", (
+            "webhook_feedback should have source='webhook'"
+        )
     for feedback in all_sources_feedbacks:
-        assert (
-            feedback.source == "webhook"
-        ), "all_sources_feedback should have source='webhook'"
+        assert feedback.source == "webhook", (
+            "all_sources_feedback should have source='webhook'"
+        )
 
 
 @skip_in_precommit
@@ -1119,9 +1118,9 @@ def test_manual_feedback_generation_end_to_end(
                 agent_version=agent_version,
             )
         )
-        assert (
-            manual_response.success is True
-        ), f"Manual generation failed: {manual_response.msg}"
+        assert manual_response.success is True, (
+            f"Manual generation failed: {manual_response.msg}"
+        )
 
         # Step 3: Verify feedbacks were generated with CURRENT status (None)
         current_feedbacks = (
@@ -1140,9 +1139,9 @@ def test_manual_feedback_generation_end_to_end(
                 status_filter=[Status.PENDING],
             )
         )
-        assert (
-            len(pending_feedbacks) == 0
-        ), "Manual generation should not create PENDING feedbacks"
+        assert len(pending_feedbacks) == 0, (
+            "Manual generation should not create PENDING feedbacks"
+        )
 
     finally:
         if original_env is None:
@@ -1291,9 +1290,9 @@ def test_manual_feedback_generation_with_dict_input(
         manual_response = reflexio_instance_manual_feedback.manual_feedback_generation(
             {"agent_version": agent_version}
         )
-        assert (
-            manual_response.success is True
-        ), f"Dict input failed: {manual_response.msg}"
+        assert manual_response.success is True, (
+            f"Dict input failed: {manual_response.msg}"
+        )
 
     finally:
         if original_env is None:
@@ -1341,9 +1340,9 @@ def test_manual_feedback_generation_with_feedback_name_filter(
                 feedback_name=feedback_name,
             )
         )
-        assert (
-            manual_response.success is True
-        ), f"Feedback name filter failed: {manual_response.msg}"
+        assert manual_response.success is True, (
+            f"Feedback name filter failed: {manual_response.msg}"
+        )
 
     finally:
         if original_env is None:
@@ -1409,9 +1408,7 @@ def test_rerun_feedback_generation_with_source_filter(
         assert response_webhook.success is True
 
         # Step 3: Delete raw feedbacks created by this test's extractors to start fresh for rerun test
-        config = (
-            reflexio_instance_multiple_feedback_extractors.request_context.configurator.get_config()
-        )
+        config = reflexio_instance_multiple_feedback_extractors.request_context.configurator.get_config()
         for fc in config.agent_feedback_configs:
             storage.delete_all_raw_feedbacks_by_feedback_name(fc.feedback_name)
 
@@ -1424,18 +1421,18 @@ def test_rerun_feedback_generation_with_source_filter(
                 )
             )
         )
-        assert (
-            rerun_response.success is True
-        ), f"Rerun with source filter failed: {rerun_response.msg}"
+        assert rerun_response.success is True, (
+            f"Rerun with source filter failed: {rerun_response.msg}"
+        )
 
         # Step 5: Verify pending feedbacks were created with source="api"
         pending_feedbacks = storage.get_raw_feedbacks(status_filter=[Status.PENDING])
         if rerun_response.feedbacks_generated > 0:
             assert len(pending_feedbacks) > 0
             for feedback in pending_feedbacks:
-                assert (
-                    feedback.source == "api"
-                ), f"Expected source='api', got '{feedback.source}'"
+                assert feedback.source == "api", (
+                    f"Expected source='api', got '{feedback.source}'"
+                )
 
         # Step 6: Test with non-existent source - should fail
         rerun_response_invalid = (
@@ -1523,22 +1520,22 @@ def test_rerun_feedback_generation_multiple_extractors_all_sources(
         )
 
         # Step 2: Delete raw feedbacks created by this test's extractors
-        config = (
-            reflexio_instance_multiple_feedback_extractors.request_context.configurator.get_config()
-        )
+        config = reflexio_instance_multiple_feedback_extractors.request_context.configurator.get_config()
         for fc in config.agent_feedback_configs:
             storage.delete_all_raw_feedbacks_by_feedback_name(fc.feedback_name)
 
         # Step 3: Rerun WITHOUT source filter (all extractors run)
-        rerun_response = reflexio_instance_multiple_feedback_extractors.rerun_feedback_generation(
-            RerunFeedbackGenerationRequest(
-                agent_version=agent_version,
-                # source=None means all extractors run and collect their configured sources
+        rerun_response = (
+            reflexio_instance_multiple_feedback_extractors.rerun_feedback_generation(
+                RerunFeedbackGenerationRequest(
+                    agent_version=agent_version,
+                    # source=None means all extractors run and collect their configured sources
+                )
             )
         )
-        assert (
-            rerun_response.success is True
-        ), f"Rerun without source filter failed: {rerun_response.msg}"
+        assert rerun_response.success is True, (
+            f"Rerun without source filter failed: {rerun_response.msg}"
+        )
 
         # Step 4: Verify feedbacks from multiple extractors
         if rerun_response.feedbacks_generated > 0:
@@ -1597,12 +1594,12 @@ def test_rerun_feedback_generation_with_extractor_names_filter(
             user_id=user_id,
         )
         initial_feedback_names = {f.feedback_name for f in initial_feedbacks}
-        assert (
-            "api_only_feedback" in initial_feedback_names
-        ), "Initial publish should create api_only_feedback"
-        assert (
-            "general_feedback" in initial_feedback_names
-        ), "Initial publish should create general_feedback"
+        assert "api_only_feedback" in initial_feedback_names, (
+            "Initial publish should create api_only_feedback"
+        )
+        assert "general_feedback" in initial_feedback_names, (
+            "Initial publish should create general_feedback"
+        )
 
         # Step 2: Delete feedbacks for our unique agent_version to allow rerun to regenerate
         for feedback in initial_feedbacks:
@@ -1618,9 +1615,9 @@ def test_rerun_feedback_generation_with_extractor_names_filter(
                 )
             )
         )
-        assert (
-            rerun_response.success is True
-        ), f"Rerun with extractor_names failed: {rerun_response.msg}"
+        assert rerun_response.success is True, (
+            f"Rerun with extractor_names failed: {rerun_response.msg}"
+        )
 
         # Step 4: Verify only general_feedback was generated
         # Query feedbacks for our unique agent_version and user_id
@@ -1632,9 +1629,9 @@ def test_rerun_feedback_generation_with_extractor_names_filter(
 
         # If feedbacks were generated, they should only be from general_feedback
         for feedback in rerun_feedbacks:
-            assert (
-                feedback.feedback_name == "general_feedback"
-            ), f"Expected only general_feedback extractor to run, but found {feedback.feedback_name}"
+            assert feedback.feedback_name == "general_feedback", (
+                f"Expected only general_feedback extractor to run, but found {feedback.feedback_name}"
+            )
 
     finally:
         if original_env is None:

@@ -3,12 +3,13 @@ Feedback deduplication service that merges duplicate feedbacks using LLM
 and hybrid search against existing feedbacks in the database.
 """
 
-from datetime import datetime, timezone
 import logging
 import os
-from typing import Optional
+from datetime import datetime, timezone
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+from reflexio_commons.api_schema.service_schemas import RawFeedback
+from reflexio_commons.config_schema import EMBEDDING_DIMENSIONS
 
 from reflexio.server.api_endpoints.request_context import RequestContext
 from reflexio.server.llm.litellm_client import LiteLLMClient
@@ -20,8 +21,6 @@ from reflexio.server.services.feedback.feedback_service_utils import (
     StructuredFeedbackContent,
     format_structured_feedback_content,
 )
-from reflexio_commons.api_schema.service_schemas import RawFeedback
-from reflexio_commons.config_schema import EMBEDDING_DIMENSIONS
 
 logger = logging.getLogger(__name__)
 
@@ -141,8 +140,8 @@ class FeedbackDeduplicator(BaseDeduplicator):
     def _retrieve_existing_feedbacks(
         self,
         new_feedbacks: list[RawFeedback],
-        user_id: Optional[str] = None,
-        agent_version: Optional[str] = None,
+        user_id: str | None = None,
+        agent_version: str | None = None,
     ) -> list[RawFeedback]:
         """
         Retrieve existing feedbacks from the database using hybrid search.
@@ -172,7 +171,9 @@ class FeedbackDeduplicator(BaseDeduplicator):
 
         # Batch-generate embeddings
         try:
-            embeddings = self.client.get_embeddings(query_texts, dimensions=EMBEDDING_DIMENSIONS)
+            embeddings = self.client.get_embeddings(
+                query_texts, dimensions=EMBEDDING_DIMENSIONS
+            )
         except Exception as e:
             logger.warning("Failed to generate embeddings for dedup search: %s", e)
             # Fall back to text-only search
@@ -184,7 +185,7 @@ class FeedbackDeduplicator(BaseDeduplicator):
 
         for i, query_text in enumerate(query_texts):
             try:
-                results = storage.search_raw_feedbacks(
+                results = storage.search_raw_feedbacks(  # type: ignore[reportOptionalMemberAccess]
                     query=query_text,
                     query_embedding=embeddings[i],
                     user_id=user_id,
@@ -197,7 +198,7 @@ class FeedbackDeduplicator(BaseDeduplicator):
                     if fb.raw_feedback_id and fb.raw_feedback_id not in seen_ids:
                         seen_ids.add(fb.raw_feedback_id)
                         existing_feedbacks.append(fb)
-            except Exception as e:
+            except Exception as e:  # noqa: PERF203
                 logger.warning(
                     "Failed to search existing feedbacks for query %d: %s", i, e
                 )
@@ -234,7 +235,7 @@ class FeedbackDeduplicator(BaseDeduplicator):
         results: list[list[RawFeedback]],
         request_id: str,
         agent_version: str,
-        user_id: Optional[str] = None,
+        user_id: str | None = None,
     ) -> tuple[list[RawFeedback], list[int]]:
         """
         Deduplicate feedbacks across extractors and against existing feedbacks in DB.
@@ -333,13 +334,13 @@ class FeedbackDeduplicator(BaseDeduplicator):
             agent_version=agent_version,
         )
 
-    def _build_deduplicated_results(
+    def _build_deduplicated_results(  # noqa: C901
         self,
         new_feedbacks: list[RawFeedback],
         existing_feedbacks: list[RawFeedback],
         dedup_output: FeedbackDeduplicationOutput,
         request_id: str,
-        agent_version: str,
+        agent_version: str,  # noqa: ARG002
     ) -> tuple[list[RawFeedback], list[int]]:
         """
         Build the deduplicated feedback list from LLM output.
@@ -390,7 +391,7 @@ class FeedbackDeduplicator(BaseDeduplicator):
                         existing_ids_to_delete.append(fb_id)
 
             # Get template from first NEW feedback in group (for metadata)
-            template_feedback: Optional[RawFeedback] = None
+            template_feedback: RawFeedback | None = None
             if group_new_indices:
                 first_new_idx = group_new_indices[0]
                 if 0 <= first_new_idx < len(new_feedbacks):
@@ -456,7 +457,11 @@ class FeedbackDeduplicator(BaseDeduplicator):
             if parsed is None:
                 continue
             prefix, idx = parsed
-            if prefix == "NEW" and idx not in handled_new_indices and 0 <= idx < len(new_feedbacks):
+            if (
+                prefix == "NEW"
+                and idx not in handled_new_indices
+                and 0 <= idx < len(new_feedbacks)
+            ):
                 result_feedbacks.append(new_feedbacks[idx])
                 handled_new_indices.add(idx)
 

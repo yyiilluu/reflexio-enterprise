@@ -1,10 +1,11 @@
-from reflexio.server.api_endpoints.request_context import RequestContext
-from reflexio.server.db.db_operations import db_session_context
-from reflexio.server.db import db_models
 from reflexio_commons.api_schema.service_schemas import (
-    DeleteUserProfileRequest,
     DeleteUserInteractionRequest,
+    DeleteUserProfileRequest,
 )
+
+from reflexio.server.api_endpoints.request_context import RequestContext
+from reflexio.server.db import db_models
+from reflexio.server.db.db_operations import db_session_context
 
 
 def clear_organization_data(org_id: str):

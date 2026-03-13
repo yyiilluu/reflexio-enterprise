@@ -9,10 +9,11 @@ Tests the deduplicator's responsibilities for:
 - Merging custom features
 """
 
-import pytest
+import uuid
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
-import uuid
+
+import pytest
 
 
 # Disable mock mode for deduplicator tests so LLM mocks are actually used
@@ -23,18 +24,18 @@ def disable_mock_llm_response(monkeypatch):
 
 
 from reflexio_commons.api_schema.service_schemas import (
-    UserProfile,
     ProfileTimeToLive,
+    UserProfile,
 )
+
 from reflexio.server.api_endpoints.request_context import RequestContext
 from reflexio.server.llm.litellm_client import LiteLLMClient
+from reflexio.server.services.deduplication_utils import parse_item_id
 from reflexio.server.services.profile.profile_deduplicator import (
+    ProfileDeduplicationOutput,
     ProfileDeduplicator,
     ProfileDuplicateGroup,
-    ProfileDeduplicationOutput,
 )
-from reflexio.server.services.deduplication_utils import parse_item_id
-
 
 # ===============================
 # Fixtures
@@ -126,7 +127,7 @@ class TestPydanticModels:
 
     def test_duplicate_group_forbids_extra_fields(self):
         """Test that ProfileDuplicateGroup forbids extra fields."""
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017
             ProfileDuplicateGroup(
                 item_ids=["NEW-0"],
                 merged_content="test",
@@ -458,12 +459,14 @@ class TestBuildDeduplicatedResults:
             request_context=mock_request_context,
             llm_client=mock_llm_client,
         )
-        result_profiles, delete_ids, superseded = deduplicator._build_deduplicated_results(
-            new_profiles=sample_profiles,
-            existing_profiles=[],
-            dedup_output=dedup_output,
-            user_id="test_user",
-            request_id="test_request",
+        result_profiles, delete_ids, superseded = (
+            deduplicator._build_deduplicated_results(
+                new_profiles=sample_profiles,
+                existing_profiles=[],
+                dedup_output=dedup_output,
+                user_id="test_user",
+                request_id="test_request",
+            )
         )
 
         assert len(result_profiles) == 2  # 1 merged + 1 unique
@@ -472,7 +475,11 @@ class TestBuildDeduplicatedResults:
 
         # Find the merged profile
         merged_profile = next(
-            (p for p in result_profiles if p.profile_content == "User prefers dark mode in their IDE"),
+            (
+                p
+                for p in result_profiles
+                if p.profile_content == "User prefers dark mode in their IDE"
+            ),
             None,
         )
         assert merged_profile is not None
@@ -495,12 +502,14 @@ class TestBuildDeduplicatedResults:
             request_context=mock_request_context,
             llm_client=mock_llm_client,
         )
-        result_profiles, delete_ids, superseded = deduplicator._build_deduplicated_results(
-            new_profiles=sample_profiles,
-            existing_profiles=[],
-            dedup_output=dedup_output,
-            user_id="test_user",
-            request_id="test_request",
+        result_profiles, delete_ids, superseded = (
+            deduplicator._build_deduplicated_results(
+                new_profiles=sample_profiles,
+                existing_profiles=[],
+                dedup_output=dedup_output,
+                user_id="test_user",
+                request_id="test_request",
+            )
         )
 
         assert len(result_profiles) == 3
@@ -614,12 +623,14 @@ class TestBuildDeduplicatedResults:
             request_context=mock_request_context,
             llm_client=mock_llm_client,
         )
-        result_profiles, delete_ids, superseded = deduplicator._build_deduplicated_results(
-            new_profiles=sample_profiles,
-            existing_profiles=[existing_profile],
-            dedup_output=dedup_output,
-            user_id="test_user",
-            request_id="test_request",
+        result_profiles, delete_ids, superseded = (
+            deduplicator._build_deduplicated_results(
+                new_profiles=sample_profiles,
+                existing_profiles=[existing_profile],
+                dedup_output=dedup_output,
+                user_id="test_user",
+                request_id="test_request",
+            )
         )
 
         assert len(delete_ids) == 1
@@ -764,7 +775,9 @@ class TestDeduplicate:
         )
 
         # Mock storage to return existing profile via hybrid search
-        mock_request_context.storage.search_user_profile.return_value = [existing_profile]
+        mock_request_context.storage.search_user_profile.return_value = [
+            existing_profile
+        ]
 
         mock_llm_client.generate_chat_response.return_value = (
             ProfileDeduplicationOutput(
@@ -874,7 +887,11 @@ class TestIntegration:
 
         # Find merged profile
         merged = next(
-            (p for p in result_profiles if "financial services industry" in p.profile_content),
+            (
+                p
+                for p in result_profiles
+                if "financial services industry" in p.profile_content
+            ),
             None,
         )
         assert merged is not None

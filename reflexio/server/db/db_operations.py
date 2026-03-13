@@ -9,15 +9,16 @@ Supports three backends:
 
 import logging
 import os
-from datetime import datetime, timezone
-from typing import Optional
-from sqlalchemy.orm import Session
+from collections.abc import Generator
 from contextlib import contextmanager
+from datetime import datetime, timezone
+
+from sqlalchemy.orm import Session
 from tenacity import (
     retry,
+    retry_if_exception_type,
     stop_after_attempt,
     wait_exponential,
-    retry_if_exception_type,
 )
 
 from reflexio.server.db import db_models
@@ -56,10 +57,10 @@ def _supabase_row_to_organization(row: dict) -> db_models.Organization:
         Organization model instance (detached, not bound to SQLAlchemy session)
     """
     org = db_models.Organization()
-    org.id = row.get("id")
-    org.created_at = row.get("created_at")
-    org.email = row.get("email")
-    org.hashed_password = row.get("hashed_password")
+    org.id = row.get("id")  # type: ignore[reportAttributeAccessIssue]
+    org.created_at = row.get("created_at")  # type: ignore[reportAttributeAccessIssue]
+    org.email = row.get("email")  # type: ignore[reportAttributeAccessIssue]
+    org.hashed_password = row.get("hashed_password")  # type: ignore[reportAttributeAccessIssue]
     org.is_active = row.get("is_active", True)
     org.is_verified = row.get("is_verified", False)
     org.interaction_count = row.get("interaction_count", 0)
@@ -73,13 +74,15 @@ def _supabase_row_to_organization(row: dict) -> db_models.Organization:
     wait=wait_exponential(multiplier=1, min=1, max=4),
     retry=retry_if_exception_type(Exception),
     before_sleep=lambda retry_state: logger.warning(
-        f"Retrying get_organization_by_email (attempt {retry_state.attempt_number}): {retry_state.outcome.exception()}"
+        "Retrying get_organization_by_email (attempt %s): %s",
+        retry_state.attempt_number,
+        retry_state.outcome.exception(),  # type: ignore[reportOptionalMemberAccess]
     ),
     reraise=True,
 )
 def get_organization_by_email(
     session: Session, email: str
-) -> Optional[db_models.Organization]:
+) -> db_models.Organization | None:
     """
     Get an organization by email.
 
@@ -103,15 +106,14 @@ def get_organization_by_email(
         if response.data:
             return _supabase_row_to_organization(response.data[0])
         return None
-    else:
-        if session is None:
-            logger.error("No session available and Supabase client not configured")
-            return None
-        return (
-            session.query(db_models.Organization)
-            .filter(db_models.Organization.email == email)
-            .first()
-        )
+    if session is None:
+        logger.error("No session available and Supabase client not configured")
+        return None
+    return (
+        session.query(db_models.Organization)
+        .filter(db_models.Organization.email == email)
+        .first()
+    )
 
 
 def get_organizations(
@@ -142,11 +144,10 @@ def get_organizations(
             .execute()
         )
         return [_supabase_row_to_organization(row) for row in response.data]
-    else:
-        if session is None:
-            logger.error("No session available and Supabase client not configured")
-            return []
-        return session.query(db_models.Organization).offset(skip).limit(limit).all()
+    if session is None:
+        logger.error("No session available and Supabase client not configured")
+        return []
+    return session.query(db_models.Organization).offset(skip).limit(limit).all()
 
 
 def create_organization(
@@ -188,15 +189,14 @@ def create_organization(
         }
         response = client.table("organizations").insert(data).execute()
         if response.data:
-            return _supabase_row_to_organization(response.data[0])
+            return _supabase_row_to_organization(response.data[0])  # type: ignore[reportArgumentType]
         raise Exception("Failed to create organization in Supabase")
-    else:
-        if session is None:
-            raise Exception("No session available and Supabase client not configured")
-        session.add(organization)
-        session.commit()
-        session.refresh(organization)
-        return organization
+    if session is None:
+        raise Exception("No session available and Supabase client not configured")
+    session.add(organization)
+    session.commit()
+    session.refresh(organization)
+    return organization
 
 
 def update_organization(
@@ -237,16 +237,15 @@ def update_organization(
         if response.data:
             return _supabase_row_to_organization(response.data[0])
         raise Exception("Failed to update organization in Supabase")
-    else:
-        if session is None:
-            raise Exception("No session available and Supabase client not configured")
-        session.commit()
-        session.refresh(organization)
-        return organization
+    if session is None:
+        raise Exception("No session available and Supabase client not configured")
+    session.commit()
+    session.refresh(organization)
+    return organization
 
 
 # Dependency
-def get_db_session():
+def get_db_session() -> Generator[Session | None, None, None]:
     """
     FastAPI dependency that yields a database session.
 
@@ -275,19 +274,17 @@ def _row_to_invitation_code(row: dict) -> db_models.InvitationCode:
         InvitationCode object
     """
     inv = db_models.InvitationCode()
-    inv.id = row.get("id")
-    inv.code = row.get("code")
+    inv.id = row.get("id")  # type: ignore[reportAttributeAccessIssue]
+    inv.code = row.get("code")  # type: ignore[reportAttributeAccessIssue]
     inv.is_used = row.get("is_used", False)
-    inv.used_by_email = row.get("used_by_email")
-    inv.used_at = row.get("used_at")
-    inv.created_at = row.get("created_at")
-    inv.expires_at = row.get("expires_at")
+    inv.used_by_email = row.get("used_by_email")  # type: ignore[reportAttributeAccessIssue]
+    inv.used_at = row.get("used_at")  # type: ignore[reportAttributeAccessIssue]
+    inv.created_at = row.get("created_at")  # type: ignore[reportAttributeAccessIssue]
+    inv.expires_at = row.get("expires_at")  # type: ignore[reportAttributeAccessIssue]
     return inv
 
 
-def get_invitation_code(
-    session: Session, code: str
-) -> Optional[db_models.InvitationCode]:
+def get_invitation_code(session: Session, code: str) -> db_models.InvitationCode | None:
     """
     Look up an invitation code by its code string.
 
@@ -306,20 +303,19 @@ def get_invitation_code(
         if response.data:
             return _row_to_invitation_code(response.data[0])
         return None
-    else:
-        if session is None:
-            logger.error("No session available and Supabase client not configured")
-            return None
-        return (
-            session.query(db_models.InvitationCode)
-            .filter(db_models.InvitationCode.code == code)
-            .first()
-        )
+    if session is None:
+        logger.error("No session available and Supabase client not configured")
+        return None
+    return (
+        session.query(db_models.InvitationCode)
+        .filter(db_models.InvitationCode.code == code)
+        .first()
+    )
 
 
 def claim_invitation_code(
     session: Session, code: str, email: str
-) -> Optional[db_models.InvitationCode]:
+) -> db_models.InvitationCode | None:
     """
     Atomically claim an invitation code — validates it is unused and not expired,
     then marks it as used in a single operation to prevent race conditions.
@@ -349,26 +345,25 @@ def claim_invitation_code(
         if not response.data:
             return None
         return _row_to_invitation_code(response.data[0])
-    else:
-        if session is None:
-            logger.error("No session available and Supabase client not configured")
-            return None
-        # Use SELECT ... FOR UPDATE to lock the row and prevent concurrent claims
-        inv = (
-            session.query(db_models.InvitationCode)
-            .filter(db_models.InvitationCode.code == code)
-            .with_for_update()
-            .first()
-        )
-        if inv is None or inv.is_used:
-            return None
-        if inv.expires_at and inv.expires_at < now:
-            return None
-        inv.is_used = True
-        inv.used_by_email = email
-        inv.used_at = now
-        session.flush()
-        return inv
+    if session is None:
+        logger.error("No session available and Supabase client not configured")
+        return None
+    # Use SELECT ... FOR UPDATE to lock the row and prevent concurrent claims
+    inv = (
+        session.query(db_models.InvitationCode)
+        .filter(db_models.InvitationCode.code == code)
+        .with_for_update()
+        .first()
+    )
+    if inv is None or inv.is_used:  # type: ignore[reportGeneralTypeIssues]
+        return None
+    if inv.expires_at and inv.expires_at < now:  # type: ignore[reportGeneralTypeIssues]
+        return None
+    inv.is_used = True  # type: ignore[reportAttributeAccessIssue]
+    inv.used_by_email = email  # type: ignore[reportAttributeAccessIssue]
+    inv.used_at = now  # type: ignore[reportAttributeAccessIssue]
+    session.flush()
+    return inv
 
 
 def release_invitation_code(session: Session, code: str) -> None:
@@ -396,14 +391,14 @@ def release_invitation_code(session: Session, code: str) -> None:
             .first()
         )
         if inv:
-            inv.is_used = False
-            inv.used_by_email = None
-            inv.used_at = None
+            inv.is_used = False  # type: ignore[reportAttributeAccessIssue]
+            inv.used_by_email = None  # type: ignore[reportAttributeAccessIssue]
+            inv.used_at = None  # type: ignore[reportAttributeAccessIssue]
             session.flush()
 
 
 def create_invitation_code(
-    session: Session, code: str, expires_at: Optional[int] = None
+    session: Session, code: str, expires_at: int | None = None
 ) -> db_models.InvitationCode:
     """
     Insert a new invitation code into the database.
@@ -427,20 +422,19 @@ def create_invitation_code(
         }
         response = client.table("invitation_codes").insert(data).execute()
         if response.data:
-            return _row_to_invitation_code(response.data[0])
+            return _row_to_invitation_code(response.data[0])  # type: ignore[reportArgumentType]
         raise Exception("Failed to create invitation code in Supabase")
-    else:
-        if session is None:
-            raise Exception("No session available and Supabase client not configured")
-        inv = db_models.InvitationCode(
-            code=code,
-            created_at=created_at,
-            expires_at=expires_at,
-        )
-        session.add(inv)
-        session.commit()
-        session.refresh(inv)
-        return inv
+    if session is None:
+        raise Exception("No session available and Supabase client not configured")
+    inv = db_models.InvitationCode(
+        code=code,
+        created_at=created_at,
+        expires_at=expires_at,
+    )
+    session.add(inv)
+    session.commit()
+    session.refresh(inv)
+    return inv
 
 
 def _row_to_api_token(row: dict) -> db_models.ApiToken:
@@ -454,12 +448,12 @@ def _row_to_api_token(row: dict) -> db_models.ApiToken:
         ApiToken model instance
     """
     token = db_models.ApiToken()
-    token.id = row.get("id")
-    token.org_id = row.get("org_id")
-    token.token = row.get("token")
+    token.id = row.get("id")  # type: ignore[reportAttributeAccessIssue]
+    token.org_id = row.get("org_id")  # type: ignore[reportAttributeAccessIssue]
+    token.token = row.get("token")  # type: ignore[reportAttributeAccessIssue]
     token.name = row.get("name", "Default")
-    token.created_at = row.get("created_at")
-    token.last_used_at = row.get("last_used_at")
+    token.created_at = row.get("created_at")  # type: ignore[reportAttributeAccessIssue]
+    token.last_used_at = row.get("last_used_at")  # type: ignore[reportAttributeAccessIssue]
     return token
 
 
@@ -494,26 +488,23 @@ def create_api_token(
         }
         response = client.table("api_tokens").insert(data).execute()
         if response.data:
-            return _row_to_api_token(response.data[0])
+            return _row_to_api_token(response.data[0])  # type: ignore[reportArgumentType]
         raise Exception("Failed to create API token in Supabase")
-    else:
-        if session is None:
-            raise Exception("No session available and Supabase client not configured")
-        api_token = db_models.ApiToken(
-            org_id=org_id,
-            token=token_value,
-            name=name,
-            created_at=created_at,
-        )
-        session.add(api_token)
-        session.commit()
-        session.refresh(api_token)
-        return api_token
+    if session is None:
+        raise Exception("No session available and Supabase client not configured")
+    api_token = db_models.ApiToken(
+        org_id=org_id,
+        token=token_value,
+        name=name,
+        created_at=created_at,
+    )
+    session.add(api_token)
+    session.commit()
+    session.refresh(api_token)
+    return api_token
 
 
-def get_api_tokens_by_org_id(
-    session: Session, org_id: int
-) -> list[db_models.ApiToken]:
+def get_api_tokens_by_org_id(session: Session, org_id: int) -> list[db_models.ApiToken]:
     """
     Get all API tokens for an organization.
 
@@ -538,20 +529,19 @@ def get_api_tokens_by_org_id(
             .execute()
         )
         return [_row_to_api_token(row) for row in response.data]
-    else:
-        if session is None:
-            return []
-        return (
-            session.query(db_models.ApiToken)
-            .filter(db_models.ApiToken.org_id == org_id)
-            .order_by(db_models.ApiToken.created_at)
-            .all()
-        )
+    if session is None:
+        return []
+    return (
+        session.query(db_models.ApiToken)
+        .filter(db_models.ApiToken.org_id == org_id)
+        .order_by(db_models.ApiToken.created_at)
+        .all()
+    )
 
 
 def get_org_by_api_token(
     session: Session, token_value: str
-) -> Optional[db_models.Organization]:
+) -> db_models.Organization | None:
     """
     Look up an organization by API token value.
 
@@ -579,34 +569,28 @@ def get_org_by_api_token(
         org_id = response.data[0]["org_id"]
         # Now get the organization
         org_response = (
-            client.table("organizations")
-            .select("*")
-            .eq("id", org_id)
-            .execute()
+            client.table("organizations").select("*").eq("id", org_id).execute()
         )
         if org_response.data:
             return _supabase_row_to_organization(org_response.data[0])
         return None
-    else:
-        if session is None:
-            return None
-        api_token = (
-            session.query(db_models.ApiToken)
-            .filter(db_models.ApiToken.token == token_value)
-            .first()
-        )
-        if api_token is None:
-            return None
-        return (
-            session.query(db_models.Organization)
-            .filter(db_models.Organization.id == api_token.org_id)
-            .first()
-        )
+    if session is None:
+        return None
+    api_token = (
+        session.query(db_models.ApiToken)
+        .filter(db_models.ApiToken.token == token_value)
+        .first()
+    )
+    if api_token is None:
+        return None
+    return (
+        session.query(db_models.Organization)
+        .filter(db_models.Organization.id == api_token.org_id)
+        .first()
+    )
 
 
-def delete_api_token(
-    session: Session, token_id: int, org_id: int
-) -> bool:
+def delete_api_token(session: Session, token_id: int, org_id: int) -> bool:
     """
     Delete an API token, ensuring it belongs to the given organization.
 
@@ -632,22 +616,21 @@ def delete_api_token(
             .execute()
         )
         return len(response.data) > 0
-    else:
-        if session is None:
-            return False
-        result = (
-            session.query(db_models.ApiToken)
-            .filter(
-                db_models.ApiToken.id == token_id,
-                db_models.ApiToken.org_id == org_id,
-            )
-            .first()
+    if session is None:
+        return False
+    result = (
+        session.query(db_models.ApiToken)
+        .filter(
+            db_models.ApiToken.id == token_id,
+            db_models.ApiToken.org_id == org_id,
         )
-        if result is None:
-            return False
-        session.delete(result)
-        session.commit()
-        return True
+        .first()
+    )
+    if result is None:
+        return False
+    session.delete(result)
+    session.commit()
+    return True
 
 
 def delete_all_api_tokens_for_org(session: Session, org_id: int) -> int:
@@ -667,23 +650,17 @@ def delete_all_api_tokens_for_org(session: Session, org_id: int) -> int:
 
     client = get_login_supabase_client()
     if client:
-        response = (
-            client.table("api_tokens")
-            .delete()
-            .eq("org_id", org_id)
-            .execute()
-        )
+        response = client.table("api_tokens").delete().eq("org_id", org_id).execute()
         return len(response.data)
-    else:
-        if session is None:
-            return 0
-        count = (
-            session.query(db_models.ApiToken)
-            .filter(db_models.ApiToken.org_id == org_id)
-            .delete()
-        )
-        session.commit()
-        return count
+    if session is None:
+        return 0
+    count = (
+        session.query(db_models.ApiToken)
+        .filter(db_models.ApiToken.org_id == org_id)
+        .delete()
+    )
+    session.commit()
+    return count
 
 
 def delete_organization(session: Session, org_id: int) -> bool:
@@ -703,29 +680,23 @@ def delete_organization(session: Session, org_id: int) -> bool:
 
     client = get_login_supabase_client()
     if client:
-        response = (
-            client.table("organizations")
-            .delete()
-            .eq("id", org_id)
-            .execute()
-        )
+        response = client.table("organizations").delete().eq("id", org_id).execute()
         return len(response.data) > 0
-    else:
-        if session is None:
-            return False
-        result = (
-            session.query(db_models.Organization)
-            .filter(db_models.Organization.id == org_id)
-            .first()
-        )
-        if result is None:
-            return False
-        session.delete(result)
-        session.commit()
-        return True
+    if session is None:
+        return False
+    result = (
+        session.query(db_models.Organization)
+        .filter(db_models.Organization.id == org_id)
+        .first()
+    )
+    if result is None:
+        return False
+    session.delete(result)
+    session.commit()
+    return True
 
 
-def add_db_model(session: Session, db_model: db_models.Base) -> db_models.Base:
+def add_db_model(session: Session, db_model: db_models.Base) -> db_models.Base:  # type: ignore[reportInvalidTypeForm]
     """
     Add a generic database model (SQLAlchemy only, for backward compatibility).
 
@@ -745,7 +716,7 @@ def add_db_model(session: Session, db_model: db_models.Base) -> db_models.Base:
 
 
 @contextmanager
-def db_session_context():
+def db_session_context() -> Generator[Session | None, None, None]:
     """
     Context manager for database sessions.
 
@@ -767,7 +738,7 @@ if __name__ == "__main__":
         print("Using cloud Supabase for login database")
         # Test with Supabase
         with db_session_context() as s:
-            orgs = get_organizations(s, limit=5)
+            orgs = get_organizations(s, limit=5)  # type: ignore[reportArgumentType]
             for org in orgs:
                 print(f"  - {org.email}")
     else:

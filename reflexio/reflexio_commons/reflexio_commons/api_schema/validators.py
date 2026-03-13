@@ -12,14 +12,13 @@ Usage:
     )
 """
 
+import ipaddress
 import os
 import re
-import ipaddress
-from typing import Annotated, Any, Optional
+from typing import Annotated, Any
 from urllib.parse import urlparse
 
 from pydantic import AfterValidator, HttpUrl
-
 
 # Embedding vector dimensions — must match config_schema.EMBEDDING_DIMENSIONS.
 # Duplicated here to avoid circular imports (config_schema imports from this module).
@@ -49,7 +48,7 @@ def _check_non_empty_str(v: str) -> str:
     return stripped
 
 
-def _check_optional_non_empty_str(v: Optional[str]) -> Optional[str]:
+def _check_optional_non_empty_str(v: str | None) -> str | None:
     """Validate that an optional string, if provided, is not empty or whitespace-only.
 
     Args:
@@ -93,7 +92,9 @@ def _check_embedding_dimensions(v: list[float]) -> list[float]:
 NonEmptyStr = Annotated[str, AfterValidator(_check_non_empty_str)]
 """String that rejects empty/whitespace-only values. Strips leading/trailing whitespace."""
 
-OptionalNonEmptyStr = Annotated[Optional[str], AfterValidator(_check_optional_non_empty_str)]
+OptionalNonEmptyStr = Annotated[
+    str | None, AfterValidator(_check_optional_non_empty_str)
+]
 """Optional string that, if provided, rejects empty/whitespace-only values."""
 
 EmbeddingVector = Annotated[list[float], AfterValidator(_check_embedding_dimensions)]
@@ -148,26 +149,25 @@ def _check_safe_url(v: Any) -> Any:
     try:
         ip = ipaddress.ip_address(host)
         if str(ip) in METADATA_IPS:
-            raise ValueError(
-                f"URL must not target cloud metadata endpoint: {host}"
-            )
+            raise ValueError(f"URL must not target cloud metadata endpoint: {host}")
 
         # In strict mode, also block private/localhost
-        if _is_strict_mode():
-            if ip.is_private or ip.is_reserved or ip.is_loopback or ip.is_link_local:
-                raise ValueError(
-                    f"URL targets private/reserved IP '{host}'. "
-                    f"If running locally, unset REFLEXIO_BLOCK_PRIVATE_URLS."
-                )
+        if _is_strict_mode() and (
+            ip.is_private or ip.is_reserved or ip.is_loopback or ip.is_link_local
+        ):
+            raise ValueError(
+                f"URL targets private/reserved IP '{host}'. "
+                f"If running locally, unset REFLEXIO_BLOCK_PRIVATE_URLS."
+            )
     except ValueError as e:
         if "must not target" in str(e) or "targets private" in str(e):
             raise
         # Not an IP (hostname) — check localhost in strict mode
-        if _is_strict_mode() and host in ("localhost", "0.0.0.0"):
+        if _is_strict_mode() and host in ("localhost", "0.0.0.0"):  # noqa: S104
             raise ValueError(
                 f"URL targets '{host}'. "
                 f"If running locally, unset REFLEXIO_BLOCK_PRIVATE_URLS."
-            )
+            ) from None
 
     return v
 
@@ -250,6 +250,5 @@ class TimeRangeValidatorMixin:
         Raises:
             ValueError: If end_time is not after start_time
         """
-        if start_time is not None and end_time is not None:
-            if end_time <= start_time:
-                raise ValueError("end_time must be after start_time")
+        if start_time is not None and end_time is not None and end_time <= start_time:
+            raise ValueError("end_time must be after start_time")

@@ -12,16 +12,15 @@ Prerequisites:
 import sys
 
 from reflexio import (
-    ReflexioClient,
-    SkillStatus,
-    RawFeedback,
-    Config,
     AgentFeedbackConfig,
+    Config,
     FeedbackAggregatorConfig,
+    RawFeedback,
+    ReflexioClient,
     SkillGeneratorConfig,
+    SkillStatus,
     ToolUseConfig,
 )
-
 
 BASE_URL = "http://localhost:8081"
 FEEDBACK_NAME = "default"
@@ -182,9 +181,9 @@ def test_run_skill_generation(client: ReflexioClient) -> None:
     if result.message:
         print(f"  Message: {result.message}")
     assert result.success, "Skill generation failed"
-    assert (
-        result.skills_generated > 0 or result.skills_updated > 0
-    ), "No skills produced"
+    assert result.skills_generated > 0 or result.skills_updated > 0, (
+        "No skills produced"
+    )
 
 
 def test_get_skills(client: ReflexioClient) -> list:
@@ -334,9 +333,9 @@ def main():
         # Verify at least one skill has allowed_tools (from tool-usage cluster)
         skills_with_tools = [s for s in skills if s.allowed_tools]
         print(f"\n  Skills with allowed_tools: {len(skills_with_tools)}/{len(skills)}")
-        assert (
-            len(skills_with_tools) > 0
-        ), "Expected at least one skill with allowed_tools"
+        assert len(skills_with_tools) > 0, (
+            "Expected at least one skill with allowed_tools"
+        )
 
         # 3. Filtered listing
         test_get_skills_filtered(client)

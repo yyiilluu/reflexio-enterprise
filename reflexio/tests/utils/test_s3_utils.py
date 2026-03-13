@@ -1,14 +1,16 @@
 import json
-import pytest
+
 import boto3
-from moto import mock_aws
+import pytest
 from botocore.exceptions import ClientError
+from moto import mock_aws
+
 from reflexio.utils.s3_utils import S3Utils
 
 TEST_BUCKET = "test-bucket"
 TEST_REGION = "us-east-1"
 TEST_ACCESS_TEST = "my_access_key"
-TEST_SECRET_KEY = "my_very_secret_key"
+TEST_SECRET_KEY = "my_very_secret_key"  # noqa: S105
 TEST_FILE_KEY = "test/file.json"
 TEST_DATA = {"key": "value", "nested": {"data": [1, 2, 3]}}
 

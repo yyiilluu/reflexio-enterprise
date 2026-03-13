@@ -7,30 +7,29 @@ Tests the evaluator's responsibilities for:
 - Running evaluations on provided interactions
 """
 
-import pytest
 import os
 import tempfile
 from unittest.mock import MagicMock, patch
 
+import pytest
+from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 from reflexio_commons.api_schema.service_schemas import (
     Interaction,
     Request,
 )
-from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 from reflexio_commons.config_schema import AgentSuccessConfig
 
 from reflexio.server.api_endpoints.request_context import RequestContext
-from reflexio.server.services.agent_success_evaluation.agent_success_evaluator import (
-    AgentSuccessEvaluator,
+from reflexio.server.llm.litellm_client import LiteLLMClient
+from reflexio.server.services.agent_success_evaluation.agent_success_evaluation_constants import (
+    AgentSuccessEvaluationOutput,
 )
 from reflexio.server.services.agent_success_evaluation.agent_success_evaluation_service import (
     AgentSuccessGenerationServiceConfig,
 )
-from reflexio.server.services.agent_success_evaluation.agent_success_evaluation_constants import (
-    AgentSuccessEvaluationOutput,
+from reflexio.server.services.agent_success_evaluation.agent_success_evaluator import (
+    AgentSuccessEvaluator,
 )
-from reflexio.server.llm.litellm_client import LiteLLMClient
-
 
 # ===============================
 # Fixtures

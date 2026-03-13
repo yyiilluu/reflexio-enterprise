@@ -1,10 +1,11 @@
-from cryptography import fernet
-from cryptography.fernet import MultiFernet, Fernet
 import traceback
+
+from cryptography import fernet
+from cryptography.fernet import Fernet, MultiFernet
 
 
 class EncryptManager:
-    multi_fernet: MultiFernet = None
+    multi_fernet: MultiFernet | None = None
 
     def __init__(self, fernet_keys: str):
         fernet_key_list: list[bytes] = []
@@ -20,12 +21,12 @@ class EncryptManager:
         for k in fernet_key_list:
             try:
                 fernets += [Fernet(k)]
-            except:
+            except Exception:  # noqa: S112, PERF203
                 continue
         if len(fernets) > 0:
             self.multi_fernet = MultiFernet(fernets)
 
-    def rotate(self, encrypted_value: str) -> str:
+    def rotate(self, encrypted_value: str) -> str | None:
         if not self.multi_fernet:
             return encrypted_value
         try:
@@ -42,7 +43,7 @@ class EncryptManager:
                 print(f"  {tb}")
             return None
 
-    def encrypt(self, value: str) -> str:
+    def encrypt(self, value: str) -> str | None:
         if not self.multi_fernet:
             return value
         try:
@@ -54,7 +55,7 @@ class EncryptManager:
                 print(f"  {tb}")
             return None
 
-    def decrypt(self, encrypted_value: str, ttl: int = None) -> str:
+    def decrypt(self, encrypted_value: str, ttl: int | None = None) -> str | None:
         if not self.multi_fernet:
             return encrypted_value
         try:

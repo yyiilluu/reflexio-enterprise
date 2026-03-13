@@ -1,33 +1,40 @@
-from dataclasses import dataclass, field
+from __future__ import annotations
+
 import logging
 import uuid
-from typing import Optional, Union
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from reflexio.server.api_endpoints.request_context import RequestContext
+    from reflexio.server.llm.litellm_client import LiteLLMClient
 
 from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 from reflexio_commons.api_schema.service_schemas import (
+    DowngradeRawFeedbacksResponse,
+    ManualFeedbackGenerationRequest,
+    ManualFeedbackGenerationResponse,
     RawFeedback,
     RerunFeedbackGenerationRequest,
     RerunFeedbackGenerationResponse,
-    ManualFeedbackGenerationRequest,
-    ManualFeedbackGenerationResponse,
-    UpgradeRawFeedbacksResponse,
-    DowngradeRawFeedbacksResponse,
     Status,
+    UpgradeRawFeedbacksResponse,
 )
 from reflexio_commons.config_schema import AgentFeedbackConfig
-from reflexio.server.services.feedback.feedback_extractor import FeedbackExtractor
-from reflexio.server.services.feedback.feedback_service_utils import (
-    FeedbackGenerationRequest,
-    FeedbackAggregatorRequest,
-)
-from reflexio.server.services.feedback.feedback_service_constants import (
-    FeedbackServiceConstants,
-)
+
 from reflexio.server.services.base_generation_service import (
     BaseGenerationService,
     StatusChangeOperation,
 )
 from reflexio.server.services.feedback.feedback_aggregator import FeedbackAggregator
+from reflexio.server.services.feedback.feedback_extractor import FeedbackExtractor
+from reflexio.server.services.feedback.feedback_service_constants import (
+    FeedbackServiceConstants,
+)
+from reflexio.server.services.feedback.feedback_service_utils import (
+    FeedbackAggregatorRequest,
+    FeedbackGenerationRequest,
+)
 from reflexio.server.services.service_utils import (
     format_sessions_to_history_string,
 )
@@ -53,13 +60,13 @@ class FeedbackGenerationServiceConfig:
 
     request_id: str
     agent_version: str
-    user_id: Optional[str] = None
-    source: Optional[str] = None
+    user_id: str | None = None
+    source: str | None = None
     allow_manual_trigger: bool = False
-    rerun_start_time: Optional[int] = None
-    rerun_end_time: Optional[int] = None
+    rerun_start_time: int | None = None
+    rerun_end_time: int | None = None
     auto_run: bool = True
-    extractor_names: Optional[list[str]] = None
+    extractor_names: list[str] | None = None
     is_incremental: bool = False
     previously_extracted: list[list[RawFeedback]] = field(default_factory=list)
 
@@ -79,8 +86,8 @@ class FeedbackGenerationService(
 
     def __init__(
         self,
-        llm_client,
-        request_context,
+        llm_client: LiteLLMClient,
+        request_context: RequestContext,
         allow_manual_trigger: bool = False,
         output_pending_status: bool = False,
     ) -> None:
@@ -128,7 +135,7 @@ class FeedbackGenerationService(
         Returns:
             list[AgentFeedbackConfig]: List of agent feedback configuration objects from YAML
         """
-        return self.configurator.get_config().agent_feedback_configs
+        return self.configurator.get_config().agent_feedback_configs  # type: ignore[reportReturnType]
 
     def _create_extractor(
         self,
@@ -209,16 +216,16 @@ class FeedbackGenerationService(
         """Return agent_version filter for non-auto runs."""
         return {
             "agent_version": (
-                self.service_config.agent_version
-                if not self.service_config.auto_run
+                self.service_config.agent_version  # type: ignore[reportOptionalMemberAccess]
+                if not self.service_config.auto_run  # type: ignore[reportOptionalMemberAccess]
                 else None
             ),
         }
 
     def _update_config_for_incremental(self, previously_extracted: list) -> None:
         """Update service_config for incremental feedback extraction."""
-        self.service_config.is_incremental = True
-        self.service_config.previously_extracted = list(previously_extracted)
+        self.service_config.is_incremental = True  # type: ignore[reportOptionalMemberAccess]
+        self.service_config.previously_extracted = list(previously_extracted)  # type: ignore[reportOptionalMemberAccess]
 
     def _process_results(self, results: list[list[RawFeedback]]) -> None:
         """
@@ -248,18 +255,20 @@ class FeedbackGenerationService(
             )
             deduplicated_feedbacks, existing_ids_to_delete = deduplicator.deduplicate(
                 results,
-                self.service_config.request_id,
-                self.service_config.agent_version,
-                user_id=self.service_config.user_id,
+                self.service_config.request_id,  # type: ignore[reportOptionalMemberAccess]
+                self.service_config.agent_version,  # type: ignore[reportOptionalMemberAccess]
+                user_id=self.service_config.user_id,  # type: ignore[reportOptionalMemberAccess]
             )
-            logger.info("Feedbacks after deduplication: %d", len(deduplicated_feedbacks))
+            logger.info(
+                "Feedbacks after deduplication: %d", len(deduplicated_feedbacks)
+            )
             if deduplicated_feedbacks:
                 all_feedbacks = deduplicated_feedbacks
 
         # Set status and source for all feedbacks
         for feedback in all_feedbacks:
             feedback.status = Status.PENDING if self.output_pending_status else None
-            feedback.source = self.service_config.source
+            feedback.source = self.service_config.source  # type: ignore[reportOptionalMemberAccess]
 
         logger.info("All feedbacks: %s", all_feedbacks)
 
@@ -267,18 +276,18 @@ class FeedbackGenerationService(
             "Successfully completed %d %s feedback generation for request id: %s",
             len(all_feedbacks),
             self._get_service_name(),
-            self.service_config.request_id,
+            self.service_config.request_id,  # type: ignore[reportOptionalMemberAccess]
         )
 
         # Save results
         if all_feedbacks:
             try:
-                self.storage.save_raw_feedbacks(all_feedbacks)
+                self.storage.save_raw_feedbacks(all_feedbacks)  # type: ignore[reportOptionalMemberAccess]
 
                 # Delete superseded existing feedbacks only after save succeeds
                 if existing_ids_to_delete:
                     try:
-                        deleted_count = self.storage.delete_raw_feedbacks_by_ids(
+                        deleted_count = self.storage.delete_raw_feedbacks_by_ids(  # type: ignore[reportOptionalMemberAccess]
                             existing_ids_to_delete
                         )
                         logger.info(
@@ -293,7 +302,7 @@ class FeedbackGenerationService(
                 logger.error(
                     "Failed to save %s results for request id: %s due to %s, exception type: %s",
                     self._get_service_name(),
-                    self.service_config.request_id,
+                    self.service_config.request_id,  # type: ignore[reportOptionalMemberAccess]
                     str(e),
                     type(e).__name__,
                 )
@@ -342,7 +351,7 @@ class FeedbackGenerationService(
         """
         return True
 
-    def _get_lock_scope_id(self, request: FeedbackGenerationRequest) -> Optional[str]:
+    def _get_lock_scope_id(self, request: FeedbackGenerationRequest) -> str | None:  # noqa: ARG002
         """
         Get the scope ID for lock key construction.
 
@@ -376,7 +385,7 @@ class FeedbackGenerationService(
 
             # Create aggregator request
             aggregator_request = FeedbackAggregatorRequest(
-                agent_version=self.service_config.agent_version,
+                agent_version=self.service_config.agent_version,  # type: ignore[reportOptionalMemberAccess]
                 feedback_name=feedback_name,
             )
 
@@ -384,7 +393,7 @@ class FeedbackGenerationService(
             aggregator = FeedbackAggregator(
                 llm_client=self.client,
                 request_context=self.request_context,
-                agent_version=self.service_config.agent_version,
+                agent_version=self.service_config.agent_version,  # type: ignore[reportOptionalMemberAccess]
             )
             aggregator.run(aggregator_request)
 
@@ -396,22 +405,22 @@ class FeedbackGenerationService(
                     and skill_config.enabled
                     and skill_config.auto_generate_on_aggregation
                 ):
-                    from reflexio.server.services.feedback.skill_generator import (
-                        SkillGenerator,
-                    )
                     from reflexio.server.services.feedback.feedback_service_utils import (
                         SkillGeneratorRequest,
+                    )
+                    from reflexio.server.services.feedback.skill_generator import (
+                        SkillGenerator,
                     )
 
                     logger.info("Triggering skill generation")
                     skill_gen = SkillGenerator(
                         llm_client=self.client,
                         request_context=self.request_context,
-                        agent_version=self.service_config.agent_version,
+                        agent_version=self.service_config.agent_version,  # type: ignore[reportOptionalMemberAccess]
                     )
                     skill_gen.run(
                         SkillGeneratorRequest(
-                            agent_version=self.service_config.agent_version,
+                            agent_version=self.service_config.agent_version,  # type: ignore[reportOptionalMemberAccess]
                             feedback_name=feedback_name,
                         )
                     )
@@ -431,7 +440,7 @@ class FeedbackGenerationService(
         Args:
             request: RerunFeedbackGenerationRequest with optional agent_version and feedback_name filters
         """
-        deleted_count = self.storage.delete_all_raw_feedbacks_by_status(
+        deleted_count = self.storage.delete_all_raw_feedbacks_by_status(  # type: ignore[reportOptionalMemberAccess]
             status=Status.PENDING,
             agent_version=request.agent_version,
             feedback_name=request.feedback_name,
@@ -454,7 +463,7 @@ class FeedbackGenerationService(
         Returns:
             List of user IDs to process
         """
-        return self.storage.get_rerun_user_ids(
+        return self.storage.get_rerun_user_ids(  # type: ignore[reportOptionalMemberAccess]
             user_id=None,
             start_time=(
                 int(request.start_time.timestamp()) if request.start_time else None
@@ -487,7 +496,7 @@ class FeedbackGenerationService(
     def _create_run_request_for_item(
         self,
         user_id: str,
-        request: Union[RerunFeedbackGenerationRequest, ManualFeedbackGenerationRequest],
+        request: RerunFeedbackGenerationRequest | ManualFeedbackGenerationRequest,
     ) -> FeedbackGenerationRequest:
         """Create FeedbackGenerationRequest for a single user.
 
@@ -555,7 +564,7 @@ class FeedbackGenerationService(
         Returns:
             Number of feedbacks generated
         """
-        feedbacks = self.storage.get_raw_feedbacks(
+        feedbacks = self.storage.get_raw_feedbacks(  # type: ignore[reportOptionalMemberAccess]
             feedback_name=request.feedback_name,
             agent_version=request.agent_version,
             status_filter=[Status.PENDING],
@@ -594,7 +603,7 @@ class FeedbackGenerationService(
                 )
 
             # 1. Get user_ids with recent interactions
-            requests_dict = self.storage.get_sessions(
+            requests_dict = self.storage.get_sessions(  # type: ignore[reportOptionalMemberAccess]
                 user_id=None,  # All users
                 top_k=1000,  # Get recent sessions to find users
             )
@@ -626,7 +635,7 @@ class FeedbackGenerationService(
             }
             self._run_batch_with_progress(
                 user_ids=user_ids,
-                request=request,
+                request=request,  # type: ignore[reportArgumentType]
                 request_params=request_params,
                 state_manager=state_manager,
             )
@@ -661,7 +670,7 @@ class FeedbackGenerationService(
         Returns:
             Number of feedbacks with CURRENT status
         """
-        feedbacks = self.storage.get_raw_feedbacks(
+        feedbacks = self.storage.get_raw_feedbacks(  # type: ignore[reportOptionalMemberAccess]
             feedback_name=request.feedback_name,
             agent_version=request.agent_version,
             status_filter=[None],  # CURRENT feedbacks
@@ -673,7 +682,9 @@ class FeedbackGenerationService(
     # Upgrade/Downgrade hook implementations (override base class methods)
     # ===============================
 
-    def _has_items_with_status(self, status, request) -> bool:
+    def _has_items_with_status(
+        self, status: Status | None, request: FeedbackGenerationRequest
+    ) -> bool:
         """Check if raw feedbacks exist with given status.
 
         Args:
@@ -683,13 +694,15 @@ class FeedbackGenerationService(
         Returns:
             bool: True if any matching raw feedbacks exist
         """
-        return self.storage.has_raw_feedbacks_with_status(
+        return self.storage.has_raw_feedbacks_with_status(  # type: ignore[reportOptionalMemberAccess]
             status=status,
             agent_version=getattr(request, "agent_version", None),
             feedback_name=getattr(request, "feedback_name", None),
         )
 
-    def _delete_items_by_status(self, status, request) -> int:
+    def _delete_items_by_status(
+        self, status: Status, request: FeedbackGenerationRequest
+    ) -> int:
         """Delete raw feedbacks with given status.
 
         Args:
@@ -699,14 +712,18 @@ class FeedbackGenerationService(
         Returns:
             int: Number of raw feedbacks deleted
         """
-        return self.storage.delete_all_raw_feedbacks_by_status(
+        return self.storage.delete_all_raw_feedbacks_by_status(  # type: ignore[reportOptionalMemberAccess]
             status=status,
             agent_version=getattr(request, "agent_version", None),
             feedback_name=getattr(request, "feedback_name", None),
         )
 
     def _update_items_status(
-        self, old_status, new_status, request, user_ids=None
+        self,
+        old_status: Status | None,
+        new_status: Status | None,
+        request: FeedbackGenerationRequest,
+        user_ids: list[str] | None = None,  # noqa: ARG002
     ) -> int:
         """Update raw feedbacks from old_status to new_status with request filters.
 
@@ -720,14 +737,20 @@ class FeedbackGenerationService(
             int: Number of raw feedbacks updated
         """
         # Note: user_ids is ignored for feedback service as it uses agent_version/feedback_name filters
-        return self.storage.update_all_raw_feedbacks_status(
+        return self.storage.update_all_raw_feedbacks_status(  # type: ignore[reportOptionalMemberAccess]
             old_status=old_status,
             new_status=new_status,
             agent_version=getattr(request, "agent_version", None),
             feedback_name=getattr(request, "feedback_name", None),
         )
 
-    def _create_status_change_response(self, operation, success, counts, msg):
+    def _create_status_change_response(
+        self,
+        operation: StatusChangeOperation,
+        success: bool,
+        counts: dict,
+        msg: str,
+    ) -> UpgradeRawFeedbacksResponse | DowngradeRawFeedbacksResponse:
         """Create upgrade or downgrade response object for raw feedbacks.
 
         Args:
@@ -747,10 +770,10 @@ class FeedbackGenerationService(
                 raw_feedbacks_promoted=counts.get("promoted", 0),
                 message=msg,
             )
-        else:  # DOWNGRADE
-            return DowngradeRawFeedbacksResponse(
-                success=success,
-                raw_feedbacks_demoted=counts.get("demoted", 0),
-                raw_feedbacks_restored=counts.get("restored", 0),
-                message=msg,
-            )
+        # DOWNGRADE
+        return DowngradeRawFeedbacksResponse(
+            success=success,
+            raw_feedbacks_demoted=counts.get("demoted", 0),
+            raw_feedbacks_restored=counts.get("restored", 0),
+            message=msg,
+        )

@@ -1,38 +1,44 @@
 """Service to generate user profiles from interactions"""
 
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from __future__ import annotations
+
 import logging
 import uuid
-from typing import Any, Optional, Union
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from reflexio.server.api_endpoints.request_context import RequestContext
+    from reflexio.server.llm.litellm_client import LiteLLMClient
 
 from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 from reflexio_commons.api_schema.service_schemas import (
     DeleteUserProfileRequest,
+    DowngradeProfilesResponse,
+    ManualProfileGenerationRequest,
+    ManualProfileGenerationResponse,
     ProfileChangeLog,
     RerunProfileGenerationRequest,
     RerunProfileGenerationResponse,
-    ManualProfileGenerationRequest,
-    ManualProfileGenerationResponse,
-    UpgradeProfilesResponse,
-    DowngradeProfilesResponse,
-    UserProfile,
     Status,
+    UpgradeProfilesResponse,
+    UserProfile,
 )
 from reflexio_commons.config_schema import ProfileExtractorConfig
+
+from reflexio.server.services.base_generation_service import (
+    BaseGenerationService,
+    StatusChangeOperation,
+)
 from reflexio.server.services.profile.profile_extractor import ProfileExtractor
 from reflexio.server.services.profile.profile_generation_service_utils import (
     ProfileGenerationRequest,
     ProfileGenerationServiceConstants,
 )
-from reflexio.server.services.base_generation_service import (
-    BaseGenerationService,
-    StatusChangeOperation,
-)
 from reflexio.server.services.service_utils import (
     format_sessions_to_history_string,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -56,13 +62,13 @@ class ProfileGenerationServiceConfig:
 
     user_id: str
     request_id: str
-    source: Optional[str] = None
+    source: str | None = None
     existing_data: Any = None
     allow_manual_trigger: bool = False
     output_pending_status: bool = False
-    extractor_names: Optional[list[str]] = None
-    rerun_start_time: Optional[int] = None
-    rerun_end_time: Optional[int] = None
+    extractor_names: list[str] | None = None
+    rerun_start_time: int | None = None
+    rerun_end_time: int | None = None
     auto_run: bool = True
     is_incremental: bool = False
     previously_extracted: list[list[UserProfile]] = field(default_factory=list)
@@ -80,8 +86,8 @@ class ProfileGenerationService(
 
     def __init__(
         self,
-        llm_client,
-        request_context,
+        llm_client: LiteLLMClient,
+        request_context: RequestContext,
         allow_manual_trigger: bool = False,
         output_pending_status: bool = False,
     ) -> None:
@@ -114,11 +120,11 @@ class ProfileGenerationService(
         # When output_pending_status is True (rerun mode), only include pending profiles as existing data
         # This allows the LLM to generate fresh profiles instead of just mentioning current ones
         if self.output_pending_status:
-            existing_profiles = self.storage.get_user_profile(
+            existing_profiles = self.storage.get_user_profile(  # type: ignore[reportOptionalMemberAccess]
                 request.user_id, status_filter=[Status.PENDING]
             )
         else:
-            existing_profiles = self.storage.get_user_profile(request.user_id)
+            existing_profiles = self.storage.get_user_profile(request.user_id)  # type: ignore[reportOptionalMemberAccess]
 
         return ProfileGenerationServiceConfig(
             user_id=request.user_id,
@@ -140,9 +146,9 @@ class ProfileGenerationService(
         Args:
             results: List of profile lists from extractors (one list per successful extractor)
         """
-        user_id = self.service_config.user_id
-        source = self.service_config.source
-        request_id = self.service_config.request_id
+        user_id = self.service_config.user_id  # type: ignore[reportOptionalMemberAccess]
+        source = self.service_config.source  # type: ignore[reportOptionalMemberAccess]
+        request_id = self.service_config.request_id  # type: ignore[reportOptionalMemberAccess]
 
         # Flatten all new profiles
         all_new_profiles = [p for result in results if result for p in result]
@@ -174,14 +180,12 @@ class ProfileGenerationService(
         # Set source and status for all profiles
         for profile in all_new_profiles:
             profile.source = source
-            profile.status = (
-                Status.PENDING if self.output_pending_status else None
-            )
+            profile.status = Status.PENDING if self.output_pending_status else None
 
         # Save new profiles
         if all_new_profiles:
             try:
-                self.storage.add_user_profile(user_id, all_new_profiles)
+                self.storage.add_user_profile(user_id, all_new_profiles)  # type: ignore[reportOptionalMemberAccess]
             except Exception as e:
                 logger.error(
                     "Failed to save profiles for user id: %s due to %s, exception type: %s",
@@ -195,13 +199,13 @@ class ProfileGenerationService(
         if existing_ids_to_delete:
             for profile_id in existing_ids_to_delete:
                 try:
-                    self.storage.delete_user_profile(
+                    self.storage.delete_user_profile(  # type: ignore[reportOptionalMemberAccess]
                         DeleteUserProfileRequest(
                             user_id=user_id,
                             profile_id=profile_id,
                         )
                     )
-                except Exception as e:
+                except Exception as e:  # noqa: PERF203
                     logger.error(
                         "Failed to delete superseded profile %s for user %s: %s",
                         profile_id,
@@ -221,7 +225,7 @@ class ProfileGenerationService(
                     removed_profiles=superseded_profiles,
                     mentioned_profiles=[],
                 )
-                self.storage.add_profile_change_log(profile_change_log)
+                self.storage.add_profile_change_log(profile_change_log)  # type: ignore[reportOptionalMemberAccess]
             except Exception as e:
                 logger.error(
                     "Failed to add profile change log for user %s: %s",
@@ -229,7 +233,7 @@ class ProfileGenerationService(
                     str(e),
                 )
 
-    def check_and_update_profiles(self, profiles: list[UserProfile]):
+    def check_and_update_profiles(self, profiles: list[UserProfile]) -> None:
         """check if the profiles are expired and update them if they are"""
         raise NotImplementedError
 
@@ -240,7 +244,7 @@ class ProfileGenerationService(
         Returns:
             list[ProfileExtractorConfig]: List of profile extractor configuration objects from YAML
         """
-        return self.configurator.get_config().profile_extractor_configs
+        return self.configurator.get_config().profile_extractor_configs  # type: ignore[reportReturnType]
 
     def _create_extractor(
         self,
@@ -324,8 +328,8 @@ class ProfileGenerationService(
 
     def _update_config_for_incremental(self, previously_extracted: list) -> None:
         """Update service_config for incremental profile extraction."""
-        self.service_config.is_incremental = True
-        self.service_config.previously_extracted = list(previously_extracted)
+        self.service_config.is_incremental = True  # type: ignore[reportOptionalMemberAccess]
+        self.service_config.previously_extracted = list(previously_extracted)  # type: ignore[reportOptionalMemberAccess]
 
     def _get_extractor_state_service_name(self) -> str:
         """
@@ -366,7 +370,7 @@ class ProfileGenerationService(
         """
         return True
 
-    def _get_lock_scope_id(self, request: ProfileGenerationRequest) -> Optional[str]:
+    def _get_lock_scope_id(self, request: ProfileGenerationRequest) -> str | None:
         """
         Get the scope ID for lock key construction.
 
@@ -395,7 +399,7 @@ class ProfileGenerationService(
         Returns:
             List of user IDs to process
         """
-        return self.storage.get_rerun_user_ids(
+        return self.storage.get_rerun_user_ids(  # type: ignore[reportOptionalMemberAccess]
             user_id=request.user_id,
             start_time=(
                 int(request.start_time.timestamp()) if request.start_time else None
@@ -428,7 +432,7 @@ class ProfileGenerationService(
     def _create_run_request_for_item(
         self,
         user_id: str,
-        request: Union[RerunProfileGenerationRequest, ManualProfileGenerationRequest],
+        request: RerunProfileGenerationRequest | ManualProfileGenerationRequest,
     ) -> ProfileGenerationRequest:
         """Create ProfileGenerationRequest for a single user.
 
@@ -495,8 +499,8 @@ class ProfileGenerationService(
         Returns:
             Number of profiles generated
         """
-        profiles = self.storage.get_user_profile(
-            user_id=request.user_id,
+        profiles = self.storage.get_user_profile(  # type: ignore[reportOptionalMemberAccess]
+            user_id=request.user_id,  # type: ignore[reportArgumentType]
             status_filter=[Status.PENDING],
         )
         return len(profiles)
@@ -505,7 +509,11 @@ class ProfileGenerationService(
     # Upgrade/Downgrade hook implementations (override base class methods)
     # ===============================
 
-    def _has_items_with_status(self, status, request) -> bool:
+    def _has_items_with_status(
+        self,
+        status: Status | None,
+        request: ProfileGenerationRequest,  # noqa: ARG002
+    ) -> bool:
         """Check if profiles exist with given status.
 
         Args:
@@ -515,10 +523,14 @@ class ProfileGenerationService(
         Returns:
             bool: True if any matching profiles exist
         """
-        user_ids = self.storage.get_user_ids_with_status(status=status)
+        user_ids = self.storage.get_user_ids_with_status(status=status)  # type: ignore[reportOptionalMemberAccess]
         return len(user_ids) > 0
 
-    def _delete_items_by_status(self, status, request) -> int:
+    def _delete_items_by_status(
+        self,
+        status: Status,
+        request: ProfileGenerationRequest,  # noqa: ARG002
+    ) -> int:
         """Delete profiles with given status.
 
         Args:
@@ -528,10 +540,14 @@ class ProfileGenerationService(
         Returns:
             int: Number of profiles deleted
         """
-        return self.storage.delete_all_profiles_by_status(status=status)
+        return self.storage.delete_all_profiles_by_status(status=status)  # type: ignore[reportOptionalMemberAccess]
 
     def _update_items_status(
-        self, old_status, new_status, request, user_ids=None
+        self,
+        old_status: Status | None,
+        new_status: Status | None,
+        request: ProfileGenerationRequest,  # noqa: ARG002
+        user_ids: list[str] | None = None,  # noqa: ARG002
     ) -> int:
         """Update profiles from old_status to new_status.
 
@@ -544,11 +560,13 @@ class ProfileGenerationService(
         Returns:
             int: Number of profiles updated
         """
-        return self.storage.update_all_profiles_status(
+        return self.storage.update_all_profiles_status(  # type: ignore[reportOptionalMemberAccess]
             old_status, new_status, user_ids=user_ids
         )
 
-    def _get_affected_user_ids_for_upgrade(self, request) -> Optional[list[str]]:
+    def _get_affected_user_ids_for_upgrade(
+        self, request: ProfileGenerationRequest
+    ) -> list[str] | None:
         """Get user IDs to filter by for upgrade operations.
 
         Args:
@@ -557,11 +575,13 @@ class ProfileGenerationService(
         Returns:
             Optional[list[str]]: List of user IDs with PENDING profiles, or None for no filtering
         """
-        if hasattr(request, "only_affected_users") and request.only_affected_users:
-            return self.storage.get_user_ids_with_status(Status.PENDING)
+        if hasattr(request, "only_affected_users") and request.only_affected_users:  # type: ignore[reportAttributeAccessIssue]
+            return self.storage.get_user_ids_with_status(Status.PENDING)  # type: ignore[reportOptionalMemberAccess]
         return None
 
-    def _get_affected_user_ids_for_downgrade(self, request) -> Optional[list[str]]:
+    def _get_affected_user_ids_for_downgrade(
+        self, request: ProfileGenerationRequest
+    ) -> list[str] | None:
         """Get user IDs to filter by for downgrade operations.
 
         Args:
@@ -570,11 +590,17 @@ class ProfileGenerationService(
         Returns:
             Optional[list[str]]: List of user IDs with ARCHIVED profiles, or None for no filtering
         """
-        if hasattr(request, "only_affected_users") and request.only_affected_users:
-            return self.storage.get_user_ids_with_status(Status.ARCHIVED)
+        if hasattr(request, "only_affected_users") and request.only_affected_users:  # type: ignore[reportAttributeAccessIssue]
+            return self.storage.get_user_ids_with_status(Status.ARCHIVED)  # type: ignore[reportOptionalMemberAccess]
         return None
 
-    def _create_status_change_response(self, operation, success, counts, msg):
+    def _create_status_change_response(
+        self,
+        operation: StatusChangeOperation,
+        success: bool,
+        counts: dict,
+        msg: str,
+    ) -> UpgradeProfilesResponse | DowngradeProfilesResponse:
         """Create upgrade or downgrade response object for profiles.
 
         Args:
@@ -594,13 +620,13 @@ class ProfileGenerationService(
                 profiles_promoted=counts.get("promoted", 0),
                 message=msg,
             )
-        else:  # DOWNGRADE
-            return DowngradeProfilesResponse(
-                success=success,
-                profiles_demoted=counts.get("demoted", 0),
-                profiles_restored=counts.get("restored", 0),
-                message=msg,
-            )
+        # DOWNGRADE
+        return DowngradeProfilesResponse(
+            success=success,
+            profiles_demoted=counts.get("demoted", 0),
+            profiles_restored=counts.get("restored", 0),
+            message=msg,
+        )
 
     # ===============================
     # Manual Regular Generation (window-sized, CURRENT output)
@@ -639,7 +665,7 @@ class ProfileGenerationService(
             if request.user_id:
                 user_ids = [request.user_id]
             else:
-                user_ids = self.storage.get_all_user_ids()
+                user_ids = self.storage.get_all_user_ids()  # type: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
 
             if not user_ids:
                 return ManualProfileGenerationResponse(
@@ -657,7 +683,7 @@ class ProfileGenerationService(
             }
             users_processed, _ = self._run_batch_with_progress(
                 user_ids=user_ids,
-                request=request,
+                request=request,  # type: ignore[reportArgumentType]
                 request_params=request_params,
                 state_manager=state_manager,
             )
@@ -691,8 +717,8 @@ class ProfileGenerationService(
         Returns:
             Number of profiles with CURRENT status
         """
-        profiles = self.storage.get_user_profile(
-            user_id=request.user_id,
+        profiles = self.storage.get_user_profile(  # type: ignore[reportOptionalMemberAccess]
+            user_id=request.user_id,  # type: ignore[reportArgumentType]
             status_filter=[None],  # CURRENT profiles
         )
         return len(profiles)

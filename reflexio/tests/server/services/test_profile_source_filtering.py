@@ -1,12 +1,20 @@
 """Test request source filtering for profile extractors"""
 
 import datetime
-from datetime import timezone
-import pytest
 import tempfile
+from datetime import timezone
 from unittest.mock import patch
 
+import pytest
+from reflexio_commons.api_schema.service_schemas import (
+    InteractionData,
+    PublishUserInteractionRequest,
+    Request,
+)
+from reflexio_commons.config_schema import ProfileExtractorConfig
+
 from reflexio.server.api_endpoints.request_context import RequestContext
+from reflexio.server.llm.litellm_client import LiteLLMClient, LiteLLMConfig
 from reflexio.server.services.generation_service import GenerationService
 from reflexio.server.services.profile.profile_generation_service import (
     ProfileGenerationService,
@@ -14,13 +22,6 @@ from reflexio.server.services.profile.profile_generation_service import (
 from reflexio.server.services.profile.profile_generation_service_utils import (
     ProfileGenerationRequest,
 )
-from reflexio_commons.api_schema.service_schemas import (
-    InteractionData,
-    PublishUserInteractionRequest,
-    Request,
-)
-from reflexio_commons.config_schema import ProfileExtractorConfig
-from reflexio.server.llm.litellm_client import LiteLLMClient, LiteLLMConfig
 
 
 @pytest.fixture
@@ -37,13 +38,9 @@ def mock_chat_completion():
         if "Output just a boolean value" in prompt_content:
             return "true"
         # Return parsed dict for structured output
-        else:
-            if kwargs.get("parse_structured_output", False):
-                return {
-                    "add": [{"content": "test profile", "time_to_live": "one_month"}]
-                }
-            else:
-                return '{"add": [{"content": "test profile", "time_to_live": "one_month"}]}'
+        if kwargs.get("parse_structured_output", False):
+            return {"add": [{"content": "test profile", "time_to_live": "one_month"}]}
+        return '{"add": [{"content": "test profile", "time_to_live": "one_month"}]}'
 
     with patch(
         "reflexio.server.llm.litellm_client.LiteLLMClient.generate_chat_response",

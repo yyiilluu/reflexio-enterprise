@@ -4,10 +4,6 @@ import csv
 import os
 
 import pytest
-
-import reflexio.tests.test_data as test_data
-from reflexio.reflexio_lib.reflexio_lib import Reflexio
-from reflexio.server.services.configurator.configurator import SimpleConfigurator
 from reflexio_commons.api_schema.service_schemas import (
     InteractionData,
     RawFeedback,
@@ -22,6 +18,10 @@ from reflexio_commons.config_schema import (
     StorageConfigSupabase,
     ToolUseConfig,
 )
+
+import reflexio.tests.test_data as test_data
+from reflexio.reflexio_lib.reflexio_lib import Reflexio
+from reflexio.server.services.configurator.configurator import SimpleConfigurator
 
 
 @pytest.fixture
@@ -226,15 +226,15 @@ def save_raw_feedbacks(reflexio_instance: Reflexio):
 
     with open(csv_path, encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        for row in reader:
-            raw_feedbacks.append(
-                RawFeedback(
-                    agent_version=row["agent_version"],
-                    request_id=row["request_id"],
-                    feedback_content=row["feedback_content"],
-                    feedback_name=row["feedback_name"],
-                )
+        raw_feedbacks.extend(
+            RawFeedback(
+                agent_version=row["agent_version"],
+                request_id=row["request_id"],
+                feedback_content=row["feedback_content"],
+                feedback_name=row["feedback_name"],
             )
+            for row in reader
+        )
     reflexio_instance.request_context.storage.save_raw_feedbacks(raw_feedbacks)
 
 

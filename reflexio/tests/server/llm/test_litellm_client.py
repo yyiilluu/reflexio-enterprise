@@ -13,22 +13,21 @@ from pathlib import Path
 
 import pytest
 from pydantic import BaseModel
-
-from reflexio.server.llm.litellm_client import (
-    LiteLLMClient,
-    LiteLLMConfig,
-    LiteLLMClientError,
-    create_litellm_client,
-)
-from reflexio.tests.server.test_utils import skip_in_precommit, skip_low_priority
 from reflexio_commons.config_schema import (
-    APIKeyConfig,
-    OpenAIConfig,
     AnthropicConfig,
+    APIKeyConfig,
     AzureOpenAIConfig,
+    OpenAIConfig,
     OpenRouterConfig,
 )
 
+from reflexio.server.llm.litellm_client import (
+    LiteLLMClient,
+    LiteLLMClientError,
+    LiteLLMConfig,
+    create_litellm_client,
+)
+from reflexio.tests.server.test_utils import skip_in_precommit, skip_low_priority
 
 # Skip all tests if neither API key is set
 pytestmark = pytest.mark.skipif(
@@ -580,8 +579,8 @@ class TestLiteLLMClientEdgeCases:
         """Test handling of longer conversations."""
         messages = []
         for i in range(5):
-            messages.append({"role": "user", "content": f"Message {i+1}: Hello!"})
-            messages.append({"role": "assistant", "content": f"Response {i+1}: Hi!"})
+            messages.append({"role": "user", "content": f"Message {i + 1}: Hello!"})
+            messages.append({"role": "assistant", "content": f"Response {i + 1}: Hi!"})
         messages.append(
             {"role": "user", "content": "How many times did we exchange greetings?"}
         )

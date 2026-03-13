@@ -3,7 +3,8 @@ import os
 import shutil
 import tempfile
 import unittest
-from unittest.mock import Mock, patch, mock_open
+from unittest.mock import Mock, patch
+
 import redis
 
 from reflexio.server.site_var.site_var_manager import SiteVarManager
@@ -41,11 +42,12 @@ class TestSiteVarManager(unittest.TestCase):
 
     def test_init_with_default_source_dir(self):
         """Test initialization with default source directory."""
-        with patch("os.path.exists", return_value=False), patch(
-            "os.makedirs"
-        ) as mock_makedirs:
+        with (
+            patch("pathlib.Path.exists", return_value=False),
+            patch("pathlib.Path.mkdir") as mock_mkdir,
+        ):
             manager = SiteVarManager()
-            mock_makedirs.assert_called_once()
+            mock_mkdir.assert_called_once()
             # Default enable_redis is False
             self.assertFalse(manager.enable_redis)
 
@@ -72,15 +74,16 @@ class TestSiteVarManager(unittest.TestCase):
         # Mock Redis to return None (not in cache)
         self.mock_redis.get.return_value = None
 
-        # Mock file content - use string for mock_open
+        # Mock file content
         json_content = '{"test": "data"}'
+        expected_data = json.loads(json_content)
 
-        with patch("builtins.open", mock_open(read_data=json_content)), patch(
-            "os.path.join", return_value=os.path.join(self.temp_dir, "test_var.json")
+        with patch.object(
+            self.site_var_manager, "_load_from_file", return_value=expected_data
         ):
             result = self.site_var_manager.get_site_var("test_var")
 
-            self.assertEqual(result, json.loads(json_content))
+            self.assertEqual(result, expected_data)
             # Should cache in Redis as JSON string (dicts are converted via json.dumps)
             self.mock_redis.set.assert_called_once_with("test_var", json_content)
 

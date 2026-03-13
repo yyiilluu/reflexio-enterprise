@@ -1,26 +1,26 @@
 import logging
 import os
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
+
+from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
+from reflexio_commons.api_schema.service_schemas import RawFeedback
+from reflexio_commons.config_schema import AgentFeedbackConfig
 
 from reflexio.server.api_endpoints.request_context import RequestContext
 from reflexio.server.llm.litellm_client import LiteLLMClient
-from reflexio_commons.config_schema import AgentFeedbackConfig
-from reflexio_commons.api_schema.service_schemas import RawFeedback
-from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
-
 from reflexio.server.services.extractor_interaction_utils import (
-    get_extractor_window_params,
     get_effective_source_filter,
+    get_extractor_window_params,
 )
-from reflexio.server.services.operation_state_utils import OperationStateManager
 from reflexio.server.services.feedback.feedback_service_utils import (
-    construct_feedback_extraction_messages_from_sessions,
     StructuredFeedbackContent,
+    construct_feedback_extraction_messages_from_sessions,
     format_structured_feedback_content,
 )
+from reflexio.server.services.operation_state_utils import OperationStateManager
 from reflexio.server.services.service_utils import (
-    format_messages_for_logging,
     extract_interactions_from_request_interaction_data_models,
+    format_messages_for_logging,
     log_model_response,
 )
 from reflexio.server.site_var.site_var_manager import SiteVarManager
@@ -67,7 +67,7 @@ class FeedbackExtractor:
         self.request_context: RequestContext = request_context
         self.client: LiteLLMClient = llm_client
         self.config: AgentFeedbackConfig = extractor_config
-        self.service_config: "FeedbackGenerationServiceConfig" = service_config
+        self.service_config: FeedbackGenerationServiceConfig = service_config
         self.agent_context: str = agent_context
 
         # Get LLM config overrides from configuration
@@ -76,7 +76,8 @@ class FeedbackExtractor:
 
         # Get site var as fallback
         self.model_setting = SiteVarManager().get_site_var("llm_model_setting")
-        assert isinstance(self.model_setting, dict), "llm_model_setting must be a dict"
+        if not isinstance(self.model_setting, dict):
+            raise ValueError("llm_model_setting must be a dict")
 
         # Use override if present, otherwise fallback to site var
         self.should_run_model_name = (
@@ -98,12 +99,12 @@ class FeedbackExtractor:
             OperationStateManager configured for feedback_extractor
         """
         return OperationStateManager(
-            self.request_context.storage,
+            self.request_context.storage,  # type: ignore[reportArgumentType]
             self.request_context.org_id,
             "feedback_extractor",
         )
 
-    def _get_interactions(self) -> Optional[list[RequestInteractionDataModel]]:
+    def _get_interactions(self) -> list[RequestInteractionDataModel] | None:
         """
         Get interactions for this extractor based on its config.
 
@@ -152,7 +153,7 @@ class FeedbackExtractor:
         )
 
         # Get window interactions with time range filter
-        session_data_models, _ = storage.get_last_k_interactions_grouped(
+        session_data_models, _ = storage.get_last_k_interactions_grouped(  # type: ignore[reportOptionalMemberAccess]
             user_id=self.service_config.user_id,
             k=window_size,
             sources=effective_source,
@@ -317,7 +318,8 @@ class FeedbackExtractor:
             log_model_response(logger, "Feedback structured response", response)
 
             raw_feedback = self._process_structured_response(
-                response, source_interaction_ids=source_interaction_ids
+                response,  # type: ignore[reportArgumentType]
+                source_interaction_ids=source_interaction_ids,  # type: ignore[reportArgumentType]
             )
             if raw_feedback is None:
                 logger.info("No feedback can be generated for the given interactions")
@@ -372,7 +374,7 @@ class FeedbackExtractor:
         self,
         response: StructuredFeedbackContent,
         source_interaction_ids: list[int] | None = None,
-    ) -> Optional[RawFeedback]:
+    ) -> RawFeedback | None:
         """
         Process structured response from LLM into RawFeedback.
 

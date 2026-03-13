@@ -1,4 +1,3 @@
-from typing import Optional
 from pydantic import BaseModel
 
 
@@ -17,5 +16,5 @@ class PromptBank(BaseModel):
     active_version: str
     created_at: int
     last_updated: int
-    description: Optional[str]
+    description: str | None
     versions: dict[str, Prompt]

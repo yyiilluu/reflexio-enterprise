@@ -11,6 +11,7 @@ from reflexio_commons.api_schema.retriever_schema import (
     ConversationTurn,
     RewrittenQuery,
 )
+
 from reflexio.server.services.query_rewriter import QueryRewriter
 
 
@@ -20,9 +21,10 @@ def _make_rewriter(**overrides):
     prompt_manager = MagicMock()
     prompt_manager.render_prompt.return_value = "rendered prompt"
 
-    with patch("reflexio.server.services.query_rewriter.LiteLLMClient"), patch(
-        "reflexio.server.services.query_rewriter.SiteVarManager"
-    ) as mock_svm:
+    with (
+        patch("reflexio.server.services.query_rewriter.LiteLLMClient"),
+        patch("reflexio.server.services.query_rewriter.SiteVarManager") as mock_svm,
+    ):
         mock_svm.return_value.get_site_var.return_value = {
             "query_rewrite_model_name": "gpt-5-nano"
         }
@@ -31,7 +33,7 @@ def _make_rewriter(**overrides):
             prompt_manager=prompt_manager,
             **overrides,
         )
-    return rewriter
+    return rewriter  # noqa: RET504
 
 
 class TestQueryRewriter(unittest.TestCase):
@@ -186,7 +188,7 @@ class TestQueryRewriter(unittest.TestCase):
             "agent failed OR error to refund OR return"
         )
 
-        result = rewriter.rewrite("agent failed to refund", enabled=True)
+        _result = rewriter.rewrite("agent failed to refund", enabled=True)
 
         call_args = rewriter.prompt_manager.render_prompt.call_args
         variables = call_args[0][1]

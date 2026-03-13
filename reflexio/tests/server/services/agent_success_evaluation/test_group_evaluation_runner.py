@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 from reflexio_commons.api_schema.service_schemas import Interaction, Request
+
 from reflexio.server.services.agent_success_evaluation.group_evaluation_runner import (
     _build_state_key,
     run_group_evaluation,

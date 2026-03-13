@@ -1,11 +1,9 @@
 """End-to-end tests for skill workflows."""
 
 import os
-from typing import Callable
+from collections.abc import Callable
 
-from reflexio.reflexio_lib.reflexio_lib import Reflexio
-from reflexio.tests.e2e_tests.conftest import save_raw_feedbacks
-from reflexio.tests.server.test_utils import skip_in_precommit
+import pytest
 from reflexio_commons.api_schema.service_schemas import (
     Skill,
     SkillStatus,
@@ -18,9 +16,11 @@ from reflexio_commons.config_schema import (
     StorageConfigSupabase,
     ToolUseConfig,
 )
-from reflexio.server.services.configurator.configurator import SimpleConfigurator
-import pytest
 
+from reflexio.reflexio_lib.reflexio_lib import Reflexio
+from reflexio.server.services.configurator.configurator import SimpleConfigurator
+from reflexio.tests.e2e_tests.conftest import save_raw_feedbacks
+from reflexio.tests.server.test_utils import skip_in_precommit
 
 # ---------------------------------------------------------------------------
 # Fixtures

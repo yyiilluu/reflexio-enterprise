@@ -32,7 +32,8 @@ def check_and_migrate_self_managed_org(org_id: str) -> None:
     with _cache_lock:
         if org_id in _check_cache:
             logger.debug(
-                f"Self-managed migration: org {org_id} recently checked, skipping"
+                "Self-managed migration: org %s recently checked, skipping",
+                org_id,
             )
             return
         # Mark as checked early to avoid parallel runs
@@ -47,31 +48,33 @@ def check_and_migrate_self_managed_org(org_id: str) -> None:
 
         if storage is None:
             logger.debug(
-                f"Self-managed migration: org {org_id} has no storage configured"
+                "Self-managed migration: org %s has no storage configured",
+                org_id,
             )
             return
 
         # 3. Quick check if migration is needed
         if not storage.check_migration_needed():
-            logger.debug(f"Self-managed migration: org {org_id} is up-to-date")
+            logger.debug("Self-managed migration: org %s is up-to-date", org_id)
             return
 
         # 4. Execute migration via storage interface
         logger.info(
-            f"Self-managed migration: org {org_id} needs migration, executing..."
+            "Self-managed migration: org %s needs migration, executing...",
+            org_id,
         )
         success = storage.migrate()
 
         if success:
-            logger.info(f"Self-managed migration: org {org_id} migration succeeded")
+            logger.info("Self-managed migration: org %s migration succeeded", org_id)
         else:
-            logger.error(f"Self-managed migration: org {org_id} migration failed")
+            logger.error("Self-managed migration: org %s migration failed", org_id)
             # Clear cache on failure so next login retries
             with _cache_lock:
                 _check_cache.pop(org_id, None)
 
     except Exception as e:
-        logger.error(f"Self-managed migration: org {org_id} error: {e}", exc_info=True)
+        logger.exception("Self-managed migration: org %s error: %s", org_id, e)
         # Clear cache on failure so next login retries
         with _cache_lock:
             _check_cache.pop(org_id, None)

@@ -1,18 +1,18 @@
-import os
+import base64
 import json
 import logging
+import os
 import time
-import base64
 from collections.abc import Mapping
-from pathlib import Path
-from typing import Any, Optional, Union
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
 from anthropic import Anthropic
 from anthropic.types import Message
 from pydantic import BaseModel
 
 from reflexio.server.services.service_utils import extract_json_from_string
-
 
 # Supported image MIME types for Claude vision
 SUPPORTED_IMAGE_TYPES = {
@@ -33,7 +33,7 @@ load_dotenv()
 class ClaudeConfig:
     """Configuration for Claude client."""
 
-    api_key: Optional[str] = None
+    api_key: str | None = None
     model: str = "claude-sonnet-4-5-20250929"
     max_tokens: int = 4096
     temperature: float = 0.7
@@ -47,7 +47,7 @@ class ClaudeClientError(Exception):
     """Custom exception for Claude client errors."""
 
 
-def encode_image_to_base64(image_path: Union[str, Path]) -> tuple[str, str]:
+def encode_image_to_base64(image_path: str | Path) -> tuple[str, str]:
     """
     Encode an image file to base64 string.
 
@@ -74,14 +74,15 @@ def encode_image_to_base64(image_path: Union[str, Path]) -> tuple[str, str]:
 
     media_type = SUPPORTED_IMAGE_TYPES[suffix]
 
-    with open(path, "rb") as f:
+    with Path(path).open("rb") as f:
         image_data = base64.standard_b64encode(f.read()).decode("utf-8")
 
     return image_data, media_type
 
 
 def encode_image_bytes_to_base64(
-    image_bytes: bytes, media_type: str = "image/png"
+    image_bytes: bytes,
+    media_type: str = "image/png",  # noqa: ARG001
 ) -> str:
     """
     Encode image bytes to base64 string.
@@ -97,8 +98,8 @@ def encode_image_bytes_to_base64(
 
 
 def create_image_content_block(
-    image_source: Union[str, Path, bytes],
-    media_type: Optional[str] = None,
+    image_source: str | Path | bytes,
+    media_type: str | None = None,
 ) -> dict[str, Any]:
     """
     Create a Claude API image content block.
@@ -137,7 +138,7 @@ class ClaudeClient:
     Production-ready Claude API client with robust error handling and retry logic.
     """
 
-    def __init__(self, config: Optional[ClaudeConfig] = None):
+    def __init__(self, config: ClaudeConfig | None = None):
         """
         Initialize the Claude client.
 
@@ -159,17 +160,19 @@ class ClaudeClient:
         try:
             self.client = Anthropic(api_key=api_key, timeout=self.config.timeout)
         except Exception as e:
-            raise ClaudeClientError(f"Failed to initialize Claude client: {str(e)}")
+            raise ClaudeClientError(
+                f"Failed to initialize Claude client: {str(e)}"
+            ) from e
 
-        self.logger.info(f"Claude client initialized with model: {self.config.model}")
+        self.logger.info("Claude client initialized with model: %s", self.config.model)
 
     def generate_response(
         self,
         prompt: str,
-        system_message: Optional[str] = None,
-        images: Optional[list[Union[str, Path, bytes, dict[str, Any]]]] = None,
+        system_message: str | None = None,
+        images: list[str | Path | bytes | dict[str, Any]] | None = None,
         **kwargs,
-    ) -> Union[str, dict[str, Any], BaseModel]:
+    ) -> str | dict[str, Any] | BaseModel:
         """
         Generate a response from Claude API.
 
@@ -242,17 +245,19 @@ class ClaudeClient:
 
         response_format = kwargs.get("response_format")
 
-        content = self._make_request_with_retry(params)
+        content = self._make_request_with_retry(params)  # type: ignore[reportAssignmentType]
         return self._maybe_parse_structured_output(
-            content, response_format, kwargs.get("parse_structured_output", True)
+            content,  # type: ignore[reportArgumentType]
+            response_format,
+            kwargs.get("parse_structured_output", True),  # type: ignore[reportArgumentType]
         )
 
     def generate_chat_response(
         self,
         messages: list[dict[str, Any]],
-        system_message: Optional[str] = None,
+        system_message: str | None = None,
         **kwargs,
-    ) -> Union[str, dict[str, Any], BaseModel]:
+    ) -> str | dict[str, Any] | BaseModel:
         """
         Generate a response from a list of chat messages.
 
@@ -359,7 +364,7 @@ class ClaudeClient:
 
         for attempt in range(self.config.max_retries + 1):
             try:
-                self.logger.debug(f"Making Claude API request (attempt {attempt + 1})")
+                self.logger.debug("Making Claude API request (attempt %s)", attempt + 1)
 
                 response: Message = self.client.messages.create(**params)
 
@@ -385,13 +390,16 @@ class ClaudeClient:
                 if not content_text.strip():
                     raise ClaudeClientError("Empty response content from Claude API")
 
-                self.logger.debug(f"Successfully received response from Claude API")
+                self.logger.debug("Successfully received response from Claude API")
                 return content_text.strip()
 
-            except Exception as e:
+            except Exception as e:  # noqa: PERF203
                 last_exception = e
                 self.logger.warning(
-                    f"Claude API request failed (attempt {attempt + 1}/{self.config.max_retries + 1}): {str(e)}"
+                    "Claude API request failed (attempt %s/%s): %s",
+                    attempt + 1,
+                    self.config.max_retries + 1,
+                    e,
                 )
 
                 # Don't retry on certain errors
@@ -415,10 +423,10 @@ class ClaudeClient:
 
     def _maybe_parse_structured_output(
         self,
-        content: Union[str, dict[str, Any], BaseModel],
+        content: str | dict[str, Any] | BaseModel,
         response_format: Any,
         parse_structured_output: bool,
-    ) -> Union[str, dict[str, Any], BaseModel]:
+    ) -> str | dict[str, Any] | BaseModel:
         """
         Attempt to parse structured output content when requested.
 
@@ -451,15 +459,14 @@ class ClaudeClient:
                 # Use shared utility to extract JSON from markdown code blocks
                 # and handle Python-style booleans
                 return extract_json_from_string(content)
-            else:
-                # This is string content, return it as is
-                return content
+            # This is string content, return it as is
+            return content
 
         # Default case: return content as-is
         return content
 
     @staticmethod
-    def _get_response_format_type(response_format: Any) -> Optional[str]:
+    def _get_response_format_type(response_format: Any) -> str | None:
         """
         Extract the response format type from different response format shapes.
 
@@ -516,9 +523,9 @@ class ClaudeClient:
         for key, value in kwargs.items():
             if hasattr(self.config, key):
                 setattr(self.config, key, value)
-                self.logger.debug(f"Updated config: {key} = {value}")
+                self.logger.debug("Updated config: %s = %s", key, value)
             else:
-                self.logger.warning(f"Unknown config parameter: {key}")
+                self.logger.warning("Unknown config parameter: %s", key)
 
     def get_config(self) -> ClaudeConfig:
         """
@@ -573,14 +580,16 @@ class ClaudeClient:
             openai_client = OpenAIClient()
             return openai_client.get_embedding(text, model)
         except OpenAIClientError as e:
-            raise ClaudeClientError(f"Failed to get embedding via OpenAI fallback: {e}")
+            raise ClaudeClientError(
+                f"Failed to get embedding via OpenAI fallback: {e}"
+            ) from e
         except Exception as e:
-            raise ClaudeClientError(f"Failed to get embedding: {e}")
+            raise ClaudeClientError(f"Failed to get embedding: {e}") from e
 
 
 # Convenience function for quick usage
 def create_claude_client(
-    api_key: Optional[str] = None,
+    api_key: str | None = None,
     model: str = "claude-sonnet-4-5-20250929",
     max_tokens: int = 4096,
     temperature: float = 0.7,
@@ -645,7 +654,7 @@ if __name__ == "__main__":
         print(f"Client initialized successfully with model: {client.config.model}")
 
         # Test 2: Configuration display
-        print(f"Configuration:")
+        print("Configuration:")
         print(f"   Model: {client.config.model}")
         print(f"   Max Tokens: {client.config.max_tokens}")
         print(f"   Temperature: {client.config.temperature}")

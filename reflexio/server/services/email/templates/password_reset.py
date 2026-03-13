@@ -5,17 +5,17 @@ Sent when a user requests to reset their password.
 """
 
 from reflexio.server.services.email.templates.base import (
+    BG_CARD,
+    BG_PRIMARY,
     BRAND_PRIMARY,
     BRAND_SECONDARY,
-    TEXT_SECONDARY,
-    TEXT_MUTED,
-    BG_PRIMARY,
-    BG_CARD,
     COMPANY_NAME,
-    get_email_header,
+    TEXT_MUTED,
+    TEXT_SECONDARY,
     get_email_footer,
-    get_email_wrapper_start,
+    get_email_header,
     get_email_wrapper_end,
+    get_email_wrapper_start,
     get_text_footer,
 )
 

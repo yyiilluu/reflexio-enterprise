@@ -5,10 +5,11 @@ This module tests the archival, restoration, and deletion of feedbacks
 using the status field during feedback aggregation.
 """
 
+import contextlib
 import os
-import pytest
 import tempfile
 
+import pytest
 from reflexio_commons.api_schema.service_schemas import (
     Feedback,
     FeedbackStatus,
@@ -16,16 +17,17 @@ from reflexio_commons.api_schema.service_schemas import (
 )
 from reflexio_commons.config_schema import (
     AgentFeedbackConfig,
-    StorageConfigSupabase,
     FeedbackAggregatorConfig,
+    StorageConfigSupabase,
 )
+
 from reflexio.server.api_endpoints.request_context import RequestContext
+from reflexio.server.llm.litellm_client import LiteLLMClient, LiteLLMConfig
 from reflexio.server.services.feedback.feedback_aggregator import FeedbackAggregator
 from reflexio.server.services.feedback.feedback_service_utils import (
     FeedbackAggregatorRequest,
 )
 from reflexio.server.services.storage.supabase_storage import SupabaseStorage
-from reflexio.server.llm.litellm_client import LiteLLMClient, LiteLLMConfig
 from reflexio.tests.server.test_utils import skip_in_precommit, skip_low_priority
 
 
@@ -51,7 +53,7 @@ def supabase_storage():
         db_url=supabase_db_url,
     )
     storage = SupabaseStorage(org_id="test_archival", config=config)
-    return storage
+    return storage  # noqa: RET504
 
 
 TEST_FEEDBACK_NAMES = [
@@ -84,10 +86,8 @@ def cleanup_after_test(supabase_storage):
                             f"feedback_aggregator::{org_id}::{feedback_name}::{version}"
                         )
                         for key in [base_key, f"{base_key}::clusters"]:
-                            try:
+                            with contextlib.suppress(Exception):
                                 supabase_storage.delete_operation_state(key)
-                            except Exception:
-                                pass
             print("Test data cleaned up successfully")
         except Exception as e:
             print(f"Error during cleanup: {str(e)}")
@@ -284,7 +284,11 @@ def test_aggregator_archives_then_deletes_on_success(
         request_context = RequestContext(org_id=org_id, storage_base_dir=temp_dir)
         request_context.configurator.set_config_by_name(
             "storage_config",
-            StorageConfigSupabase(url="http://placeholder", key="placeholder", db_url="postgresql://placeholder"),
+            StorageConfigSupabase(
+                url="http://placeholder",
+                key="placeholder",
+                db_url="postgresql://placeholder",
+            ),
         )
         request_context.configurator.set_config_by_name(
             "agent_feedback_configs",
@@ -320,9 +324,9 @@ def test_aggregator_archives_then_deletes_on_success(
         )
         assert len(saved_feedbacks) > 0, "New feedbacks should be created"
         for feedback in saved_feedbacks:
-            assert (
-                feedback.feedback_content != "Old feedback 1"
-                and feedback.feedback_content != "Old feedback 2"
+            assert feedback.feedback_content not in (
+                "Old feedback 1",
+                "Old feedback 2",
             ), "Old feedbacks should not be present"
 
         # 2. Old feedbacks were deleted (not just archived)
@@ -333,9 +337,9 @@ def test_aggregator_archives_then_deletes_on_success(
             .eq("status", "archived")
             .execute()
         )
-        assert (
-            len(response.data) == 0
-        ), "Archived feedbacks should be permanently deleted"
+        assert len(response.data) == 0, (
+            "Archived feedbacks should be permanently deleted"
+        )
 
 
 @skip_in_precommit
@@ -389,7 +393,11 @@ def test_aggregator_restores_on_error(supabase_storage, cleanup_after_test, llm_
         request_context = RequestContext(org_id=org_id, storage_base_dir=temp_dir)
         request_context.configurator.set_config_by_name(
             "storage_config",
-            StorageConfigSupabase(url="http://placeholder", key="placeholder", db_url="postgresql://placeholder"),
+            StorageConfigSupabase(
+                url="http://placeholder",
+                key="placeholder",
+                db_url="postgresql://placeholder",
+            ),
         )
         request_context.configurator.set_config_by_name(
             "agent_feedback_configs",

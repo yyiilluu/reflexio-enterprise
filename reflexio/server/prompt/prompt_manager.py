@@ -5,9 +5,9 @@ Prompt management using file system prompt bank
 import json
 import logging
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
-from .prompt_schema import PromptBank, Prompt
+from .prompt_schema import Prompt, PromptBank
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +17,8 @@ class PromptManager:
 
     def __init__(
         self,
-        prompt_bank_path: Optional[str] = None,
-        version_override: Optional[dict[str, str]] = None,
+        prompt_bank_path: str | None = None,
+        version_override: dict[str, str] | None = None,
     ):
         """
         Initialize the PromptManager.
@@ -35,7 +35,7 @@ class PromptManager:
         else:
             self.prompt_bank_path = Path(prompt_bank_path)
 
-        self.version_override: Optional[dict[str, str]] = version_override
+        self.version_override: dict[str, str] | None = version_override
 
         if not self.prompt_bank_path.exists():
             logger.warning("Prompt bank path does not exist: %s", self.prompt_bank_path)
@@ -76,9 +76,11 @@ class PromptManager:
         try:
             return prompt.content.format(**variables)
         except KeyError as e:
-            raise ValueError(f"Missing required variable {e} for prompt {prompt_id}")
+            raise ValueError(
+                f"Missing required variable {e} for prompt {prompt_id}"
+            ) from e
         except Exception as e:
-            raise ValueError(f"Error rendering prompt {prompt_id}: {e}")
+            raise ValueError(f"Error rendering prompt {prompt_id}: {e}") from e
 
     def list_versions(self, prompt_id: str) -> list[str]:
         """
@@ -95,7 +97,7 @@ class PromptManager:
             return list(prompt_bank.versions.keys())
         return []
 
-    def get_active_version(self, prompt_id: str) -> Optional[str]:
+    def get_active_version(self, prompt_id: str) -> str | None:
         """
         Get the active version for a prompt (considering overrides).
 
@@ -122,9 +124,11 @@ class PromptManager:
 
         prompt_ids = []
         try:
-            for item in self.prompt_bank_path.iterdir():
-                if item.is_dir() and (item / "metadata.json").exists():
-                    prompt_ids.append(item.name)
+            prompt_ids.extend(
+                item.name
+                for item in self.prompt_bank_path.iterdir()
+                if item.is_dir() and (item / "metadata.json").exists()
+            )
         except Exception as e:
             logger.error("Error listing prompt directories: %s", e)
 
@@ -134,11 +138,11 @@ class PromptManager:
     # Private methods
     # ==============================
 
-    def _load_metadata_file(self, prompt_id: str) -> Optional[dict]:
+    def _load_metadata_file(self, prompt_id: str) -> dict | None:
         """Load metadata.json for a prompt"""
         metadata_path = self.prompt_bank_path / prompt_id / "metadata.json"
         try:
-            with open(metadata_path, encoding="utf-8") as f:
+            with metadata_path.open(encoding="utf-8") as f:
                 return json.load(f)
         except FileNotFoundError:
             logger.warning(
@@ -154,11 +158,11 @@ class PromptManager:
             logger.error("Error loading metadata for prompt %s: %s", prompt_id, e)
             return None
 
-    def _load_prompt_content(self, prompt_id: str, version: str) -> Optional[str]:
+    def _load_prompt_content(self, prompt_id: str, version: str) -> str | None:
         """Load prompt content from versioned file"""
         prompt_path = self.prompt_bank_path / prompt_id / f"{version}.prompt"
         try:
-            with open(prompt_path, encoding="utf-8") as f:
+            with prompt_path.open(encoding="utf-8") as f:
                 return f.read()
         except FileNotFoundError:
             logger.warning(
@@ -179,7 +183,7 @@ class PromptManager:
 
     def _build_prompt_bank(
         self, prompt_id: str, metadata_data: dict
-    ) -> Optional[PromptBank]:
+    ) -> PromptBank | None:
         """Build PromptBank from metadata and prompt files"""
         try:
             # Build versions with actual prompt content
@@ -209,7 +213,7 @@ class PromptManager:
                 return None
 
             # Create PromptBank with simplified schema (description at top level)
-            prompt_bank = PromptBank(
+            return PromptBank(
                 prompt_id=metadata_data.get("prompt_id", prompt_id),
                 active_version=metadata_data.get("active_version", "1.0.0"),
                 created_at=metadata_data.get("created_at", 0),
@@ -218,15 +222,11 @@ class PromptManager:
                 versions=versions,
             )
 
-            return prompt_bank
-
         except Exception as e:
             logger.error("Failed to build prompt bank for %s: %s", prompt_id, e)
             return None
 
-    def _get_prompt(
-        self, prompt_id: str, version: Optional[str] = None
-    ) -> Optional[Prompt]:
+    def _get_prompt(self, prompt_id: str, version: str | None = None) -> Prompt | None:
         """
         Get active prompt with validation
 
@@ -252,7 +252,7 @@ class PromptManager:
 
         return version_data
 
-    def _get_prompt_bank(self, prompt_id: str) -> Optional[PromptBank]:
+    def _get_prompt_bank(self, prompt_id: str) -> PromptBank | None:
         """
         Get complete prompt bank data with validation
 

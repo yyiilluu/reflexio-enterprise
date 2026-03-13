@@ -4,7 +4,7 @@ import hashlib
 import json
 import threading
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
 
 class InMemoryCache:
@@ -62,7 +62,7 @@ class InMemoryCache:
         # Generate hash for the cache key
         return hashlib.sha256(key_string.encode()).hexdigest()
 
-    def get(self, method_name: str, **kwargs) -> Optional[Any]:
+    def get(self, method_name: str, **kwargs) -> Any | None:
         """
         Retrieve a cached value if it exists and is not expired.
 

@@ -1,9 +1,9 @@
 import secrets
+import threading
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+
 import bcrypt
 from cachetools import TTLCache
-import threading
 from fastapi import FastAPI, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
@@ -11,19 +11,19 @@ from sqlalchemy.orm import Session
 
 from reflexio.server.db import db_models
 from reflexio.server.db.db_operations import (
-    get_organization_by_email,
     create_organization,
     get_org_by_api_token,
+    get_organization_by_email,
 )
 
 # to get a string like this run:
 # openssl rand -hex 32
-SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
+SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"  # noqa: S105
 ALGORITHM = "HS256"
 VERIFICATION_TOKEN_EXPIRE_DAYS = 7
-VERIFICATION_TOKEN_TYPE = "email_verification"
+VERIFICATION_TOKEN_TYPE = "email_verification"  # noqa: S105
 PASSWORD_RESET_TOKEN_EXPIRE_HOURS = 1
-PASSWORD_RESET_TOKEN_TYPE = "password_reset"
+PASSWORD_RESET_TOKEN_TYPE = "password_reset"  # noqa: S105
 
 # Organization cache configuration
 # TTL of 300 seconds (5 minutes) - balances performance vs security
@@ -62,7 +62,7 @@ def get_password_hash(password: str) -> str:
 
 def authenticate_organization(
     org_email: str, password: str, session: Session
-) -> Optional[db_models.Organization]:
+) -> db_models.Organization | None:
     user = get_organization_by_email(session=session, email=org_email)
     if not user:
         print(f"User not found: {org_email}")
@@ -83,9 +83,7 @@ def generate_short_api_key() -> str:
     return "rflx-" + secrets.token_urlsafe(32)[:35]
 
 
-def _get_cached_org(
-    org_email: str, session: Session
-) -> Optional[db_models.Organization]:
+def _get_cached_org(org_email: str, session: Session) -> db_models.Organization | None:
     """Get organization from cache or database.
 
     Args:
@@ -112,7 +110,7 @@ def _get_cached_org(
 
 def _get_cached_org_by_token(
     token_value: str, session: Session
-) -> Optional[db_models.Organization]:
+) -> db_models.Organization | None:
     """Get organization from token cache or database.
 
     Args:
@@ -257,8 +255,7 @@ def register_organization(
     org_model = db_models.Organization(
         email=org_email, hashed_password=hashed_password, auth_provider=auth_provider
     )
-    org = create_organization(organization=org_model, session=session)
-    return org
+    return create_organization(organization=org_model, session=session)
 
 
 def create_verification_token(email: str) -> str:
@@ -280,7 +277,7 @@ def create_verification_token(email: str) -> str:
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def verify_email_token(token: str) -> Optional[str]:
+def verify_email_token(token: str) -> str | None:
     """
     Verify an email verification token and return the email address.
 
@@ -324,7 +321,7 @@ def create_password_reset_token(email: str) -> str:
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def verify_password_reset_token(token: str) -> Optional[str]:
+def verify_password_reset_token(token: str) -> str | None:
     """
     Verify a password reset token and return the email address.
 

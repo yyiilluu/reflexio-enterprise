@@ -6,13 +6,13 @@ for improved full-text search recall using websearch_to_tsquery syntax.
 import json
 import logging
 import re
-from typing import Optional
 
 from reflexio_commons.api_schema.retriever_schema import (
     ConversationTurn,
     RewrittenQuery,
 )
 from reflexio_commons.config_schema import APIKeyConfig
+
 from reflexio.server.llm.litellm_client import LiteLLMClient, LiteLLMConfig
 from reflexio.server.prompt.prompt_manager import PromptManager
 from reflexio.server.site_var.site_var_manager import SiteVarManager
@@ -47,9 +47,9 @@ class QueryRewriter:
 
     def __init__(
         self,
-        api_key_config: Optional[APIKeyConfig],
+        api_key_config: APIKeyConfig | None,
         prompt_manager: PromptManager,
-        model: Optional[str] = None,
+        model: str | None = None,
         timeout: int = 5,
     ):
         """
@@ -83,7 +83,7 @@ class QueryRewriter:
         self,
         query: str,
         enabled: bool = True,
-        conversation_history: Optional[list[ConversationTurn]] = None,
+        conversation_history: list[ConversationTurn] | None = None,
     ) -> RewrittenQuery:
         """
         Rewrite a search query with expanded synonyms, optionally using conversation context.
@@ -112,7 +112,7 @@ class QueryRewriter:
     def _llm_rewrite(
         self,
         query: str,
-        conversation_history: Optional[list[ConversationTurn]] = None,
+        conversation_history: list[ConversationTurn] | None = None,
     ) -> RewrittenQuery:
         """
         Use LLM to expand the query with synonyms, optionally incorporating conversation context.
@@ -151,7 +151,7 @@ class QueryRewriter:
         return self._fallback_rewrite(query)
 
     @classmethod
-    def _extract_candidate_query(cls, output: str) -> Optional[str]:
+    def _extract_candidate_query(cls, output: str) -> str | None:
         """
         Extract a candidate query string from raw model output.
 
@@ -212,7 +212,7 @@ class QueryRewriter:
         return None
 
     @classmethod
-    def _clean_candidate(cls, text: str) -> Optional[str]:
+    def _clean_candidate(cls, text: str) -> str | None:
         """
         Normalize candidate query text.
 
@@ -259,14 +259,11 @@ class QueryRewriter:
             return False
 
         lower_query = query.lower()
-        if any(phrase in lower_query for phrase in cls._UNSAFE_PHRASES):
-            return False
-
-        return True
+        return not any(phrase in lower_query for phrase in cls._UNSAFE_PHRASES)
 
     @staticmethod
     def _format_conversation_context(
-        conversation_history: Optional[list[ConversationTurn]] = None,
+        conversation_history: list[ConversationTurn] | None = None,
     ) -> str:
         """
         Format conversation history into a string for the prompt.

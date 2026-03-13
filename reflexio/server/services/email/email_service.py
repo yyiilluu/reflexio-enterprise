@@ -2,18 +2,17 @@
 Email service for sending verification and notification emails via AWS SES.
 """
 
-import os
 import logging
-from typing import Optional
+import os
 
 import boto3
 from botocore.exceptions import ClientError
 
 from reflexio.server.services.email.templates import (
-    get_verification_email_html,
-    get_verification_email_text,
     get_password_reset_email_html,
     get_password_reset_email_text,
+    get_verification_email_html,
+    get_verification_email_text,
 )
 
 logger = logging.getLogger(__name__)
@@ -43,10 +42,10 @@ class EmailService:
         """
         Initialize the SES client.
         """
-        self._client: Optional[boto3.client] = None
+        self._client: boto3.client | None = None  # type: ignore[reportGeneralTypeIssues]
 
     @property
-    def client(self) -> boto3.client:
+    def client(self) -> boto3.client:  # type: ignore[reportGeneralTypeIssues]
         """
         Lazy-load the SES client.
 
@@ -129,16 +128,18 @@ class EmailService:
                 },
             )
             logger.info(
-                f"Verification email sent to {to_email}, MessageId: {response['MessageId']}"
+                "Verification email sent to %s, MessageId: %s",
+                to_email,
+                response["MessageId"],
             )
             return True
         except ClientError as e:
-            logger.error(f"Failed to send email to {to_email}: {e}")
+            logger.error("Failed to send email to %s: %s", to_email, e)
             return False
 
 
 # Singleton instance
-_email_service: Optional[EmailService] = None
+_email_service: EmailService | None = None
 
 
 def get_email_service() -> EmailService:

@@ -5,9 +5,10 @@ Tests both Agglomerative Clustering (small datasets) and HDBSCAN (large datasets
 to ensure the hybrid approach works correctly.
 """
 
+from unittest.mock import MagicMock, patch
+
 import numpy as np
 import pytest
-from unittest.mock import MagicMock, patch
 
 
 # Disable mock mode for clustering tests so actual clustering algorithms are used
@@ -19,9 +20,10 @@ def disable_mock_llm_response(monkeypatch):
 
 from reflexio_commons.api_schema.service_schemas import RawFeedback
 from reflexio_commons.config_schema import FeedbackAggregatorConfig
+
 from reflexio.server.services.feedback.feedback_aggregator import (
-    FeedbackAggregator,
     CLUSTERING_ALGORITHM_THRESHOLD,
+    FeedbackAggregator,
 )
 
 
@@ -41,7 +43,7 @@ def create_similar_embeddings(n: int, base_seed: int = 42) -> list[list[float]]:
     base = base / np.linalg.norm(base)
 
     embeddings = []
-    for i in range(n):
+    for _i in range(n):
         # Small noise to create similar but not identical vectors
         noise = np.random.randn(512) * 0.001
         vec = base + noise
@@ -64,7 +66,7 @@ def create_dissimilar_embeddings(n: int, base_seed: int = 42) -> list[list[float
     """
     np.random.seed(base_seed)
     embeddings = []
-    for i in range(n):
+    for _i in range(n):
         vec = np.random.randn(512)
         vec = vec / np.linalg.norm(vec)
         embeddings.append(vec.tolist())
@@ -111,7 +113,7 @@ def mock_feedback_aggregator():
         request_context=mock_request_context,
         agent_version="1.0",
     )
-    return aggregator
+    return aggregator  # noqa: RET504
 
 
 class TestAgglomerativeClustering:
@@ -178,21 +180,23 @@ class TestAgglomerativeClustering:
 
         config = FeedbackAggregatorConfig(min_feedback_threshold=2)
 
-        with patch.object(
-            mock_feedback_aggregator,
-            "_cluster_with_agglomerative",
-            wraps=mock_feedback_aggregator._cluster_with_agglomerative,
-        ) as mock_agg:
-            with patch.object(
+        with (
+            patch.object(
+                mock_feedback_aggregator,
+                "_cluster_with_agglomerative",
+                wraps=mock_feedback_aggregator._cluster_with_agglomerative,
+            ) as mock_agg,
+            patch.object(
                 mock_feedback_aggregator,
                 "_cluster_with_hdbscan",
                 wraps=mock_feedback_aggregator._cluster_with_hdbscan,
-            ) as mock_hdb:
-                mock_feedback_aggregator.get_clusters(raw_feedbacks, config)
+            ) as mock_hdb,
+        ):
+            mock_feedback_aggregator.get_clusters(raw_feedbacks, config)
 
-                # Should use Agglomerative, not HDBSCAN
-                mock_agg.assert_called_once()
-                mock_hdb.assert_not_called()
+            # Should use Agglomerative, not HDBSCAN
+            mock_agg.assert_called_once()
+            mock_hdb.assert_not_called()
 
 
 class TestHDBSCANClustering:
@@ -238,21 +242,23 @@ class TestHDBSCANClustering:
 
         config = FeedbackAggregatorConfig(min_feedback_threshold=2)
 
-        with patch.object(
-            mock_feedback_aggregator,
-            "_cluster_with_agglomerative",
-            wraps=mock_feedback_aggregator._cluster_with_agglomerative,
-        ) as mock_agg:
-            with patch.object(
+        with (
+            patch.object(
+                mock_feedback_aggregator,
+                "_cluster_with_agglomerative",
+                wraps=mock_feedback_aggregator._cluster_with_agglomerative,
+            ) as mock_agg,
+            patch.object(
                 mock_feedback_aggregator,
                 "_cluster_with_hdbscan",
                 wraps=mock_feedback_aggregator._cluster_with_hdbscan,
-            ) as mock_hdb:
-                mock_feedback_aggregator.get_clusters(raw_feedbacks, config)
+            ) as mock_hdb,
+        ):
+            mock_feedback_aggregator.get_clusters(raw_feedbacks, config)
 
-                # Should use HDBSCAN, not Agglomerative
-                mock_hdb.assert_called_once()
-                mock_agg.assert_not_called()
+            # Should use HDBSCAN, not Agglomerative
+            mock_hdb.assert_called_once()
+            mock_agg.assert_not_called()
 
 
 class TestClusteringThreshold:

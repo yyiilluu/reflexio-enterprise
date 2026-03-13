@@ -1,6 +1,8 @@
 import logging
 import uuid
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 from datetime import datetime, timezone
 
 from reflexio_commons.api_schema.service_schemas import (
@@ -8,29 +10,28 @@ from reflexio_commons.api_schema.service_schemas import (
     PublishUserInteractionRequest,
     Request,
 )
+
 from reflexio.server.api_endpoints.request_context import RequestContext
 from reflexio.server.llm.litellm_client import LiteLLMClient
-from reflexio.server.services.feedback.feedback_generation_service import (
-    FeedbackGenerationService,
-)
-from reflexio.server.services.feedback.feedback_service_utils import (
-    FeedbackGenerationRequest,
-)
-from reflexio.server.services.profile.profile_generation_service import (
-    ProfileGenerationService,
-)
-from reflexio.server.services.profile.profile_generation_service_utils import (
-    ProfileGenerationRequest,
-)
 from reflexio.server.services.agent_success_evaluation.delayed_group_evaluator import (
     GroupEvaluationScheduler,
 )
 from reflexio.server.services.agent_success_evaluation.group_evaluation_runner import (
     run_group_evaluation,
 )
-
-
+from reflexio.server.services.feedback.feedback_generation_service import (
+    FeedbackGenerationService,
+)
+from reflexio.server.services.feedback.feedback_service_utils import (
+    FeedbackGenerationRequest,
+)
 from reflexio.server.services.operation_state_utils import OperationStateManager
+from reflexio.server.services.profile.profile_generation_service import (
+    ProfileGenerationService,
+)
+from reflexio.server.services.profile.profile_generation_service_utils import (
+    ProfileGenerationRequest,
+)
 
 logger = logging.getLogger(__name__)
 # Stale lock timeout - if cleanup started > 10 min ago and still "in_progress", assume it crashed
@@ -125,10 +126,10 @@ class GenerationService:
                 agent_version=publish_user_interaction_request.agent_version,
                 session_id=publish_user_interaction_request.session_id or None,
             )
-            self.storage.add_request(new_request)
+            self.storage.add_request(new_request)  # type: ignore[reportOptionalMemberAccess]
 
             # Add interactions to storage (bulk insert with batched embedding generation)
-            self.storage.add_user_interactions_bulk(
+            self.storage.add_user_interactions_bulk(  # type: ignore[reportOptionalMemberAccess]
                 user_id=user_id, interactions=new_interactions
             )
 
@@ -177,7 +178,7 @@ class GenerationService:
                 for future in futures:
                     try:
                         future.result(timeout=GENERATION_SERVICE_TIMEOUT_SECONDS)
-                    except FuturesTimeoutError:
+                    except FuturesTimeoutError:  # noqa: PERF203
                         logger.error(
                             "Generation service timed out after %d seconds for request %s",
                             GENERATION_SERVICE_TIMEOUT_SECONDS,
@@ -199,8 +200,16 @@ class GenerationService:
                 scheduler = GroupEvaluationScheduler.get_instance()
                 key = (self.org_id, user_id, session_id)
 
-                def make_callback(_org_id, _user_id, _sid, _av, _src, _rc, _llm):
-                    def callback():
+                def make_callback(
+                    _org_id: str,
+                    _user_id: str,
+                    _sid: str,
+                    _av: str,
+                    _src: str | None,
+                    _rc: RequestContext,
+                    _llm: LiteLLMClient,
+                ) -> Callable[[], None]:
+                    def callback() -> None:
                         run_group_evaluation(
                             org_id=_org_id,
                             user_id=_user_id,
@@ -246,27 +255,29 @@ class GenerationService:
         Uses OperationStateManager simple lock to prevent race conditions.
         """
         from reflexio.server import (
-            INTERACTION_CLEANUP_THRESHOLD,
             INTERACTION_CLEANUP_DELETE_COUNT,
+            INTERACTION_CLEANUP_THRESHOLD,
         )
 
         if INTERACTION_CLEANUP_THRESHOLD <= 0:
             return  # Cleanup disabled
 
         try:
-            total_count = self.storage.count_all_interactions()
+            total_count = self.storage.count_all_interactions()  # type: ignore[reportOptionalMemberAccess]
             if total_count < INTERACTION_CLEANUP_THRESHOLD:
                 return  # No cleanup needed
 
             mgr = OperationStateManager(
-                self.storage, self.org_id, "interaction_cleanup"
+                self.storage,  # type: ignore[reportArgumentType]
+                self.org_id,
+                "interaction_cleanup",  # type: ignore[reportArgumentType]
             )
             if not mgr.acquire_simple_lock(stale_seconds=CLEANUP_STALE_LOCK_SECONDS):
                 return
 
             try:
                 # Perform cleanup
-                deleted = self.storage.delete_oldest_interactions(
+                deleted = self.storage.delete_oldest_interactions(  # type: ignore[reportOptionalMemberAccess]
                     INTERACTION_CLEANUP_DELETE_COUNT
                 )
                 logger.info(

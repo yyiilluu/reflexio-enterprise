@@ -4,34 +4,35 @@ Create, edit, delete user interaction and user profile
 
 import logging
 
-from reflexio_commons.api_schema.service_schemas import (
-    DeleteUserInteractionRequest,
-    DeleteUserInteractionResponse,
-    DeleteUserProfileRequest,
-    DeleteUserProfileResponse,
-    DeleteRequestRequest,
-    DeleteRequestResponse,
-    DeleteSessionRequest,
-    DeleteSessionResponse,
-    DeleteFeedbackRequest,
-    DeleteFeedbackResponse,
-    DeleteRawFeedbackRequest,
-    DeleteRawFeedbackResponse,
-    RunFeedbackAggregationRequest,
-    RunFeedbackAggregationResponse,
-    RunSkillGenerationRequest,
-    RunSkillGenerationResponse,
-    PublishUserInteractionRequest,
-    PublishUserInteractionResponse,
-    AddRawFeedbackRequest,
-    AddRawFeedbackResponse,
-    AddFeedbackRequest,
-    AddFeedbackResponse,
-)
 from reflexio_commons.api_schema.retriever_schema import (
     UpdateFeedbackStatusRequest,
     UpdateFeedbackStatusResponse,
 )
+from reflexio_commons.api_schema.service_schemas import (
+    AddFeedbackRequest,
+    AddFeedbackResponse,
+    AddRawFeedbackRequest,
+    AddRawFeedbackResponse,
+    DeleteFeedbackRequest,
+    DeleteFeedbackResponse,
+    DeleteRawFeedbackRequest,
+    DeleteRawFeedbackResponse,
+    DeleteRequestRequest,
+    DeleteRequestResponse,
+    DeleteSessionRequest,
+    DeleteSessionResponse,
+    DeleteUserInteractionRequest,
+    DeleteUserInteractionResponse,
+    DeleteUserProfileRequest,
+    DeleteUserProfileResponse,
+    PublishUserInteractionRequest,
+    PublishUserInteractionResponse,
+    RunFeedbackAggregationRequest,
+    RunFeedbackAggregationResponse,
+    RunSkillGenerationRequest,
+    RunSkillGenerationResponse,
+)
+
 from reflexio.server.api_endpoints.precondition_checks import (
     validate_delete_user_profile_request,
     validate_publish_user_interaction_request,
@@ -118,8 +119,7 @@ def delete_user_profile(
 
     reflexio = get_reflexio(org_id=org_id)
     try:
-        result = reflexio.delete_profile(request)
-        return result
+        return reflexio.delete_profile(request)
     except Exception as e:
         logger.error("Failed to delete user profile: %s", e)
         return DeleteUserProfileResponse(success=False, message=str(e))
@@ -139,8 +139,7 @@ def delete_user_interaction(
     """
     reflexio = get_reflexio(org_id=org_id)
     try:
-        result = reflexio.delete_interaction(request)
-        return result
+        return reflexio.delete_interaction(request)
     except Exception as e:
         logger.error("Failed to delete user interaction: %s", e)
         return DeleteUserInteractionResponse(success=False, message=str(e))
@@ -158,8 +157,7 @@ def delete_request(org_id: str, request: DeleteRequestRequest) -> DeleteRequestR
     """
     reflexio = get_reflexio(org_id=org_id)
     try:
-        result = reflexio.delete_request(request)
-        return result
+        return reflexio.delete_request(request)
     except Exception as e:
         logger.error("Failed to delete request: %s", e)
         return DeleteRequestResponse(success=False, message=str(e))
@@ -177,8 +175,7 @@ def delete_session(org_id: str, request: DeleteSessionRequest) -> DeleteSessionR
     """
     reflexio = get_reflexio(org_id=org_id)
     try:
-        result = reflexio.delete_session(request)
-        return result
+        return reflexio.delete_session(request)
     except Exception as e:
         logger.error("Failed to delete session: %s", e)
         return DeleteSessionResponse(success=False, message=str(e))
@@ -198,8 +195,7 @@ def delete_feedback(
     """
     reflexio = get_reflexio(org_id=org_id)
     try:
-        result = reflexio.delete_feedback(request)
-        return result
+        return reflexio.delete_feedback(request)
     except Exception as e:
         logger.error("Failed to delete feedback: %s", e)
         return DeleteFeedbackResponse(success=False, message=str(e))
@@ -219,8 +215,7 @@ def delete_raw_feedback(
     """
     reflexio = get_reflexio(org_id=org_id)
     try:
-        result = reflexio.delete_raw_feedback(request)
-        return result
+        return reflexio.delete_raw_feedback(request)
     except Exception as e:
         logger.error("Failed to delete raw feedback: %s", e)
         return DeleteRawFeedbackResponse(success=False, message=str(e))
@@ -303,8 +298,7 @@ def update_feedback_status(
     """
     reflexio = get_reflexio(org_id=org_id)
     try:
-        result = reflexio.update_feedback_status(request)
-        return result
+        return reflexio.update_feedback_status(request)
     except Exception as e:
         logger.error("Failed to update feedback status: %s", e)
         return UpdateFeedbackStatusResponse(success=False, msg=str(e))

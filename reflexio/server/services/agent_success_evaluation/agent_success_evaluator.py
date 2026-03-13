@@ -1,23 +1,19 @@
 import logging
 import random
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING
 
 # Roles considered as agent/system-side (not user turns) when counting user turns.
 _AGENT_ROLES = {"agent", "assistant", "system", "tool", "internal"}
 
-from reflexio.server.api_endpoints.request_context import RequestContext
-from reflexio.server.llm.litellm_client import LiteLLMClient
-from reflexio_commons.config_schema import AgentSuccessConfig
+from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 from reflexio_commons.api_schema.service_schemas import (
     AgentSuccessEvaluationResult,
     RegularVsShadow,
 )
-from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
+from reflexio_commons.config_schema import AgentSuccessConfig
 
-from reflexio.server.services.extractor_interaction_utils import (
-    get_effective_source_filter,
-    filter_interactions_by_source,
-)
+from reflexio.server.api_endpoints.request_context import RequestContext
+from reflexio.server.llm.litellm_client import LiteLLMClient
 from reflexio.server.services.agent_success_evaluation.agent_success_evaluation_constants import (
     AgentSuccessEvaluationOutput,
     AgentSuccessEvaluationWithComparisonOutput,
@@ -25,8 +21,12 @@ from reflexio.server.services.agent_success_evaluation.agent_success_evaluation_
 from reflexio.server.services.agent_success_evaluation.agent_success_evaluation_utils import (
     construct_agent_success_evaluation_messages_from_sessions,
     construct_agent_success_evaluation_with_comparison_messages,
-    has_shadow_content,
     format_interactions_for_request,
+    has_shadow_content,
+)
+from reflexio.server.services.extractor_interaction_utils import (
+    filter_interactions_by_source,
+    get_effective_source_filter,
 )
 from reflexio.server.services.service_utils import (
     extract_interactions_from_request_interaction_data_models,
@@ -77,7 +77,7 @@ class AgentSuccessEvaluator:
         self.request_context: RequestContext = request_context
         self.client: LiteLLMClient = llm_client
         self.config: AgentSuccessConfig = extractor_config
-        self.service_config: "AgentSuccessGenerationServiceConfig" = service_config
+        self.service_config: AgentSuccessGenerationServiceConfig = service_config
         self.agent_context: str = agent_context
 
         # Get LLM config overrides from configuration
@@ -86,7 +86,8 @@ class AgentSuccessEvaluator:
 
         # Get site var as fallback
         self.model_setting = SiteVarManager().get_site_var("llm_model_setting")
-        assert isinstance(self.model_setting, dict), "llm_model_setting must be a dict"
+        if not isinstance(self.model_setting, dict):
+            raise ValueError("llm_model_setting must be a dict")
 
         # Use override if present, otherwise fallback to site var
         # Note: generation_model_name override applies to both generation and evaluation
@@ -134,7 +135,7 @@ class AgentSuccessEvaluator:
 
         # Check sampling rate once per group
         if self.config.sampling_rate < 1.0:
-            random_value = random.random()
+            random_value = random.random()  # noqa: S311
             if random_value >= self.config.sampling_rate:
                 logger.info(
                     "Skipping evaluation for session %s due to sampling rate. "
@@ -150,7 +151,7 @@ class AgentSuccessEvaluator:
 
     def _evaluate_group(
         self, request_interaction_data_models: list[RequestInteractionDataModel]
-    ) -> Optional[AgentSuccessEvaluationResult]:
+    ) -> AgentSuccessEvaluationResult | None:
         """
         Evaluate agent success for the entire session.
 
@@ -197,7 +198,7 @@ class AgentSuccessEvaluator:
         self,
         request_interaction_data_models: list[RequestInteractionDataModel],
         tool_can_use_str: str,
-    ) -> Optional[AgentSuccessEvaluationResult]:
+    ) -> AgentSuccessEvaluationResult | None:
         """
         Evaluate agent success for the group without shadow comparison.
 
@@ -268,18 +269,16 @@ class AgentSuccessEvaluator:
             )
             return None
 
-        result = self._build_evaluation_result(
+        return self._build_evaluation_result(
             evaluation_response=evaluation_response,
             request_interaction_data_models=request_interaction_data_models,
         )
-
-        return result
 
     def _evaluate_with_shadow_comparison(
         self,
         request_interaction_data_models: list[RequestInteractionDataModel],
         tool_can_use_str: str,
-    ) -> Optional[AgentSuccessEvaluationResult]:
+    ) -> AgentSuccessEvaluationResult | None:
         """
         Evaluate agent success with shadow content comparison at group level.
 
@@ -303,7 +302,7 @@ class AgentSuccessEvaluator:
         )
 
         # Randomly decide which is Request 1 vs Request 2 to avoid position bias
-        regular_is_request_1 = random.choice([True, False])
+        regular_is_request_1 = random.choice([True, False])  # noqa: S311
 
         # Format interactions for regular and shadow versions
         regular_interactions = format_interactions_for_request(
@@ -404,21 +403,18 @@ class AgentSuccessEvaluator:
             regular_is_request_1=regular_is_request_1,
         )
 
-        result = self._build_evaluation_result(
+        return self._build_evaluation_result(
             evaluation_response=evaluation_response,
             request_interaction_data_models=request_interaction_data_models,
             regular_vs_shadow=regular_vs_shadow,
         )
 
-        return result
-
     def _build_evaluation_result(
         self,
-        evaluation_response: Union[
-            AgentSuccessEvaluationOutput, AgentSuccessEvaluationWithComparisonOutput
-        ],
+        evaluation_response: AgentSuccessEvaluationOutput
+        | AgentSuccessEvaluationWithComparisonOutput,
         request_interaction_data_models: list[RequestInteractionDataModel],
-        regular_vs_shadow: Optional[RegularVsShadow] = None,
+        regular_vs_shadow: RegularVsShadow | None = None,
     ) -> AgentSuccessEvaluationResult:
         """
         Build an AgentSuccessEvaluationResult from LLM evaluation response and session data.
@@ -479,7 +475,7 @@ class AgentSuccessEvaluator:
             int: Number of raw feedbacks for the session, defaulting to 0 on error.
         """
         try:
-            count = self.request_context.storage.count_raw_feedbacks_by_session(
+            count = self.request_context.storage.count_raw_feedbacks_by_session(  # type: ignore[reportOptionalMemberAccess]
                 self.service_config.session_id
             )
             return count if count is not None else 0
@@ -519,14 +515,13 @@ class AgentSuccessEvaluator:
                     if is_significantly_better
                     else RegularVsShadow.REGULAR_IS_SLIGHTLY_BETTER
                 )
-            else:
-                # Shadow is Request 1, so shadow is better
-                return (
-                    RegularVsShadow.SHADOW_IS_BETTER
-                    if is_significantly_better
-                    else RegularVsShadow.SHADOW_IS_SLIGHTLY_BETTER
-                )
-        elif better_request == "2":
+            # Shadow is Request 1, so shadow is better
+            return (
+                RegularVsShadow.SHADOW_IS_BETTER
+                if is_significantly_better
+                else RegularVsShadow.SHADOW_IS_SLIGHTLY_BETTER
+            )
+        if better_request == "2":
             # Request 2 is better
             if regular_is_request_1:
                 # Regular is Request 1, so shadow (Request 2) is better
@@ -535,13 +530,12 @@ class AgentSuccessEvaluator:
                     if is_significantly_better
                     else RegularVsShadow.SHADOW_IS_SLIGHTLY_BETTER
                 )
-            else:
-                # Shadow is Request 1, so regular (Request 2) is better
-                return (
-                    RegularVsShadow.REGULAR_IS_BETTER
-                    if is_significantly_better
-                    else RegularVsShadow.REGULAR_IS_SLIGHTLY_BETTER
-                )
+            # Shadow is Request 1, so regular (Request 2) is better
+            return (
+                RegularVsShadow.REGULAR_IS_BETTER
+                if is_significantly_better
+                else RegularVsShadow.REGULAR_IS_SLIGHTLY_BETTER
+            )
 
         # Default to tied if unexpected value
         logger.warning(

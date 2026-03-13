@@ -7,10 +7,11 @@ python reset_password_script.py --email <email> --password <password>
 """
 
 import argparse
-from sqlalchemy.orm import Session
-from reflexio.server.api_endpoints.login import get_password_hash
 
-from reflexio.server.db.db_operations import get_organization_by_email, get_db_session
+from sqlalchemy.orm import Session
+
+from reflexio.server.api_endpoints.login import get_password_hash
+from reflexio.server.db.db_operations import get_db_session, get_organization_by_email
 
 
 def reset_password(org_email: str, new_password: str, session: Session) -> bool:

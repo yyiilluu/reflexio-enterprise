@@ -8,11 +8,23 @@ Tests core functionality without external dependencies:
 - Error handling during storage operations
 """
 
+import contextlib
 import datetime
-from datetime import timezone
-import pytest
 import tempfile
+from datetime import timezone
 from unittest.mock import patch
+
+import pytest
+from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
+from reflexio_commons.api_schema.service_schemas import (
+    Interaction,
+    Request,
+)
+from reflexio_commons.config_schema import (
+    AgentSuccessConfig,
+    ToolUseConfig,
+)
+
 from reflexio.server.api_endpoints.request_context import RequestContext
 from reflexio.server.llm.litellm_client import LiteLLMClient, LiteLLMConfig
 from reflexio.server.services.agent_success_evaluation.agent_success_evaluation_service import (
@@ -20,15 +32,6 @@ from reflexio.server.services.agent_success_evaluation.agent_success_evaluation_
 )
 from reflexio.server.services.agent_success_evaluation.agent_success_evaluation_utils import (
     AgentSuccessEvaluationRequest,
-)
-from reflexio_commons.api_schema.service_schemas import (
-    Interaction,
-    Request,
-)
-from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
-from reflexio_commons.config_schema import (
-    AgentSuccessConfig,
-    ToolUseConfig,
 )
 
 
@@ -489,11 +492,9 @@ def test_agent_success_message_construction_with_interactions():
             )
 
             # Run the evaluation
-            try:
-                agent_success_service.run(evaluation_request)
-            except:
+            with contextlib.suppress(Exception):
                 # We're just validating message construction, errors are ok
-                pass
+                agent_success_service.run(evaluation_request)
 
         # Validate that messages were captured
         assert len(captured_messages) > 0, "No messages were captured"
@@ -513,21 +514,23 @@ def test_agent_success_message_construction_with_interactions():
                         assert (
                             "user: ```The agent helped me complete my task successfully```"
                             in content
-                        ), f"Expected 'user: ```The agent helped me complete my task successfully```' in prompt content"
-                        assert (
-                            "assistant: ```I used the search tool```" in content
-                        ), f"Expected 'assistant: ```I used the search tool```' in prompt content"
-                        assert (
-                            "assistant: ```click search button```" in content
-                        ), f"Expected 'assistant: ```click search button```' in prompt content"
+                        ), (
+                            "Expected 'user: ```The agent helped me complete my task successfully```' in prompt content"
+                        )
+                        assert "assistant: ```I used the search tool```" in content, (
+                            "Expected 'assistant: ```I used the search tool```' in prompt content"
+                        )
+                        assert "assistant: ```click search button```" in content, (
+                            "Expected 'assistant: ```click search button```' in prompt content"
+                        )
                         found_interactions_in_prompt = True
                         break
             if found_interactions_in_prompt:
                 break
 
-        assert (
-            found_interactions_in_prompt
-        ), "Did not find interactions in any rendered prompt"
+        assert found_interactions_in_prompt, (
+            "Did not find interactions in any rendered prompt"
+        )
 
 
 if __name__ == "__main__":

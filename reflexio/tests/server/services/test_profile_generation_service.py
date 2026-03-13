@@ -1,12 +1,13 @@
 import datetime
-from datetime import timezone
 import inspect
-import pytest
 import os
 import tempfile
+from datetime import timezone
 from unittest.mock import MagicMock, patch
 
+import pytest
 from pydantic import BaseModel
+
 from reflexio.server.api_endpoints.request_context import RequestContext
 
 
@@ -17,27 +18,28 @@ def disable_mock_llm_response(monkeypatch):
     monkeypatch.delenv("MOCK_LLM_RESPONSE", raising=False)
 
 
+from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
+from reflexio_commons.api_schema.service_schemas import (
+    Interaction,
+    InteractionData,
+    ProfileTimeToLive,
+    PublishUserInteractionRequest,
+    Request,
+)
+from reflexio_commons.config_schema import ProfileExtractorConfig
+
+from reflexio.server.llm.litellm_client import LiteLLMClient, LiteLLMConfig
 from reflexio.server.services.generation_service import GenerationService
 from reflexio.server.services.profile.profile_generation_service import (
     ProfileGenerationService,
 )
 from reflexio.server.services.profile.profile_generation_service_utils import (
+    ProfileAddItem,
     ProfileGenerationRequest,
     StructuredProfilesOutput,
-    ProfileAddItem,
-)
-from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
-from reflexio_commons.api_schema.service_schemas import (
-    InteractionData,
-    PublishUserInteractionRequest,
-    Interaction,
-    Request,
 )
 from reflexio.tests import test_data
-from reflexio_commons.api_schema.service_schemas import ProfileTimeToLive
 from reflexio.tests.server.test_utils import encode_image_to_base64
-from reflexio_commons.config_schema import ProfileExtractorConfig
-from reflexio.server.llm.litellm_client import LiteLLMClient, LiteLLMConfig
 
 
 @pytest.fixture
@@ -67,11 +69,12 @@ def mock_chat_completion():
         ):
             # Return a ProfileUpdateOutput instance
             return StructuredProfilesOutput(
-                profiles=[ProfileAddItem(content="like sushi", time_to_live="one_month")]
+                profiles=[
+                    ProfileAddItem(content="like sushi", time_to_live="one_month")
+                ]
             )
-        else:
-            # Return JSON string for non-structured responses
-            return '```json\n{\n    "add": [{\n        "content": "like sushi",\n        "time_to_live": "one_month"\n    }]\n}\n```'
+        # Return JSON string for non-structured responses
+        return '```json\n{\n    "add": [{\n        "content": "like sushi",\n        "time_to_live": "one_month"\n    }]\n}\n```'
 
     # Mock the LLM client's generate_chat_response method
     with patch(
@@ -314,21 +317,19 @@ def test_profile_extraction_message_construction():
                 # Check if this is a should_extract_profile call
                 if "Output just a boolean value" in prompt_content:
                     return "true"
-                else:
-                    # This is the actual profile extraction call
-                    # Check if parse_structured_output is True in kwargs
-                    if kwargs.get("parse_structured_output", False):
-                        # Return the parsed dict directly
-                        return {
-                            "add": [
-                                {
-                                    "content": "like Italian food and sushi",
-                                    "time_to_live": "one_month",
-                                }
-                            ]
-                        }
-                    else:
-                        return '```json\n{\n    "add": [{\n        "content": "like Italian food and sushi",\n        "time_to_live": "one_month"\n    }]\n}\n```'
+                # This is the actual profile extraction call
+                # Check if parse_structured_output is True in kwargs
+                if kwargs.get("parse_structured_output", False):
+                    # Return the parsed dict directly
+                    return {
+                        "add": [
+                            {
+                                "content": "like Italian food and sushi",
+                                "time_to_live": "one_month",
+                            }
+                        ]
+                    }
+                return '```json\n{\n    "add": [{\n        "content": "like Italian food and sushi",\n        "time_to_live": "one_month"\n    }]\n}\n```'
 
             with patch(
                 "reflexio.server.llm.litellm_client.LiteLLMClient.generate_chat_response",
@@ -382,7 +383,7 @@ def test_profile_extraction_message_construction():
                                 "User: ```I also enjoy sushi```" in content_str
                                 or "user: ```I also enjoy sushi```" in content_str
                             )
-                            has_interaction3 = (
+                            _has_interaction3 = (
                                 "User: ```click restaurant menu```" in content_str
                                 or "user: ```click restaurant menu```" in content_str
                             )
@@ -394,16 +395,14 @@ def test_profile_extraction_message_construction():
                 if found_interactions_in_prompt:
                     break
 
-            assert (
-                found_interactions_in_prompt
-            ), "Did not find interactions in any rendered prompt"
+            assert found_interactions_in_prompt, (
+                "Did not find interactions in any rendered prompt"
+            )
 
     finally:
         # Always restore MOCK_LLM_RESPONSE to "true" for test isolation
         # This ensures other tests in the same process don't fail
-        os.environ["MOCK_LLM_RESPONSE"] = (
-            original_mock_llm if original_mock_llm else "true"
-        )
+        os.environ["MOCK_LLM_RESPONSE"] = original_mock_llm or "true"
 
 
 def test_refresh_profiles_with_output_pending_status(mock_chat_completion):
@@ -1180,15 +1179,18 @@ def test_should_run_before_extraction_combines_all_extractor_criteria():
             ),
         ]
 
-        with patch.object(
-            service,
-            "_collect_scoped_interactions_for_precheck",
-            return_value=([session_data], extractor_configs),
-        ), patch.object(
-            service.client,
-            "generate_chat_response",
-            return_value="true",
-        ) as mock_generate:
+        with (
+            patch.object(
+                service,
+                "_collect_scoped_interactions_for_precheck",
+                return_value=([session_data], extractor_configs),
+            ),
+            patch.object(
+                service.client,
+                "generate_chat_response",
+                return_value="true",
+            ) as mock_generate,
+        ):
             should_run = service._should_run_before_extraction(extractor_configs)
 
         assert should_run is True

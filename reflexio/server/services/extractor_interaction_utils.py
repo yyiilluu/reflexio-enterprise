@@ -6,12 +6,11 @@ to handle per-extractor stride checking, source filtering, and sliding window it
 """
 
 import logging
-from typing import Optional, TypeVar
+from typing import TypeVar
 
 from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 
 from reflexio.server.services.extractor_config_utils import get_extractor_name
-
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +23,8 @@ DEFAULT_STRIDE_SIZE = 5
 
 def get_extractor_window_params(
     extractor_config: TExtractorConfig,
-    global_window_size: Optional[int],
-    global_stride: Optional[int],
+    global_window_size: int | None,
+    global_stride: int | None,
 ) -> tuple[int, int]:
     """
     Get effective window size and stride for a specific extractor.
@@ -67,8 +66,8 @@ def get_extractor_window_params(
 
 def get_effective_source_filter(
     extractor_config: TExtractorConfig,
-    triggering_source: Optional[str],
-) -> tuple[bool, Optional[list[str]]]:
+    triggering_source: str | None,
+) -> tuple[bool, list[str] | None]:
     """
     Get effective source filter for an extractor.
 
@@ -120,7 +119,7 @@ def get_effective_source_filter(
 
 def should_extractor_run_by_stride(
     new_interaction_count: int,
-    stride_size: Optional[int],
+    stride_size: int | None,
 ) -> bool:
     """
     Determine if an extractor should run based on its stride configuration.
@@ -143,7 +142,7 @@ def should_extractor_run_by_stride(
 
 def filter_interactions_by_source(
     request_interaction_data_models: list[RequestInteractionDataModel],
-    source_filter: Optional[str | list[str]],
+    source_filter: str | list[str] | None,
 ) -> list[RequestInteractionDataModel]:
     """
     Filter request interaction data models by source.

@@ -4,12 +4,16 @@ Unit tests for BaseGenerationService class.
 Tests the abstract base class by creating a concrete implementation for testing.
 """
 
-import pytest
 import tempfile
 import time
 from dataclasses import dataclass, field
-from typing import Optional
 from unittest.mock import MagicMock
+
+import pytest
+from reflexio_commons.api_schema.service_schemas import (
+    Interaction,
+    Status,
+)
 
 from reflexio.server.api_endpoints.request_context import RequestContext
 from reflexio.server.llm.litellm_client import LiteLLMClient, LiteLLMConfig
@@ -18,11 +22,6 @@ from reflexio.server.services.base_generation_service import (
     ExtractorExecutionError,
     StatusChangeOperation,
 )
-from reflexio_commons.api_schema.service_schemas import (
-    Interaction,
-    Status,
-)
-
 
 # ===============================
 # Test Data Classes
@@ -34,10 +33,10 @@ class MockExtractorConfig:
     """Mock extractor config for testing."""
 
     extractor_name: str
-    request_sources_enabled: Optional[list[str]] = None
+    request_sources_enabled: list[str] | None = None
     manual_trigger: bool = False
-    extraction_window_size_override: Optional[int] = None
-    extraction_window_stride_override: Optional[int] = None
+    extraction_window_size_override: int | None = None
+    extraction_window_stride_override: int | None = None
 
 
 @dataclass
@@ -46,10 +45,10 @@ class MockServiceConfig:
 
     user_id: str = "test_user"
     request_id: str = "test_request"
-    request_interaction_data_models: Optional[list] = None
-    source: Optional[str] = None
+    request_interaction_data_models: list | None = None
+    source: str | None = None
     allow_manual_trigger: bool = False
-    extractor_names: Optional[list[str]] = None
+    extractor_names: list[str] | None = None
     is_incremental: bool = False
     previously_extracted: list = field(default_factory=list)
     auto_run: bool = True
@@ -485,7 +484,7 @@ class TestFilterConfigsByStride:
             request_context,
             extractor_configs=[],
         )
-        return service
+        return service  # noqa: RET504
 
     def test_filters_configs_when_stride_not_met(self, llm_client, request_context):
         """Verify configs are dropped when new interaction count < stride."""
@@ -677,7 +676,7 @@ class TestRun:
             ],
         )
         service._create_extractor = MagicMock(
-            side_effect=lambda extractor_config, service_config: MockExtractor(
+            side_effect=lambda extractor_config, service_config: MockExtractor(  # noqa: ARG005
                 should_raise=True
             )
         )
@@ -704,7 +703,7 @@ class TestRun:
             ],
         )
         service._create_extractor = MagicMock(
-            side_effect=lambda extractor_config, service_config: MockExtractor(
+            side_effect=lambda extractor_config, service_config: MockExtractor(  # noqa: ARG005
                 result={"extractor_name": extractor_config.extractor_name},
                 should_raise=extractor_config.extractor_name == "extractor1",
             )
@@ -1287,15 +1286,14 @@ class TestInProgressLockMechanism:
                         "pending_request_id": "request_2",
                     }
                 }
-            else:
-                # Subsequent calls: no more pending requests
-                return {
-                    "operation_state": {
-                        "in_progress": True,
-                        "current_request_id": "request_2",
-                        "pending_request_id": None,
-                    }
+            # Subsequent calls: no more pending requests
+            return {
+                "operation_state": {
+                    "in_progress": True,
+                    "current_request_id": "request_2",
+                    "pending_request_id": None,
                 }
+            }
 
         service.storage.try_acquire_in_progress_lock = MagicMock(
             return_value={"acquired": True}
@@ -1732,7 +1730,7 @@ class TestSequentialExecution:
             ],
         )
         service._create_extractor = MagicMock(
-            side_effect=lambda ec, sc: MockExtractor(should_raise=True)
+            side_effect=lambda ec, sc: MockExtractor(should_raise=True)  # noqa: ARG005
         )
 
         request = MockServiceConfig(user_id="test_user", request_id="test_request")

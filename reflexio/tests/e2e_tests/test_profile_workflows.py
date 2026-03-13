@@ -1,25 +1,26 @@
 """End-to-end tests for profile workflows including rerun functionality."""
 
 import uuid
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
-from typing import Callable
 
-from reflexio.reflexio_lib.reflexio_lib import Reflexio
-from reflexio.tests.server.test_utils import skip_in_precommit, skip_low_priority
 from reflexio_commons.api_schema.retriever_schema import (
     GetUserProfilesRequest,
     SearchUserProfileRequest,
 )
 from reflexio_commons.api_schema.service_schemas import (
     DeleteUserProfileRequest,
+    DowngradeProfilesRequest,
     InteractionData,
     ManualProfileGenerationRequest,
-    Status,
     RerunProfileGenerationRequest,
-    UserProfile,
+    Status,
     UpgradeProfilesRequest,
-    DowngradeProfilesRequest,
+    UserProfile,
 )
+
+from reflexio.reflexio_lib.reflexio_lib import Reflexio
+from reflexio.tests.server.test_utils import skip_in_precommit, skip_low_priority
 
 
 @skip_in_precommit
@@ -126,9 +127,9 @@ def test_search_profiles_end_to_end(
 
     # Verify all returned profiles have CURRENT status (default search filter)
     for profile in response.user_profiles:
-        assert (
-            profile.status is None
-        ), f"Default search should return only CURRENT profiles, got status={profile.status}"
+        assert profile.status is None, (
+            f"Default search should return only CURRENT profiles, got status={profile.status}"
+        )
 
     # Verify profile content contains relevant information from interactions
     # The profile should contain content extracted from the conversation
@@ -313,9 +314,9 @@ def test_rerun_profile_generation_end_to_end(
         rerun_request
     )
     assert rerun_response.success is True, f"Rerun should succeed: {rerun_response.msg}"
-    assert (
-        rerun_response.profiles_generated > 0
-    ), "Rerun should generate at least one profile"
+    assert rerun_response.profiles_generated > 0, (
+        "Rerun should generate at least one profile"
+    )
 
     # Step 3: Verify pending profiles were created
     pending_profiles = (
@@ -325,9 +326,9 @@ def test_rerun_profile_generation_end_to_end(
     )
     assert len(pending_profiles) > 0, "Should have pending profiles after rerun"
     for profile in pending_profiles:
-        assert (
-            profile.status == Status.PENDING
-        ), "Rerun profiles should have status=Status.PENDING"
+        assert profile.status == Status.PENDING, (
+            "Rerun profiles should have status=Status.PENDING"
+        )
 
     # Step 4: Verify current profiles still exist unchanged
     current_profiles_after = (
@@ -335,14 +336,12 @@ def test_rerun_profile_generation_end_to_end(
             user_id, status_filter=[None]
         )
     )
-    assert (
-        len(current_profiles_after) == initial_profile_count
-    ), "Current profiles should remain unchanged"
+    assert len(current_profiles_after) == initial_profile_count, (
+        "Current profiles should remain unchanged"
+    )
 
     # Step 5: Verify get_profiles returns only current profiles by default
-    default_response = reflexio_instance_profile_only.get_profiles(
-        {"user_id": user_id}
-    )
+    default_response = reflexio_instance_profile_only.get_profiles({"user_id": user_id})
     assert default_response.success is True
     assert len(default_response.user_profiles) == initial_profile_count
     assert all(p.status is None for p in default_response.user_profiles)
@@ -423,9 +422,9 @@ def test_rerun_profile_generation_with_time_filters(
         rerun_request_valid
     )
     assert rerun_response_valid.success is True
-    assert (
-        rerun_response_valid.profiles_generated > 0
-    ), "Rerun with valid time filter should generate profiles"
+    assert rerun_response_valid.profiles_generated > 0, (
+        "Rerun with valid time filter should generate profiles"
+    )
 
     # Verify pending profiles were created
     pending_profiles = (
@@ -505,9 +504,9 @@ def test_rerun_profile_generation_with_source_filter(
         )
     )
     if rerun_response_a.profiles_generated > 0:
-        assert (
-            len(pending_profiles) > 0
-        ), "Expected pending profiles when profiles_generated > 0"
+        assert len(pending_profiles) > 0, (
+            "Expected pending profiles when profiles_generated > 0"
+        )
 
     # Test with non-existent source - should fail with appropriate message
     rerun_request_invalid = RerunProfileGenerationRequest(
@@ -1001,9 +1000,9 @@ def test_manual_profile_generation_end_to_end(
             user_id=user_id,
         )
     )
-    assert (
-        manual_response.success is True
-    ), f"Manual generation failed: {manual_response.msg}"
+    assert manual_response.success is True, (
+        f"Manual generation failed: {manual_response.msg}"
+    )
 
     # Step 3: Verify profiles were generated with CURRENT status (None)
     current_profiles = (
@@ -1021,9 +1020,9 @@ def test_manual_profile_generation_end_to_end(
             user_id, status_filter=[Status.PENDING]
         )
     )
-    assert (
-        len(pending_profiles) == 0
-    ), "Manual generation should not create PENDING profiles"
+    assert len(pending_profiles) == 0, (
+        "Manual generation should not create PENDING profiles"
+    )
 
 
 @skip_in_precommit

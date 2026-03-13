@@ -14,30 +14,30 @@ CLUSTERING_ALGORITHM_THRESHOLD = 50
 
 from reflexio_commons.api_schema.service_schemas import (
     Feedback,
-    FeedbackStatus,
     FeedbackAggregationChangeLog,
     FeedbackSnapshot,
+    FeedbackStatus,
     FeedbackUpdateEntry,
     RawFeedback,
     feedback_to_snapshot,
 )
-from reflexio.server.api_endpoints.request_context import RequestContext
-from reflexio.server.services.operation_state_utils import OperationStateManager
 from reflexio_commons.config_schema import (
     FeedbackAggregatorConfig,
 )
+
+from reflexio.server.api_endpoints.request_context import RequestContext
 from reflexio.server.llm.litellm_client import LiteLLMClient
-from reflexio.server.services.service_utils import log_model_response
 from reflexio.server.services.feedback.feedback_service_constants import (
     FeedbackServiceConstants,
 )
 from reflexio.server.services.feedback.feedback_service_utils import (
-    FeedbackAggregatorRequest,
     FeedbackAggregationOutput,
+    FeedbackAggregatorRequest,
     StructuredFeedbackContent,
     format_structured_feedback_content,
 )
-
+from reflexio.server.services.operation_state_utils import OperationStateManager
+from reflexio.server.services.service_utils import log_model_response
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +67,7 @@ class FeedbackAggregator:
             OperationStateManager configured for feedback_aggregator
         """
         return OperationStateManager(
-            self.storage,
+            self.storage,  # type: ignore[reportArgumentType]
             self.request_context.org_id,
             "feedback_aggregator",
         )
@@ -98,7 +98,7 @@ class FeedbackAggregator:
 
         # Count feedbacks with ID greater than last processed using efficient count query
         # Only count current raw feedbacks (status=None), not archived or pending ones
-        new_count = self.storage.count_raw_feedbacks(
+        new_count = self.storage.count_raw_feedbacks(  # type: ignore[reportOptionalMemberAccess]
             feedback_name=feedback_name,
             min_raw_feedback_id=last_processed_id,
             agent_version=self.agent_version,
@@ -199,32 +199,27 @@ class FeedbackAggregator:
         # List all when_conditions for LLM to generate a consolidated one
         if when_conditions:
             lines.append("WHEN conditions (to be consolidated):")
-            for condition in when_conditions:
-                lines.append(f"- {condition}")
+            lines.extend(f"- {condition}" for condition in when_conditions)
         else:
             lines.append("WHEN conditions: (none specified)")
 
         if do_actions:
             lines.append("DO actions:")
-            for action in do_actions:
-                lines.append(f"- {action}")
+            lines.extend(f"- {action}" for action in do_actions)
 
         if do_not_actions:
             lines.append("DON'T actions:")
-            for action in do_not_actions:
-                lines.append(f"- {action}")
+            lines.extend(f"- {action}" for action in do_not_actions)
 
         # Collect blocking issues from cluster feedbacks
-        blocking_issues = []
-        for fb in cluster_feedbacks:
-            if fb.blocking_issue:
-                blocking_issues.append(
-                    f"[{fb.blocking_issue.kind.value}] {fb.blocking_issue.details}"
-                )
+        blocking_issues = [
+            f"[{fb.blocking_issue.kind.value}] {fb.blocking_issue.details}"
+            for fb in cluster_feedbacks
+            if fb.blocking_issue
+        ]
         if blocking_issues:
             lines.append("BLOCKED BY issues:")
-            for issue in blocking_issues:
-                lines.append(f"- {issue}")
+            lines.extend(f"- {issue}" for issue in blocking_issues)
 
         return "\n".join(lines)
 
@@ -389,7 +384,7 @@ class FeedbackAggregator:
     # public methods
     # ===============================
 
-    def run(self, feedback_aggregator_request: FeedbackAggregatorRequest) -> None:
+    def run(self, feedback_aggregator_request: FeedbackAggregatorRequest) -> None:  # noqa: C901
         # get feedback aggregator config
         feedback_aggregator_config = self._get_feedback_aggregator_config(
             feedback_aggregator_request.feedback_name
@@ -429,21 +424,23 @@ class FeedbackAggregator:
             return
 
         logger.info(
-            f"Running aggregation for '{feedback_aggregator_request.feedback_name}'"
+            "Running aggregation for '%s'",
+            feedback_aggregator_request.feedback_name,
         )
 
         # Get existing APPROVED and PENDING feedbacks before archiving (to pass to LLM for deduplication)
-        existing_feedbacks = self.storage.get_feedbacks(
+        existing_feedbacks = self.storage.get_feedbacks(  # type: ignore[reportOptionalMemberAccess]
             feedback_name=feedback_aggregator_request.feedback_name,
             status_filter=[None],  # Current feedbacks only
             feedback_status_filter=[FeedbackStatus.APPROVED, FeedbackStatus.PENDING],
         )
         logger.info(
-            f"Found {len(existing_feedbacks)} existing feedbacks (approved + pending) to preserve"
+            "Found %s existing feedbacks (approved + pending) to preserve",
+            len(existing_feedbacks),
         )
 
         # get all raw feedbacks and generate clusters
-        raw_feedbacks = self.storage.get_raw_feedbacks(
+        raw_feedbacks = self.storage.get_raw_feedbacks(  # type: ignore[reportOptionalMemberAccess]
             feedback_name=feedback_aggregator_request.feedback_name,
             agent_version=self.agent_version,
             include_embedding=True,
@@ -465,7 +462,7 @@ class FeedbackAggregator:
         if feedback_aggregator_request.rerun:
             # Full rerun: archive all non-APPROVED feedbacks, regenerate everything
             logger.info("Rerun requested: bypassing cluster change detection")
-            self.storage.archive_feedbacks_by_feedback_name(
+            self.storage.archive_feedbacks_by_feedback_name(  # type: ignore[reportOptionalMemberAccess]
                 feedback_name, agent_version=self.agent_version
             )
             changed_clusters = clusters
@@ -481,7 +478,7 @@ class FeedbackAggregator:
                 logger.info(
                     "No previous cluster fingerprints found, treating all clusters as changed"
                 )
-                self.storage.archive_feedbacks_by_feedback_name(
+                self.storage.archive_feedbacks_by_feedback_name(  # type: ignore[reportOptionalMemberAccess]
                     feedback_name, agent_version=self.agent_version
                 )
                 changed_clusters = clusters
@@ -509,7 +506,7 @@ class FeedbackAggregator:
 
                 # Selectively archive only feedbacks from changed/disappeared clusters
                 if archived_feedback_ids:
-                    self.storage.archive_feedbacks_by_ids(archived_feedback_ids)
+                    self.storage.archive_feedbacks_by_ids(archived_feedback_ids)  # type: ignore[reportOptionalMemberAccess]
 
         try:
             # Generate new feedbacks only for changed clusters
@@ -518,7 +515,7 @@ class FeedbackAggregator:
             )
 
             # Save feedbacks (returns feedbacks with feedback_id populated)
-            saved_feedbacks = self.storage.save_feedbacks(feedbacks)
+            saved_feedbacks = self.storage.save_feedbacks(feedbacks)  # type: ignore[reportOptionalMemberAccess]
 
             # Build new fingerprint state
             new_fingerprints = {}
@@ -540,15 +537,19 @@ class FeedbackAggregator:
                     )
 
                 # Carry forward unchanged clusters (still exist and not changed)
-                for fp, fp_data in prev_fps.items():
-                    if fp in current_fp_set and fp not in changed_fp_set:
-                        new_fingerprints[fp] = fp_data
+                new_fingerprints.update(
+                    {
+                        fp: fp_data
+                        for fp, fp_data in prev_fps.items()
+                        if fp in current_fp_set and fp not in changed_fp_set
+                    }
+                )
 
             # Map saved feedbacks back to changed clusters by order
             # _generate_feedback_from_clusters iterates clusters in order and
             # filters out None results, so we need to track which feedbacks
             # correspond to which clusters
-            for cluster_id, cluster_feedbacks in changed_clusters.items():
+            for cluster_feedbacks in changed_clusters.values():
                 fp = self._compute_cluster_fingerprint(cluster_feedbacks)
                 raw_ids = sorted(fb.raw_feedback_id for fb in cluster_feedbacks)
 
@@ -565,10 +566,10 @@ class FeedbackAggregator:
             # Now assign feedback_ids from saved feedbacks to fingerprints
             # Since both iterate in cluster order, match by position
             saved_feedback_list = list(saved_feedbacks)
-            fp_keys_from_changed = []
-            for cluster_id, cluster_feedbacks in changed_clusters.items():
-                fp = self._compute_cluster_fingerprint(cluster_feedbacks)
-                fp_keys_from_changed.append(fp)
+            fp_keys_from_changed = [
+                self._compute_cluster_fingerprint(cluster_feedbacks)
+                for cluster_feedbacks in changed_clusters.values()
+            ]
 
             # saved_feedbacks only contains non-None results, so we just
             # assign feedback_ids to fingerprints that got valid feedbacks
@@ -580,9 +581,9 @@ class FeedbackAggregator:
                             fp_key in new_fingerprints
                             and new_fingerprints[fp_key]["feedback_id"] is None
                         ):
-                            new_fingerprints[fp_key][
-                                "feedback_id"
-                            ] = saved_fb.feedback_id
+                            new_fingerprints[fp_key]["feedback_id"] = (
+                                saved_fb.feedback_id
+                            )
                             break
 
             # Store fingerprints in operation state
@@ -605,7 +606,7 @@ class FeedbackAggregator:
                     archived_feedback_ids=archived_feedback_ids,
                     prev_fingerprints=(prev_fingerprints if not full_archive else {}),
                 )
-                self.storage.add_feedback_aggregation_change_log(change_log)
+                self.storage.add_feedback_aggregation_change_log(change_log)  # type: ignore[reportOptionalMemberAccess]
                 logger.info(
                     "Saved feedback aggregation change log: %d added, %d removed, %d updated",
                     len(change_log.added_feedbacks),
@@ -620,11 +621,11 @@ class FeedbackAggregator:
 
             # Delete archived feedbacks after successful aggregation
             if full_archive:
-                self.storage.delete_archived_feedbacks_by_feedback_name(
+                self.storage.delete_archived_feedbacks_by_feedback_name(  # type: ignore[reportOptionalMemberAccess]
                     feedback_name, agent_version=self.agent_version
                 )
             elif archived_feedback_ids:
-                self.storage.delete_feedbacks_by_ids(archived_feedback_ids)
+                self.storage.delete_feedbacks_by_ids(archived_feedback_ids)  # type: ignore[reportOptionalMemberAccess]
 
         except Exception as e:
             # Restore archived feedbacks if any error occurs during aggregation
@@ -634,11 +635,11 @@ class FeedbackAggregator:
                 str(e),
             )
             if full_archive:
-                self.storage.restore_archived_feedbacks_by_feedback_name(
+                self.storage.restore_archived_feedbacks_by_feedback_name(  # type: ignore[reportOptionalMemberAccess]
                     feedback_name, agent_version=self.agent_version
                 )
             elif archived_feedback_ids:
-                self.storage.restore_archived_feedbacks_by_ids(archived_feedback_ids)
+                self.storage.restore_archived_feedbacks_by_ids(archived_feedback_ids)  # type: ignore[reportOptionalMemberAccess]
             # Re-raise the exception after restoring
             raise
 
@@ -759,7 +760,9 @@ class FeedbackAggregator:
         return clusters
 
     def _cluster_with_agglomerative(
-        self, distance_matrix: np.ndarray, min_cluster_size: int
+        self,
+        distance_matrix: np.ndarray,
+        min_cluster_size: int,  # noqa: ARG002
     ) -> np.ndarray:
         """
         Cluster using Agglomerative Clustering - best for small datasets.
@@ -779,7 +782,7 @@ class FeedbackAggregator:
         )
 
         clusterer = AgglomerativeClustering(
-            n_clusters=None,
+            n_clusters=None,  # type: ignore[reportArgumentType]
             distance_threshold=0.3,  # ~70% cosine similarity
             metric="precomputed",
             linkage="average",
@@ -840,7 +843,7 @@ class FeedbackAggregator:
         )
 
         feedbacks = []
-        for _, cluster_feedbacks in clusters.items():
+        for cluster_feedbacks in clusters.values():
             feedback = self._generate_feedback_from_cluster(
                 cluster_feedbacks, approved_feedbacks_str
             )

@@ -1,5 +1,3 @@
-from typing import Optional
-
 from pydantic import BaseModel, EmailStr, Field
 
 from reflexio_commons.api_schema.validators import NonEmptyStr
@@ -8,16 +6,16 @@ from reflexio_commons.api_schema.validators import NonEmptyStr
 class Token(BaseModel):
     api_key: NonEmptyStr
     token_type: NonEmptyStr
-    feature_flags: Optional[dict[str, bool]] = None
-    auto_verified: Optional[bool] = None
+    feature_flags: dict[str, bool] | None = None
+    auto_verified: bool | None = None
 
 
 class ApiTokenResponse(BaseModel):
     id: int
     name: str
     token_masked: str
-    created_at: Optional[int] = None
-    last_used_at: Optional[int] = None
+    created_at: int | None = None
+    last_used_at: int | None = None
 
 
 class ApiTokenCreateRequest(BaseModel):
@@ -28,7 +26,7 @@ class ApiTokenCreateResponse(BaseModel):
     id: int
     name: str
     token: str
-    created_at: Optional[int] = None
+    created_at: int | None = None
 
 
 class ApiTokenListResponse(BaseModel):

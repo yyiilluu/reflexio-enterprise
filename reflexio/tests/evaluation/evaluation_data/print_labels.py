@@ -63,7 +63,7 @@ def print_labels_by_type(labels_by_type: dict[str, list[dict]]) -> None:
 
         for i, label_info in enumerate(labels, 1):
             print(f"\n[{i}] Turn {label_info['turn']} ({label_info['role']})")
-            print(f"    Message: \"{label_info['message']}\"")
+            print(f'    Message: "{label_info["message"]}"')
             print(f"    Label:   {label_info['label']}")
 
 

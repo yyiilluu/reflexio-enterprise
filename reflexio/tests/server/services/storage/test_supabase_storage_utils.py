@@ -5,15 +5,16 @@ Tests blocking_issue serialization in raw_feedback_to_data and feedback_to_data.
 """
 
 from reflexio_commons.api_schema.service_schemas import (
-    RawFeedback,
-    Feedback,
-    FeedbackStatus,
     BlockingIssue,
     BlockingIssueKind,
+    Feedback,
+    FeedbackStatus,
+    RawFeedback,
 )
+
 from reflexio.server.services.storage.supabase_storage_utils import (
-    raw_feedback_to_data,
     feedback_to_data,
+    raw_feedback_to_data,
 )
 
 

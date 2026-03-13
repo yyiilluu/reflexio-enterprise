@@ -1,10 +1,11 @@
 """Tests for agent success evaluation utility functions."""
 
-import pytest
 from datetime import datetime, timezone
 
-from reflexio_commons.api_schema.service_schemas import Interaction, Request
+import pytest
 from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
+from reflexio_commons.api_schema.service_schemas import Interaction, Request
+
 from reflexio.server.prompt.prompt_manager import PromptManager
 from reflexio.server.services.agent_success_evaluation.agent_success_evaluation_utils import (
     construct_agent_success_evaluation_messages_from_sessions,
@@ -110,22 +111,24 @@ def test_construct_agent_success_evaluation_messages_with_sessions():
                 assert (
                     "user: ```The agent helped me complete my task successfully```"
                     in content
-                ), f"Expected 'user: ```The agent helped me complete my task successfully```' in prompt"
-                assert (
-                    "assistant: ```I used the search tool```" in content
-                ), f"Expected 'assistant: ```I used the search tool```' in prompt"
-                assert (
-                    "user: ```Great!```" in content
-                ), f"Expected 'user: ```Great!```' in prompt"
-                assert (
-                    "user: ```click search button```" in content
-                ), f"Expected 'user: ```click search button```' in prompt"
+                ), (
+                    "Expected 'user: ```The agent helped me complete my task successfully```' in prompt"
+                )
+                assert "assistant: ```I used the search tool```" in content, (
+                    "Expected 'assistant: ```I used the search tool```' in prompt"
+                )
+                assert "user: ```Great!```" in content, (
+                    "Expected 'user: ```Great!```' in prompt"
+                )
+                assert "user: ```click search button```" in content, (
+                    "Expected 'user: ```click search button```' in prompt"
+                )
 
                 # Also verify success definition and tools are in the content
                 assert (
                     "Evaluate if the agent successfully completed the task" in content
-                ), f"Expected success definition in prompt"
-                assert "search, calculator" in content, f"Expected tools in prompt"
+                ), "Expected success definition in prompt"
+                assert "search, calculator" in content, "Expected tools in prompt"
 
                 found_interactions = True
                 break

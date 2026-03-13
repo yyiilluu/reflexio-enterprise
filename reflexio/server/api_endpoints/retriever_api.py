@@ -5,27 +5,27 @@ Search user profiles and interactions
 from reflexio_commons.api_schema.retriever_schema import (
     GetInteractionsRequest,
     GetInteractionsResponse,
-    GetUserProfilesRequest,
-    GetUserProfilesResponse,
-    SearchUserProfileRequest,
-    SearchInteractionRequest,
-    SearchUserProfileResponse,
-    SearchInteractionResponse,
     GetRequestsRequest,
     GetRequestsResponse,
-    SearchRawFeedbackRequest,
-    SearchRawFeedbackResponse,
+    GetUserProfilesRequest,
+    GetUserProfilesResponse,
     SearchFeedbackRequest,
     SearchFeedbackResponse,
+    SearchInteractionRequest,
+    SearchInteractionResponse,
+    SearchRawFeedbackRequest,
+    SearchRawFeedbackResponse,
+    SearchUserProfileRequest,
+    SearchUserProfileResponse,
     UnifiedSearchRequest,
     UnifiedSearchResponse,
 )
 from reflexio_commons.api_schema.service_schemas import (
-    ProfileChangeLogResponse,
     FeedbackAggregationChangeLogResponse,
+    ProfileChangeLogResponse,
 )
-from reflexio.server.cache.reflexio_cache import get_reflexio
 
+from reflexio.server.cache.reflexio_cache import get_reflexio
 
 # ==============================
 # Search profiles and interactions
@@ -52,8 +52,7 @@ def search_user_profiles(
         SearchUserProfileResponse: Response containing matching user profiles
     """
     reflexio = get_reflexio(org_id=org_id)
-    result = reflexio.search_profiles(request)
-    return result
+    return reflexio.search_profiles(request)
 
 
 def search_interactions(
@@ -76,8 +75,7 @@ def search_interactions(
         SearchInteractionResponse: Response containing matching interactions
     """
     reflexio = get_reflexio(org_id=org_id)
-    result = reflexio.search_interactions(request)
-    return result
+    return reflexio.search_interactions(request)
 
 
 # ==============================
@@ -104,8 +102,7 @@ def get_user_profiles(
         GetUserProfilesResponse: Response containing user profiles
     """
     reflexio = get_reflexio(org_id=org_id)
-    result = reflexio.get_profiles(request, status_filter=request.status_filter)
-    return result
+    return reflexio.get_profiles(request, status_filter=request.status_filter)
 
 
 def get_user_interactions(
@@ -126,8 +123,7 @@ def get_user_interactions(
         GetInteractionsResponse: Response containing user interactions
     """
     reflexio = get_reflexio(org_id=org_id)
-    result = reflexio.get_interactions(request)
-    return result
+    return reflexio.get_interactions(request)
 
 
 def get_profile_change_logs(
@@ -142,8 +138,7 @@ def get_profile_change_logs(
         ProfileChangeLogResponse: Response containing list of profile change logs
     """
     reflexio = get_reflexio(org_id=org_id)
-    result = reflexio.get_profile_change_logs()
-    return result
+    return reflexio.get_profile_change_logs()
 
 
 def get_feedback_aggregation_change_logs(
@@ -162,10 +157,9 @@ def get_feedback_aggregation_change_logs(
         FeedbackAggregationChangeLogResponse: Response containing list of change logs
     """
     reflexio = get_reflexio(org_id=org_id)
-    result = reflexio.get_feedback_aggregation_change_logs(
+    return reflexio.get_feedback_aggregation_change_logs(
         feedback_name=feedback_name, agent_version=agent_version
     )
-    return result
 
 
 def get_requests(
@@ -221,8 +215,7 @@ def search_raw_feedbacks(
         SearchRawFeedbackResponse: Response containing matching raw feedbacks
     """
     reflexio = get_reflexio(org_id=org_id)
-    result = reflexio.search_raw_feedbacks(request)
-    return result
+    return reflexio.search_raw_feedbacks(request)
 
 
 def search_feedbacks(
@@ -248,8 +241,7 @@ def search_feedbacks(
         SearchFeedbackResponse: Response containing matching feedbacks
     """
     reflexio = get_reflexio(org_id=org_id)
-    result = reflexio.search_feedbacks(request)
-    return result
+    return reflexio.search_feedbacks(request)
 
 
 # ==============================

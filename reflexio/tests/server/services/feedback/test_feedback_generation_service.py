@@ -1,8 +1,19 @@
 import datetime
-from datetime import timezone
-import pytest
 import tempfile
+from datetime import timezone
 from unittest.mock import MagicMock, patch
+
+import pytest
+from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
+from reflexio_commons.api_schema.service_schemas import (
+    Interaction,
+    Request,
+)
+from reflexio_commons.config_schema import (
+    AgentFeedbackConfig,
+    FeedbackAggregatorConfig,
+)
+
 from reflexio.server.api_endpoints.request_context import RequestContext
 from reflexio.server.llm.litellm_client import LiteLLMClient, LiteLLMConfig
 from reflexio.server.services.feedback.feedback_generation_service import (
@@ -10,15 +21,6 @@ from reflexio.server.services.feedback.feedback_generation_service import (
 )
 from reflexio.server.services.feedback.feedback_service_utils import (
     FeedbackGenerationRequest,
-)
-from reflexio_commons.api_schema.service_schemas import (
-    Interaction,
-    Request,
-)
-from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
-from reflexio_commons.config_schema import (
-    AgentFeedbackConfig,
-    FeedbackAggregatorConfig,
 )
 
 
@@ -64,8 +66,7 @@ def mock_chat_completion():
         if "Output just a boolean value" in prompt_content:
             return mock_should_generate_response
         # Otherwise, this is a feedback extraction call
-        else:
-            return mock_extract_response
+        return mock_extract_response
 
     # Mock the OpenAI client's generate_chat_response method
     with patch(
@@ -597,9 +598,9 @@ def test_run_manual_regular_output_pending_status_false(mock_chat_completion):
             status_filter=[Status.PENDING]
         )
 
-        assert (
-            len(pending_feedbacks) == 0
-        ), "Manual generation should not create PENDING feedbacks"
+        assert len(pending_feedbacks) == 0, (
+            "Manual generation should not create PENDING feedbacks"
+        )
 
 
 # ===============================

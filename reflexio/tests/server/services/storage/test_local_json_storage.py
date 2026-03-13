@@ -1,21 +1,23 @@
 import tempfile
 from datetime import datetime, timezone
-from reflexio.server.services.storage.local_json_storage import LocalJsonStorage
-from reflexio_commons.api_schema.service_schemas import (
-    UserProfile,
-    ProfileTimeToLive,
-    UserActionType,
-    DeleteUserProfileRequest,
-    DeleteUserInteractionRequest,
-    Interaction,
-    Request,
-    ProfileChangeLog,
-    NEVER_EXPIRES_TIMESTAMP,
-)
+
 from reflexio_commons.api_schema.retriever_schema import (
     SearchInteractionRequest,
     SearchUserProfileRequest,
 )
+from reflexio_commons.api_schema.service_schemas import (
+    NEVER_EXPIRES_TIMESTAMP,
+    DeleteUserInteractionRequest,
+    DeleteUserProfileRequest,
+    Interaction,
+    ProfileChangeLog,
+    ProfileTimeToLive,
+    Request,
+    UserActionType,
+    UserProfile,
+)
+
+from reflexio.server.services.storage.local_json_storage import LocalJsonStorage
 
 
 def test_get_user_profile():

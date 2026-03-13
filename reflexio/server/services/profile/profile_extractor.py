@@ -1,21 +1,21 @@
-from datetime import datetime, timezone
 import logging
-import time
-from typing import Optional, TYPE_CHECKING
-import uuid
 import os
+import time
+import uuid
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
-from reflexio.server.api_endpoints.request_context import RequestContext
-from reflexio.server.llm.litellm_client import LiteLLMClient
+from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 from reflexio_commons.api_schema.service_schemas import (
     UserProfile,
 )
-from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
-
 from reflexio_commons.config_schema import ProfileExtractorConfig
+
+from reflexio.server.api_endpoints.request_context import RequestContext
+from reflexio.server.llm.litellm_client import LiteLLMClient
 from reflexio.server.services.extractor_interaction_utils import (
-    get_extractor_window_params,
     get_effective_source_filter,
+    get_extractor_window_params,
 )
 from reflexio.server.services.operation_state_utils import OperationStateManager
 
@@ -24,18 +24,16 @@ if TYPE_CHECKING:
         ProfileGenerationServiceConfig,
     )
 from reflexio.server.services.profile.profile_generation_service_utils import (
+    ProfileTimeToLive,
     StructuredProfilesOutput,
-    construct_profile_extraction_messages_from_sessions,
     calculate_expiration_timestamp,
+    construct_profile_extraction_messages_from_sessions,
 )
 from reflexio.server.services.service_utils import (
+    extract_interactions_from_request_interaction_data_models,
     format_messages_for_logging,
     format_sessions_to_history_string,
-    extract_interactions_from_request_interaction_data_models,
     log_model_response,
-)
-from reflexio.server.services.profile.profile_generation_service_utils import (
-    ProfileTimeToLive,
 )
 from reflexio.server.site_var.site_var_manager import SiteVarManager
 
@@ -77,7 +75,7 @@ class ProfileExtractor:
         self.request_context = request_context
         self.client = llm_client
         self.config: ProfileExtractorConfig = extractor_config
-        self.service_config: "ProfileGenerationServiceConfig" = service_config
+        self.service_config: ProfileGenerationServiceConfig = service_config
         self.agent_context = agent_context
 
         # Get LLM config overrides from configuration
@@ -86,7 +84,8 @@ class ProfileExtractor:
 
         # Get site var as fallback
         self.model_setting = SiteVarManager().get_site_var("llm_model_setting")
-        assert isinstance(self.model_setting, dict), "llm_model_setting must be a dict"
+        if not isinstance(self.model_setting, dict):
+            raise ValueError("llm_model_setting must be a dict")
 
         # Use override if present, otherwise fallback to site var
         self.should_run_model_name = (
@@ -108,12 +107,12 @@ class ProfileExtractor:
             OperationStateManager configured for profile_extractor
         """
         return OperationStateManager(
-            self.request_context.storage,
+            self.request_context.storage,  # type: ignore[reportArgumentType]
             self.request_context.org_id,
             "profile_extractor",
         )
 
-    def _get_interactions(self) -> Optional[list[RequestInteractionDataModel]]:
+    def _get_interactions(self) -> list[RequestInteractionDataModel] | None:
         """
         Get interactions for this extractor based on its config.
 
@@ -155,7 +154,7 @@ class ProfileExtractor:
         storage = self.request_context.storage
 
         # Get window interactions with time range filter
-        session_data_models, _ = storage.get_last_k_interactions_grouped(
+        session_data_models, _ = storage.get_last_k_interactions_grouped(  # type: ignore[reportOptionalMemberAccess]
             user_id=self.service_config.user_id,
             k=window_size,
             sources=effective_source,
@@ -183,7 +182,7 @@ class ProfileExtractor:
             user_id=self.service_config.user_id,
         )
 
-    def run(self) -> Optional[list[UserProfile]]:
+    def run(self) -> list[UserProfile] | None:
         """
         Extract profiles from request interaction groups.
 
@@ -238,7 +237,7 @@ class ProfileExtractor:
             # Update operation state after successful processing
             self._update_operation_state(request_interaction_data_models)
 
-            return user_profiles if user_profiles else None
+            return user_profiles or None
         return None
 
     def _convert_raw_to_user_profiles(
@@ -275,9 +274,7 @@ class ProfileExtractor:
             }
 
             now_ts = int(datetime.now(timezone.utc).timestamp())
-            ttl = ProfileTimeToLive(
-                profile_content.get("time_to_live", "infinity")
-            )
+            ttl = ProfileTimeToLive(profile_content.get("time_to_live", "infinity"))
 
             added_profile = UserProfile(
                 profile_id=str(uuid.uuid4()),
@@ -287,7 +284,7 @@ class ProfileExtractor:
                 generated_from_request_id=request_id,
                 profile_time_to_live=ttl,
                 expiration_timestamp=calculate_expiration_timestamp(now_ts, ttl),
-                custom_features=custom_features if custom_features else None,
+                custom_features=custom_features or None,
                 extractor_names=[self.config.extractor_name],
             )
 
@@ -414,7 +411,9 @@ class ProfileExtractor:
             raise
 
         log_model_response(logger, "Profile extraction model response", update_response)
-        if not update_response or not isinstance(update_response, StructuredProfilesOutput):
+        if not update_response or not isinstance(
+            update_response, StructuredProfilesOutput
+        ):
             elapsed_seconds = time.perf_counter() - extract_start
             logger.info(
                 "event=profile_extract_llm_end user_id=%s extractor_name=%s model=%s timeout=%d max_retries=%d elapsed_seconds=%.3f success=%s response_type=%s profile_count=%d",
@@ -448,8 +447,7 @@ class ProfileExtractor:
         if profiles:
             # Convert Pydantic models to dicts
             return [p.model_dump() for p in profiles]
-        else:
-            return []
+        return []
 
     def _generate_mock_profiles(
         self,

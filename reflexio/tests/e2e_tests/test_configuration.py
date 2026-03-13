@@ -1,13 +1,9 @@
 """End-to-end tests for configuration management."""
 
-import tempfile
 import shutil
+import tempfile
 
 import pytest
-
-from reflexio.reflexio_lib.reflexio_lib import Reflexio
-from reflexio.server.services.configurator.configurator import SimpleConfigurator
-from reflexio.tests.server.test_utils import skip_in_precommit, skip_low_priority
 from reflexio_commons.config_schema import (
     AgentFeedbackConfig,
     Config,
@@ -15,6 +11,10 @@ from reflexio_commons.config_schema import (
     ProfileExtractorConfig,
     StorageConfigSupabase,
 )
+
+from reflexio.reflexio_lib.reflexio_lib import Reflexio
+from reflexio.server.services.configurator.configurator import SimpleConfigurator
+from reflexio.tests.server.test_utils import skip_in_precommit, skip_low_priority
 
 
 @pytest.fixture
@@ -153,7 +153,7 @@ def test_set_config_end_to_end(
         error_response = reflexio.set_config(invalid_config)
         assert error_response.success is False
         assert "Failed to set configuration" in error_response.msg
-    except Exception:
+    except Exception:  # noqa: S110
         # If an exception is thrown instead of returning error response, that's also acceptable
         pass
 

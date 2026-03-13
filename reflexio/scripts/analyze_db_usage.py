@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import psycopg2
 import psycopg2.extras
 
-
 TABLES = ["interactions", "profiles", "feedbacks", "raw_feedbacks", "requests"]
 
 
@@ -53,14 +52,12 @@ def query_daily_counts(cursor, table_name: str, days: int = 14) -> list[dict]:
     """
     if table_name not in TABLES:
         raise ValueError(f"Unknown table: {table_name}")
-    query = """
-        SELECT DATE(created_at) AS day, COUNT(*) AS count
-        FROM {}
-        WHERE created_at >= NOW() - INTERVAL '%s days'
-        GROUP BY DATE(created_at)
-        ORDER BY day;
-    """.format(
-        table_name
+    query = (
+        f"SELECT DATE(created_at) AS day, COUNT(*) AS count"  # noqa: S608
+        f" FROM {table_name}"
+        f" WHERE created_at >= NOW() - INTERVAL '%s days'"
+        f" GROUP BY DATE(created_at)"
+        f" ORDER BY day;"
     )
     cursor.execute(query, [days])
     return [{"day": row["day"], "count": row["count"]} for row in cursor.fetchall()]
@@ -101,7 +98,7 @@ def plot_results(results: dict, days: int):
     fig, axes = plt.subplots(3, 2, figsize=(12, 10))
     fig.suptitle(f"Database Usage — Past {days} Days", fontsize=14, fontweight="bold")
 
-    for ax, table in zip(axes.flat, TABLES):
+    for ax, table in zip(axes.flat, TABLES):  # noqa: B905
         rows = results[table]
         if rows:
             plot_days = [r["day"] for r in rows]

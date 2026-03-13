@@ -1,7 +1,7 @@
 """Tests for the in-memory cache functionality."""
 
-import time
 import threading
+import time
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
@@ -22,7 +22,7 @@ class TestInMemoryCache:
         # Get the value
         result = cache.get("test_method", param1="value1", param2="value2")
 
-        assert result == "test_value"
+        assert result == "test_value"  # noqa: S101
 
     def test_cache_miss(self):
         """Test cache miss returns None."""
@@ -31,7 +31,7 @@ class TestInMemoryCache:
         # Get non-existent value
         result = cache.get("test_method", param1="value1")
 
-        assert result is None
+        assert result is None  # noqa: S101
 
     def test_cache_with_different_params(self):
         """Test that different parameters create different cache entries."""
@@ -45,8 +45,8 @@ class TestInMemoryCache:
         result1 = cache.get("test_method", param="a")
         result2 = cache.get("test_method", param="b")
 
-        assert result1 == "value1"
-        assert result2 == "value2"
+        assert result1 == "value1"  # noqa: S101
+        assert result2 == "value2"  # noqa: S101
 
     def test_cache_expiration(self):
         """Test that cache entries expire after TTL."""
@@ -58,14 +58,14 @@ class TestInMemoryCache:
 
         # Immediately get the value - should be cached
         result = cache.get("test_method", param="value")
-        assert result == "test_value"
+        assert result == "test_value"  # noqa: S101
 
         # Wait for expiration
         time.sleep(1.1)
 
         # Get the value again - should be expired
         result = cache.get("test_method", param="value")
-        assert result is None
+        assert result is None  # noqa: S101
 
     def test_cache_with_datetime(self):
         """Test cache with datetime parameters."""
@@ -82,8 +82,8 @@ class TestInMemoryCache:
         result1 = cache.get("test_method", timestamp=dt1)
         result2 = cache.get("test_method", timestamp=dt2)
 
-        assert result1 == "value1"
-        assert result2 == "value2"
+        assert result1 == "value1"  # noqa: S101
+        assert result2 == "value2"  # noqa: S101
 
     def test_cache_with_none_value(self):
         """Test cache with None as parameter value."""
@@ -95,7 +95,7 @@ class TestInMemoryCache:
         # Get value
         result = cache.get("test_method", param=None)
 
-        assert result == "value"
+        assert result == "value"  # noqa: S101
 
     def test_thread_safety(self):
         """Test that cache is thread-safe."""
@@ -129,12 +129,12 @@ class TestInMemoryCache:
             thread.join()
 
         # Verify no errors occurred
-        assert len(errors) == 0
+        assert len(errors) == 0  # noqa: S101
 
         # Verify all threads got their correct values
-        assert len(results) == 10
+        assert len(results) == 10  # noqa: S101
         for thread_id, result in results:
-            assert result == f"value_{thread_id}"
+            assert result == f"value_{thread_id}"  # noqa: S101
 
 
 class TestReflexioClientCache:
@@ -170,10 +170,10 @@ class TestReflexioClientCache:
         result2 = client.get_profiles(request1)
 
         # Verify API was only called once
-        assert mock_session.request.call_count == 1
+        assert mock_session.request.call_count == 1  # noqa: S101
 
         # Verify results are the same
-        assert result1.model_dump() == result2.model_dump()
+        assert result1.model_dump() == result2.model_dump()  # noqa: S101
 
     @patch("reflexio.client.requests.Session")
     def test_get_profiles_force_refresh(self, mock_session_class):
@@ -202,10 +202,10 @@ class TestReflexioClientCache:
         client.get_profiles(request)
 
         # Second call with force_refresh - should hit API again
-        result2 = client.get_profiles(request, force_refresh=True)
+        _result2 = client.get_profiles(request, force_refresh=True)
 
         # Verify API was called twice
-        assert mock_session.request.call_count == 2
+        assert mock_session.request.call_count == 2  # noqa: S101
 
     @patch("reflexio.client.requests.Session")
     def test_get_profiles_different_params(self, mock_session_class):
@@ -243,7 +243,7 @@ class TestReflexioClientCache:
         client.get_profiles(request2)
 
         # Verify API was called twice (cache miss)
-        assert mock_session.request.call_count == 2
+        assert mock_session.request.call_count == 2  # noqa: S101
 
     @patch("reflexio.client.requests.Session")
     def test_get_feedbacks_cache_hit(self, mock_session_class):
@@ -270,10 +270,10 @@ class TestReflexioClientCache:
         result2 = client.get_feedbacks(request1)
 
         # Verify API was only called once
-        assert mock_session.request.call_count == 1
+        assert mock_session.request.call_count == 1  # noqa: S101
 
         # Verify results are the same
-        assert result1.model_dump() == result2.model_dump()
+        assert result1.model_dump() == result2.model_dump()  # noqa: S101
 
     @patch("reflexio.client.requests.Session")
     def test_get_feedbacks_force_refresh(self, mock_session_class):
@@ -297,10 +297,10 @@ class TestReflexioClientCache:
         client.get_feedbacks(request)
 
         # Second call with force_refresh - should hit API again
-        result2 = client.get_feedbacks(request, force_refresh=True)
+        _result2 = client.get_feedbacks(request, force_refresh=True)
 
         # Verify API was called twice
-        assert mock_session.request.call_count == 2
+        assert mock_session.request.call_count == 2  # noqa: S101
 
     @patch("reflexio.client.requests.Session")
     def test_get_feedbacks_with_none_request(self, mock_session_class):
@@ -326,7 +326,7 @@ class TestReflexioClientCache:
         client.get_feedbacks(None)
 
         # Verify API was only called once
-        assert mock_session.request.call_count == 1
+        assert mock_session.request.call_count == 1  # noqa: S101
 
     @patch("reflexio.client.requests.Session")
     def test_cache_expiration_integration(self, mock_session_class):
@@ -357,11 +357,11 @@ class TestReflexioClientCache:
 
         # Verify cache hit
         client.get_profiles(request)
-        assert mock_session.request.call_count == 1
+        assert mock_session.request.call_count == 1  # noqa: S101
 
         # Wait for expiration
         time.sleep(1.1)
 
         # Third call after expiration - should hit API again
         client.get_profiles(request)
-        assert mock_session.request.call_count == 2
+        assert mock_session.request.call_count == 2  # noqa: S101

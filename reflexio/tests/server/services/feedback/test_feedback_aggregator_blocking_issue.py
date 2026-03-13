@@ -5,18 +5,19 @@ Tests the formatting and processing methods that carry blocking_issue
 through the aggregation pipeline.
 """
 
-import pytest
 from unittest.mock import MagicMock
 
+import pytest
 from reflexio_commons.api_schema.service_schemas import (
-    RawFeedback,
     BlockingIssue,
     BlockingIssueKind,
+    RawFeedback,
 )
+
 from reflexio.server.services.feedback.feedback_aggregator import FeedbackAggregator
 from reflexio.server.services.feedback.feedback_service_utils import (
-    StructuredFeedbackContent,
     FeedbackAggregationOutput,
+    StructuredFeedbackContent,
     format_structured_feedback_content,
 )
 

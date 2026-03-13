@@ -1,7 +1,6 @@
 """Reflexio instance cache with explicit invalidation."""
 
 import threading
-from typing import Optional
 
 from cachetools import TTLCache
 
@@ -12,7 +11,7 @@ REFLEXIO_CACHE_MAX_SIZE = 100
 REFLEXIO_CACHE_TTL_SECONDS = 3600  # 1 hour safety net
 
 # Type alias for cache key: (org_id, storage_base_dir)
-CacheKey = tuple[str, Optional[str]]
+CacheKey = tuple[str, str | None]
 
 # Module-level cache and lock
 _reflexio_cache: TTLCache = TTLCache(
@@ -21,7 +20,7 @@ _reflexio_cache: TTLCache = TTLCache(
 _reflexio_cache_lock = threading.Lock()
 
 
-def get_reflexio(org_id: str, storage_base_dir: Optional[str] = None) -> Reflexio:
+def get_reflexio(org_id: str, storage_base_dir: str | None = None) -> Reflexio:
     """Get or create cached Reflexio instance.
 
     Args:
@@ -47,9 +46,7 @@ def get_reflexio(org_id: str, storage_base_dir: Optional[str] = None) -> Reflexi
         return _reflexio_cache[cache_key]
 
 
-def invalidate_reflexio_cache(
-    org_id: str, storage_base_dir: Optional[str] = None
-) -> bool:
+def invalidate_reflexio_cache(org_id: str, storage_base_dir: str | None = None) -> bool:
     """Invalidate cached Reflexio for specific org.
 
     Call this after set_config to ensure next request gets fresh instance.

@@ -10,16 +10,19 @@ Note: The local Supabase (SUPABASE_URL) is separate and used for user profile/me
 """
 
 import os
+from pathlib import Path
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
+
 from reflexio.server import (
-    SQLITE_FILE_DIRECTORY,
-    LOGIN_SUPABASE_URL,
-    LOGIN_SUPABASE_KEY,
+    CONFIG_S3_ACCESS_KEY,
     CONFIG_S3_PATH,
     CONFIG_S3_REGION,
-    CONFIG_S3_ACCESS_KEY,
     CONFIG_S3_SECRET_KEY,
+    LOGIN_SUPABASE_KEY,
+    LOGIN_SUPABASE_URL,
+    SQLITE_FILE_DIRECTORY,
 )
 
 # Check if in self-host mode
@@ -65,7 +68,7 @@ elif LOGIN_SUPABASE_URL and LOGIN_SUPABASE_KEY:
 else:
     print("Using local SQLite database for login")
     # Make sure the directory exists
-    os.makedirs(SQLITE_FILE_DIRECTORY, exist_ok=True)
+    Path(SQLITE_FILE_DIRECTORY).mkdir(parents=True, exist_ok=True)
     SQLALCHEMY_DATABASE_URL = (
         f"sqlite:///{SQLITE_FILE_DIRECTORY}/{sqlite_local_db_filename}"
     )
@@ -76,7 +79,7 @@ else:
     Base = declarative_base()
 
 
-def ensure_sqlite_tables():
+def ensure_sqlite_tables() -> None:
     """Create all tables in local SQLite if using SQLite fallback.
 
     Call this after all models have been imported to ensure tables exist.

@@ -1,4 +1,4 @@
-from importlib.metadata import version, PackageNotFoundError
+from importlib.metadata import PackageNotFoundError, version
 
 __package_name__ = "reflexio-client"
 
@@ -9,66 +9,67 @@ except PackageNotFoundError:
     __version__ = "0.0.0-dev"
 
 
-from .client import ReflexioClient
-from reflexio_commons.api_schema.service_schemas import (
-    UserActionType,
-    ProfileTimeToLive,
-    InteractionData,
-    Interaction,
-    UserProfile,
-    PublishUserInteractionRequest,
-    PublishUserInteractionResponse,
-    DeleteUserProfileRequest,
-    DeleteUserProfileResponse,
-    DeleteUserInteractionRequest,
-    DeleteUserInteractionResponse,
-    RawFeedback,
-    BlockingIssue,
-    BlockingIssueKind,
-    AddRawFeedbackRequest,
-    AddRawFeedbackResponse,
-    RerunProfileGenerationRequest,
-    RerunProfileGenerationResponse,
-    RerunFeedbackGenerationRequest,
-    RerunFeedbackGenerationResponse,
-    Skill,
-    SkillStatus,
-    RunSkillGenerationRequest,
-    RunSkillGenerationResponse,
-    UpdateSkillStatusRequest,
-    UpdateSkillStatusResponse,
-    DeleteSkillRequest,
-    DeleteSkillResponse,
-    ExportSkillsRequest,
-    ExportSkillsResponse,
-    Status,
-    FeedbackStatus,
-    ToolUsed,
-)
 from reflexio_commons.api_schema.retriever_schema import (
     ConversationTurn,
-    SearchInteractionRequest,
-    SearchUserProfileRequest,
-    SearchInteractionResponse,
-    SearchUserProfileResponse,
     GetSkillsRequest,
     GetSkillsResponse,
+    SearchInteractionRequest,
+    SearchInteractionResponse,
     SearchSkillsRequest,
     SearchSkillsResponse,
+    SearchUserProfileRequest,
+    SearchUserProfileResponse,
+)
+from reflexio_commons.api_schema.service_schemas import (
+    AddRawFeedbackRequest,
+    AddRawFeedbackResponse,
+    BlockingIssue,
+    BlockingIssueKind,
+    DeleteSkillRequest,
+    DeleteSkillResponse,
+    DeleteUserInteractionRequest,
+    DeleteUserInteractionResponse,
+    DeleteUserProfileRequest,
+    DeleteUserProfileResponse,
+    ExportSkillsRequest,
+    ExportSkillsResponse,
+    FeedbackStatus,
+    Interaction,
+    InteractionData,
+    ProfileTimeToLive,
+    PublishUserInteractionRequest,
+    PublishUserInteractionResponse,
+    RawFeedback,
+    RerunFeedbackGenerationRequest,
+    RerunFeedbackGenerationResponse,
+    RerunProfileGenerationRequest,
+    RerunProfileGenerationResponse,
+    RunSkillGenerationRequest,
+    RunSkillGenerationResponse,
+    Skill,
+    SkillStatus,
+    Status,
+    ToolUsed,
+    UpdateSkillStatusRequest,
+    UpdateSkillStatusResponse,
+    UserActionType,
+    UserProfile,
 )
 from reflexio_commons.config_schema import (
-    StorageConfigTest,
-    StorageConfigLocal,
-    StorageConfigSupabase,
-    StorageConfig,
-    ProfileExtractorConfig,
-    FeedbackAggregatorConfig,
     AgentFeedbackConfig,
     AgentSuccessConfig,
-    ToolUseConfig,
-    SkillGeneratorConfig,
     Config,
+    FeedbackAggregatorConfig,
+    ProfileExtractorConfig,
+    SkillGeneratorConfig,
+    StorageConfig,
+    StorageConfigLocal,
+    StorageConfigSupabase,
+    StorageConfigTest,
+    ToolUseConfig,
 )
+
+from .client import ReflexioClient
 
 debug = False
 log = None  # Set to either 'debug' or 'info', controls console logging

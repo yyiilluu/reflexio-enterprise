@@ -36,7 +36,7 @@ def run_command(command: list[str], dry_run: bool = False) -> tuple[bool, str]:
         return True, ""
 
     try:
-        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        result = subprocess.run(command, capture_output=True, text=True, check=True)  # noqa: S603
         return True, result.stdout
     except subprocess.CalledProcessError as e:
         return False, e.stderr

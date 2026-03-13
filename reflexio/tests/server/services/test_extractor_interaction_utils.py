@@ -8,22 +8,21 @@ Tests the shared utility functions used by all extractors for:
 """
 
 from dataclasses import dataclass
-from typing import Optional
 
 from reflexio_commons.api_schema.internal_schema import (
     RequestInteractionDataModel,
 )
 from reflexio_commons.api_schema.service_schemas import (
-    Request,
     Interaction,
-)
-from reflexio.server.services.extractor_interaction_utils import (
-    get_extractor_window_params,
-    get_effective_source_filter,
-    should_extractor_run_by_stride,
-    iter_sliding_windows,
+    Request,
 )
 
+from reflexio.server.services.extractor_interaction_utils import (
+    get_effective_source_filter,
+    get_extractor_window_params,
+    iter_sliding_windows,
+    should_extractor_run_by_stride,
+)
 
 # ===============================
 # Test Data Classes
@@ -35,9 +34,9 @@ class MockExtractorConfig:
     """Mock extractor config for testing."""
 
     extractor_name: str
-    extraction_window_size_override: Optional[int] = None
-    extraction_window_stride_override: Optional[int] = None
-    request_sources_enabled: Optional[list[str]] = None
+    extraction_window_size_override: int | None = None
+    extraction_window_stride_override: int | None = None
+    request_sources_enabled: list[str] | None = None
 
 
 @dataclass
@@ -45,9 +44,9 @@ class MockFeedbackConfig:
     """Mock feedback config with feedback_name."""
 
     feedback_name: str
-    extraction_window_size: Optional[int] = None
-    extraction_window_stride: Optional[int] = None
-    request_sources_enabled: Optional[list[str]] = None
+    extraction_window_size: int | None = None
+    extraction_window_stride: int | None = None
+    request_sources_enabled: list[str] | None = None
 
 
 # ===============================

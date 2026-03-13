@@ -70,7 +70,7 @@ def count_tokens_in_file(file_path: Path, model: str = "gpt-4") -> dict[str, any
         dict: Dictionary with file info and token count
     """
     try:
-        with open(file_path, encoding="utf-8") as f:
+        with Path(file_path).open(encoding="utf-8") as f:
             content = f.read()
 
         token_count = count_tokens_in_text(content, model)
@@ -264,11 +264,11 @@ Examples:
 
     # Count tokens
     if target_path.is_file():
-        print(f"📄 Type: Single file\n")
+        print("📄 Type: Single file\n")
         result = count_tokens_in_file(target_path, args.model)
         print_results([result], show_details=False)
     elif target_path.is_dir():
-        print(f"📁 Type: Directory")
+        print("📁 Type: Directory")
         print(f"🔍 Extensions: {', '.join(extensions)}\n")
         results = count_tokens_in_directory(target_path, extensions, args.model)
         print_results(results, show_details=not args.no_details)

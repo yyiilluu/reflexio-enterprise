@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+
 from reflexio_commons.config_schema import Config
 
 

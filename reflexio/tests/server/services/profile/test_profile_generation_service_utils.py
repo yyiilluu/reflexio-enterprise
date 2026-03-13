@@ -1,14 +1,15 @@
 """Tests for profile generation service utility functions."""
 
-import pytest
 from datetime import datetime, timezone
 
+import pytest
+from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 from reflexio_commons.api_schema.service_schemas import (
     Interaction,
-    UserProfile,
     Request,
+    UserProfile,
 )
-from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
+
 from reflexio.server.prompt.prompt_manager import PromptManager
 from reflexio.server.services.profile.profile_generation_service_utils import (
     construct_profile_extraction_messages_from_sessions,
@@ -110,20 +111,20 @@ def test_construct_profile_extraction_messages_with_sessions():
                 in content  # Check directly for content
             ):
                 # Validate the interactions are formatted correctly in the rendered prompt
-                assert (
-                    "user: ```I love Italian food```" in content
-                ), f"Expected 'user: ```I love Italian food```' in prompt"
-                assert (
-                    "user: ```I also enjoy sushi```" in content
-                ), f"Expected 'user: ```I also enjoy sushi```' in prompt"
-                assert (
-                    "user: ```click restaurant menu```" in content
-                ), f"Expected 'user: ```click restaurant menu```' in prompt"
+                assert "user: ```I love Italian food```" in content, (
+                    "Expected 'user: ```I love Italian food```' in prompt"
+                )
+                assert "user: ```I also enjoy sushi```" in content, (
+                    "Expected 'user: ```I also enjoy sushi```' in prompt"
+                )
+                assert "user: ```click restaurant menu```" in content, (
+                    "Expected 'user: ```click restaurant menu```' in prompt"
+                )
 
                 # Also verify existing profiles are in the prompt
-                assert (
-                    "likes Mexican food" in content
-                ), f"Expected existing profile in prompt"
+                assert "likes Mexican food" in content, (
+                    "Expected existing profile in prompt"
+                )
 
                 found_interactions = True
                 break

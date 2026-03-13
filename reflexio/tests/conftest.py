@@ -26,7 +26,7 @@ if str(PROJECT_ROOT) not in sys.path:
 # ============================================================================
 
 import json
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 
 def _create_mock_completion(prompt_content, parse_structured_output=False):

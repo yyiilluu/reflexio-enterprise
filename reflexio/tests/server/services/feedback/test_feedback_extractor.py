@@ -9,22 +9,23 @@ Tests the extractor's new responsibilities for:
 - Integration of run() method
 """
 
-import pytest
 import os
 import tempfile
 from unittest.mock import MagicMock, patch
 
+import pytest
+from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 from reflexio_commons.api_schema.service_schemas import (
-    Interaction,
-    Request,
-    RawFeedback,
     BlockingIssue,
     BlockingIssueKind,
+    Interaction,
+    RawFeedback,
+    Request,
 )
-from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 from reflexio_commons.config_schema import AgentFeedbackConfig
 
 from reflexio.server.api_endpoints.request_context import RequestContext
+from reflexio.server.llm.litellm_client import LiteLLMClient
 from reflexio.server.services.feedback.feedback_extractor import FeedbackExtractor
 from reflexio.server.services.feedback.feedback_generation_service import (
     FeedbackGenerationServiceConfig,
@@ -32,8 +33,6 @@ from reflexio.server.services.feedback.feedback_generation_service import (
 from reflexio.server.services.feedback.feedback_service_utils import (
     StructuredFeedbackContent,
 )
-from reflexio.server.llm.litellm_client import LiteLLMClient
-
 
 # ===============================
 # Fixtures

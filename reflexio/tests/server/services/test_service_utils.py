@@ -1,14 +1,15 @@
 """Tests for service_utils module."""
 
-import pytest
 from datetime import datetime, timezone
 
+import pytest
+from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 from reflexio_commons.api_schema.service_schemas import (
     Interaction,
-    UserActionType,
     Request,
+    UserActionType,
 )
-from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
+
 from reflexio.server.services.service_utils import (
     format_interactions_to_history_string,
     format_sessions_to_history_string,

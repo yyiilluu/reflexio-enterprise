@@ -11,10 +11,10 @@ Consolidates 5 use cases:
 import logging
 import time
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
-from reflexio_commons.api_schema.service_schemas import Interaction, OperationStatus
 from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
+from reflexio_commons.api_schema.service_schemas import Interaction, OperationStatus
 
 from reflexio.server.services.storage.storage_base import BaseStorage
 
@@ -65,7 +65,7 @@ class OperationStateManager:
         """
         return f"{self.service_name}::{self.org_id}::cancellation"
 
-    def _lock_key(self, scope_id: Optional[str] = None) -> str:
+    def _lock_key(self, scope_id: str | None = None) -> str:
         """Build concurrency lock key.
 
         Args:
@@ -81,8 +81,8 @@ class OperationStateManager:
     def _bookmark_key(
         self,
         name: str,
-        scope_id: Optional[str] = None,
-        version: Optional[str] = None,
+        scope_id: str | None = None,
+        version: str | None = None,
     ) -> str:
         """Build bookmark key for extractor/aggregator state.
 
@@ -105,7 +105,7 @@ class OperationStateManager:
     # ── Use Case 1: Progress Tracking ──
     # (Batch operations: rerun + manual)
 
-    def check_in_progress(self) -> Optional[str]:
+    def check_in_progress(self) -> str | None:
         """Check if there's an existing in-progress operation.
 
         If the operation has been in progress for longer than BATCH_STALE_PROGRESS_SECONDS,
@@ -158,7 +158,7 @@ class OperationStateManager:
         self,
         total_users: int,
         request_params: dict,
-        extra_stats: Optional[dict] = None,
+        extra_stats: dict | None = None,
     ) -> None:
         """Initialize operation state with IN_PROGRESS status.
 
@@ -219,7 +219,7 @@ class OperationStateManager:
         count: int,
         success: bool,
         total_users: int,
-        error: Optional[str] = None,
+        error: str | None = None,
     ) -> None:
         """Update operation state after processing a user.
 
@@ -289,10 +289,10 @@ class OperationStateManager:
                 )
                 failed_state["error_message"] = error_message
                 self.storage.update_operation_state(key, failed_state)
-        except Exception:
+        except Exception:  # noqa: S110
             pass  # Ignore errors updating state during exception handling
 
-    def get_progress(self) -> Optional[dict]:
+    def get_progress(self) -> dict | None:
         """Get the current progress state.
 
         Returns:
@@ -384,7 +384,7 @@ class OperationStateManager:
     def acquire_lock(
         self,
         request_id: str,
-        scope_id: Optional[str] = None,
+        scope_id: str | None = None,
         stale_seconds: int = GENERATION_STALE_LOCK_SECONDS,
     ) -> bool:
         """Atomically check and acquire in-progress lock.
@@ -431,8 +431,8 @@ class OperationStateManager:
     def release_lock(
         self,
         request_id: str,
-        scope_id: Optional[str] = None,
-    ) -> Optional[str]:
+        scope_id: str | None = None,
+    ) -> str | None:
         """Release the in-progress lock and check if a new request came in.
 
         If a pending request exists (different from current), returns its ID so
@@ -481,26 +481,25 @@ class OperationStateManager:
                     state_key,
                 )
                 return pending_request_id
-            else:
-                # No pending request, clear the lock
-                self.storage.upsert_operation_state(
-                    state_key,
-                    {
-                        "in_progress": False,
-                        "current_request_id": None,
-                        "pending_request_id": None,
-                    },
-                )
-                logger.info(
-                    "Released in-progress lock for %s: state_key=%s, request_id=%s",
-                    self.service_name,
-                    state_key,
-                    request_id,
-                )
+            # No pending request, clear the lock
+            self.storage.upsert_operation_state(
+                state_key,
+                {
+                    "in_progress": False,
+                    "current_request_id": None,
+                    "pending_request_id": None,
+                },
+            )
+            logger.info(
+                "Released in-progress lock for %s: state_key=%s, request_id=%s",
+                self.service_name,
+                state_key,
+                request_id,
+            )
 
         return None
 
-    def clear_lock(self, scope_id: Optional[str] = None) -> None:
+    def clear_lock(self, scope_id: str | None = None) -> None:
         """Clear the in-progress state (used for error cleanup).
 
         Args:
@@ -527,8 +526,8 @@ class OperationStateManager:
     def get_extractor_state_with_new_interactions(
         self,
         extractor_name: str,
-        user_id: Optional[str] = None,
-        sources: Optional[list[str]] = None,
+        user_id: str | None = None,
+        sources: list[str] | None = None,
     ) -> tuple[dict, list[RequestInteractionDataModel]]:
         """Get extractor operation state and new interactions since last run.
 
@@ -549,7 +548,7 @@ class OperationStateManager:
         self,
         extractor_name: str,
         processed_interactions: list[Interaction],
-        user_id: Optional[str] = None,
+        user_id: str | None = None,
     ) -> None:
         """Update operation state for an extractor after processing.
 
@@ -586,7 +585,7 @@ class OperationStateManager:
     # ── Use Case 4: Aggregator Bookmark ──
     # (Track last-processed raw_feedback_id per aggregator)
 
-    def get_aggregator_bookmark(self, name: str, version: str) -> Optional[int]:
+    def get_aggregator_bookmark(self, name: str, version: str) -> int | None:
         """Get the last processed raw_feedback_id for an aggregator.
 
         Args:
@@ -694,12 +693,11 @@ class OperationStateManager:
                     "Skipping %s - another operation is in progress", self.service_name
                 )
                 return False
-            else:
-                logger.warning(
-                    "Stale %s lock detected (started %d seconds ago), proceeding",
-                    self.service_name,
-                    current_time - started_at,
-                )
+            logger.warning(
+                "Stale %s lock detected (started %d seconds ago), proceeding",
+                self.service_name,
+                current_time - started_at,
+            )
 
         # Acquire lock
         self.storage.upsert_operation_state(

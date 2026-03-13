@@ -18,9 +18,9 @@ from typing import Optional
 
 from reflexio.server import (
     CONFIG_S3_ACCESS_KEY,
-    CONFIG_S3_SECRET_KEY,
-    CONFIG_S3_REGION,
     CONFIG_S3_PATH,
+    CONFIG_S3_REGION,
+    CONFIG_S3_SECRET_KEY,
     FERNET_KEYS,
 )
 from reflexio.server.db import db_models
@@ -99,7 +99,7 @@ class S3OrganizationStorage:
     _instance: Optional["S3OrganizationStorage"] = None
     _lock = threading.Lock()
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *_args, **_kwargs):
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
@@ -109,10 +109,10 @@ class S3OrganizationStorage:
 
     def __init__(
         self,
-        s3_path: Optional[str] = None,
-        s3_region: Optional[str] = None,
-        s3_access_key: Optional[str] = None,
-        s3_secret_key: Optional[str] = None,
+        s3_path: str | None = None,
+        s3_region: str | None = None,
+        s3_access_key: str | None = None,
+        s3_secret_key: str | None = None,
     ):
         """
         Initialize S3 organization storage.
@@ -148,7 +148,7 @@ class S3OrganizationStorage:
         self._write_lock = threading.Lock()
 
         # Initialize encryption manager if FERNET_KEYS is set
-        self.encrypt_manager: Optional[EncryptManager] = None
+        self.encrypt_manager: EncryptManager | None = None
         if FERNET_KEYS:
             self.encrypt_manager = EncryptManager(fernet_keys=FERNET_KEYS)
 
@@ -156,7 +156,8 @@ class S3OrganizationStorage:
         self.store = self._load_from_s3()
 
         logger.info(
-            f"S3OrganizationStorage initialized with {len(self.store.organizations)} organizations"
+            "S3OrganizationStorage initialized with %s organizations",
+            len(self.store.organizations),
         )
         print(
             f"S3OrganizationStorage initialized from {self.s3_path}/{self.org_file_key}"
@@ -198,10 +199,10 @@ class S3OrganizationStorage:
             return OrganizationsStore.from_dict(data)
 
         except Exception as e:
-            logger.error(f"Error loading organizations from S3: {str(e)}")
+            logger.error("Error loading organizations from S3: %s", e)
             tbs = traceback.format_exc().split("\n")
             for tb in tbs:
-                logger.error(f"  {tb}")
+                logger.error("  %s", tb)
             return OrganizationsStore()
 
     def _save_to_s3(self) -> bool:
@@ -231,10 +232,10 @@ class S3OrganizationStorage:
             return True
 
         except Exception as e:
-            logger.error(f"Error saving organizations to S3: {str(e)}")
+            logger.error("Error saving organizations to S3: %s", e)
             tbs = traceback.format_exc().split("\n")
             for tb in tbs:
-                logger.error(f"  {tb}")
+                logger.error("  %s", tb)
             return False
 
     def _dict_to_organization(self, org_dict: dict) -> db_models.Organization:
@@ -248,10 +249,10 @@ class S3OrganizationStorage:
             Organization model instance (detached, not bound to SQLAlchemy session)
         """
         org = db_models.Organization()
-        org.id = org_dict.get("id")
-        org.created_at = org_dict.get("created_at")
-        org.email = org_dict.get("email")
-        org.hashed_password = org_dict.get("hashed_password")
+        org.id = org_dict.get("id")  # type: ignore[reportAttributeAccessIssue]
+        org.created_at = org_dict.get("created_at")  # type: ignore[reportAttributeAccessIssue]
+        org.email = org_dict.get("email")  # type: ignore[reportAttributeAccessIssue]
+        org.hashed_password = org_dict.get("hashed_password")  # type: ignore[reportAttributeAccessIssue]
         org.is_active = org_dict.get("is_active", True)
         org.is_verified = org_dict.get("is_verified", True)  # Auto-verify in self-host
         org.interaction_count = org_dict.get("interaction_count", 0)
@@ -287,7 +288,7 @@ class S3OrganizationStorage:
             "auth_provider": org.auth_provider or "email",
         }
 
-    def get_organization_by_email(self, email: str) -> Optional[db_models.Organization]:
+    def get_organization_by_email(self, email: str) -> db_models.Organization | None:
         """
         Get an organization by email.
 
@@ -302,7 +303,7 @@ class S3OrganizationStorage:
                 return self._dict_to_organization(org_dict)
         return None
 
-    def get_organization_by_id(self, org_id: int) -> Optional[db_models.Organization]:
+    def get_organization_by_id(self, org_id: int) -> db_models.Organization | None:
         """
         Get an organization by ID.
 
@@ -334,22 +335,22 @@ class S3OrganizationStorage:
         """
         with self._write_lock:
             # Check if email already exists
-            if self.get_organization_by_email(organization.email):
+            if self.get_organization_by_email(organization.email):  # type: ignore[reportArgumentType]
                 raise ValueError(
                     f"Organization with email {organization.email} already exists"
                 )
 
             # Assign new ID
-            organization.id = self.store.next_id
+            organization.id = self.store.next_id  # type: ignore[reportAttributeAccessIssue]
             self.store.next_id += 1
 
             # Set created_at if not set
-            if not organization.created_at:
-                organization.created_at = int(datetime.now(timezone.utc).timestamp())
+            if not organization.created_at:  # type: ignore[reportGeneralTypeIssues]
+                organization.created_at = int(datetime.now(timezone.utc).timestamp())  # type: ignore[reportAttributeAccessIssue]
 
             # Auto-verify in self-host mode
             if organization.is_verified is None:
-                organization.is_verified = True
+                organization.is_verified = True  # type: ignore[reportAttributeAccessIssue]
 
             # Add to store
             org_dict = self._organization_to_dict(organization)
@@ -425,12 +426,12 @@ class S3OrganizationStorage:
             ApiToken model instance
         """
         token = db_models.ApiToken()
-        token.id = token_dict.get("id")
-        token.org_id = token_dict.get("org_id")
-        token.token = token_dict.get("token")
+        token.id = token_dict.get("id")  # type: ignore[reportAttributeAccessIssue]
+        token.org_id = token_dict.get("org_id")  # type: ignore[reportAttributeAccessIssue]
+        token.token = token_dict.get("token")  # type: ignore[reportAttributeAccessIssue]
         token.name = token_dict.get("name", "Default")
-        token.created_at = token_dict.get("created_at")
-        token.last_used_at = token_dict.get("last_used_at")
+        token.created_at = token_dict.get("created_at")  # type: ignore[reportAttributeAccessIssue]
+        token.last_used_at = token_dict.get("last_used_at")  # type: ignore[reportAttributeAccessIssue]
         return token
 
     def create_api_token(
@@ -482,9 +483,7 @@ class S3OrganizationStorage:
             if t.get("org_id") == org_id
         ]
 
-    def get_org_by_api_token(
-        self, token_value: str
-    ) -> Optional[db_models.Organization]:
+    def get_org_by_api_token(self, token_value: str) -> db_models.Organization | None:
         """
         Look up an organization by API token value in S3 storage.
 
@@ -536,10 +535,9 @@ class S3OrganizationStorage:
             self.store.api_tokens = [
                 t for t in self.store.api_tokens if t.get("org_id") != org_id
             ]
-            if removed:
-                if not self._save_to_s3():
-                    self.store.api_tokens = old_tokens
-                    raise Exception("Failed to save to S3")
+            if removed and not self._save_to_s3():
+                self.store.api_tokens = old_tokens
+                raise Exception("Failed to save to S3")
             return len(removed)
 
     def delete_organization(self, org_id: int) -> bool:
@@ -564,7 +562,7 @@ class S3OrganizationStorage:
 
 
 # Singleton getter
-_s3_org_storage_instance: Optional[S3OrganizationStorage] = None
+_s3_org_storage_instance: S3OrganizationStorage | None = None
 
 
 def get_s3_org_storage() -> S3OrganizationStorage:

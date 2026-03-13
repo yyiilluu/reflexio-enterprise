@@ -1,32 +1,32 @@
 import logging
 import time
-from typing import Optional
 
 from reflexio_commons.api_schema.service_schemas import (
+    RawFeedback,
     Skill,
     SkillStatus,
-    RawFeedback,
 )
 from reflexio_commons.config_schema import (
-    SkillGeneratorConfig,
     FeedbackAggregatorConfig,
+    SkillGeneratorConfig,
 )
+
 from reflexio.server.api_endpoints.request_context import RequestContext
-from reflexio.server.services.operation_state_utils import OperationStateManager
 from reflexio.server.llm.litellm_client import LiteLLMClient
-from reflexio.server.services.service_utils import (
-    log_model_response,
-    format_messages_for_logging,
-    format_interactions_to_history_string,
-)
+from reflexio.server.services.feedback.feedback_aggregator import FeedbackAggregator
 from reflexio.server.services.feedback.feedback_service_constants import (
     FeedbackServiceConstants,
 )
 from reflexio.server.services.feedback.feedback_service_utils import (
-    SkillGeneratorRequest,
     SkillGenerationOutput,
+    SkillGeneratorRequest,
 )
-from reflexio.server.services.feedback.feedback_aggregator import FeedbackAggregator
+from reflexio.server.services.operation_state_utils import OperationStateManager
+from reflexio.server.services.service_utils import (
+    format_interactions_to_history_string,
+    format_messages_for_logging,
+    log_model_response,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -52,14 +52,14 @@ class SkillGenerator:
             OperationStateManager configured for skill_generator
         """
         return OperationStateManager(
-            self.storage,
+            self.storage,  # type: ignore[reportArgumentType]
             self.request_context.org_id,
             "skill_generator",
         )
 
     def _get_skill_generator_config(
         self, feedback_name: str
-    ) -> Optional[SkillGeneratorConfig]:
+    ) -> SkillGeneratorConfig | None:
         """
         Get the skill generator config for a given feedback name.
 
@@ -79,7 +79,7 @@ class SkillGenerator:
 
     def _get_feedback_aggregator_config(
         self, feedback_name: str
-    ) -> Optional[FeedbackAggregatorConfig]:
+    ) -> FeedbackAggregatorConfig | None:
         """
         Get the feedback aggregator config for a given feedback name.
 
@@ -154,7 +154,7 @@ class SkillGenerator:
         request_ids = list({fb.request_id for fb in cluster_feedbacks if fb.request_id})
         if not request_ids:
             return "(No interaction context available)"
-        interactions = self.storage.get_interactions_by_request_ids(request_ids)
+        interactions = self.storage.get_interactions_by_request_ids(request_ids)  # type: ignore[reportOptionalMemberAccess]
         interactions.sort(key=lambda i: i.created_at)
         interactions = interactions[:max_interactions]
         if not interactions:
@@ -194,23 +194,19 @@ class SkillGenerator:
         lines = []
         if when_conditions:
             lines.append("WHEN conditions:")
-            for condition in when_conditions:
-                lines.append(f"- {condition}")
+            lines.extend(f"- {condition}" for condition in when_conditions)
 
         if do_actions:
             lines.append("DO actions:")
-            for action in do_actions:
-                lines.append(f"- {action}")
+            lines.extend(f"- {action}" for action in do_actions)
 
         if do_not_actions:
             lines.append("DON'T actions:")
-            for action in do_not_actions:
-                lines.append(f"- {action}")
+            lines.extend(f"- {action}" for action in do_not_actions)
 
         if blocking_issues:
             lines.append("BLOCKED BY issues:")
-            for issue in blocking_issues:
-                lines.append(f"- {issue}")
+            lines.extend(f"- {issue}" for issue in blocking_issues)
 
         return "\n".join(lines)
 
@@ -224,9 +220,9 @@ class SkillGenerator:
         tool_configs = self.configurator.get_config().tool_can_use
         if not tool_configs:
             return "(No tools configured)"
-        lines = []
-        for tool in tool_configs:
-            lines.append(f"- {tool.tool_name}: {tool.tool_description}")
+        lines = [
+            f"- {tool.tool_name}: {tool.tool_description}" for tool in tool_configs
+        ]
         return "\n".join(lines)
 
     def _generate_new_skill(
@@ -235,7 +231,7 @@ class SkillGenerator:
         interaction_context: str,
         tool_can_use_str: str,
         existing_skills_str: str,
-    ) -> Optional[Skill]:
+    ) -> Skill | None:
         """
         Generate a new skill from a cluster of feedbacks.
 
@@ -285,10 +281,10 @@ class SkillGenerator:
             raw_feedback_ids = [fb.raw_feedback_id for fb in cluster_feedbacks]
 
             return Skill(
-                skill_name=response.skill_name,
-                description=response.description,
-                instructions=response.instructions,
-                allowed_tools=response.allowed_tools,
+                skill_name=response.skill_name,  # type: ignore[reportAttributeAccessIssue]
+                description=response.description,  # type: ignore[reportAttributeAccessIssue]
+                instructions=response.instructions,  # type: ignore[reportAttributeAccessIssue]
+                allowed_tools=response.allowed_tools,  # type: ignore[reportAttributeAccessIssue]
                 raw_feedback_ids=raw_feedback_ids,
                 agent_version=self.agent_version,
                 feedback_name=cluster_feedbacks[0].feedback_name,
@@ -304,7 +300,7 @@ class SkillGenerator:
         cluster_feedbacks: list[RawFeedback],
         interaction_context: str,
         tool_can_use_str: str,
-    ) -> Optional[Skill]:
+    ) -> Skill | None:
         """
         Update an existing skill with new feedback learnings.
 
@@ -373,13 +369,13 @@ class SkillGenerator:
 
             return Skill(
                 skill_id=existing_skill.skill_id,
-                skill_name=response.skill_name,
-                description=response.description,
+                skill_name=response.skill_name,  # type: ignore[reportAttributeAccessIssue]
+                description=response.description,  # type: ignore[reportAttributeAccessIssue]
                 version=new_version,
                 agent_version=self.agent_version,
                 feedback_name=existing_skill.feedback_name,
-                instructions=response.instructions,
-                allowed_tools=response.allowed_tools,
+                instructions=response.instructions,  # type: ignore[reportAttributeAccessIssue]
+                allowed_tools=response.allowed_tools,  # type: ignore[reportAttributeAccessIssue]
                 raw_feedback_ids=merged_ids,
                 skill_status=existing_skill.skill_status,
             )
@@ -421,7 +417,7 @@ class SkillGenerator:
             )
 
         # Fetch raw feedbacks
-        raw_feedbacks = self.storage.get_raw_feedbacks(
+        raw_feedbacks = self.storage.get_raw_feedbacks(  # type: ignore[reportOptionalMemberAccess]
             feedback_name=request.feedback_name,
             agent_version=self.agent_version,
             status_filter=[None],  # Current feedbacks only
@@ -449,7 +445,7 @@ class SkillGenerator:
             return result
 
         # Get existing skills for dedup/update
-        existing_skills = self.storage.get_skills(
+        existing_skills = self.storage.get_skills(  # type: ignore[reportOptionalMemberAccess]
             feedback_name=request.feedback_name,
             agent_version=self.agent_version,
         )
@@ -457,9 +453,7 @@ class SkillGenerator:
         # Format existing skills for prompt
         existing_skills_str = "None"
         if existing_skills:
-            lines = []
-            for s in existing_skills:
-                lines.append(f"- {s.skill_name}: {s.description}")
+            lines = [f"- {s.skill_name}: {s.description}" for s in existing_skills]
             existing_skills_str = "\n".join(lines)
 
         tool_can_use_str = self._get_tool_can_use_str()
@@ -490,7 +484,7 @@ class SkillGenerator:
             if existing_skills and search_query:
                 # Search for similar existing skill
                 try:
-                    matches = self.storage.search_skills(
+                    matches = self.storage.search_skills(  # type: ignore[reportOptionalMemberAccess]
                         query=search_query,
                         feedback_name=request.feedback_name,
                         agent_version=self.agent_version,
@@ -530,7 +524,7 @@ class SkillGenerator:
         # Save all skills
         all_skills = new_skills + updated_skills
         if all_skills:
-            self.storage.save_skills(all_skills)
+            self.storage.save_skills(all_skills)  # type: ignore[reportOptionalMemberAccess]
 
         # Update operation state with timestamp as bookmark for cooldown
         if raw_feedbacks:
@@ -582,8 +576,7 @@ def render_skills_markdown(skills: list[Skill]) -> str:
 
         if skill.allowed_tools:
             lines.append("### Tools")
-            for tool in skill.allowed_tools:
-                lines.append(f"- {tool}")
+            lines.extend(f"- {tool}" for tool in skill.allowed_tools)
             lines.append("")
 
         lines.append("---\n")

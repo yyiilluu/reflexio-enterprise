@@ -189,7 +189,7 @@ def main():
         )
         print(f"  Status:           {fb['status'] or '(none)'}")
 
-        print(f"\n  --- Feedback Content ---")
+        print("\n  --- Feedback Content ---")
         content = fb["feedback_content"] or "(empty)"
         if args.full:
             print(textwrap.indent(content, "    "))
@@ -197,7 +197,7 @@ def main():
             print(f"    {truncate_text(content, max_content_len)}")
 
         if fb["do_action"] or fb["do_not_action"] or fb["when_condition"]:
-            print(f"\n  --- Structured Fields ---")
+            print("\n  --- Structured Fields ---")
             print(f"    DO:       {truncate_text(fb['do_action'], max_content_len)}")
             print(
                 f"    DON'T:    {truncate_text(fb['do_not_action'], max_content_len)}"
@@ -207,7 +207,7 @@ def main():
             )
 
         if fb["blocking_issue"]:
-            print(f"\n  --- Blocking Issue ---")
+            print("\n  --- Blocking Issue ---")
             print(f"    {format_json(fb['blocking_issue'])}")
 
         # Now get the interactions used to generate this feedback
@@ -215,7 +215,7 @@ def main():
         request_created_at = fb["request_created_at"] or fb["feedback_created_at"]
 
         if not user_id:
-            print(f"\n  (Cannot fetch interactions: no user_id available)")
+            print("\n  (Cannot fetch interactions: no user_id available)")
             continue
 
         interactions = get_interactions_before(cursor, user_id, request_created_at)
@@ -242,7 +242,7 @@ def main():
                 if inter["tools_used"] and inter["tools_used"] != []:
                     print(f"        Tools Used:   {format_json(inter['tools_used'])}")
 
-                print(f"        Content:")
+                print("        Content:")
                 content = inter["content"] or "(empty)"
                 if args.full:
                     print(textwrap.indent(content, "          "))
@@ -250,7 +250,7 @@ def main():
                     print(f"          {truncate_text(content, max_content_len)}")
 
                 if inter["shadow_content"]:
-                    print(f"        Shadow Content:")
+                    print("        Shadow Content:")
                     if args.full:
                         print(textwrap.indent(inter["shadow_content"], "          "))
                     else:

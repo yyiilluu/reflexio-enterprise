@@ -1,15 +1,16 @@
 import enum
 from datetime import datetime, timezone
-from typing import Literal, Optional, Self
+from typing import Literal
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field, field_validator, model_validator
+from typing_extensions import Self
 
 from reflexio_commons.api_schema.validators import (
-    NonEmptyStr,
     EmbeddingVector,
-    _check_safe_url,
+    NonEmptyStr,
     TimeRangeValidatorMixin,
+    _check_safe_url,
 )
 
 # OS-agnostic "never expires" timestamp (January 1, 2100 00:00:00 UTC)
@@ -142,7 +143,7 @@ class Request(BaseModel):
     )
     source: str = ""
     agent_version: str = ""
-    session_id: Optional[str] = None
+    session_id: str | None = None
 
 
 # information about the user profile generated from the user interaction
@@ -156,17 +157,17 @@ class UserProfile(BaseModel):
     profile_time_to_live: ProfileTimeToLive = ProfileTimeToLive.INFINITY
     # this is the expiration date calculated based on last modified timestamp and profile time to live instead of generated timestamp
     expiration_timestamp: int = NEVER_EXPIRES_TIMESTAMP
-    custom_features: Optional[dict] = None
-    source: Optional[str] = None
-    status: Optional[Status] = None  # indicates the status of the profile
-    extractor_names: Optional[list[str]] = None
+    custom_features: dict | None = None
+    source: str | None = None
+    status: Status | None = None  # indicates the status of the profile
+    extractor_names: list[str] | None = None
     embedding: EmbeddingVector = []
 
 
 # raw feedback for agents
 class RawFeedback(BaseModel):
     raw_feedback_id: int = 0
-    user_id: Optional[str] = None  # optional for backward compatibility
+    user_id: str | None = None  # optional for backward compatibility
     agent_version: str
     request_id: str
     feedback_name: str = ""
@@ -176,22 +177,18 @@ class RawFeedback(BaseModel):
     feedback_content: str = ""
 
     # Structured feedback fields (v1.2.0+)
-    do_action: Optional[str] = None  # What the agent should do (preferred behavior)
-    do_not_action: Optional[str] = (
-        None  # What the agent should avoid (mistaken behavior)
-    )
-    when_condition: Optional[str] = None  # The condition/context when this applies
+    do_action: str | None = None  # What the agent should do (preferred behavior)
+    do_not_action: str | None = None  # What the agent should avoid (mistaken behavior)
+    when_condition: str | None = None  # The condition/context when this applies
 
-    status: Optional[Status] = (
+    status: Status | None = (
         None  # Status.PENDING (from rerun), None (current), Status.ARCHIVED (old)
     )
-    source: Optional[str] = (
-        None  # source of the interaction that generated this feedback
-    )
-    blocking_issue: Optional[BlockingIssue] = (
+    source: str | None = None  # source of the interaction that generated this feedback
+    blocking_issue: BlockingIssue | None = (
         None  # Root cause when agent couldn't complete action
     )
-    indexed_content: Optional[str] = (
+    indexed_content: str | None = (
         None  # Content used for embedding/indexing (extracted from feedback_content)
     )
     source_interaction_ids: list[int] = Field(default_factory=list)
@@ -220,19 +217,17 @@ class Feedback(BaseModel):
     feedback_content: str
 
     # Structured feedback fields (v1.2.0+)
-    do_action: Optional[str] = None  # What the agent should do (preferred behavior)
-    do_not_action: Optional[str] = (
-        None  # What the agent should avoid (mistaken behavior)
-    )
-    when_condition: Optional[str] = None  # The condition/context when this applies
+    do_action: str | None = None  # What the agent should do (preferred behavior)
+    do_not_action: str | None = None  # What the agent should avoid (mistaken behavior)
+    when_condition: str | None = None  # The condition/context when this applies
 
-    blocking_issue: Optional[BlockingIssue] = (
+    blocking_issue: BlockingIssue | None = (
         None  # Root cause when agent couldn't complete action
     )
     feedback_status: FeedbackStatus = FeedbackStatus.PENDING
     feedback_metadata: str = ""
     embedding: EmbeddingVector = []
-    status: Optional[Status] = (
+    status: Status | None = (
         None  # used for tracking intermediate states during feedback aggregation. Status.ARCHIVED for feedbacks during aggregation process, None for current feedbacks
     )
 
@@ -263,15 +258,15 @@ class AgentSuccessEvaluationResult(BaseModel):
     agent_version: str
     session_id: str
     is_success: bool
-    failure_type: Optional[str] = None
-    failure_reason: Optional[str] = None
-    evaluation_name: Optional[str] = None
+    failure_type: str | None = None
+    failure_reason: str | None = None
+    evaluation_name: str | None = None
     created_at: int = Field(
         default_factory=lambda: int(datetime.now(timezone.utc).timestamp())
     )
-    regular_vs_shadow: Optional[RegularVsShadow] = None
+    regular_vs_shadow: RegularVsShadow | None = None
     number_of_correction_per_session: int = 0
-    user_turns_to_resolution: Optional[int] = None
+    user_turns_to_resolution: int | None = None
     is_escalated: bool = False
     embedding: EmbeddingVector = []
 
@@ -389,7 +384,7 @@ class PublishUserInteractionRequest(BaseModel):
     agent_version: str = (
         ""  # this is used for aggregating interactions for generating agent feedback
     )
-    session_id: Optional[str] = None  # used for grouping requests together
+    session_id: str | None = None  # used for grouping requests together
 
 
 # publish user interaction response
@@ -425,7 +420,7 @@ class AddRawFeedbackRequest(BaseModel):
 
 class AddRawFeedbackResponse(BaseModel):
     success: bool
-    message: Optional[str] = None
+    message: str | None = None
     added_count: int = 0
 
 
@@ -436,7 +431,7 @@ class AddFeedbackRequest(BaseModel):
 
 class AddFeedbackResponse(BaseModel):
     success: bool
-    message: Optional[str] = None
+    message: str | None = None
     added_count: int = 0
 
 
@@ -452,10 +447,10 @@ class FeedbackSnapshot(BaseModel):
     feedback_name: str = ""
     agent_version: str = ""
     feedback_content: str = ""
-    do_action: Optional[str] = None
-    do_not_action: Optional[str] = None
-    when_condition: Optional[str] = None
-    blocking_issue: Optional[BlockingIssue] = None
+    do_action: str | None = None
+    do_not_action: str | None = None
+    when_condition: str | None = None
+    blocking_issue: BlockingIssue | None = None
     feedback_status: FeedbackStatus = FeedbackStatus.PENDING
     feedback_metadata: str = ""
 
@@ -521,11 +516,11 @@ class RunFeedbackAggregationResponse(BaseModel):
 
 
 class RerunProfileGenerationRequest(BaseModel):
-    user_id: Optional[str] = None
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-    source: Optional[str] = None
-    extractor_names: Optional[list[str]] = None
+    user_id: str | None = None
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+    source: str | None = None
+    extractor_names: list[str] | None = None
 
     @model_validator(mode="after")
     def check_time_range(self) -> Self:
@@ -536,8 +531,8 @@ class RerunProfileGenerationRequest(BaseModel):
 
 class RerunProfileGenerationResponse(BaseModel):
     success: bool
-    msg: Optional[str] = None
-    profiles_generated: Optional[int] = None
+    msg: str | None = None
+    profiles_generated: int | None = None
     operation_id: str = "rerun_profile_generation"
 
 
@@ -548,17 +543,17 @@ class ManualProfileGenerationRequest(BaseModel):
     Outputs profiles with CURRENT status (not PENDING like rerun).
     """
 
-    user_id: Optional[str] = None
-    source: Optional[str] = None
-    extractor_names: Optional[list[str]] = None
+    user_id: str | None = None
+    source: str | None = None
+    extractor_names: list[str] | None = None
 
 
 class ManualProfileGenerationResponse(BaseModel):
     """Response for manual profile generation."""
 
     success: bool
-    msg: Optional[str] = None
-    profiles_generated: Optional[int] = None
+    msg: str | None = None
+    profiles_generated: int | None = None
 
 
 class ManualFeedbackGenerationRequest(BaseModel):
@@ -569,24 +564,24 @@ class ManualFeedbackGenerationRequest(BaseModel):
     """
 
     agent_version: NonEmptyStr
-    source: Optional[str] = None
-    feedback_name: Optional[str] = None  # Optional filter by feedback name
+    source: str | None = None
+    feedback_name: str | None = None  # Optional filter by feedback name
 
 
 class ManualFeedbackGenerationResponse(BaseModel):
     """Response for manual feedback generation."""
 
     success: bool
-    msg: Optional[str] = None
-    feedbacks_generated: Optional[int] = None
+    msg: str | None = None
+    feedbacks_generated: int | None = None
 
 
 class RerunFeedbackGenerationRequest(BaseModel):
     agent_version: NonEmptyStr
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-    feedback_name: Optional[str] = None
-    source: Optional[str] = None
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+    feedback_name: str | None = None
+    source: str | None = None
 
     @model_validator(mode="after")
     def check_time_range(self) -> Self:
@@ -597,14 +592,14 @@ class RerunFeedbackGenerationRequest(BaseModel):
 
 class RerunFeedbackGenerationResponse(BaseModel):
     success: bool
-    msg: Optional[str] = None
-    feedbacks_generated: Optional[int] = None
+    msg: str | None = None
+    feedbacks_generated: int | None = None
     operation_id: str = "rerun_feedback_generation"
 
 
 class UpgradeProfilesRequest(BaseModel):
-    user_id: Optional[str] = None  # None means "all users"
-    profile_ids: Optional[list[str]] = None
+    user_id: str | None = None  # None means "all users"
+    profile_ids: list[str] | None = None
     only_affected_users: bool = (
         False  # If True, only upgrade users who have pending profiles
     )
@@ -619,8 +614,8 @@ class UpgradeProfilesResponse(BaseModel):
 
 
 class DowngradeProfilesRequest(BaseModel):
-    user_id: Optional[str] = None  # None means "all users"
-    profile_ids: Optional[list[str]] = None
+    user_id: str | None = None  # None means "all users"
+    profile_ids: list[str] | None = None
     only_affected_users: bool = (
         False  # If True, only downgrade users who have archived profiles
     )
@@ -634,8 +629,8 @@ class DowngradeProfilesResponse(BaseModel):
 
 
 class UpgradeRawFeedbacksRequest(BaseModel):
-    agent_version: Optional[str] = None
-    feedback_name: Optional[str] = None
+    agent_version: str | None = None
+    feedback_name: str | None = None
     archive_current: bool = True
 
 
@@ -648,8 +643,8 @@ class UpgradeRawFeedbacksResponse(BaseModel):
 
 
 class DowngradeRawFeedbacksRequest(BaseModel):
-    agent_version: Optional[str] = None
-    feedback_name: Optional[str] = None
+    agent_version: str | None = None
+    feedback_name: str | None = None
 
 
 class DowngradeRawFeedbacksResponse(BaseModel):
@@ -666,16 +661,16 @@ class OperationStatusInfo(BaseModel):
     service_name: str
     status: OperationStatus
     started_at: int
-    completed_at: Optional[int] = None
+    completed_at: int | None = None
     total_users: int = 0
     processed_users: int = 0
     failed_users: int = 0
-    current_user_id: Optional[str] = None
+    current_user_id: str | None = None
     processed_user_ids: list[str] = []
     failed_user_ids: list[dict] = []  # [{"user_id": "...", "error": "..."}]
     request_params: dict = {}
     stats: dict = {}
-    error_message: Optional[str] = None
+    error_message: str | None = None
     progress_percentage: float = Field(default=0.0, ge=0.0, le=100.0)
 
 
@@ -685,18 +680,18 @@ class GetOperationStatusRequest(BaseModel):
 
 class GetOperationStatusResponse(BaseModel):
     success: bool
-    operation_status: Optional[OperationStatusInfo] = None
-    msg: Optional[str] = None
+    operation_status: OperationStatusInfo | None = None
+    msg: str | None = None
 
 
 class CancelOperationRequest(BaseModel):
-    service_name: Optional[str] = None  # None cancels both services
+    service_name: str | None = None  # None cancels both services
 
 
 class CancelOperationResponse(BaseModel):
     success: bool
     cancelled_services: list[str] = []
-    msg: Optional[str] = None
+    msg: str | None = None
 
 
 # ===============================
@@ -736,12 +731,12 @@ class DeleteSkillResponse(BaseModel):
 
 
 class ExportSkillsRequest(BaseModel):
-    feedback_name: Optional[str] = None
-    agent_version: Optional[str] = None
-    skill_status: Optional[SkillStatus] = None
+    feedback_name: str | None = None
+    agent_version: str | None = None
+    skill_status: SkillStatus | None = None
 
 
 class ExportSkillsResponse(BaseModel):
     success: bool
     markdown: str = ""
-    msg: Optional[str] = None
+    msg: str | None = None

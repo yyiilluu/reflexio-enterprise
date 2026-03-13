@@ -1,25 +1,25 @@
 """Tests for SupabaseStorage implementation."""
 
-import pytest
-from unittest.mock import patch, Mock, call
 from datetime import datetime, timezone
+from unittest.mock import Mock, call, patch
 
-from reflexio_commons.api_schema.service_schemas import (
-    DeleteUserProfileRequest,
-    UserProfile,
-    ProfileTimeToLive,
-    UserActionType,
-    DeleteUserInteractionRequest,
-    ProfileChangeLog,
-    RawFeedback,
-    FeedbackStatus,
-    Status,
-    NEVER_EXPIRES_TIMESTAMP,
-)
+import pytest
 from reflexio_commons.api_schema.retriever_schema import (
-    SearchUserProfileRequest,
-    SearchInteractionRequest,
     Interaction,
+    SearchInteractionRequest,
+    SearchUserProfileRequest,
+)
+from reflexio_commons.api_schema.service_schemas import (
+    NEVER_EXPIRES_TIMESTAMP,
+    DeleteUserInteractionRequest,
+    DeleteUserProfileRequest,
+    FeedbackStatus,
+    ProfileChangeLog,
+    ProfileTimeToLive,
+    RawFeedback,
+    Status,
+    UserActionType,
+    UserProfile,
 )
 from reflexio_commons.config_schema import StorageConfigSupabase
 
@@ -56,7 +56,7 @@ def supabase_storage(mock_supabase_client, mock_openai):
             db_url="postgresql://test:test@localhost:5432/test",
         )
         storage = SupabaseStorage(org_id="test", config=config)
-        return storage
+        return storage  # noqa: RET504
 
 
 @pytest.fixture
@@ -177,9 +177,7 @@ def test_get_user_profile(supabase_storage, user_profile_data, mock_supabase_cli
             "source": profile.source,
         }
     ]
-    mock_supabase_client.table.return_value.select.return_value.eq.return_value.gte.return_value.is_.return_value.execute.return_value = (
-        mock_response
-    )
+    mock_supabase_client.table.return_value.select.return_value.eq.return_value.gte.return_value.is_.return_value.execute.return_value = mock_response
 
     profiles = storage.get_user_profile(user_id)
     assert len(profiles) == 1
@@ -199,9 +197,7 @@ def test_get_user_profile_with_expired_profile(
     # Mock empty response for expired profile
     mock_response = Mock()
     mock_response.data = []
-    mock_supabase_client.table.return_value.select.return_value.eq.return_value.gte.return_value.is_.return_value.execute.return_value = (
-        mock_response
-    )
+    mock_supabase_client.table.return_value.select.return_value.eq.return_value.gte.return_value.is_.return_value.execute.return_value = mock_response
 
     profiles = storage.get_user_profile(user_id)
     assert len(profiles) == 0
@@ -305,9 +301,7 @@ def test_get_all_profiles(supabase_storage, user_profile_data, mock_supabase_cli
             "source": expired_profile.source,
         },
     ]
-    mock_supabase_client.table.return_value.select.return_value.is_.return_value.order.return_value.limit.return_value.execute.return_value = (
-        mock_response
-    )
+    mock_supabase_client.table.return_value.select.return_value.is_.return_value.order.return_value.limit.return_value.execute.return_value = mock_response
 
     profiles = storage.get_all_profiles()
     assert len(profiles) == 2

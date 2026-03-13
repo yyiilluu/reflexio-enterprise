@@ -1,6 +1,7 @@
-import pytest
-import os
 import base64
+import os
+
+import pytest
 
 
 def skip_in_precommit(func):

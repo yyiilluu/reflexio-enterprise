@@ -2,18 +2,19 @@
 Utils for service layer
 """
 
+import ast
+import json
 import logging
 import re
-import json
-import ast
-from typing import Any, Optional
 from dataclasses import dataclass
+from typing import Any
 
+from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 from reflexio_commons.api_schema.service_schemas import (
     Interaction,
     UserActionType,
 )
-from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
+
 from reflexio.server.prompt.prompt_manager import PromptManager
 
 logger = logging.getLogger(__name__)
@@ -48,7 +49,7 @@ class PromptConfig:
     """
 
     prompt_id: str
-    variables: dict[str, any]
+    variables: dict[str, any]  # type: ignore[reportGeneralTypeIssues]
 
 
 @dataclass
@@ -62,8 +63,8 @@ class MessageConstructionConfig:
     """
 
     prompt_manager: PromptManager
-    system_prompt_config: Optional[PromptConfig] = None
-    user_prompt_config: Optional[PromptConfig] = None
+    system_prompt_config: PromptConfig | None = None
+    user_prompt_config: PromptConfig | None = None
 
 
 def format_interactions_to_history_string(interactions: list[Interaction]) -> str:
@@ -341,7 +342,7 @@ def extract_json_from_string(text: str) -> dict:
         json_str = re.sub(r"\bFalse\b", "false", json_str)
         json_str = re.sub(r"\bNone\b", "null", json_str)
 
-        return json_str
+        return json_str  # noqa: RET504
 
     def fix_unescaped_inner_quotes(json_str: str) -> str:
         """
@@ -353,7 +354,7 @@ def extract_json_from_string(text: str) -> dict:
         """
         return re.sub(r"(?<=\w)\"(?=\w)", "'", json_str)
 
-    def parse_json_candidate(json_str: str) -> tuple[Optional[dict], Optional[str]]:
+    def parse_json_candidate(json_str: str) -> tuple[dict | None, str | None]:
         """
         Try to parse a JSON candidate string using multiple strategies.
 
@@ -363,7 +364,7 @@ def extract_json_from_string(text: str) -> dict:
         3. ast.literal_eval as a fallback for Python-style dicts
         """
         candidates = [json_str]
-        last_error: Optional[str] = None
+        last_error: str | None = None
 
         normalized_json_str = normalize_json_string(json_str)
         if normalized_json_str != json_str:
@@ -378,7 +379,7 @@ def extract_json_from_string(text: str) -> dict:
                 parsed = json.loads(candidate)
                 if isinstance(parsed, dict):
                     return parsed, None
-            except json.JSONDecodeError as err:
+            except json.JSONDecodeError as err:  # noqa: PERF203
                 last_error = str(err)
                 continue
 
@@ -387,7 +388,7 @@ def extract_json_from_string(text: str) -> dict:
                 parsed = ast.literal_eval(candidate)
                 if isinstance(parsed, dict):
                     return parsed, None
-            except (ValueError, SyntaxError) as err:
+            except (ValueError, SyntaxError) as err:  # noqa: PERF203
                 last_error = str(err)
                 continue
 
@@ -450,8 +451,7 @@ def format_messages_for_logging(messages: list[dict[str, Any]]) -> str:
             # Simple string content - preserve newlines
             formatted_parts.append("  content:")
             # Indent each line of content
-            for line in content.split("\n"):
-                formatted_parts.append(f"    {line}")
+            formatted_parts.extend(f"    {line}" for line in content.split("\n"))
         elif isinstance(content, list):
             # Multimodal content (list of objects)
             formatted_parts.append("  content:")
@@ -463,8 +463,9 @@ def format_messages_for_logging(messages: list[dict[str, Any]]) -> str:
                         formatted_parts.append(f"    type: {item_type}")
                         formatted_parts.append("    text:")
                         # Indent each line of text
-                        for line in text_content.split("\n"):
-                            formatted_parts.append(f"      {line}")
+                        formatted_parts.extend(
+                            f"      {line}" for line in text_content.split("\n")
+                        )
                     else:
                         # For non-text content, use JSON representation
                         formatted_parts.append(f"    {json.dumps(item, indent=4)}")

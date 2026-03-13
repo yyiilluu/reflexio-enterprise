@@ -11,28 +11,28 @@ These tests verify that:
 """
 
 import os
-import pytest
 from datetime import datetime, timezone
 
-from reflexio.server.services.storage.supabase_storage import SupabaseStorage
-from reflexio_commons.config_schema import StorageConfigSupabase, SearchMode
+import pytest
+from reflexio_commons.api_schema.retriever_schema import (
+    SearchInteractionRequest,
+    SearchUserProfileRequest,
+)
 from reflexio_commons.api_schema.service_schemas import (
+    NEVER_EXPIRES_TIMESTAMP,
     Feedback,
     FeedbackStatus,
-    RawFeedback,
-    UserProfile,
-    ProfileTimeToLive,
-    UserActionType,
     Interaction,
+    ProfileTimeToLive,
+    RawFeedback,
     Request,
-    NEVER_EXPIRES_TIMESTAMP,
+    UserActionType,
+    UserProfile,
 )
-from reflexio_commons.api_schema.retriever_schema import (
-    SearchUserProfileRequest,
-    SearchInteractionRequest,
-)
-from reflexio.tests.server.test_utils import skip_in_precommit
+from reflexio_commons.config_schema import SearchMode, StorageConfigSupabase
 
+from reflexio.server.services.storage.supabase_storage import SupabaseStorage
+from reflexio.tests.server.test_utils import skip_in_precommit
 
 # ==============================
 # Fixtures
@@ -243,9 +243,9 @@ def test_hybrid_search_profiles_keyword_match(
     results = storage.search_user_profile(search_request)
 
     assert len(results) > 0, f"Should find profile with keyword '{unique_keyword}'"
-    assert any(
-        unique_keyword in r.profile_content for r in results
-    ), "Result should contain the unique keyword"
+    assert any(unique_keyword in r.profile_content for r in results), (
+        "Result should contain the unique keyword"
+    )
 
 
 @skip_in_precommit
@@ -354,9 +354,9 @@ def test_hybrid_search_interactions_keyword_match(
     results = storage.search_interaction(search_request)
 
     assert len(results) > 0, f"Should find interaction with keyword '{unique_keyword}'"
-    assert any(
-        unique_keyword in r.content for r in results
-    ), "Result should contain the unique keyword"
+    assert any(unique_keyword in r.content for r in results), (
+        "Result should contain the unique keyword"
+    )
 
 
 @skip_in_precommit
@@ -415,9 +415,9 @@ def test_vector_only_search_interactions(
     )
     results = storage.search_interaction(search_request)
 
-    assert (
-        len(results) > 0
-    ), "Vector search should find semantically similar interactions"
+    assert len(results) > 0, (
+        "Vector search should find semantically similar interactions"
+    )
 
 
 @skip_in_precommit
@@ -473,9 +473,9 @@ def test_hybrid_search_raw_feedbacks_keyword_match(
     )
 
     assert len(results) > 0, f"Should find raw feedback with keyword '{unique_keyword}'"
-    assert any(
-        unique_keyword in r.feedback_content for r in results
-    ), "Result should contain the unique keyword"
+    assert any(unique_keyword in r.feedback_content for r in results), (
+        "Result should contain the unique keyword"
+    )
 
 
 @skip_in_precommit
@@ -497,9 +497,9 @@ def test_hybrid_search_raw_feedbacks_semantic_match(
     )
 
     assert len(results) > 0, "Should find semantically similar raw feedback"
-    assert any(
-        "machine learning" in r.feedback_content.lower() for r in results
-    ), "Result should contain ML content"
+    assert any("machine learning" in r.feedback_content.lower() for r in results), (
+        "Result should contain ML content"
+    )
 
 
 @skip_in_precommit
@@ -520,9 +520,9 @@ def test_vector_only_search_raw_feedbacks(
         match_count=10,
     )
 
-    assert (
-        len(results) > 0
-    ), "Vector search should find semantically similar raw feedbacks"
+    assert len(results) > 0, (
+        "Vector search should find semantically similar raw feedbacks"
+    )
 
 
 @skip_in_precommit
@@ -572,9 +572,9 @@ def test_hybrid_search_feedbacks_keyword_match(
     )
 
     assert len(results) > 0, f"Should find feedback with keyword '{unique_keyword}'"
-    assert any(
-        unique_keyword in r.feedback_content for r in results
-    ), "Result should contain the unique keyword"
+    assert any(unique_keyword in r.feedback_content for r in results), (
+        "Result should contain the unique keyword"
+    )
 
 
 @skip_in_precommit

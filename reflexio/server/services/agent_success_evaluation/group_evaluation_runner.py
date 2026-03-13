@@ -8,6 +8,8 @@ import logging
 from collections import defaultdict
 from datetime import datetime, timezone
 
+from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
+
 from reflexio.server.api_endpoints.request_context import RequestContext
 from reflexio.server.llm.litellm_client import LiteLLMClient
 from reflexio.server.services.agent_success_evaluation.agent_success_evaluation_service import (
@@ -19,7 +21,6 @@ from reflexio.server.services.agent_success_evaluation.agent_success_evaluation_
 from reflexio.server.services.agent_success_evaluation.delayed_group_evaluator import (
     _EFFECTIVE_DELAY_SECONDS,
 )
-from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +74,7 @@ def run_group_evaluation(
     state_key = _build_state_key(org_id, user_id, session_id)
 
     # 1. Check if already evaluated
-    existing_state = storage.get_operation_state(state_key)
+    existing_state = storage.get_operation_state(state_key)  # type: ignore[reportOptionalMemberAccess]
     if existing_state and isinstance(existing_state.get("operation_state"), dict):
         op_state = existing_state["operation_state"]
         if op_state.get("evaluated"):
@@ -81,7 +82,7 @@ def run_group_evaluation(
             return
 
     # 2. Fetch all requests for the session
-    requests = storage.get_requests_by_session(user_id, session_id)
+    requests = storage.get_requests_by_session(user_id, session_id)  # type: ignore[reportOptionalMemberAccess]
     if not requests:
         logger.info("No requests found for session %s, skipping", session_id)
         return
@@ -101,7 +102,7 @@ def run_group_evaluation(
 
     # 4. Fetch interactions for all requests
     request_ids = [r.request_id for r in requests]
-    all_interactions = storage.get_interactions_by_request_ids(request_ids)
+    all_interactions = storage.get_interactions_by_request_ids(request_ids)  # type: ignore[reportOptionalMemberAccess]
     if not all_interactions:
         logger.info("No interactions found for session %s, skipping", session_id)
         return
@@ -171,7 +172,7 @@ def run_group_evaluation(
 
     # 6. Mark as evaluated
     evaluated_at = int(datetime.now(timezone.utc).timestamp())
-    storage.upsert_operation_state(
+    storage.upsert_operation_state(  # type: ignore[reportOptionalMemberAccess]
         state_key,
         {"evaluated": True, "evaluated_at": evaluated_at},
     )

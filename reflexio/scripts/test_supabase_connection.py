@@ -23,11 +23,11 @@ Required arguments:
     --key: Supabase API key
 """
 
-import sys
-import logging
 import argparse
-from typing import Optional
-from supabase import create_client, Client
+import logging
+import sys
+
+from supabase import Client, create_client
 
 # Configure logging
 logging.basicConfig(
@@ -48,7 +48,7 @@ DEFAULT_TABLES = [
 ]
 
 
-def test_connection(supabase_url: str, supabase_key: str) -> Optional[Client]:
+def test_connection(supabase_url: str, supabase_key: str) -> Client | None:
     """
     Test Supabase connection.
 
@@ -104,7 +104,7 @@ def test_table_access(client: Client, table_name: str) -> dict:
         if result["count"] > 0:
             sample_response = client.table(table_name).select("*").limit(1).execute()
             if sample_response.data:
-                logger.info(f"    ✓ Successfully fetched sample record")
+                logger.info("    ✓ Successfully fetched sample record")
                 # Show column names
                 columns = list(sample_response.data[0].keys())
                 logger.info(f"    Columns: {', '.join(columns)}")
@@ -144,7 +144,7 @@ def test_database_functions(client: Client) -> dict:
             # We use a dummy embedding to test if the function is callable
             dummy_embedding = [0.0] * 512  # Reduced embedding dimensions
 
-            response = client.rpc(
+            _response = client.rpc(
                 func_name,
                 {
                     "query_embedding": dummy_embedding,
@@ -156,7 +156,7 @@ def test_database_functions(client: Client) -> dict:
             results[func_name] = {"exists": True, "callable": True, "error": None}
             logger.info(f"  ✓ Function '{func_name}' is callable")
 
-        except Exception as e:
+        except Exception as e:  # noqa: PERF203
             error_msg = str(e)
             # Function might exist but fail for other reasons (e.g., no data)
             if (
@@ -275,9 +275,8 @@ def run_tests(supabase_url: str, supabase_key: str, tables: list[str]) -> bool:
     if all_passed:
         logger.info("✓ All tests passed!")
         return True
-    else:
-        logger.warning("⚠ Some tests failed - see details above")
-        return False
+    logger.warning("⚠ Some tests failed - see details above")
+    return False
 
 
 if __name__ == "__main__":

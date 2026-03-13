@@ -11,9 +11,10 @@ from reflexio_commons.api_schema.retriever_schema import (
     RewrittenQuery,
     UnifiedSearchRequest,
 )
+
 from reflexio.server.services.unified_search_service import (
-    run_unified_search,
     _run_phase_b,
+    run_unified_search,
 )
 
 

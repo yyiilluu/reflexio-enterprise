@@ -1,12 +1,17 @@
 """Tests for feedback service utility functions."""
 
-import pytest
 from datetime import datetime, timezone
 
-from reflexio_commons.api_schema.service_schemas import Interaction, Request
+import pytest
 from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
+from reflexio_commons.api_schema.service_schemas import (
+    BlockingIssue,
+    BlockingIssueKind,
+    Interaction,
+    Request,
+)
+
 from reflexio.server.prompt.prompt_manager import PromptManager
-from reflexio_commons.api_schema.service_schemas import BlockingIssue, BlockingIssueKind
 from reflexio.server.services.feedback.feedback_service_utils import (
     StructuredFeedbackContent,
     construct_feedback_extraction_messages_from_sessions,
@@ -96,9 +101,9 @@ def test_construct_feedback_extraction_messages_with_sessions():
     system_messages = [m for m in messages if m.get("role") == "system"]
     assert system_messages, "Expected a system message"
     system_text = extract_text(system_messages[0])
-    assert (
-        "Evaluate the quality of the agent's response" in system_text
-    ), "Expected feedback definition in system message"
+    assert "Evaluate the quality of the agent's response" in system_text, (
+        "Expected feedback definition in system message"
+    )
 
     # Find the user message that contains the interactions
     found_interactions = False
@@ -117,18 +122,20 @@ def test_construct_feedback_extraction_messages_with_sessions():
             ):
                 # Validate the interactions are formatted correctly in the rendered prompt
                 # Note: Content is wrapped in backticks in the prompt template
-                assert (
-                    "user: ```I need help with my account```" in content
-                ), f"Expected 'user: ```I need help with my account```' in prompt"
+                assert "user: ```I need help with my account```" in content, (
+                    "Expected 'user: ```I need help with my account```' in prompt"
+                )
                 assert (
                     "assistant: ```Here is how to access your account```" in content
-                ), f"Expected 'assistant: ```Here is how to access your account```' in prompt"
-                assert (
-                    "user: ```Thank you!```" in content
-                ), f"Expected 'user: ```Thank you!```' in prompt"
-                assert (
-                    "user: ```click help button```" in content
-                ), f"Expected 'user: ```click help button```' in prompt"
+                ), (
+                    "Expected 'assistant: ```Here is how to access your account```' in prompt"
+                )
+                assert "user: ```Thank you!```" in content, (
+                    "Expected 'user: ```Thank you!```' in prompt"
+                )
+                assert "user: ```click help button```" in content, (
+                    "Expected 'user: ```click help button```' in prompt"
+                )
 
                 found_interactions = True
                 break
@@ -174,7 +181,7 @@ class TestFormatStructuredFeedbackContent:
         result = format_structured_feedback_content(structured)
         assert 'When: "explaining technical concepts to beginners"' in result
         assert 'Do: "use clear language"' in result
-        assert "Don't: \"use jargon\"" in result
+        assert 'Don\'t: "use jargon"' in result
 
     def test_when_condition_none(self):
         """Test that None when_condition is omitted from output."""
@@ -217,7 +224,7 @@ class TestFormatStructuredFeedbackContent:
             when_condition=None,
         )
         result = format_structured_feedback_content(structured)
-        assert "Don't: \"ramble\"" in result
+        assert 'Don\'t: "ramble"' in result
         assert "Do:" not in result
         assert "When:" not in result
 

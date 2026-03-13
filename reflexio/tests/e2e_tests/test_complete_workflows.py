@@ -1,13 +1,8 @@
 """End-to-end tests for complete workflows and error handling."""
 
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
-from typing import Callable
 
-from reflexio.reflexio_lib.reflexio_lib import Reflexio
-from reflexio.server.services.agent_success_evaluation.group_evaluation_runner import (
-    run_group_evaluation,
-)
-from reflexio.tests.server.test_utils import skip_in_precommit, skip_low_priority
 from reflexio_commons.api_schema.retriever_schema import (
     GetDashboardStatsRequest,
     GetInteractionsRequest,
@@ -17,15 +12,21 @@ from reflexio_commons.api_schema.retriever_schema import (
     SearchUserProfileRequest,
 )
 from reflexio_commons.api_schema.service_schemas import (
-    DeleteSessionRequest,
     DeleteRequestRequest,
+    DeleteSessionRequest,
     DeleteUserInteractionRequest,
     DeleteUserProfileRequest,
     GetOperationStatusRequest,
     InteractionData,
-    Status,
     RerunProfileGenerationRequest,
+    Status,
 )
+
+from reflexio.reflexio_lib.reflexio_lib import Reflexio
+from reflexio.server.services.agent_success_evaluation.group_evaluation_runner import (
+    run_group_evaluation,
+)
+from reflexio.tests.server.test_utils import skip_in_precommit, skip_low_priority
 
 
 @skip_in_precommit
@@ -116,9 +117,9 @@ def test_complete_workflow_end_to_end(
     assert len(search_profile_response.user_profiles) > 0
     # Verify search returns profiles with correct status (default is CURRENT/None)
     for profile in search_profile_response.user_profiles:
-        assert (
-            profile.status is None
-        ), f"Default search should return only CURRENT profiles, got status={profile.status}"
+        assert profile.status is None, (
+            f"Default search should return only CURRENT profiles, got status={profile.status}"
+        )
 
     # Step 6: Get profile change logs
     changelog_response = reflexio_instance.get_profile_change_logs()
@@ -327,9 +328,9 @@ def test_profile_status_filtering(
     assert len(search_current.user_profiles) > 0
     # Verify that default search only returns CURRENT profiles (status=None)
     for profile in search_current.user_profiles:
-        assert (
-            profile.status is None
-        ), f"Default search should return only CURRENT profiles, got status={profile.status}"
+        assert profile.status is None, (
+            f"Default search should return only CURRENT profiles, got status={profile.status}"
+        )
 
     # Test get_all_profiles with different status filters
     all_current = reflexio_instance.get_all_profiles(status_filter=[None])
@@ -706,9 +707,9 @@ def test_full_workflow_with_all_features(
             agent_version=agent_version
         )
     )
-    assert (
-        len(agent_success_results) > 0
-    ), "Agent success evaluations should be generated"
+    assert len(agent_success_results) > 0, (
+        "Agent success evaluations should be generated"
+    )
     assert agent_success_results[0].session_id == session_id
     assert agent_success_results[0].agent_version == agent_version
     assert isinstance(agent_success_results[0].is_success, bool)
@@ -740,9 +741,9 @@ def test_full_workflow_with_all_features(
     assert len(search_profile_response.user_profiles) > 0
     # Verify search returns profiles with correct status (default is CURRENT/None)
     for profile in search_profile_response.user_profiles:
-        assert (
-            profile.status is None
-        ), f"Default search should return only CURRENT profiles, got status={profile.status}"
+        assert profile.status is None, (
+            f"Default search should return only CURRENT profiles, got status={profile.status}"
+        )
 
     # Step 7: Verify dashboard statistics include all data types
     stats_response = reflexio_instance.get_dashboard_stats(
@@ -851,9 +852,9 @@ def test_rerun_operations_consistency(
             user_id, status_filter=[None]
         )
     )
-    assert (
-        len(current_profiles_after_rerun) == initial_profile_count
-    ), "CURRENT profiles should remain unchanged"
+    assert len(current_profiles_after_rerun) == initial_profile_count, (
+        "CURRENT profiles should remain unchanged"
+    )
 
     # Verify content of current profiles didn't change
     for i, profile in enumerate(current_profiles_after_rerun):
@@ -870,17 +871,17 @@ def test_rerun_operations_consistency(
     interactions_after_rerun = (
         reflexio_instance.request_context.storage.get_all_interactions()
     )
-    assert (
-        len(interactions_after_rerun) == initial_interaction_count
-    ), "Interactions should remain unchanged"
+    assert len(interactions_after_rerun) == initial_interaction_count, (
+        "Interactions should remain unchanged"
+    )
 
     # Step 6: Verify feedbacks unchanged
     feedbacks_after_rerun = reflexio_instance.request_context.storage.get_raw_feedbacks(
         feedback_name="test_feedback"
     )
-    assert (
-        len(feedbacks_after_rerun) == initial_feedback_count
-    ), "Raw feedbacks should remain unchanged"
+    assert len(feedbacks_after_rerun) == initial_feedback_count, (
+        "Raw feedbacks should remain unchanged"
+    )
 
     # Step 7: Verify agent success results unchanged
     agent_success_after_rerun = (
@@ -888,9 +889,9 @@ def test_rerun_operations_consistency(
             agent_version=agent_version
         )
     )
-    assert (
-        len(agent_success_after_rerun) == initial_agent_success_count
-    ), "Agent success results should remain unchanged"
+    assert len(agent_success_after_rerun) == initial_agent_success_count, (
+        "Agent success results should remain unchanged"
+    )
 
     # Step 8: Run rerun again and verify no duplicate PENDING profiles
     pending_count_before_second_rerun = len(pending_profiles)
@@ -915,6 +916,6 @@ def test_rerun_operations_consistency(
     current_profiles_final = reflexio_instance.request_context.storage.get_user_profile(
         user_id, status_filter=[None]
     )
-    assert (
-        len(current_profiles_final) == initial_profile_count
-    ), "CURRENT profiles should still be unchanged after second rerun"
+    assert len(current_profiles_final) == initial_profile_count, (
+        "CURRENT profiles should still be unchanged after second rerun"
+    )

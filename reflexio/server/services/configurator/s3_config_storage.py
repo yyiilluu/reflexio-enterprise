@@ -1,15 +1,16 @@
 import json
 import traceback
-from typing import Optional
-from reflexio.server.services.configurator.config_storage import ConfigStorage
+
 from reflexio_commons.config_schema import Config
+
 from reflexio.server import (
-    FERNET_KEYS,
     CONFIG_S3_ACCESS_KEY,
-    CONFIG_S3_SECRET_KEY,
-    CONFIG_S3_REGION,
     CONFIG_S3_PATH,
+    CONFIG_S3_REGION,
+    CONFIG_S3_SECRET_KEY,
+    FERNET_KEYS,
 )
+from reflexio.server.services.configurator.config_storage import ConfigStorage
 from reflexio.utils.encrypt_manager import EncryptManager
 from reflexio.utils.s3_utils import S3Utils
 
@@ -23,10 +24,10 @@ class S3ConfigStorage(ConfigStorage):
     def __init__(
         self,
         org_id: str,
-        s3_path: Optional[str] = None,
-        s3_region: Optional[str] = None,
-        s3_access_key: Optional[str] = None,
-        s3_secret_key: Optional[str] = None,
+        s3_path: str | None = None,
+        s3_region: str | None = None,
+        s3_access_key: str | None = None,
+        s3_secret_key: str | None = None,
     ):
         """
         Initialize S3 configuration storage.
@@ -62,7 +63,7 @@ class S3ConfigStorage(ConfigStorage):
         )
 
         # Load fernet key from environment and set up the encryption manager.
-        self.encrypt_manager: Optional[EncryptManager] = None
+        self.encrypt_manager: EncryptManager | None = None
         if FERNET_KEYS:
             self.encrypt_manager = EncryptManager(fernet_keys=FERNET_KEYS)
 

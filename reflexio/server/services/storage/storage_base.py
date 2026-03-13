@@ -1,29 +1,29 @@
 from abc import ABC, abstractmethod
-import os
-from typing import Optional
-import reflexio.data as data
+from pathlib import Path
 
-from reflexio_commons.api_schema.service_schemas import (
-    RawFeedback,
-    Feedback,
-    Skill,
-    SkillStatus,
-    UserProfile,
-    Interaction,
-    Request,
-    DeleteUserInteractionRequest,
-    DeleteUserProfileRequest,
-    ProfileChangeLog,
-    FeedbackAggregationChangeLog,
-    AgentSuccessEvaluationResult,
-    FeedbackStatus,
-    Status,
-)
+from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 from reflexio_commons.api_schema.retriever_schema import (
     SearchInteractionRequest,
     SearchUserProfileRequest,
 )
-from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
+from reflexio_commons.api_schema.service_schemas import (
+    AgentSuccessEvaluationResult,
+    DeleteUserInteractionRequest,
+    DeleteUserProfileRequest,
+    Feedback,
+    FeedbackAggregationChangeLog,
+    FeedbackStatus,
+    Interaction,
+    ProfileChangeLog,
+    RawFeedback,
+    Request,
+    Skill,
+    SkillStatus,
+    Status,
+    UserProfile,
+)
+
+from reflexio import data
 
 
 class BaseStorage(ABC):
@@ -31,10 +31,10 @@ class BaseStorage(ABC):
     Base class for storage
     """
 
-    def __init__(self, org_id: str, base_dir: Optional[str] = None):
+    def __init__(self, org_id: str, base_dir: str | None = None) -> None:
         self.org_id = org_id
         if base_dir is None:
-            base_dir = os.path.dirname(data.__file__)
+            base_dir = str(Path(data.__file__).parent)
         self.base_dir = base_dir
 
     # ==============================
@@ -65,7 +65,7 @@ class BaseStorage(ABC):
     def get_all_profiles(
         self,
         limit: int = 100,
-        status_filter: Optional[list[Optional[Status]]] = None,
+        status_filter: list[Status | None] | None = None,
     ) -> list[UserProfile]:
         raise NotImplementedError
 
@@ -77,7 +77,7 @@ class BaseStorage(ABC):
     def get_user_profile(
         self,
         user_id: str,
-        status_filter: Optional[list[Optional[Status]]] = None,
+        status_filter: list[Status | None] | None = None,
     ) -> list[UserProfile]:
         raise NotImplementedError
 
@@ -87,14 +87,14 @@ class BaseStorage(ABC):
 
     # create or update methods
     @abstractmethod
-    def add_user_profile(self, user_id: str, user_profiles: list[UserProfile]):
+    def add_user_profile(self, user_id: str, user_profiles: list[UserProfile]) -> None:
         """
         Add the user profile for a given user id
         """
         raise NotImplementedError
 
     @abstractmethod
-    def add_user_interaction(self, user_id: str, interaction: Interaction):
+    def add_user_interaction(self, user_id: str, interaction: Interaction) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -112,34 +112,34 @@ class BaseStorage(ABC):
 
     # delete methods
     @abstractmethod
-    def delete_user_interaction(self, request: DeleteUserInteractionRequest):
+    def delete_user_interaction(self, request: DeleteUserInteractionRequest) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def delete_user_profile(self, request: DeleteUserProfileRequest):
+    def delete_user_profile(self, request: DeleteUserProfileRequest) -> None:
         raise NotImplementedError
 
     @abstractmethod
     def update_user_profile_by_id(
         self, user_id: str, profile_id: str, new_profile: UserProfile
-    ):
+    ) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def delete_all_interactions_for_user(self, user_id: str):
+    def delete_all_interactions_for_user(self, user_id: str) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def delete_all_profiles_for_user(self, user_id: str):
+    def delete_all_profiles_for_user(self, user_id: str) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def delete_all_profiles(self):
+    def delete_all_profiles(self) -> None:
         """Delete all profiles across all users."""
         raise NotImplementedError
 
     @abstractmethod
-    def delete_all_interactions(self):
+    def delete_all_interactions(self) -> None:
         """Delete all interactions across all users."""
         raise NotImplementedError
 
@@ -169,9 +169,9 @@ class BaseStorage(ABC):
     @abstractmethod
     def update_all_profiles_status(
         self,
-        old_status: Optional[Status],
-        new_status: Optional[Status],
-        user_ids: Optional[list[str]] = None,
+        old_status: Status | None,
+        new_status: Status | None,
+        user_ids: list[str] | None = None,
     ) -> int:
         """
         Update all profiles with old_status to new_status atomically.
@@ -200,7 +200,7 @@ class BaseStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_user_ids_with_status(self, status: Optional[Status]) -> list[str]:
+    def get_user_ids_with_status(self, status: Status | None) -> list[str]:
         """
         Get list of unique user_ids that have profiles with the given status.
 
@@ -217,7 +217,7 @@ class BaseStorage(ABC):
     # ==============================
 
     @abstractmethod
-    def add_request(self, request: Request):
+    def add_request(self, request: Request) -> None:
         """
         Add a request to storage.
 
@@ -227,7 +227,7 @@ class BaseStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_request(self, request_id: str) -> Optional[Request]:
+    def get_request(self, request_id: str) -> Request | None:
         """
         Get a request by its ID.
 
@@ -240,7 +240,7 @@ class BaseStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def delete_request(self, request_id: str):
+    def delete_request(self, request_id: str) -> None:
         """
         Delete a request by its ID.
 
@@ -263,19 +263,19 @@ class BaseStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def delete_all_requests(self):
+    def delete_all_requests(self) -> None:
         """Delete all requests and their associated interactions."""
         raise NotImplementedError
 
     @abstractmethod
     def get_sessions(
         self,
-        user_id: Optional[str] = None,
-        request_id: Optional[str] = None,
-        session_id: Optional[str] = None,
-        start_time: Optional[int] = None,
-        end_time: Optional[int] = None,
-        top_k: Optional[int] = 30,
+        user_id: str | None = None,
+        request_id: str | None = None,
+        session_id: str | None = None,
+        start_time: int | None = None,
+        end_time: int | None = None,
+        top_k: int | None = 30,
         offset: int = 0,
     ) -> dict[str, list[RequestInteractionDataModel]]:
         """
@@ -298,11 +298,11 @@ class BaseStorage(ABC):
     @abstractmethod
     def get_rerun_user_ids(
         self,
-        user_id: Optional[str] = None,
-        start_time: Optional[int] = None,
-        end_time: Optional[int] = None,
-        source: Optional[str] = None,
-        agent_version: Optional[str] = None,
+        user_id: str | None = None,
+        start_time: int | None = None,
+        end_time: int | None = None,
+        source: str | None = None,
+        agent_version: str | None = None,
     ) -> list[str]:
         """
         Get distinct user IDs that have matching requests for rerun workflows.
@@ -338,7 +338,7 @@ class BaseStorage(ABC):
     # ==============================
 
     @abstractmethod
-    def add_profile_change_log(self, profile_change_log: ProfileChangeLog):
+    def add_profile_change_log(self, profile_change_log: ProfileChangeLog) -> None:
         """Add a profile change log entry"""
         raise NotImplementedError
 
@@ -348,12 +348,12 @@ class BaseStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def delete_profile_change_log_for_user(self, user_id: str):
+    def delete_profile_change_log_for_user(self, user_id: str) -> None:
         """Delete all profile change logs for a user"""
         raise NotImplementedError
 
     @abstractmethod
-    def delete_all_profile_change_logs(self):
+    def delete_all_profile_change_logs(self) -> None:
         """Delete all profile change logs"""
         raise NotImplementedError
 
@@ -364,7 +364,7 @@ class BaseStorage(ABC):
     @abstractmethod
     def add_feedback_aggregation_change_log(
         self, change_log: FeedbackAggregationChangeLog
-    ):
+    ) -> None:
         """Add a feedback aggregation change log entry."""
         raise NotImplementedError
 
@@ -379,7 +379,7 @@ class BaseStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def delete_all_feedback_aggregation_change_logs(self):
+    def delete_all_feedback_aggregation_change_logs(self) -> None:
         """Delete all feedback aggregation change logs."""
         raise NotImplementedError
 
@@ -401,16 +401,18 @@ class BaseStorage(ABC):
     # ==============================
 
     @abstractmethod
-    def search_interaction(self, search_interaction_request: SearchInteractionRequest):
+    def search_interaction(
+        self, search_interaction_request: SearchInteractionRequest
+    ) -> list[Interaction]:
         raise NotImplementedError
 
     @abstractmethod
     def search_user_profile(
         self,
         search_user_profile_request: SearchUserProfileRequest,
-        status_filter: Optional[list[Optional[Status]]] = None,
-        query_embedding: Optional[list[float]] = None,
-    ):
+        status_filter: list[Status | None] | None = None,
+        query_embedding: list[float] | None = None,
+    ) -> list[UserProfile]:
         raise NotImplementedError
 
     # ==============================
@@ -418,19 +420,19 @@ class BaseStorage(ABC):
     # ==============================
 
     @abstractmethod
-    def save_raw_feedbacks(self, raw_feedbacks: list[RawFeedback]):
+    def save_raw_feedbacks(self, raw_feedbacks: list[RawFeedback]) -> None:
         raise NotImplementedError
 
     @abstractmethod
     def get_raw_feedbacks(
         self,
         limit: int = 100,
-        user_id: Optional[str] = None,
-        feedback_name: Optional[str] = None,
-        agent_version: Optional[str] = None,
-        status_filter: Optional[list[Optional[Status]]] = None,
-        start_time: Optional[int] = None,
-        end_time: Optional[int] = None,
+        user_id: str | None = None,
+        feedback_name: str | None = None,
+        agent_version: str | None = None,
+        status_filter: list[Status | None] | None = None,
+        start_time: int | None = None,
+        end_time: int | None = None,
         include_embedding: bool = False,
     ) -> list[RawFeedback]:
         """
@@ -456,11 +458,11 @@ class BaseStorage(ABC):
     @abstractmethod
     def count_raw_feedbacks(
         self,
-        user_id: Optional[str] = None,
-        feedback_name: Optional[str] = None,
-        min_raw_feedback_id: Optional[int] = None,
-        agent_version: Optional[str] = None,
-        status_filter: Optional[list[Optional[Status]]] = None,
+        user_id: str | None = None,
+        feedback_name: str | None = None,
+        min_raw_feedback_id: int | None = None,
+        agent_version: str | None = None,
+        status_filter: list[Status | None] | None = None,
     ) -> int:
         """
         Count raw feedbacks in storage efficiently.
@@ -509,9 +511,9 @@ class BaseStorage(ABC):
     def get_feedbacks(
         self,
         limit: int = 100,
-        feedback_name: Optional[str] = None,
-        status_filter: Optional[list[Optional[Status]]] = None,
-        feedback_status_filter: Optional[list[FeedbackStatus]] = None,
+        feedback_name: str | None = None,
+        status_filter: list[Status | None] | None = None,
+        feedback_status_filter: list[FeedbackStatus] | None = None,
     ) -> list[Feedback]:
         """
         Get regular feedbacks from storage.
@@ -531,16 +533,16 @@ class BaseStorage(ABC):
     @abstractmethod
     def search_raw_feedbacks(
         self,
-        query: Optional[str] = None,
-        user_id: Optional[str] = None,
-        agent_version: Optional[str] = None,
-        feedback_name: Optional[str] = None,
-        start_time: Optional[int] = None,
-        end_time: Optional[int] = None,
-        status_filter: Optional[list[Optional[Status]]] = None,
+        query: str | None = None,
+        user_id: str | None = None,
+        agent_version: str | None = None,
+        feedback_name: str | None = None,
+        start_time: int | None = None,
+        end_time: int | None = None,
+        status_filter: list[Status | None] | None = None,
         match_threshold: float = 0.5,
         match_count: int = 10,
-        query_embedding: Optional[list[float]] = None,
+        query_embedding: list[float] | None = None,
     ) -> list[RawFeedback]:
         """
         Search raw feedbacks with advanced filtering including semantic search.
@@ -565,16 +567,16 @@ class BaseStorage(ABC):
     @abstractmethod
     def search_feedbacks(
         self,
-        query: Optional[str] = None,
-        agent_version: Optional[str] = None,
-        feedback_name: Optional[str] = None,
-        start_time: Optional[int] = None,
-        end_time: Optional[int] = None,
-        status_filter: Optional[list[Optional[Status]]] = None,
-        feedback_status_filter: Optional[FeedbackStatus] = None,
+        query: str | None = None,
+        agent_version: str | None = None,
+        feedback_name: str | None = None,
+        start_time: int | None = None,
+        end_time: int | None = None,
+        status_filter: list[Status | None] | None = None,
+        feedback_status_filter: FeedbackStatus | None = None,
         match_threshold: float = 0.5,
         match_count: int = 10,
-        query_embedding: Optional[list[float]] = None,
+        query_embedding: list[float] | None = None,
     ) -> list[Feedback]:
         """
         Search aggregated feedbacks with advanced filtering including semantic search.
@@ -597,14 +599,14 @@ class BaseStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def delete_all_raw_feedbacks(self):
+    def delete_all_raw_feedbacks(self) -> None:
         """Delete all raw feedbacks from storage."""
         raise NotImplementedError
 
     @abstractmethod
     def delete_all_raw_feedbacks_by_feedback_name(
-        self, feedback_name: str, agent_version: Optional[str] = None
-    ):
+        self, feedback_name: str, agent_version: str | None = None
+    ) -> None:
         """
         Delete all raw feedbacks by feedback name from storage.
 
@@ -615,12 +617,12 @@ class BaseStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def delete_all_feedbacks(self):
+    def delete_all_feedbacks(self) -> None:
         """Delete all regular feedbacks from storage."""
         raise NotImplementedError
 
     @abstractmethod
-    def delete_feedback(self, feedback_id: int):
+    def delete_feedback(self, feedback_id: int) -> None:
         """Delete a feedback by ID.
 
         Args:
@@ -629,7 +631,7 @@ class BaseStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def delete_raw_feedback(self, raw_feedback_id: int):
+    def delete_raw_feedback(self, raw_feedback_id: int) -> None:
         """Delete a raw feedback by ID.
 
         Args:
@@ -639,8 +641,8 @@ class BaseStorage(ABC):
 
     @abstractmethod
     def delete_all_feedbacks_by_feedback_name(
-        self, feedback_name: str, agent_version: Optional[str] = None
-    ):
+        self, feedback_name: str, agent_version: str | None = None
+    ) -> None:
         """
         Delete all regular feedbacks by feedback name from storage.
 
@@ -651,7 +653,9 @@ class BaseStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def update_feedback_status(self, feedback_id: int, feedback_status: FeedbackStatus):
+    def update_feedback_status(
+        self, feedback_id: int, feedback_status: FeedbackStatus
+    ) -> None:
         """
         Update the status of a specific feedback.
 
@@ -666,8 +670,8 @@ class BaseStorage(ABC):
 
     @abstractmethod
     def archive_feedbacks_by_feedback_name(
-        self, feedback_name: str, agent_version: Optional[str] = None
-    ):
+        self, feedback_name: str, agent_version: str | None = None
+    ) -> None:
         """
         Archive non-APPROVED feedbacks by setting their status field to 'archived'.
         APPROVED feedbacks are left untouched to preserve user-approved feedback.
@@ -691,8 +695,8 @@ class BaseStorage(ABC):
 
     @abstractmethod
     def restore_archived_feedbacks_by_feedback_name(
-        self, feedback_name: str, agent_version: Optional[str] = None
-    ):
+        self, feedback_name: str, agent_version: str | None = None
+    ) -> None:
         """
         Restore archived feedbacks by setting their status field to null.
 
@@ -715,8 +719,8 @@ class BaseStorage(ABC):
 
     @abstractmethod
     def delete_archived_feedbacks_by_feedback_name(
-        self, feedback_name: str, agent_version: Optional[str] = None
-    ):
+        self, feedback_name: str, agent_version: str | None = None
+    ) -> None:
         """
         Permanently delete feedbacks that have status='archived'.
 
@@ -740,10 +744,10 @@ class BaseStorage(ABC):
     @abstractmethod
     def update_all_raw_feedbacks_status(
         self,
-        old_status: Optional[Status],
-        new_status: Optional[Status],
-        agent_version: Optional[str] = None,
-        feedback_name: Optional[str] = None,
+        old_status: Status | None,
+        new_status: Status | None,
+        agent_version: str | None = None,
+        feedback_name: str | None = None,
     ) -> int:
         """
         Update all raw feedbacks with old_status to new_status atomically.
@@ -763,8 +767,8 @@ class BaseStorage(ABC):
     def delete_all_raw_feedbacks_by_status(
         self,
         status: Status,
-        agent_version: Optional[str] = None,
-        feedback_name: Optional[str] = None,
+        agent_version: str | None = None,
+        feedback_name: str | None = None,
     ) -> int:
         """
         Delete all raw feedbacks with the given status atomically.
@@ -795,9 +799,9 @@ class BaseStorage(ABC):
     @abstractmethod
     def has_raw_feedbacks_with_status(
         self,
-        status: Optional[Status],
-        agent_version: Optional[str] = None,
-        feedback_name: Optional[str] = None,
+        status: Status | None,
+        agent_version: str | None = None,
+        feedback_name: str | None = None,
     ) -> bool:
         """
         Check if any raw feedbacks exist with given status and filters.
@@ -819,7 +823,7 @@ class BaseStorage(ABC):
     @abstractmethod
     def save_agent_success_evaluation_results(
         self, results: list[AgentSuccessEvaluationResult]
-    ):
+    ) -> None:
         """
         Save agent success evaluation results to storage.
 
@@ -830,7 +834,7 @@ class BaseStorage(ABC):
 
     @abstractmethod
     def get_agent_success_evaluation_results(
-        self, limit: int = 100, agent_version: Optional[str] = None
+        self, limit: int = 100, agent_version: str | None = None
     ) -> list[AgentSuccessEvaluationResult]:
         """
         Get agent success evaluation results from storage.
@@ -845,7 +849,7 @@ class BaseStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def delete_all_agent_success_evaluation_results(self):
+    def delete_all_agent_success_evaluation_results(self) -> None:
         """Delete all agent success evaluation results from storage."""
         raise NotImplementedError
 
@@ -877,7 +881,7 @@ class BaseStorage(ABC):
     # ==============================
 
     @abstractmethod
-    def create_operation_state(self, service_name: str, operation_state: dict):
+    def create_operation_state(self, service_name: str, operation_state: dict) -> None:
         """
         Create operation state for a service.
 
@@ -888,7 +892,7 @@ class BaseStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def upsert_operation_state(self, service_name: str, operation_state: dict):
+    def upsert_operation_state(self, service_name: str, operation_state: dict) -> None:
         """
         Create or update operation state for a service.
 
@@ -899,7 +903,7 @@ class BaseStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_operation_state(self, service_name: str) -> Optional[dict]:
+    def get_operation_state(self, service_name: str) -> dict | None:
         """
         Get operation state for a specific service.
 
@@ -915,8 +919,8 @@ class BaseStorage(ABC):
     def get_operation_state_with_new_request_interaction(
         self,
         service_name: str,
-        user_id: Optional[str],
-        sources: Optional[list[str]] = None,
+        user_id: str | None,
+        sources: list[str] | None = None,
     ) -> tuple[dict, list[RequestInteractionDataModel]]:
         """
         Get the last operation state and retrieve new interactions since last processing,
@@ -937,12 +941,12 @@ class BaseStorage(ABC):
     @abstractmethod
     def get_last_k_interactions_grouped(
         self,
-        user_id: Optional[str],
+        user_id: str | None,
         k: int,
-        sources: Optional[list[str]] = None,
-        start_time: Optional[int] = None,
-        end_time: Optional[int] = None,
-        agent_version: Optional[str] = None,
+        sources: list[str] | None = None,
+        start_time: int | None = None,
+        end_time: int | None = None,
+        agent_version: str | None = None,
     ) -> tuple[list[RequestInteractionDataModel], list[Interaction]]:
         """
         Get the last K interactions ordered by time (most recent first), grouped by request.
@@ -970,7 +974,7 @@ class BaseStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def update_operation_state(self, service_name: str, operation_state: dict):
+    def update_operation_state(self, service_name: str, operation_state: dict) -> None:
         """
         Update operation state for a specific service.
 
@@ -991,7 +995,7 @@ class BaseStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def delete_operation_state(self, service_name: str):
+    def delete_operation_state(self, service_name: str) -> None:
         """
         Delete operation state for a specific service.
 
@@ -1001,7 +1005,7 @@ class BaseStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def delete_all_operation_states(self):
+    def delete_all_operation_states(self) -> None:
         """Delete all operation states."""
         raise NotImplementedError
 
@@ -1010,7 +1014,7 @@ class BaseStorage(ABC):
     # ==============================
 
     @abstractmethod
-    def save_skills(self, skills: list[Skill]):
+    def save_skills(self, skills: list[Skill]) -> None:
         """
         Save skills with embeddings.
 
@@ -1023,9 +1027,9 @@ class BaseStorage(ABC):
     def get_skills(
         self,
         limit: int = 100,
-        feedback_name: Optional[str] = None,
-        agent_version: Optional[str] = None,
-        skill_status: Optional[SkillStatus] = None,
+        feedback_name: str | None = None,
+        agent_version: str | None = None,
+        skill_status: SkillStatus | None = None,
     ) -> list[Skill]:
         """
         Get skills from storage.
@@ -1044,13 +1048,13 @@ class BaseStorage(ABC):
     @abstractmethod
     def search_skills(
         self,
-        query: Optional[str] = None,
-        feedback_name: Optional[str] = None,
-        agent_version: Optional[str] = None,
-        skill_status: Optional[SkillStatus] = None,
+        query: str | None = None,
+        feedback_name: str | None = None,
+        agent_version: str | None = None,
+        skill_status: SkillStatus | None = None,
         match_threshold: float = 0.5,
         match_count: int = 10,
-        query_embedding: Optional[list[float]] = None,
+        query_embedding: list[float] | None = None,
     ) -> list[Skill]:
         """
         Search skills with hybrid search (vector + FTS).
@@ -1070,7 +1074,7 @@ class BaseStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def update_skill_status(self, skill_id: int, skill_status: SkillStatus):
+    def update_skill_status(self, skill_id: int, skill_status: SkillStatus) -> None:
         """
         Update the status of a specific skill.
 
@@ -1081,7 +1085,7 @@ class BaseStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def delete_skill(self, skill_id: int):
+    def delete_skill(self, skill_id: int) -> None:
         """
         Delete a skill by ID.
 
@@ -1091,7 +1095,7 @@ class BaseStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def delete_all_skills(self):
+    def delete_all_skills(self) -> None:
         """Delete all skills for this organization."""
         raise NotImplementedError
 

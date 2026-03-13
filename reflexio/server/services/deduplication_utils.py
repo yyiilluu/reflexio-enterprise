@@ -5,9 +5,8 @@ This module contains base classes and utility functions used by both
 ProfileDeduplicator and FeedbackDeduplicator.
 """
 
-from abc import ABC
 import logging
-from typing import Optional
+from abc import ABC
 
 from reflexio.server.api_endpoints.request_context import RequestContext
 from reflexio.server.llm.litellm_client import LiteLLMClient
@@ -16,7 +15,7 @@ from reflexio.server.site_var.site_var_manager import SiteVarManager
 logger = logging.getLogger(__name__)
 
 
-def parse_item_id(item_id: str) -> Optional[tuple[str, int]]:
+def parse_item_id(item_id: str) -> tuple[str, int] | None:
     """
     Parse a prompt-format item ID like 'NEW-0' or 'EXISTING-1' into its prefix and index.
 
@@ -48,7 +47,7 @@ def parse_item_id(item_id: str) -> Optional[tuple[str, int]]:
 # ===============================
 
 
-class BaseDeduplicator(ABC):
+class BaseDeduplicator(ABC):  # noqa: B024
     """
     Abstract base class for deduplicators that use LLM-based semantic matching.
 
@@ -74,7 +73,8 @@ class BaseDeduplicator(ABC):
 
         # Get model name from site var
         model_setting = SiteVarManager().get_site_var("llm_model_setting")
-        assert isinstance(model_setting, dict), "llm_model_setting must be a dict"
+        if not isinstance(model_setting, dict):
+            raise ValueError("llm_model_setting must be a dict")
         self.model_name = model_setting.get(
             "default_generation_model_name", "gpt-5-mini"
         )

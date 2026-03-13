@@ -5,24 +5,23 @@ These tests validate the image encoding and vision capabilities of the Claude cl
 """
 
 import os
-import tempfile
 import struct
+import tempfile
 import zlib
 from pathlib import Path
 
 import pytest
 
 from reflexio.server.llm.claude_client import (
-    ClaudeClient,
-    ClaudeConfig,
-    ClaudeClientError,
-    encode_image_to_base64,
-    encode_image_bytes_to_base64,
-    create_image_content_block,
     SUPPORTED_IMAGE_TYPES,
+    ClaudeClient,
+    ClaudeClientError,
+    ClaudeConfig,
+    create_image_content_block,
+    encode_image_bytes_to_base64,
+    encode_image_to_base64,
 )
 from reflexio.tests.server.test_utils import skip_in_precommit, skip_low_priority
-
 
 # Skip all tests if ANTHROPIC_API_KEY is not set
 pytestmark = pytest.mark.skipif(

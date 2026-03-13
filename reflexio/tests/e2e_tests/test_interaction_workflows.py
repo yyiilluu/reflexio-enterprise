@@ -1,12 +1,7 @@
 """End-to-end tests for interaction workflows."""
 
-from typing import Callable
+from collections.abc import Callable
 
-from reflexio.reflexio_lib.reflexio_lib import Reflexio
-from reflexio.server.services.agent_success_evaluation.group_evaluation_runner import (
-    run_group_evaluation,
-)
-from reflexio.tests.server.test_utils import skip_in_precommit, skip_low_priority
 from reflexio_commons.api_schema.retriever_schema import (
     GetInteractionsRequest,
     SearchInteractionRequest,
@@ -15,6 +10,12 @@ from reflexio_commons.api_schema.service_schemas import (
     DeleteUserInteractionRequest,
     InteractionData,
 )
+
+from reflexio.reflexio_lib.reflexio_lib import Reflexio
+from reflexio.server.services.agent_success_evaluation.group_evaluation_runner import (
+    run_group_evaluation,
+)
+from reflexio.tests.server.test_utils import skip_in_precommit, skip_low_priority
 
 
 @skip_in_precommit
@@ -309,6 +310,6 @@ def test_dict_input_handling_end_to_end(
     assert len(profile_response.user_profiles) > 0
     # Verify all returned profiles have CURRENT status (default search filter)
     for profile in profile_response.user_profiles:
-        assert (
-            profile.status is None
-        ), f"Default search should return only CURRENT profiles, got status={profile.status}"
+        assert profile.status is None, (
+            f"Default search should return only CURRENT profiles, got status={profile.status}"
+        )

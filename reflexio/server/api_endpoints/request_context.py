@@ -1,15 +1,13 @@
-from reflexio.server.services.configurator.configurator import SimpleConfigurator
-from typing import Optional
-
 from reflexio.server.prompt.prompt_manager import PromptManager
+from reflexio.server.services.configurator.configurator import SimpleConfigurator
 
 
 class RequestContext:
     def __init__(
         self,
         org_id: str,
-        storage_base_dir: Optional[str] = None,
-        configurator: Optional[SimpleConfigurator] = None,
+        storage_base_dir: str | None = None,
+        configurator: SimpleConfigurator | None = None,
     ):
         self.org_id = str(org_id)
         self.storage_base_dir = storage_base_dir

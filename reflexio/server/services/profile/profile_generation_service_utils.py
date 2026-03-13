@@ -1,21 +1,23 @@
 """Utility functions for the profile generation service"""
 
-from datetime import datetime, timedelta
 from dataclasses import dataclass
-from typing import Literal, Optional
+from datetime import datetime, timedelta
+from typing import Any, Literal
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 from reflexio_commons.api_schema.service_schemas import (
     ProfileTimeToLive,
     UserProfile,
 )
-from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
-from pydantic import BaseModel, Field, ConfigDict, field_validator
+
 from reflexio.server.prompt.prompt_manager import PromptManager
 from reflexio.server.services.service_utils import (
-    PromptConfig,
     MessageConstructionConfig,
+    PromptConfig,
     construct_messages_from_interactions,
-    format_sessions_to_history_string,
     extract_interactions_from_request_interaction_data_models,
+    format_sessions_to_history_string,
 )
 
 
@@ -28,17 +30,17 @@ class ProfileUpdates(BaseModel):
         "add_profiles", "delete_profiles", "mention_profiles", mode="before"
     )
     @classmethod
-    def coerce_none_to_list(cls, v):
+    def coerce_none_to_list(cls, v: Any) -> list[UserProfile]:
         return v if v is not None else []
 
 
 class ProfileGenerationRequest(BaseModel):
     user_id: str
     request_id: str
-    source: Optional[str] = None
-    extractor_names: Optional[list[str]] = None
-    rerun_start_time: Optional[int] = None  # Unix timestamp for rerun flows
-    rerun_end_time: Optional[int] = None  # Unix timestamp for rerun flows
+    source: str | None = None
+    extractor_names: list[str] | None = None
+    rerun_start_time: int | None = None  # Unix timestamp for rerun flows
+    rerun_end_time: int | None = None  # Unix timestamp for rerun flows
     auto_run: bool = (
         True  # True for regular flow (checks stride), False for rerun/manual
     )
@@ -82,7 +84,7 @@ class ProfileAddItem(BaseModel):
     ] = Field(
         description="Time to live for the profile - determines when the profile expires"
     )
-    metadata: Optional[str] = Field(
+    metadata: str | None = Field(
         default=None,
         description="Metadata extracted for the profile based on metadata definition",
     )
@@ -105,15 +107,15 @@ class ProfileUpdateOutput(BaseModel):
         mention (list[str], optional): List of existing profile contents that were mentioned/referenced
     """
 
-    add: Optional[list[ProfileAddItem]] = Field(
+    add: list[ProfileAddItem] | None = Field(
         default=None,
         description="List of new profiles to be added with their content, time to live, and optional metadata",
     )
-    delete: Optional[list[str]] = Field(
+    delete: list[str] | None = Field(
         default=None,
         description="List of existing profile contents to be deleted (profiles that are contradicted by new interactions)",
     )
-    mention: Optional[list[str]] = Field(
+    mention: list[str] | None = Field(
         default=None,
         description="List of existing profile contents that were mentioned or referenced in the new interactions",
     )
@@ -134,7 +136,7 @@ class StructuredProfilesOutput(BaseModel):
         profiles (list[ProfileAddItem], optional): List of extracted profiles with content, time_to_live, and optional metadata
     """
 
-    profiles: Optional[list[ProfileAddItem]] = Field(
+    profiles: list[ProfileAddItem] | None = Field(
         default=None,
         description="List of extracted profiles with content, time_to_live, and optional metadata",
     )
@@ -218,7 +220,7 @@ def construct_profile_extraction_messages_from_sessions(
     agent_context_prompt: str,
     context_prompt: str,
     profile_content_definition_prompt: str,
-    metadata_definition_prompt: Optional[str] = None,
+    metadata_definition_prompt: str | None = None,
 ) -> list[dict]:
     """
     Construct LLM messages for profile extraction from sessions.
@@ -291,7 +293,7 @@ def construct_incremental_profile_extraction_messages(
     context_prompt: str,
     profile_content_definition_prompt: str,
     previously_extracted: list[list[UserProfile]],
-    metadata_definition_prompt: Optional[str] = None,
+    metadata_definition_prompt: str | None = None,
 ) -> list[dict]:
     """
     Construct LLM messages for incremental profile extraction.
@@ -320,8 +322,7 @@ def construct_incremental_profile_extraction_messages(
     # Format previously extracted profiles
     previously_added = []
     for profile_list in previously_extracted:
-        for profile in profile_list:
-            previously_added.append(profile.profile_content)
+        previously_added.extend(profile.profile_content for profile in profile_list)
 
     formatted_previously_added = (
         "\n".join([f"- {content}" for content in previously_added])

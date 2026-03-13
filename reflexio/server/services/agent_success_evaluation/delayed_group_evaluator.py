@@ -10,7 +10,7 @@ import logging
 import os
 import threading
 import time
-from typing import Callable
+from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -88,10 +88,7 @@ class GroupEvaluationScheduler:
         while True:
             try:
                 with self._mutex:
-                    if self._heap:
-                        next_fire_time = self._heap[0][0]
-                    else:
-                        next_fire_time = None
+                    next_fire_time = self._heap[0][0] if self._heap else None
 
                 if next_fire_time is None:
                     # Nothing scheduled, wait for a wake signal

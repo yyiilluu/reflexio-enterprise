@@ -1,33 +1,35 @@
 """Integration tests for SupabaseStorage implementation."""
 
+import contextlib
 import os
-import pytest
 from datetime import datetime, timezone
 
-from reflexio.server import OPENAI_API_KEY
-from reflexio.server.services.storage.supabase_storage import SupabaseStorage
-from reflexio.server.llm.openai_client import OpenAIClient
-from reflexio_commons.config_schema import StorageConfigSupabase
+import pytest
+from reflexio_commons.api_schema.retriever_schema import (
+    SearchInteractionRequest,
+    SearchUserProfileRequest,
+)
 from reflexio_commons.api_schema.service_schemas import (
+    NEVER_EXPIRES_TIMESTAMP,
     AgentSuccessEvaluationResult,
     DeleteUserInteractionRequest,
     DeleteUserProfileRequest,
     Feedback,
     FeedbackStatus,
-    RawFeedback,
-    Status,
-    UserProfile,
-    ProfileTimeToLive,
-    UserActionType,
     Interaction,
     ProfileChangeLog,
+    ProfileTimeToLive,
+    RawFeedback,
     Request,
-    NEVER_EXPIRES_TIMESTAMP,
+    Status,
+    UserActionType,
+    UserProfile,
 )
-from reflexio_commons.api_schema.retriever_schema import (
-    SearchUserProfileRequest,
-    SearchInteractionRequest,
-)
+from reflexio_commons.config_schema import StorageConfigSupabase
+
+from reflexio.server import OPENAI_API_KEY
+from reflexio.server.llm.openai_client import OpenAIClient
+from reflexio.server.services.storage.supabase_storage import SupabaseStorage
 from reflexio.tests.server.test_utils import skip_in_precommit
 
 
@@ -64,7 +66,7 @@ def supabase_storage():
         db_url=supabase_db_url,
     )
     storage = SupabaseStorage(org_id="test", config=config)
-    return storage
+    return storage  # noqa: RET504
 
 
 @pytest.fixture
@@ -216,9 +218,9 @@ def test_add_and_search_user_profile(supabase_storage, test_data, openai_client)
 
     # Check if any result has the same source as the original profile
     matching_profiles = [r for r in results if r.source == profile.source]
-    assert (
-        len(matching_profiles) > 0
-    ), f"No profiles found with source '{profile.source}'"
+    assert len(matching_profiles) > 0, (
+        f"No profiles found with source '{profile.source}'"
+    )
 
 
 @skip_in_precommit
@@ -233,7 +235,7 @@ def test_add_and_search_interaction(supabase_storage, test_data, openai_client):
     try:
         storage.client.table("interactions").delete().eq("user_id", user_id).execute()
         storage.client.table("requests").delete().eq("user_id", user_id).execute()
-    except Exception:
+    except Exception:  # noqa: S110
         pass
 
     # Add request first (required for foreign key constraint)
@@ -298,7 +300,7 @@ def test_add_user_interactions_bulk(supabase_storage):
     try:
         storage.client.table("interactions").delete().eq("user_id", user_id).execute()
         storage.client.table("requests").delete().eq("user_id", user_id).execute()
-    except Exception:
+    except Exception:  # noqa: S110
         pass
 
     # Create the request first (required due to foreign key constraint)
@@ -317,9 +319,9 @@ def test_add_user_interactions_bulk(supabase_storage):
 
     # Verify all interactions were stored
     stored_interactions = storage.get_user_interaction(user_id)
-    assert len(stored_interactions) == len(
-        interactions
-    ), f"Expected {len(interactions)} interactions, got {len(stored_interactions)}"
+    assert len(stored_interactions) == len(interactions), (
+        f"Expected {len(interactions)} interactions, got {len(stored_interactions)}"
+    )
 
     # Verify interactions have embeddings (by searching)
     search_request = SearchInteractionRequest(
@@ -332,9 +334,9 @@ def test_add_user_interactions_bulk(supabase_storage):
     # Verify content matches
     stored_contents = {i.content for i in stored_interactions}
     for interaction in interactions:
-        assert (
-            interaction.content in stored_contents
-        ), f"Interaction content '{interaction.content}' not found in stored interactions"
+        assert interaction.content in stored_contents, (
+            f"Interaction content '{interaction.content}' not found in stored interactions"
+        )
 
     # Clean up
     storage.client.table("interactions").delete().eq("user_id", user_id).execute()
@@ -424,11 +426,11 @@ def test_save_raw_feedbacks(supabase_storage, test_data, cleanup_after_test):
     assert len(saved_raw_feedbacks) == len(raw_feedbacks)
     assert all(
         saved_raw_feedback.feedback_content == raw_feedback.feedback_content
-        for saved_raw_feedback, raw_feedback in zip(saved_raw_feedbacks, raw_feedbacks)
+        for saved_raw_feedback, raw_feedback in zip(saved_raw_feedbacks, raw_feedbacks)  # noqa: B905
     )
     assert all(
         saved_raw_feedback.feedback_name == raw_feedback.feedback_name
-        for saved_raw_feedback, raw_feedback in zip(saved_raw_feedbacks, raw_feedbacks)
+        for saved_raw_feedback, raw_feedback in zip(saved_raw_feedbacks, raw_feedbacks)  # noqa: B905
     )
 
 
@@ -597,9 +599,9 @@ def test_search_feedbacks_integration(supabase_storage, test_data, cleanup_after
         saved_names = [f.feedback_name for f in feedbacks]
         found_names = [f.feedback_name for f in all_feedbacks]
         # At least verify feedbacks were saved
-        assert any(
-            name in found_names for name in saved_names
-        ), "Feedbacks should be saved even if search doesn't work (migration not applied)"
+        assert any(name in found_names for name in saved_names), (
+            "Feedbacks should be saved even if search doesn't work (migration not applied)"
+        )
         return
 
     assert len(results) > 0
@@ -710,7 +712,7 @@ def test_add_and_get_requests(supabase_storage, test_data):
     try:
         storage.client.table("interactions").delete().eq("user_id", user_id).execute()
         storage.client.table("requests").delete().eq("user_id", user_id).execute()
-    except:
+    except Exception:  # noqa: S110
         pass
 
     # Add request
@@ -724,15 +726,15 @@ def test_add_and_get_requests(supabase_storage, test_data):
     results = storage.get_sessions(user_id=user_id, top_k=10)
 
     # Verify results is a dictionary
-    assert isinstance(
-        results, dict
-    ), "Results should be a dictionary grouped by session_id"
+    assert isinstance(results, dict), (
+        "Results should be a dictionary grouped by session_id"
+    )
     assert len(results) > 0, "Should find at least one session"
 
     # Find our test request in the grouped results
     found_request = None
     found_interactions = None
-    for group_name, request_list in results.items():
+    for request_list in results.values():
         for rig in request_list:
             if rig.request.request_id == request.request_id:
                 found_request = rig.request
@@ -746,8 +748,8 @@ def test_add_and_get_requests(supabase_storage, test_data):
     assert found_request.source == request.source
     assert found_request.agent_version == request.agent_version
     # DB may return None for empty session_id, treat both as equivalent
-    expected_group = request.session_id if request.session_id else None
-    actual_group = found_request.session_id if found_request.session_id else None
+    expected_group = request.session_id or None
+    actual_group = found_request.session_id or None
     assert actual_group == expected_group
 
     # Verify interactions
@@ -779,7 +781,7 @@ def test_get_requests_with_filters(supabase_storage, test_data):
     try:
         storage.client.table("interactions").delete().eq("user_id", user_id).execute()
         storage.client.table("requests").delete().eq("user_id", user_id).execute()
-    except:
+    except Exception:  # noqa: S110
         pass
 
     # Add request and interaction
@@ -791,7 +793,7 @@ def test_get_requests_with_filters(supabase_storage, test_data):
     assert isinstance(results, dict)
     # Find our request in the grouped results
     found = False
-    for group_name, request_list in results.items():
+    for request_list in results.values():
         for rig in request_list:
             if rig.request.request_id == request.request_id:
                 found = True
@@ -841,7 +843,7 @@ def test_get_requests_with_no_interactions(supabase_storage, test_data):
     try:
         storage.client.table("interactions").delete().eq("user_id", user_id).execute()
         storage.client.table("requests").delete().eq("user_id", user_id).execute()
-    except:
+    except Exception:  # noqa: S110
         pass
 
     # Add only request, no interactions
@@ -856,7 +858,7 @@ def test_get_requests_with_no_interactions(supabase_storage, test_data):
 
     # Find our request in the grouped results
     found_request = None
-    for group_name, request_list in results.items():
+    for request_list in results.values():
         for rig in request_list:
             if rig.request.request_id == request.request_id:
                 found_request = rig.request
@@ -885,12 +887,10 @@ def test_add_request_with_session_id(supabase_storage):
     )
 
     # Clean up any existing test data first
-    try:
+    with contextlib.suppress(Exception):
         storage.client.table("requests").delete().eq(
             "user_id", test_request.user_id
         ).execute()
-    except:
-        pass
 
     # Add request
     storage.add_request(test_request)
@@ -978,9 +978,9 @@ def test_get_feedbacks_integration(supabase_storage, test_data, cleanup_after_te
     # Find our test feedbacks
     found_names = {result.feedback_name for result in results}
     for feedback in feedbacks:
-        assert (
-            feedback.feedback_name in found_names
-        ), f"Should find feedback {feedback.feedback_name}"
+        assert feedback.feedback_name in found_names, (
+            f"Should find feedback {feedback.feedback_name}"
+        )
 
 
 @skip_in_precommit
@@ -1055,9 +1055,9 @@ def test_archived_feedbacks_excluded_from_queries(
             if f.feedback_name in [fb.feedback_name for fb in feedbacks]
         ]
     )
-    assert remaining_count == len(
-        approved_feedbacks
-    ), f"Only APPROVED feedbacks should remain after archiving, expected {len(approved_feedbacks)}, got {remaining_count}"
+    assert remaining_count == len(approved_feedbacks), (
+        f"Only APPROVED feedbacks should remain after archiving, expected {len(approved_feedbacks)}, got {remaining_count}"
+    )
 
     # Verify archived feedbacks are excluded from search_feedbacks
     # Only APPROVED feedbacks should be searchable
@@ -1071,9 +1071,9 @@ def test_archived_feedbacks_excluded_from_queries(
             if f.feedback_name in [fb.feedback_name for fb in archivable_feedbacks]
         ]
     )
-    assert (
-        search_remaining_count == 0
-    ), "Archived (non-APPROVED) feedbacks should be excluded from search_feedbacks"
+    assert search_remaining_count == 0, (
+        "Archived (non-APPROVED) feedbacks should be excluded from search_feedbacks"
+    )
 
 
 @skip_in_precommit
@@ -1123,9 +1123,9 @@ def test_archive_restore_delete_flow(supabase_storage, test_data, cleanup_after_
             if f.feedback_name in [fb.feedback_name for fb in feedbacks]
         ]
     )
-    assert remaining_after_archive == len(
-        approved_feedbacks
-    ), "Only APPROVED feedbacks should remain visible after archiving"
+    assert remaining_after_archive == len(approved_feedbacks), (
+        "Only APPROVED feedbacks should remain visible after archiving"
+    )
 
     # Restore feedbacks
     for feedback in archivable_feedbacks:
@@ -1165,9 +1165,9 @@ def test_archive_restore_delete_flow(supabase_storage, test_data, cleanup_after_
             .eq("agent_version", feedback.agent_version)
             .execute()
         )
-        assert (
-            len(response.data) == 0
-        ), f"Feedback {feedback.feedback_name} should be permanently deleted"
+        assert len(response.data) == 0, (
+            f"Feedback {feedback.feedback_name} should be permanently deleted"
+        )
 
     # Verify APPROVED feedbacks still exist (they were never archived)
     for feedback in approved_feedbacks:
@@ -1178,9 +1178,9 @@ def test_archive_restore_delete_flow(supabase_storage, test_data, cleanup_after_
             .eq("agent_version", feedback.agent_version)
             .execute()
         )
-        assert (
-            len(response.data) > 0
-        ), f"APPROVED feedback {feedback.feedback_name} should still exist"
+        assert len(response.data) > 0, (
+            f"APPROVED feedback {feedback.feedback_name} should still exist"
+        )
 
 
 @skip_in_precommit
@@ -1209,7 +1209,7 @@ def test_get_operation_state_with_new_request_interaction_sources_filter(
         storage.client.table("_operation_state").delete().eq(
             "service_name", service_name
         ).execute()
-    except Exception:
+    except Exception:  # noqa: S110
         pass
 
     # Create requests with different sources
@@ -1287,9 +1287,9 @@ def test_get_operation_state_with_new_request_interaction_sources_filter(
         user_id=user_id,
         sources=["api"],
     )
-    assert isinstance(
-        results, list
-    ), "Should return a list of RequestInteractionDataModel"
+    assert isinstance(results, list), (
+        "Should return a list of RequestInteractionDataModel"
+    )
     # Should only get interactions from "api" source
     api_results = [r for r in results if r.request.source == "api"]
     non_api_results = [r for r in results if r.request.source != "api"]
@@ -1349,7 +1349,7 @@ def test_get_last_k_interactions_grouped_sources_filter(supabase_storage):
     try:
         storage.client.table("interactions").delete().eq("user_id", user_id).execute()
         storage.client.table("requests").delete().eq("user_id", user_id).execute()
-    except Exception:
+    except Exception:  # noqa: S110
         pass
 
     # Create requests with different sources
@@ -1444,12 +1444,10 @@ def test_operation_state_crud(supabase_storage):
     service_name = "test_operation_state_crud_service"
 
     # Clean up any existing test data
-    try:
+    with contextlib.suppress(Exception):
         storage.client.table("_operation_state").delete().eq(
             "service_name", service_name
         ).execute()
-    except Exception:
-        pass
 
     # Test 1: Create operation state
     initial_state = {"last_processed_id": 0, "status": "initialized"}
@@ -1511,12 +1509,10 @@ def test_try_acquire_in_progress_lock(supabase_storage):
     state_key = "test_lock_service_key"
 
     # Clean up any existing test data
-    try:
+    with contextlib.suppress(Exception):
         storage.client.table("_operation_state").delete().eq(
             "service_name", state_key
         ).execute()
-    except Exception:
-        pass
 
     # Test 1: First request acquires lock
     request_id_1 = "request_1_abc123"
@@ -1685,9 +1681,9 @@ def test_raw_feedback_status_management(supabase_storage, cleanup_after_test):
     has_pending_after = storage.has_raw_feedbacks_with_status(
         status=Status.PENDING, agent_version=agent_version, feedback_name=feedback_name
     )
-    assert (
-        has_pending_after is False
-    ), "Should have no PENDING raw feedbacks after deletion"
+    assert has_pending_after is False, (
+        "Should have no PENDING raw feedbacks after deletion"
+    )
 
 
 @skip_in_precommit
@@ -1707,7 +1703,7 @@ def test_delete_request_and_session_id(supabase_storage):
     try:
         storage.client.table("interactions").delete().eq("user_id", user_id).execute()
         storage.client.table("requests").delete().eq("user_id", user_id).execute()
-    except Exception:
+    except Exception:  # noqa: S110
         pass
 
     # Create requests in a group
@@ -1788,12 +1784,10 @@ def test_agent_success_evaluation_results(supabase_storage):
     agent_version = "test_eval_v1"
 
     # Clean up any existing test data
-    try:
+    with contextlib.suppress(Exception):
         storage.client.table("agent_success_evaluation_result").delete().eq(
             "agent_version", agent_version
         ).execute()
-    except Exception:
-        pass
 
     # Create test evaluation results with new fields
     results = [
@@ -1821,9 +1815,9 @@ def test_agent_success_evaluation_results(supabase_storage):
     filtered = storage.get_agent_success_evaluation_results(
         agent_version=agent_version, limit=100
     )
-    assert (
-        len(filtered) == 4
-    ), f"Should retrieve exactly 4 results for agent_version, got {len(filtered)}"
+    assert len(filtered) == 4, (
+        f"Should retrieve exactly 4 results for agent_version, got {len(filtered)}"
+    )
 
     # Verify result content
     success_results = [r for r in filtered if r.is_success]
@@ -1936,10 +1930,8 @@ def test_profile_status_management(supabase_storage):
     user_id = "test_profile_status_user"
 
     # Clean up any existing test data
-    try:
+    with contextlib.suppress(Exception):
         storage.client.table("profiles").delete().eq("user_id", user_id).execute()
-    except Exception:
-        pass
 
     # Create test profiles (CURRENT status = None)
     profiles = [
@@ -2006,12 +1998,12 @@ def test_count_operations(supabase_storage):
         storage.client.table("raw_feedbacks").delete().eq(
             "feedback_name", feedback_name
         ).execute()
-    except Exception:
+    except Exception:  # noqa: S110
         pass
 
     # Get initial counts
     initial_interaction_count = storage.count_all_interactions()
-    initial_raw_feedback_count = storage.count_raw_feedbacks(
+    _initial_raw_feedback_count = storage.count_raw_feedbacks(
         feedback_name=feedback_name
     )
 
@@ -2042,9 +2034,9 @@ def test_count_operations(supabase_storage):
 
     # Test 1: Count all interactions
     new_interaction_count = storage.count_all_interactions()
-    assert (
-        new_interaction_count == initial_interaction_count + 5
-    ), f"Should have 5 more interactions, got {new_interaction_count - initial_interaction_count}"
+    assert new_interaction_count == initial_interaction_count + 5, (
+        f"Should have 5 more interactions, got {new_interaction_count - initial_interaction_count}"
+    )
 
     # Create test raw feedbacks
     raw_feedbacks = [
@@ -2061,9 +2053,9 @@ def test_count_operations(supabase_storage):
 
     # Test 2: Count raw feedbacks with filter
     new_raw_feedback_count = storage.count_raw_feedbacks(feedback_name=feedback_name)
-    assert (
-        new_raw_feedback_count == 3
-    ), f"Should have 3 raw feedbacks, got {new_raw_feedback_count}"
+    assert new_raw_feedback_count == 3, (
+        f"Should have 3 raw feedbacks, got {new_raw_feedback_count}"
+    )
 
     # Clean up
     storage.client.table("interactions").delete().eq("user_id", user_id).execute()
@@ -2085,12 +2077,10 @@ def test_get_feedbacks_with_multiple_feedback_status_filter(
     feedback_name = "test_multi_status_filter"
 
     # Clean up any existing test data first
-    try:
+    with contextlib.suppress(Exception):
         storage.client.table("feedbacks").delete().eq(
             "feedback_name", feedback_name
         ).execute()
-    except Exception:
-        pass
 
     # Create feedbacks with different FeedbackStatus values
     test_feedbacks = [

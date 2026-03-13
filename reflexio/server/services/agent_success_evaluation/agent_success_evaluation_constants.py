@@ -1,7 +1,7 @@
 """Constants for agent success evaluation service"""
 
 from dataclasses import dataclass
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -33,15 +33,16 @@ class AgentSuccessEvaluationOutput(BaseModel):
     is_success: bool = Field(
         description="Indicates whether the agent successfully responded to the user"
     )
-    failure_type: Optional[
+    failure_type: (
         Literal[
             "missing_tool", "wrong_tool", "insufficient_info_from_tool", "wrong_answer"
         ]
-    ] = Field(
+        | None
+    ) = Field(
         default=None,
         description="Type of improvement the agent needs: 'missing_tool' (agent lacks necessary tools), 'wrong_tool' (agent used incorrect tool), 'insufficient_info_from_tool' (tool lacks necessary information), 'wrong_answer' (agent had info but answered incorrectly). Required when is_success=False",
     )
-    failure_reason: Optional[str] = Field(
+    failure_reason: str | None = Field(
         default=None,
         description="Explanation for the failure and what the agent needs to do differently. Required when is_success=False",
     )
@@ -77,15 +78,16 @@ class AgentSuccessEvaluationWithComparisonOutput(BaseModel):
     is_success: bool = Field(
         description="Indicates whether the agent successfully responded to the user"
     )
-    failure_type: Optional[
+    failure_type: (
         Literal[
             "missing_tool", "wrong_tool", "insufficient_info_from_tool", "wrong_answer"
         ]
-    ] = Field(
+        | None
+    ) = Field(
         default=None,
         description="Type of failure. Required when is_success=False",
     )
-    failure_reason: Optional[str] = Field(
+    failure_reason: str | None = Field(
         default=None,
         description="Explanation for the failure. Required when is_success=False",
     )
@@ -100,7 +102,7 @@ class AgentSuccessEvaluationWithComparisonOutput(BaseModel):
     is_significantly_better: bool = Field(
         description="Whether the better request is significantly better than the other"
     )
-    comparison_reason: Optional[str] = Field(
+    comparison_reason: str | None = Field(
         default=None,
         description="Brief explanation of why one request is better than the other",
     )

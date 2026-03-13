@@ -7,8 +7,8 @@ Executes in two phases:
 """
 
 import logging
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
-from typing import Optional
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 
 from reflexio_commons.api_schema.retriever_schema import (
     ConversationTurn,
@@ -24,6 +24,7 @@ from reflexio_commons.api_schema.service_schemas import (
     UserProfile,
 )
 from reflexio_commons.config_schema import APIKeyConfig
+
 from reflexio.server.prompt.prompt_manager import PromptManager
 from reflexio.server.services.query_rewriter import QueryRewriter
 from reflexio.server.services.storage.storage_base import BaseStorage
@@ -36,7 +37,7 @@ def run_unified_search(
     request: UnifiedSearchRequest,
     org_id: str,
     storage: BaseStorage,
-    api_key_config: APIKeyConfig,
+    api_key_config: APIKeyConfig | None,
     prompt_manager: PromptManager,
 ) -> UnifiedSearchResponse:
     """
@@ -68,7 +69,7 @@ def run_unified_search(
         query=request.query,
         org_id=org_id,
         storage=storage,
-        api_key_config=api_key_config,
+        api_key_config=api_key_config,  # type: ignore[reportArgumentType]
         prompt_manager=prompt_manager,
         supports_embedding=supports_embedding,
         conversation_history=request.conversation_history,
@@ -94,9 +95,9 @@ def run_unified_search(
     return UnifiedSearchResponse(
         success=True,
         profiles=profiles,
-        feedbacks=feedbacks,
-        raw_feedbacks=raw_feedbacks,
-        skills=skills,
+        feedbacks=feedbacks,  # type: ignore[reportArgumentType]
+        raw_feedbacks=raw_feedbacks,  # type: ignore[reportArgumentType]
+        skills=skills,  # type: ignore[reportArgumentType]
         rewritten_query=rewritten_query_text
         if rewritten_query_text != request.query
         else None,
@@ -105,14 +106,14 @@ def run_unified_search(
 
 def _run_phase_a(
     query: str,
-    org_id: str,
+    org_id: str,  # noqa: ARG001
     storage: BaseStorage,
     api_key_config: APIKeyConfig,
     prompt_manager: PromptManager,
     supports_embedding: bool = True,
-    conversation_history: Optional[list[ConversationTurn]] = None,
+    conversation_history: list[ConversationTurn] | None = None,
     query_rewrite: bool = False,
-) -> tuple[RewrittenQuery, Optional[list[float]]]:
+) -> tuple[RewrittenQuery, list[float] | None]:
     """Run query rewriting and embedding generation in parallel.
 
     Args:
@@ -148,7 +149,7 @@ def _run_phase_a(
 
         embedding_future = None
         if supports_embedding:
-            embedding_future = executor.submit(storage._get_embedding, query)
+            embedding_future = executor.submit(storage._get_embedding, query)  # type: ignore[reportAttributeAccessIssue]
 
         try:
             rewritten_query = rewrite_future.result(timeout=10)
@@ -171,15 +172,15 @@ def _run_phase_b(
     request: UnifiedSearchRequest,
     org_id: str,
     storage: BaseStorage,
-    embedding: Optional[list[float]],
+    embedding: list[float] | None,
     query: str,
     top_k: int,
     threshold: float,
 ) -> tuple[
-    Optional[list[UserProfile]],
-    Optional[list[Feedback]],
-    Optional[list[RawFeedback]],
-    Optional[list[Skill]],
+    list[UserProfile] | None,
+    list[Feedback] | None,
+    list[RawFeedback] | None,
+    list[Skill] | None,
 ]:
     """Run parallel searches across all entity types by delegating to storage methods.
 
@@ -264,8 +265,8 @@ def _search_profiles_via_storage(
     query: str,
     top_k: int,
     threshold: float,
-    user_id: Optional[str],
-    embedding: Optional[list[float]],
+    user_id: str | None,
+    embedding: list[float] | None,
 ) -> list[UserProfile]:
     """Search profiles via storage.search_user_profile, returning [] on error or missing user_id.
 

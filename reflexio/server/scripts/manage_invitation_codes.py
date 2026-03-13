@@ -12,15 +12,15 @@ import secrets
 import string
 from datetime import datetime, timezone
 
+from reflexio.server.db.database import Base, engine
 from reflexio.server.db.db_operations import (
     create_invitation_code,
     db_session_context,
     get_login_supabase_client,
 )
-from reflexio.server.db.database import Base, engine
 
 
-def _ensure_tables():
+def _ensure_tables() -> None:
     """Create tables in local SQLite if they don't exist yet."""
     if engine is not None:
         Base.metadata.create_all(bind=engine)
@@ -60,7 +60,7 @@ def generate_codes(count: int, expires_in_days: int | None = None) -> list[str]:
     with db_session_context() as session:
         for _ in range(count):
             code = _generate_code()
-            create_invitation_code(session=session, code=code, expires_at=expires_at)
+            create_invitation_code(session=session, code=code, expires_at=expires_at)  # type: ignore[reportArgumentType]
             codes.append(code)
 
     return codes
@@ -129,7 +129,7 @@ def list_codes(show_used: bool = False) -> None:
         print(f"{code:<25} {'Yes' if is_used else 'No':<8} {used_by:<30} {expires_str}")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Manage invitation codes")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
