@@ -17,7 +17,7 @@ def validate_publish_user_interaction_request(
     Returns:
         tuple[bool, str]: A tuple containing a boolean indicating if the request is valid and a message
     """
-    if len(request.interaction_data_list) == 0:
+    if not request.interaction_data_list:
         return False, "No interaction data provided"
 
     for interaction_data in request.interaction_data_list:

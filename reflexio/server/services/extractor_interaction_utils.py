@@ -93,7 +93,7 @@ def get_effective_source_filter(
     sources_enabled = getattr(extractor_config, "request_sources_enabled", None)
 
     # If no sources_enabled configured or empty list, extractor wants ALL sources
-    if sources_enabled is None or len(sources_enabled) == 0:
+    if not sources_enabled:
         return (False, None)  # No source filtering - get all
 
     # If triggering_source is None (rerun without specific source),

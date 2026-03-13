@@ -364,23 +364,18 @@ class LiteLLMClient:
                 f"Batch embedding generation failed: {str(e)}"
             ) from e
 
-    def _make_request(
-        self, messages: list[dict[str, Any]], **kwargs
-    ) -> str | BaseModel:
-        """
-        Make a request to the LLM with retry logic.
+    def _build_completion_params(
+        self, messages: list[dict[str, Any]], **kwargs: Any
+    ) -> tuple[dict[str, Any], Any, bool, int]:
+        """Build completion request parameters from messages and kwargs.
 
         Args:
-            messages: List of messages to send.
-            **kwargs: Additional parameters.
+            messages: List of messages to send
+            **kwargs: Additional parameters (response_format, max_retries, model, etc.)
 
         Returns:
-            Response content as string or BaseModel instance.
-
-        Raises:
-            LiteLLMClientError: If the request fails after all retries.
+            Tuple of (params dict, response_format, parse_structured_output, max_retries)
         """
-        # Extract our custom parameters
         response_format = kwargs.pop("response_format", None)
         parse_structured_output = kwargs.pop("parse_structured_output", True)
         max_retries_arg = kwargs.pop("max_retries", self.config.max_retries)
@@ -389,10 +384,7 @@ class LiteLLMClient:
         except (TypeError, ValueError):
             max_retries = max(1, int(self.config.max_retries))
 
-        # Build request parameters — resolve the actual model first (kwargs may override config)
         actual_model = kwargs.pop("model", self.config.model)
-
-        # Custom endpoint overrides the model for all completion calls
         ce = (
             self.config.api_key_config.custom_endpoint
             if self.config.api_key_config
@@ -401,38 +393,25 @@ class LiteLLMClient:
         if ce and ce.api_key and ce.api_base:
             actual_model = ce.model
 
-        params = {
+        params: dict[str, Any] = {
             "model": actual_model,
             "messages": messages,
             "timeout": kwargs.pop("timeout", self.config.timeout),
-            # Disable OpenAI SDK internal retries — we handle retries ourselves
-            # in the loop below. Without this, the SDK retries up to 2 extra
-            # times per attempt, causing a 60s timeout to actually take ~180s.
             "num_retries": 0,
         }
 
-        # Handle temperature - GPT-5 models only support temperature=1.0
         temperature = kwargs.pop("temperature", self.config.temperature)
         if not self._is_temperature_restricted_model(actual_model):
             params["temperature"] = temperature
-        # For temperature-restricted models, we simply don't pass temperature
-        # (LiteLLM/OpenAI will use default of 1.0)
 
-        # Add max_tokens if specified
         max_tokens = kwargs.pop("max_tokens", self.config.max_tokens)
         if max_tokens:
             params["max_tokens"] = max_tokens
-
-        # Add top_p if not default
         if self.config.top_p != 1.0:
             params["top_p"] = self.config.top_p
-
-        # Handle response_format
         if response_format:
             params["response_format"] = response_format
 
-        # Add API key configuration if provided (overrides env vars)
-        # Re-resolve if actual model differs from configured model (different provider)
         if actual_model != self.config.model:
             api_key, api_base, api_version = self._resolve_api_key(actual_model)
         else:
@@ -448,16 +427,126 @@ class LiteLLMClient:
         if api_version:
             params["api_version"] = api_version
 
-        # Add any remaining kwargs
         params.update(kwargs)
-
-        # Apply prompt caching for supported providers
         params["messages"] = self._apply_prompt_caching(
             params["messages"], params["model"]
         )
 
-        # Make request with retry
-        last_error = None
+        return params, response_format, parse_structured_output, max_retries
+
+    def _log_token_usage(self, params: dict[str, Any], response: Any) -> None:
+        """Log token usage with cache statistics from an LLM response.
+
+        Args:
+            params: Request parameters (for model name)
+            response: LLM response object
+        """
+        usage = getattr(response, "usage", None)
+        if not usage:
+            return
+
+        cache_info = ""
+        details = getattr(usage, "prompt_tokens_details", None)
+        if details:
+            cached = getattr(details, "cached_tokens", 0)
+            if cached:
+                cache_info = f", cached: {cached}"
+        cache_creation = getattr(usage, "cache_creation_input_tokens", None)
+        cache_read = getattr(usage, "cache_read_input_tokens", None)
+        if cache_creation or cache_read:
+            cache_info = (
+                f", cache_write: {cache_creation or 0}, cache_read: {cache_read or 0}"
+            )
+
+        self.logger.info(
+            "Token usage - model: %s, input: %s, output: %s, total: %s%s",
+            params.get("model"),
+            usage.prompt_tokens,
+            usage.completion_tokens,
+            usage.total_tokens,
+            cache_info,
+        )
+
+    def _handle_retry_or_raise(
+        self,
+        error: Exception,
+        params: dict[str, Any],
+        attempt: int,
+        max_retries: int,
+        response_format: Any,
+        elapsed_seconds: float,
+    ) -> None:
+        """Handle retry logic or raise on non-retryable/final errors.
+
+        Args:
+            error: The exception that occurred
+            params: Request parameters (for logging)
+            attempt: Current attempt index (0-based)
+            max_retries: Maximum number of retries
+            response_format: Response format (for logging)
+            elapsed_seconds: Time elapsed for this attempt
+
+        Raises:
+            LiteLLMClientError: If the error is non-retryable or this was the last attempt
+        """
+        error_str = str(error).lower()
+
+        self.logger.error(
+            "event=llm_request_end model=%s timeout=%s has_response_format=%s attempt=%d/%d elapsed_seconds=%.3f success=%s error_type=%s error=%s",
+            params.get("model"),
+            params.get("timeout"),
+            response_format is not None,
+            attempt + 1,
+            max_retries,
+            elapsed_seconds,
+            False,
+            type(error).__name__,
+            str(error),
+        )
+
+        if self._is_non_retryable_error(error_str):
+            self.logger.error("Non-retryable error: %s", error)
+            raise LiteLLMClientError(f"API call failed: {str(error)}") from error
+
+        if attempt < max_retries - 1:
+            delay = self.config.retry_delay * (2**attempt)
+            self.logger.warning(
+                "Request failed (attempt %s/%s): %s. Retrying in %ss...",
+                attempt + 1,
+                max_retries,
+                error,
+                delay,
+            )
+            time.sleep(delay)
+        else:
+            self.logger.error(
+                "LLM request failed (model=%s, has_response_format=%s): %s",
+                params.get("model"),
+                response_format is not None,
+                error,
+            )
+
+    def _make_request(
+        self, messages: list[dict[str, Any]], **kwargs: Any
+    ) -> str | BaseModel:
+        """
+        Make a request to the LLM with retry logic.
+
+        Args:
+            messages: List of messages to send.
+            **kwargs: Additional parameters.
+
+        Returns:
+            Response content as string or BaseModel instance.
+
+        Raises:
+            LiteLLMClientError: If the request fails after all retries.
+        """
+        params, response_format, parse_structured_output, max_retries = (
+            self._build_completion_params(messages, **kwargs)
+        )
+
+        last_error: Exception | None = None
         for attempt in range(max_retries):
             request_start = time.perf_counter()
             self.logger.info(
@@ -473,30 +562,7 @@ class LiteLLMClient:
                 content = response.choices[0].message.content  # type: ignore[reportAttributeAccessIssue]
                 elapsed_seconds = time.perf_counter() - request_start
 
-                # Log token usage with cache statistics
-                usage = getattr(response, "usage", None)
-                if usage:
-                    cache_info = ""
-                    # OpenAI cache stats
-                    details = getattr(usage, "prompt_tokens_details", None)
-                    if details:
-                        cached = getattr(details, "cached_tokens", 0)
-                        if cached:
-                            cache_info = f", cached: {cached}"
-                    # Anthropic cache stats
-                    cache_creation = getattr(usage, "cache_creation_input_tokens", None)
-                    cache_read = getattr(usage, "cache_read_input_tokens", None)
-                    if cache_creation or cache_read:
-                        cache_info = f", cache_write: {cache_creation or 0}, cache_read: {cache_read or 0}"
-
-                    self.logger.info(
-                        "Token usage - model: %s, input: %s, output: %s, total: %s%s",
-                        params.get("model"),
-                        usage.prompt_tokens,
-                        usage.completion_tokens,
-                        usage.total_tokens,
-                        cache_info,
-                    )
+                self._log_token_usage(params, response)
 
                 self.logger.info(
                     "event=llm_request_end model=%s timeout=%s has_response_format=%s attempt=%d/%d elapsed_seconds=%.3f success=%s",
@@ -509,7 +575,6 @@ class LiteLLMClient:
                     True,
                 )
 
-                # Handle structured output parsing
                 return self._maybe_parse_structured_output(
                     content,  # type: ignore[reportArgumentType]
                     response_format,
@@ -518,45 +583,10 @@ class LiteLLMClient:
 
             except Exception as e:
                 last_error = e
-                error_str = str(e).lower()
                 elapsed_seconds = time.perf_counter() - request_start
-
-                self.logger.error(
-                    "event=llm_request_end model=%s timeout=%s has_response_format=%s attempt=%d/%d elapsed_seconds=%.3f success=%s error_type=%s error=%s",
-                    params.get("model"),
-                    params.get("timeout"),
-                    response_format is not None,
-                    attempt + 1,
-                    max_retries,
-                    elapsed_seconds,
-                    False,
-                    type(e).__name__,
-                    str(e),
+                self._handle_retry_or_raise(
+                    e, params, attempt, max_retries, response_format, elapsed_seconds
                 )
-
-                # Check if error is non-retryable
-                if self._is_non_retryable_error(error_str):
-                    self.logger.error("Non-retryable error: %s", e)
-                    raise LiteLLMClientError(f"API call failed: {str(e)}") from e
-
-                # Log retry attempt or final failure
-                if attempt < max_retries - 1:
-                    delay = self.config.retry_delay * (2**attempt)
-                    self.logger.warning(
-                        "Request failed (attempt %s/%s): %s. Retrying in %ss...",
-                        attempt + 1,
-                        max_retries,
-                        e,
-                        delay,
-                    )
-                    time.sleep(delay)
-                else:
-                    self.logger.error(
-                        "LLM request failed (model=%s, has_response_format=%s): %s",
-                        params.get("model"),
-                        response_format is not None,
-                        e,
-                    )
 
         raise LiteLLMClientError(
             f"API call failed after {max_retries} retries: {str(last_error)}"

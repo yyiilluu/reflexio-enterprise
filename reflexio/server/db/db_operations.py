@@ -615,7 +615,7 @@ def delete_api_token(session: Session, token_id: int, org_id: int) -> bool:
             .eq("org_id", org_id)
             .execute()
         )
-        return len(response.data) > 0
+        return bool(response.data)
     if session is None:
         return False
     result = (
@@ -681,7 +681,7 @@ def delete_organization(session: Session, org_id: int) -> bool:
     client = get_login_supabase_client()
     if client:
         response = client.table("organizations").delete().eq("id", org_id).execute()
-        return len(response.data) > 0
+        return bool(response.data)
     if session is None:
         return False
     result = (

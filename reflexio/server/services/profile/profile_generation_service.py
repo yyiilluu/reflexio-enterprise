@@ -524,7 +524,7 @@ class ProfileGenerationService(
             bool: True if any matching profiles exist
         """
         user_ids = self.storage.get_user_ids_with_status(status=status)  # type: ignore[reportOptionalMemberAccess]
-        return len(user_ids) > 0
+        return bool(user_ids)
 
     def _delete_items_by_status(
         self,

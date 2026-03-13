@@ -503,7 +503,7 @@ def agent_success_evaluation_result_to_data(
         "number_of_correction_per_session": result.number_of_correction_per_session,
         "user_turns_to_resolution": result.user_turns_to_resolution,
         "is_escalated": result.is_escalated,
-        "embedding": result.embedding if len(result.embedding) > 0 else None,
+        "embedding": result.embedding or None,
     }
 
 
@@ -528,7 +528,7 @@ def skill_to_data(skill: Skill) -> dict[str, Any]:
         "blocking_issues": [bi.model_dump() for bi in skill.blocking_issues],
         "raw_feedback_ids": skill.raw_feedback_ids,
         "skill_status": skill.skill_status.value if skill.skill_status else "draft",
-        "embedding": skill.embedding if len(skill.embedding) > 0 else None,
+        "embedding": skill.embedding or None,
         "updated_at": datetime.fromtimestamp(
             skill.updated_at, tz=timezone.utc
         ).isoformat(),
@@ -611,7 +611,7 @@ def is_localhost_url(db_url: str) -> bool:
         parsed = urlparse(db_url)
         host = parsed.hostname or ""
         return host in ("localhost", "127.0.0.1", "::1")
-    except Exception:
+    except (ValueError, AttributeError):
         return False
 
 
@@ -871,7 +871,7 @@ def get_organization_config(client: Client, org_id: str) -> str | None:
         .execute()
     )
 
-    if not response.data or len(response.data) == 0:
+    if not response.data:
         return None
 
     return response.data[0].get("configuration_json")
@@ -892,7 +892,7 @@ def set_organization_config(client: Client, org_id: str, config_json: str) -> bo
     # First check if org exists
     response = client.table("organizations").select("id").eq("id", org_id).execute()
 
-    if not response.data or len(response.data) == 0:
+    if not response.data:
         return False
 
     # Update the organization's configuration

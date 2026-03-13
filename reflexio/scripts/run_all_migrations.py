@@ -86,7 +86,7 @@ def get_local_config_db_url(org_id: str = "self-host-org") -> str | None:
     config_file = config_dir / f"config_{org_id}.json"
 
     if not config_file.exists():
-        logger.warning(f"Config file not found: {config_file}")
+        logger.warning("Config file not found: %s", config_file)
         return None
 
     try:
@@ -114,11 +114,11 @@ def get_local_config_db_url(org_id: str = "self-host-org") -> str | None:
         if storage_config and "db_url" in storage_config:
             return storage_config["db_url"]
 
-        logger.info(f"No db_url in storage config for {org_id} (using local storage)")
+        logger.info("No db_url in storage config for %s (using local storage)", org_id)
         return None
 
     except Exception as e:
-        logger.error(f"Error loading config for {org_id}: {e}")
+        logger.error("Error loading config for %s: %s", org_id, e)
         return None
 
 
@@ -140,7 +140,7 @@ def get_all_organizations_with_db_url() -> list[tuple[str, str]]:
 
         client = create_client(LOGIN_SUPABASE_URL, LOGIN_SUPABASE_KEY)
     except Exception as e:
-        logger.error(f"Failed to create Supabase client: {e}")
+        logger.error("Failed to create Supabase client: %s", e)
         return []
 
     # Initialize encryption manager
@@ -177,11 +177,11 @@ def get_all_organizations_with_db_url() -> list[tuple[str, str]]:
                     continue
 
                 if is_self_managed:
-                    logger.info(f"Skipping self-managed org: {org_id}")
+                    logger.info("Skipping self-managed org: %s", org_id)
                     continue
 
                 if not config_json_encrypted:
-                    logger.debug(f"Org {org_id} has no configuration_json")
+                    logger.debug("Org %s has no configuration_json", org_id)
                     continue
 
                 try:
@@ -195,7 +195,8 @@ def get_all_organizations_with_db_url() -> list[tuple[str, str]]:
                             config_json_str = decrypted
                         else:
                             logger.warning(
-                                f"Failed to decrypt config for org {org_id}, skipping"
+                                "Failed to decrypt config for org %s, skipping",
+                                org_id,
                             )
                             continue
 
@@ -204,11 +205,12 @@ def get_all_organizations_with_db_url() -> list[tuple[str, str]]:
                         organizations_with_db_url.append((org_id, db_url))
                     else:
                         logger.debug(
-                            f"Org {org_id} has no db_url in storage_config (likely local storage)"
+                            "Org %s has no db_url in storage_config (likely local storage)",
+                            org_id,
                         )
 
                 except Exception as e:
-                    logger.warning(f"Error processing org {org_id}: {e}")
+                    logger.warning("Error processing org %s: %s", org_id, e)
 
             if len(response.data) < batch_size:
                 break
@@ -216,7 +218,7 @@ def get_all_organizations_with_db_url() -> list[tuple[str, str]]:
             offset += batch_size
 
     except Exception as e:
-        logger.error(f"Error fetching organizations: {e}")
+        logger.error("Error fetching organizations: %s", e)
 
     return organizations_with_db_url
 
@@ -237,7 +239,7 @@ def run_migration_for_org(
     """
     # Skip localhost URLs
     if is_localhost_url(db_url):
-        logger.info(f"Skipping localhost database for org {org_id}")
+        logger.info("Skipping localhost database for org %s", org_id)
         return MigrationResult(
             org_id=org_id,
             success=True,
@@ -260,14 +262,14 @@ def run_migration_for_org(
 
         success, message = execute_migration(db_url)
         if not success:
-            logger.error(f"Migration failed - org_id: {org_id}, url: {db_url}")
+            logger.error("Migration failed - org_id: %s, url: %s", org_id, db_url)
         return MigrationResult(
             org_id=org_id,
             success=success,
             message=message,
         )
     except Exception as e:
-        logger.error(f"Migration exception - org_id: {org_id}, url: {db_url}")
+        logger.error("Migration exception - org_id: %s, url: %s", org_id, db_url)
         return MigrationResult(
             org_id=org_id,
             success=False,
@@ -286,7 +288,7 @@ def run_self_host_migration(dry_run: bool = False) -> list[MigrationResult]:
         list[MigrationResult]: Results (single item)
     """
     org_id = "self-host-org"
-    logger.info(f"Self-host mode: Processing org '{org_id}'")
+    logger.info("Self-host mode: Processing org '%s'", org_id)
 
     db_url = get_local_config_db_url(org_id)
 
@@ -338,7 +340,7 @@ def run_cloud_migrations(
             (oid, url) for oid, url in organizations if str(oid) == str(target_org_id)
         ]
         if not organizations:
-            logger.error(f"Organization '{target_org_id}' not found or has no db_url")
+            logger.error("Organization '%s' not found or has no db_url", target_org_id)
             return [
                 MigrationResult(
                     org_id=target_org_id,
@@ -347,18 +349,18 @@ def run_cloud_migrations(
                 )
             ]
 
-    logger.info(f"Found {len(organizations)} organizations with Supabase storage")
+    logger.info("Found %s organizations with Supabase storage", len(organizations))
 
     for org_id, db_url in organizations:
-        logger.info(f"Processing org: {org_id}")
+        logger.info("Processing org: %s", org_id)
 
         result = run_migration_for_org(org_id, db_url, dry_run)
         results.append(result)
 
         if result.success:
-            logger.info(f"  ✓ {org_id}: {result.message}")
+            logger.info("  ✓ %s: %s", org_id, result.message)
         else:
-            logger.error(f"  ✗ {org_id}: {result.message}")
+            logger.error("  ✗ %s: %s", org_id, result.message)
             if not continue_on_error:
                 logger.error(
                     "Stopping due to migration failure (use --continue-on-error to proceed)"
@@ -433,7 +435,7 @@ def main() -> int:
     logger.info("Starting migration runner...")
 
     self_host_mode = get_self_host_mode()
-    logger.info(f"Mode: {'Self-host' if self_host_mode else 'Cloud'}")
+    logger.info("Mode: %s", "Self-host" if self_host_mode else "Cloud")
 
     if self_host_mode:
         results = run_self_host_migration(dry_run=args.dry_run)
@@ -454,7 +456,8 @@ def main() -> int:
     if args.continue_on_error:
         if failed_count > 0:
             logger.warning(
-                f"{failed_count} migration(s) failed, but continuing (--continue-on-error)"
+                "%s migration(s) failed, but continuing (--continue-on-error)",
+                failed_count,
             )
         return 0
     return 1 if failed_count > 0 else 0

@@ -103,6 +103,174 @@ def _parse_blocking_issue(data: dict) -> BlockingIssue | None:
         return None
 
 
+def _timestamp_to_iso(ts: int) -> str:
+    """Convert a Unix timestamp to ISO format string for Supabase queries.
+
+    Args:
+        ts (int): Unix timestamp
+
+    Returns:
+        str: ISO format datetime string
+    """
+    return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
+
+
+def _build_status_or_condition(status_list: list[Status | None]) -> str | None:
+    """Build a PostgREST OR condition string for filtering by status values.
+
+    Handles both None (NULL in DB) and concrete Status enum values.
+
+    Args:
+        status_list (list[Status | None]): List of status values (may include None for NULL)
+
+    Returns:
+        str | None: Comma-separated OR condition string, or None if empty
+    """
+    has_none = None in status_list
+    status_values = [
+        s.value for s in status_list if s is not None and hasattr(s, "value")
+    ]
+    conditions: list[str] = []
+    if has_none:
+        conditions.append("status.is.null")
+    conditions.extend(f"status.eq.{sv}" for sv in status_values)
+    return ",".join(conditions) if conditions else None
+
+
+def _apply_status_filter_to_query(
+    query: Any,
+    status_filter: list[Status | None],
+) -> Any:
+    """Apply status filter conditions to a Supabase query builder.
+
+    Handles three cases: mix of None + statuses, only None, only statuses.
+
+    Args:
+        query: Supabase query builder
+        status_filter (list[Status | None]): Status values to filter by
+
+    Returns:
+        Modified query builder with status filter applied
+    """
+    has_none = None in status_filter
+    status_strings: list[str] = []
+    for s in status_filter:
+        if s is None:
+            continue
+        if isinstance(s, Status):
+            if s.value is not None:
+                status_strings.append(s.value)
+            else:
+                has_none = True
+        elif isinstance(s, str):
+            status_strings.append(s)
+
+    if has_none and status_strings:
+        query = query.or_(f"status.is.null,status.in.({','.join(status_strings)})")
+    elif has_none:
+        query = query.is_("status", "null")
+    elif status_strings:
+        query = query.in_("status", status_strings)
+
+    return query
+
+
+def _matches_status_filter(
+    item_status: Status | None,
+    status_filter: list[Status | None],
+) -> bool:
+    """Check whether an item's status matches a status filter list (Python-side filtering).
+
+    Args:
+        item_status (Status | None): The item's current status
+        status_filter (list[Status | None]): Allowed status values
+
+    Returns:
+        bool: True if the item passes the filter
+    """
+    has_none = None in status_filter
+    status_strings = [
+        s.value for s in status_filter if s is not None and hasattr(s, "value")
+    ]
+    if has_none and item_status is None:
+        return True
+    if item_status is not None and item_status.value in status_strings:
+        return True
+    return has_none and not status_strings and item_status is None
+
+
+def _parse_rpc_row_to_request(row: dict[str, Any]) -> Request:
+    """Parse an RPC result row into a Request object.
+
+    Args:
+        row (dict[str, Any]): Database row from an RPC call
+
+    Returns:
+        Request: Parsed request object
+    """
+    return Request(
+        request_id=row["request_id"],
+        user_id=row["request_user_id"],
+        created_at=int(
+            datetime.fromisoformat(
+                row["request_created_at"].replace("Z", "+00:00")
+            ).timestamp()
+        ),
+        source=row.get("request_source") or "",
+        agent_version=row.get("request_agent_version") or "",
+        session_id=row.get("session_id"),
+    )
+
+
+def _parse_rpc_row_to_interaction(row: dict[str, Any]) -> Interaction:
+    """Parse an RPC result row into an Interaction object.
+
+    Args:
+        row (dict[str, Any]): Database row from an RPC call
+
+    Returns:
+        Interaction: Parsed interaction object
+    """
+    tools_used: list[ToolUsed] = []
+    tools_used_data = row.get("interaction_tools_used")
+    if tools_used_data and isinstance(tools_used_data, list):
+        tools_used = [ToolUsed(**t) for t in tools_used_data if isinstance(t, dict)]
+
+    return Interaction(
+        interaction_id=row["interaction_id"],
+        user_id=row["interaction_user_id"],
+        content=row["interaction_content"],
+        request_id=row["interaction_request_id"],
+        created_at=int(
+            datetime.fromisoformat(
+                row["interaction_created_at"].replace("Z", "+00:00")
+            ).timestamp()
+        ),
+        role=row.get("interaction_role") or "User",
+        user_action=UserActionType(row["interaction_user_action"]),
+        user_action_description=row["interaction_user_action_description"],
+        interacted_image_url=row["interaction_interacted_image_url"],
+        shadow_content=row.get("interaction_shadow_content") or "",
+        tools_used=tools_used,
+    )
+
+
+def _calculate_success_rate(eval_data: list[dict[str, Any]]) -> float:
+    """Calculate success rate from evaluation data rows.
+
+    Args:
+        eval_data (list[dict[str, Any]]): List of evaluation result dicts with 'is_success' key
+
+    Returns:
+        float: Success rate as a percentage (0.0 to 100.0)
+    """
+    total = len(eval_data)
+    if total == 0:
+        return 0.0
+    success_count = sum(1 for e in eval_data if e.get("is_success"))
+    return success_count / total * 100
+
+
 class SupabaseStorage(BaseStorage):
     """
     Storage class that uses Supabase as vector db for storing data
@@ -272,7 +440,7 @@ class SupabaseStorage(BaseStorage):
                 status_strings.append(status)
 
         # Build status filter: handle None and string values
-        if has_none and len(status_strings) > 0:
+        if has_none and status_strings:
             # Mix of None and other statuses: (status IS NULL OR status IN (...))
             query = query.or_(f"status.is.null,status.in.({','.join(status_strings)})")
         elif has_none:
@@ -327,7 +495,7 @@ class SupabaseStorage(BaseStorage):
                 status_strings.append(status)
 
         # Build status filter: handle None and string values
-        if has_none and len(status_strings) > 0:
+        if has_none and status_strings:
             # Mix of None and other statuses: (status IS NULL OR status IN (...))
             query = query.or_(f"status.is.null,status.in.({','.join(status_strings)})")
         elif has_none:
@@ -1142,24 +1310,6 @@ class SupabaseStorage(BaseStorage):
             list[RawFeedback]: List of matching raw feedback objects
         """
 
-        # Helper to convert Unix timestamp to ISO format for Supabase queries
-        def _timestamp_to_iso(ts: int) -> str:
-            return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
-
-        # Helper to build status filter OR condition string
-        def _build_status_or_condition(
-            status_list: list[Status | None],
-        ) -> str | None:
-            has_none = None in status_list
-            status_values = [
-                s.value for s in status_list if s is not None and hasattr(s, "value")
-            ]
-            conditions = []
-            if has_none:
-                conditions.append("status.is.null")
-            conditions.extend(f"status.eq.{sv}" for sv in status_values)
-            return ",".join(conditions) if conditions else None
-
         # If query is provided, use hybrid search first (filters applied in Python)
         if query:
             response = self.client.rpc(
@@ -1208,25 +1358,10 @@ class SupabaseStorage(BaseStorage):
                     continue
                 if end_time and rf.created_at > end_time:
                     continue
-                if status_filter is not None:
-                    has_none = None in status_filter
-                    status_strings = [
-                        s.value
-                        for s in status_filter
-                        if s is not None and hasattr(s, "value")
-                    ]
-                    if (
-                        has_none
-                        and rf.status is None
-                        or rf.status is not None
-                        and rf.status.value in status_strings
-                    ):
-                        pass
-                    elif has_none and len(status_strings) == 0:
-                        if rf.status is not None:
-                            continue
-                    else:
-                        continue
+                if status_filter is not None and not _matches_status_filter(
+                    rf.status, status_filter
+                ):
+                    continue
                 filtered_feedbacks.append(rf)
             return filtered_feedbacks[:match_count]
 
@@ -1321,24 +1456,6 @@ class SupabaseStorage(BaseStorage):
             list[Feedback]: List of matching feedback objects
         """
 
-        # Helper to convert Unix timestamp to ISO format for Supabase queries
-        def _timestamp_to_iso(ts: int) -> str:
-            return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
-
-        # Helper to build status filter OR condition string
-        def _build_status_or_condition(
-            status_list: list[Status | None],
-        ) -> str | None:
-            has_none = None in status_list
-            status_values = [
-                s.value for s in status_list if s is not None and hasattr(s, "value")
-            ]
-            conditions = []
-            if has_none:
-                conditions.append("status.is.null")
-            conditions.extend(f"status.eq.{sv}" for sv in status_values)
-            return ",".join(conditions) if conditions else None
-
         # If query is provided, use hybrid search first (filters applied in Python)
         if query:
             response = self.client.rpc(
@@ -1389,25 +1506,10 @@ class SupabaseStorage(BaseStorage):
                     and f.feedback_status != feedback_status_filter.value
                 ):
                     continue
-                if status_filter is not None:
-                    has_none = None in status_filter
-                    status_strings = [
-                        s.value
-                        for s in status_filter
-                        if s is not None and hasattr(s, "value")
-                    ]
-                    if (
-                        has_none
-                        and f.status is None
-                        or f.status is not None
-                        and f.status.value in status_strings
-                    ):
-                        pass
-                    elif has_none and len(status_strings) == 0:
-                        if f.status is not None:
-                            continue
-                    else:
-                        continue
+                if status_filter is not None and not _matches_status_filter(
+                    f.status, status_filter
+                ):
+                    continue
                 filtered_feedbacks.append(f)
             return filtered_feedbacks[:match_count]
 
@@ -1576,34 +1678,8 @@ class SupabaseStorage(BaseStorage):
             query = query.lte("created_at", end_time_iso)
 
         # Add status filter if specified
-        # Convert Status enum values to strings for database query
         if status_filter is not None:
-            # Check for None values (current status)
-            has_none = None in status_filter
-            # Convert Status enum values to their string values
-            status_strings = []
-            for s in status_filter:
-                if s is None:
-                    continue
-                if isinstance(s, Status):
-                    if s.value is not None:
-                        status_strings.append(s.value)
-                    else:
-                        has_none = True
-                elif isinstance(s, str):
-                    status_strings.append(s)
-
-            if has_none and len(status_strings) > 0:
-                # Mix of None and other statuses: (status IS NULL OR status IN (...))
-                query = query.or_(
-                    f"status.is.null,status.in.({','.join(status_strings)})"
-                )
-            elif has_none:
-                # Only None: status IS NULL
-                query = query.is_("status", "null")
-            elif len(status_strings) > 0:
-                # Only non-None statuses: status IN (...)
-                query = query.in_("status", status_strings)
+            query = _apply_status_filter_to_query(query, status_filter)
 
         response = query.execute()
         return [
@@ -1677,34 +1753,8 @@ class SupabaseStorage(BaseStorage):
             query = query.eq("agent_version", agent_version)
 
         # Add status filter if specified
-        # Convert Status enum values to strings for database query
         if status_filter is not None:
-            # Check for None values (current status)
-            has_none = None in status_filter
-            # Convert Status enum values to their string values
-            status_strings = []
-            for s in status_filter:
-                if s is None:
-                    continue
-                if isinstance(s, Status):
-                    if s.value is not None:
-                        status_strings.append(s.value)
-                    else:
-                        has_none = True
-                elif isinstance(s, str):
-                    status_strings.append(s)
-
-            if has_none and len(status_strings) > 0:
-                # Mix of None and other statuses: (status IS NULL OR status IN (...))
-                query = query.or_(
-                    f"status.is.null,status.in.({','.join(status_strings)})"
-                )
-            elif has_none:
-                # Only None: status IS NULL
-                query = query.is_("status", "null")
-            elif len(status_strings) > 0:
-                # Only non-None statuses: status IN (...)
-                query = query.in_("status", status_strings)
+            query = _apply_status_filter_to_query(query, status_filter)
 
         response = query.execute()
         return response.count if response.count is not None else 0
@@ -1781,13 +1831,13 @@ class SupabaseStorage(BaseStorage):
             status_strings = [
                 s.value for s in status_filter if s is not None and s.value is not None
             ]
-            if has_none and len(status_strings) > 0:
+            if has_none and status_strings:
                 query = query.or_(
                     f"status.is.null,status.in.({','.join(status_strings)})"
                 )
             elif has_none:
                 query = query.is_("status", "null")
-            elif len(status_strings) > 0:
+            elif status_strings:
                 query = query.in_("status", status_strings)
         else:
             # Default behavior: exclude archived (keep current feedbacks)
@@ -2339,6 +2389,100 @@ class SupabaseStorage(BaseStorage):
     # Dashboard methods
     # ==============================
 
+    def _count_in_period(
+        self,
+        table: str,
+        id_col: str,
+        start: int | str,
+        end: int | str,
+        use_timestamp: bool = False,
+    ) -> int:
+        """Count rows in a table within a time period.
+
+        Args:
+            table (str): Table name
+            id_col (str): Column to select for counting
+            start (int | str): Period start (Unix int for bigint cols, ISO string for datetime cols)
+            end (int | str): Period end
+            use_timestamp (bool): If True, use bigint timestamp column; if False, use ISO datetime
+
+        Returns:
+            int: Row count in the period
+        """
+        time_col = (
+            id_col.replace("_id", "_timestamp") if use_timestamp else "created_at"
+        )
+        if use_timestamp:
+            time_col = "last_modified_timestamp"
+        response = (
+            self.client.table(table)
+            .select(id_col, count="exact")  # type: ignore[reportArgumentType]
+            .gte(time_col, start)
+            .lte(time_col, end)
+            .execute()
+        )
+        return response.count if response.count is not None else 0
+
+    def _count_in_period_lt(
+        self,
+        table: str,
+        id_col: str,
+        start: int | str,
+        end: int | str,
+        use_timestamp: bool = False,
+    ) -> int:
+        """Count rows in a table within a time period (exclusive end).
+
+        Args:
+            table (str): Table name
+            id_col (str): Column to select for counting
+            start (int | str): Period start
+            end (int | str): Period end (exclusive)
+            use_timestamp (bool): If True, use bigint timestamp column
+
+        Returns:
+            int: Row count in the period
+        """
+        time_col = "last_modified_timestamp" if use_timestamp else "created_at"
+        response = (
+            self.client.table(table)
+            .select(id_col, count="exact")  # type: ignore[reportArgumentType]
+            .gte(time_col, start)
+            .lt(time_col, end)
+            .execute()
+        )
+        return response.count if response.count is not None else 0
+
+    def _get_time_series_points(
+        self,
+        table: str,
+        time_col: str,
+        start: int | str,
+        end: int | str,
+        extra_cols: str = "",
+    ) -> list[dict[str, Any]]:
+        """Fetch time series data points from a table.
+
+        Args:
+            table (str): Table name
+            time_col (str): Time column name
+            start (int | str): Period start
+            end (int | str): Period end
+            extra_cols (str): Additional columns to select (comma-separated)
+
+        Returns:
+            list[dict[str, Any]]: Raw data rows from the query
+        """
+        select_cols = f"{time_col}, {extra_cols}" if extra_cols else time_col
+        return (
+            self.client.table(table)
+            .select(select_cols)
+            .gte(time_col, start)
+            .lte(time_col, end)
+            .order(time_col)
+            .execute()
+        ).data
+
     @handle_exceptions
     def get_dashboard_stats(self, days_back: int = 30) -> dict:
         """
@@ -2351,268 +2495,152 @@ class SupabaseStorage(BaseStorage):
         Returns:
             dict: Dictionary containing current_period, previous_period, and raw time_series data
         """
-
         current_time = int(datetime.now(timezone.utc).timestamp())
-
-        # Calculate time boundaries
         seconds_in_period = days_back * 24 * 60 * 60
         current_period_start = current_time - seconds_in_period
         previous_period_start = current_period_start - seconds_in_period
 
-        # Convert timestamps to ISO format for Supabase queries
-        current_time_iso = datetime.fromtimestamp(
-            current_time, tz=timezone.utc
-        ).isoformat()
-        current_period_start_iso = datetime.fromtimestamp(
-            current_period_start, tz=timezone.utc
-        ).isoformat()
-        previous_period_start_iso = datetime.fromtimestamp(
-            previous_period_start, tz=timezone.utc
-        ).isoformat()
+        current_time_iso = _timestamp_to_iso(current_time)
+        current_period_start_iso = _timestamp_to_iso(current_period_start)
+        previous_period_start_iso = _timestamp_to_iso(previous_period_start)
 
-        # Get current and previous period stats using count queries
-        # Interactions
-        interactions_current = (
-            self.client.table("interactions")
-            .select("interaction_id", count="exact")  # type: ignore[reportArgumentType]
-            .gte("created_at", current_period_start_iso)
-            .lte("created_at", current_time_iso)
-            .execute()
-        )
+        # Count queries for current and previous periods
+        current_stats: dict[str, int | float] = {
+            "total_interactions": self._count_in_period(
+                "interactions",
+                "interaction_id",
+                current_period_start_iso,
+                current_time_iso,
+            ),
+            "total_profiles": self._count_in_period(
+                "profiles",
+                "profile_id",
+                current_period_start,
+                current_time,
+                use_timestamp=True,
+            ),
+            "total_feedbacks": (
+                self._count_in_period(
+                    "raw_feedbacks",
+                    "raw_feedback_id",
+                    current_period_start_iso,
+                    current_time_iso,
+                )
+                + self._count_in_period(
+                    "feedbacks",
+                    "feedback_id",
+                    current_period_start_iso,
+                    current_time_iso,
+                )
+            ),
+        }
 
-        interactions_previous = (
-            self.client.table("interactions")
-            .select("interaction_id", count="exact")  # type: ignore[reportArgumentType]
-            .gte("created_at", previous_period_start_iso)
-            .lt("created_at", current_period_start_iso)
-            .execute()
-        )
+        previous_stats: dict[str, int | float] = {
+            "total_interactions": self._count_in_period_lt(
+                "interactions",
+                "interaction_id",
+                previous_period_start_iso,
+                current_period_start_iso,
+            ),
+            "total_profiles": self._count_in_period_lt(
+                "profiles",
+                "profile_id",
+                previous_period_start,
+                current_period_start,
+                use_timestamp=True,
+            ),
+            "total_feedbacks": (
+                self._count_in_period_lt(
+                    "raw_feedbacks",
+                    "raw_feedback_id",
+                    previous_period_start_iso,
+                    current_period_start_iso,
+                )
+                + self._count_in_period_lt(
+                    "feedbacks",
+                    "feedback_id",
+                    previous_period_start_iso,
+                    current_period_start_iso,
+                )
+            ),
+        }
 
-        # Profiles (uses bigint timestamps, not datetime)
-        profiles_current = (
-            self.client.table("profiles")
-            .select("profile_id", count="exact")  # type: ignore[reportArgumentType]
-            .gte("last_modified_timestamp", current_period_start)
-            .lte("last_modified_timestamp", current_time)
-            .execute()
-        )
-
-        profiles_previous = (
-            self.client.table("profiles")
-            .select("profile_id", count="exact")  # type: ignore[reportArgumentType]
-            .gte("last_modified_timestamp", previous_period_start)
-            .lt("last_modified_timestamp", current_period_start)
-            .execute()
-        )
-
-        # Feedbacks (raw + aggregated)
-        raw_feedbacks_current = (
-            self.client.table("raw_feedbacks")
-            .select("raw_feedback_id", count="exact")  # type: ignore[reportArgumentType]
-            .gte("created_at", current_period_start_iso)
-            .lte("created_at", current_time_iso)
-            .execute()
-        )
-
-        raw_feedbacks_previous = (
-            self.client.table("raw_feedbacks")
-            .select("raw_feedback_id", count="exact")  # type: ignore[reportArgumentType]
-            .gte("created_at", previous_period_start_iso)
-            .lt("created_at", current_period_start_iso)
-            .execute()
-        )
-
-        aggregated_feedbacks_current = (
-            self.client.table("feedbacks")
-            .select("feedback_id", count="exact")  # type: ignore[reportArgumentType]
-            .gte("created_at", current_period_start_iso)
-            .lte("created_at", current_time_iso)
-            .execute()
-        )
-
-        aggregated_feedbacks_previous = (
-            self.client.table("feedbacks")
-            .select("feedback_id", count="exact")  # type: ignore[reportArgumentType]
-            .gte("created_at", previous_period_start_iso)
-            .lt("created_at", current_period_start_iso)
-            .execute()
-        )
-
-        # Agent success evaluations
-        evaluations_current = (
+        # Evaluation success rates
+        eval_current_data = (
             self.client.table("agent_success_evaluation_result")
             .select("is_success")
             .gte("created_at", current_period_start_iso)
             .lte("created_at", current_time_iso)
             .execute()
-        )
-
-        evaluations_previous = (
+        ).data
+        eval_previous_data = (
             self.client.table("agent_success_evaluation_result")
             .select("is_success")
             .gte("created_at", previous_period_start_iso)
             .lt("created_at", current_period_start_iso)
             .execute()
+        ).data
+
+        current_stats["success_rate"] = _calculate_success_rate(eval_current_data)
+        previous_stats["success_rate"] = _calculate_success_rate(eval_previous_data)
+
+        # Time series data
+        interactions_ts = self._get_time_series_points(
+            "interactions", "created_at", current_period_start_iso, current_time_iso
         )
-
-        # Calculate success rates
-        total_eval_current = len(evaluations_current.data)
-        success_count_current = sum(
-            1 for e in evaluations_current.data if e.get("is_success")
+        profiles_ts = self._get_time_series_points(
+            "profiles", "last_modified_timestamp", current_period_start, current_time
         )
-        success_rate_current = (
-            (success_count_current / total_eval_current * 100)
-            if total_eval_current > 0
-            else 0.0
+        feedbacks_ts = self._get_time_series_points(
+            "raw_feedbacks", "created_at", current_period_start_iso, current_time_iso
         )
-
-        total_eval_previous = len(evaluations_previous.data)
-        success_count_previous = sum(
-            1 for e in evaluations_previous.data if e.get("is_success")
+        evaluations_ts = self._get_time_series_points(
+            "agent_success_evaluation_result",
+            "created_at",
+            current_period_start_iso,
+            current_time_iso,
+            extra_cols="is_success",
         )
-        success_rate_previous = (
-            (success_count_previous / total_eval_previous * 100)
-            if total_eval_previous > 0
-            else 0.0
-        )
-
-        # Build stats objects
-        current_stats = {
-            "total_profiles": (
-                profiles_current.count if profiles_current.count is not None else 0
-            ),
-            "total_interactions": (
-                interactions_current.count
-                if interactions_current.count is not None
-                else 0
-            ),
-            "total_feedbacks": (
-                (
-                    raw_feedbacks_current.count
-                    if raw_feedbacks_current.count is not None
-                    else 0
-                )
-                + (
-                    aggregated_feedbacks_current.count
-                    if aggregated_feedbacks_current.count is not None
-                    else 0
-                )
-            ),
-            "success_rate": success_rate_current,
-        }
-
-        previous_stats = {
-            "total_profiles": (
-                profiles_previous.count if profiles_previous.count is not None else 0
-            ),
-            "total_interactions": (
-                interactions_previous.count
-                if interactions_previous.count is not None
-                else 0
-            ),
-            "total_feedbacks": (
-                (
-                    raw_feedbacks_previous.count
-                    if raw_feedbacks_previous.count is not None
-                    else 0
-                )
-                + (
-                    aggregated_feedbacks_previous.count
-                    if aggregated_feedbacks_previous.count is not None
-                    else 0
-                )
-            ),
-            "success_rate": success_rate_previous,
-        }
-
-        # Get time-series data (simplified approach - fetch and group in Python)
-        # For a production system with large data, consider creating SQL functions for aggregation
-
-        # Interactions time series
-        interactions_ts_data = (
-            self.client.table("interactions")
-            .select("created_at")
-            .gte("created_at", current_period_start_iso)
-            .lte("created_at", current_time_iso)
-            .order("created_at")
-            .execute()
-        )
-
-        # Profiles time series (uses bigint timestamps)
-        profiles_ts_data = (
-            self.client.table("profiles")
-            .select("last_modified_timestamp")
-            .gte("last_modified_timestamp", current_period_start)
-            .lte("last_modified_timestamp", current_time)
-            .order("last_modified_timestamp")
-            .execute()
-        )
-
-        # Feedbacks time series
-        feedbacks_ts_data = (
-            self.client.table("raw_feedbacks")
-            .select("created_at")
-            .gte("created_at", current_period_start_iso)
-            .lte("created_at", current_time_iso)
-            .order("created_at")
-            .execute()
-        )
-
-        # Evaluations time series
-        evaluations_ts_data = (
-            self.client.table("agent_success_evaluation_result")
-            .select("created_at, is_success")
-            .gte("created_at", current_period_start_iso)
-            .lte("created_at", current_time_iso)
-            .order("created_at")
-            .execute()
-        )
-
-        # Convert to raw time series data points (no grouping - frontend will handle)
-        interactions_time_series = [
-            {
-                "timestamp": self._parse_datetime_to_timestamp(r["created_at"]),
-                "value": 1,
-            }
-            for r in interactions_ts_data.data
-        ]
-
-        profiles_time_series = [
-            {"timestamp": r["last_modified_timestamp"], "value": 1}  # Already bigint
-            for r in profiles_ts_data.data
-        ]
-
-        feedbacks_time_series = [
-            {
-                "timestamp": self._parse_datetime_to_timestamp(r["created_at"]),
-                "value": 1,
-            }
-            for r in feedbacks_ts_data.data
-        ]
-
-        # For evaluations, include success rate value
-        evaluations_time_series = [
-            {
-                "timestamp": self._parse_datetime_to_timestamp(record["created_at"]),
-                "value": 100 if record.get("is_success") else 0,
-            }
-            for record in evaluations_ts_data.data
-        ]
 
         return {
             "current_period": current_stats,
             "previous_period": previous_stats,
             "interactions_time_series": sorted(
-                interactions_time_series, key=lambda x: x["timestamp"]
+                [
+                    {
+                        "timestamp": self._parse_datetime_to_timestamp(r["created_at"]),
+                        "value": 1,
+                    }
+                    for r in interactions_ts
+                ],
+                key=lambda x: x["timestamp"],
             ),
             "profiles_time_series": sorted(
-                profiles_time_series, key=lambda x: x["timestamp"]
+                [
+                    {"timestamp": r["last_modified_timestamp"], "value": 1}
+                    for r in profiles_ts
+                ],
+                key=lambda x: x["timestamp"],
             ),
             "feedbacks_time_series": sorted(
-                feedbacks_time_series, key=lambda x: x["timestamp"]
+                [
+                    {
+                        "timestamp": self._parse_datetime_to_timestamp(r["created_at"]),
+                        "value": 1,
+                    }
+                    for r in feedbacks_ts
+                ],
+                key=lambda x: x["timestamp"],
             ),
             "evaluations_time_series": sorted(
-                evaluations_time_series, key=lambda x: x["timestamp"]
+                [
+                    {
+                        "timestamp": self._parse_datetime_to_timestamp(r["created_at"]),
+                        "value": 100 if r.get("is_success") else 0,
+                    }
+                    for r in evaluations_ts
+                ],
+                key=lambda x: x["timestamp"],
             ),
         }
 
@@ -2828,46 +2856,10 @@ class SupabaseStorage(BaseStorage):
 
             # Build Request object (once per request)
             if req_id not in requests_map:
-                requests_map[req_id] = Request(
-                    request_id=req_id,
-                    user_id=row["request_user_id"],
-                    created_at=int(
-                        datetime.fromisoformat(
-                            row["request_created_at"].replace("Z", "+00:00")
-                        ).timestamp()
-                    ),
-                    source=row.get("request_source") or "",
-                    agent_version=row.get("request_agent_version") or "",
-                    session_id=row.get("session_id"),
-                )
+                requests_map[req_id] = _parse_rpc_row_to_request(row)
                 interactions_by_request[req_id] = []
 
-            # Deserialize tools_used from JSONB array
-            tools_used = []
-            tools_used_data = row.get("interaction_tools_used")
-            if tools_used_data and isinstance(tools_used_data, list):
-                tools_used = [
-                    ToolUsed(**t) for t in tools_used_data if isinstance(t, dict)
-                ]
-
-            # Build Interaction object
-            interaction = Interaction(
-                interaction_id=row["interaction_id"],
-                user_id=row["interaction_user_id"],
-                content=row["interaction_content"],
-                request_id=row["interaction_request_id"],
-                created_at=int(
-                    datetime.fromisoformat(
-                        row["interaction_created_at"].replace("Z", "+00:00")
-                    ).timestamp()
-                ),
-                role=row.get("interaction_role") or "User",
-                user_action=UserActionType(row["interaction_user_action"]),
-                user_action_description=row["interaction_user_action_description"],
-                interacted_image_url=row["interaction_interacted_image_url"],
-                shadow_content=row.get("interaction_shadow_content") or "",
-                tools_used=tools_used,
-            )
+            interaction = _parse_rpc_row_to_interaction(row)
             interactions_by_request[req_id].append(interaction)
 
         # Build RequestInteractionDataModel objects
@@ -2948,48 +2940,11 @@ class SupabaseStorage(BaseStorage):
         for row in data:
             req_id = row["request_id"]
 
-            # Build Request object (once per request)
             if req_id not in requests_map:
-                requests_map[req_id] = Request(
-                    request_id=req_id,
-                    user_id=row["request_user_id"],
-                    created_at=int(
-                        datetime.fromisoformat(
-                            row["request_created_at"].replace("Z", "+00:00")
-                        ).timestamp()
-                    ),
-                    source=row.get("request_source") or "",
-                    agent_version=row.get("request_agent_version") or "",
-                    session_id=row.get("session_id"),
-                )
+                requests_map[req_id] = _parse_rpc_row_to_request(row)
                 interactions_by_request[req_id] = []
 
-            # Deserialize tools_used from JSONB array
-            tools_used = []
-            tools_used_data = row.get("interaction_tools_used")
-            if tools_used_data and isinstance(tools_used_data, list):
-                tools_used = [
-                    ToolUsed(**t) for t in tools_used_data if isinstance(t, dict)
-                ]
-
-            # Build Interaction object
-            interaction = Interaction(
-                interaction_id=row["interaction_id"],
-                user_id=row["interaction_user_id"],
-                content=row["interaction_content"],
-                request_id=row["interaction_request_id"],
-                created_at=int(
-                    datetime.fromisoformat(
-                        row["interaction_created_at"].replace("Z", "+00:00")
-                    ).timestamp()
-                ),
-                role=row.get("interaction_role") or "User",
-                user_action=UserActionType(row["interaction_user_action"]),
-                user_action_description=row["interaction_user_action_description"],
-                interacted_image_url=row["interaction_interacted_image_url"],
-                shadow_content=row.get("interaction_shadow_content") or "",
-                tools_used=tools_used,
-            )
+            interaction = _parse_rpc_row_to_interaction(row)
             flat_interactions.append(interaction)
             interactions_by_request[req_id].append(interaction)
 

@@ -358,8 +358,8 @@ class SkillGenerator:
             # Bump version: 1.0.0 -> 1.1.0, 1.1.0 -> 1.2.0, etc.
             version_parts = existing_skill.version.split(".")
             if len(version_parts) == 3:
-                version_parts[1] = str(int(version_parts[1]) + 1)
-                new_version = ".".join(version_parts)
+                major, minor, patch = version_parts
+                new_version = f"{major}.{int(minor) + 1}.{patch}"
             else:
                 new_version = existing_skill.version
 

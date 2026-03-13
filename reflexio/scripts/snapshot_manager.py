@@ -89,7 +89,7 @@ def _public_tables_are_empty(db_url: str) -> tuple[bool, list[str]]:
             if cursor.fetchone()[0]:
                 non_empty.append(table)
 
-        return len(non_empty) == 0, non_empty
+        return not non_empty, non_empty
     finally:
         conn.close()
 

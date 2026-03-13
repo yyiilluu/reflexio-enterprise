@@ -61,15 +61,15 @@ def test_connection(supabase_url: str, supabase_key: str) -> Client | None:
     """
     try:
         logger.info("Testing Supabase connection...")
-        logger.info(f"  URL: {supabase_url}")
-        logger.info(f"  Key: {supabase_key[:10]}...")
+        logger.info("  URL: %s", supabase_url)
+        logger.info("  Key: %s...", supabase_key[:10])
 
         client = create_client(supabase_url, supabase_key)
         logger.info("✓ Successfully created Supabase client")
         return client
 
     except Exception as e:
-        logger.error(f"✗ Failed to create Supabase client: {e}")
+        logger.error("✗ Failed to create Supabase client: %s", e)
         return None
 
 
@@ -87,7 +87,7 @@ def test_table_access(client: Client, table_name: str) -> dict:
     result = {"table": table_name, "accessible": False, "count": None, "error": None}
 
     try:
-        logger.info(f"Testing table '{table_name}'...")
+        logger.info("Testing table '%s'...", table_name)
 
         # Try to count records (doesn't require data to exist)
         response = (
@@ -97,8 +97,8 @@ def test_table_access(client: Client, table_name: str) -> dict:
         result["accessible"] = True
         result["count"] = response.count if response.count is not None else 0
 
-        logger.info(f"  ✓ Table '{table_name}' is accessible")
-        logger.info(f"    Record count: {result['count']}")
+        logger.info("  ✓ Table '%s' is accessible", table_name)
+        logger.info("    Record count: %s", result["count"])
 
         # Try to fetch a sample record (if any exist)
         if result["count"] > 0:
@@ -107,11 +107,11 @@ def test_table_access(client: Client, table_name: str) -> dict:
                 logger.info("    ✓ Successfully fetched sample record")
                 # Show column names
                 columns = list(sample_response.data[0].keys())
-                logger.info(f"    Columns: {', '.join(columns)}")
+                logger.info("    Columns: %s", ", ".join(columns))
 
     except Exception as e:
         result["error"] = str(e)
-        logger.error(f"  ✗ Failed to access table '{table_name}': {e}")
+        logger.error("  ✗ Failed to access table '%s': %s", table_name, e)
 
     return result
 
@@ -154,7 +154,7 @@ def test_database_functions(client: Client) -> dict:
             ).execute()
 
             results[func_name] = {"exists": True, "callable": True, "error": None}
-            logger.info(f"  ✓ Function '{func_name}' is callable")
+            logger.info("  ✓ Function '%s' is callable", func_name)
 
         except Exception as e:  # noqa: PERF203
             error_msg = str(e)
@@ -168,7 +168,7 @@ def test_database_functions(client: Client) -> dict:
                     "callable": False,
                     "error": error_msg,
                 }
-                logger.error(f"  ✗ Function '{func_name}' does not exist")
+                logger.error("  ✗ Function '%s' does not exist", func_name)
             else:
                 results[func_name] = {
                     "exists": True,
@@ -176,7 +176,9 @@ def test_database_functions(client: Client) -> dict:
                     "error": error_msg,
                 }
                 logger.info(
-                    f"  ✓ Function '{func_name}' exists (call failed as expected: {error_msg[:50]}...)"
+                    "  ✓ Function '%s' exists (call failed as expected: %s...)",
+                    func_name,
+                    error_msg[:50],
                 )
 
     return results
@@ -235,20 +237,20 @@ def run_tests(supabase_url: str, supabase_key: str, tables: list[str]) -> bool:
     accessible_tables = [r for r in table_results if r["accessible"]]
     inaccessible_tables = [r for r in table_results if not r["accessible"]]
 
-    logger.info(f"Tables tested: {len(tables)}")
-    logger.info(f"  ✓ Accessible: {len(accessible_tables)}")
-    logger.info(f"  ✗ Inaccessible: {len(inaccessible_tables)}")
+    logger.info("Tables tested: %s", len(tables))
+    logger.info("  ✓ Accessible: %s", len(accessible_tables))
+    logger.info("  ✗ Inaccessible: %s", len(inaccessible_tables))
 
     if inaccessible_tables:
         logger.warning("Inaccessible tables:")
         for result in inaccessible_tables:
-            logger.warning(f"  - {result['table']}: {result['error']}")
+            logger.warning("  - %s: %s", result["table"], result["error"])
 
     # Show record counts
     logger.info("")
     logger.info("Record counts:")
     for result in accessible_tables:
-        logger.info(f"  {result['table']}: {result['count']} records")
+        logger.info("  %s: %s records", result["table"], result["count"])
 
     # Function summary
     logger.info("")
@@ -260,17 +262,17 @@ def run_tests(supabase_url: str, supabase_key: str, tables: list[str]) -> bool:
         name for name, res in function_results.items() if not res["exists"]
     ]
 
-    logger.info(f"  ✓ Callable: {len(callable_functions)}")
+    logger.info("  ✓ Callable: %s", len(callable_functions))
     if missing_functions:
-        logger.warning(f"  ✗ Missing: {len(missing_functions)}")
+        logger.warning("  ✗ Missing: %s", len(missing_functions))
         for func_name in missing_functions:
-            logger.warning(f"    - {func_name}")
+            logger.warning("    - %s", func_name)
 
     logger.info("")
     logger.info("=" * 60)
 
     # Overall result
-    all_passed = len(inaccessible_tables) == 0 and len(missing_functions) == 0
+    all_passed = not inaccessible_tables and not missing_functions
 
     if all_passed:
         logger.info("✓ All tests passed!")

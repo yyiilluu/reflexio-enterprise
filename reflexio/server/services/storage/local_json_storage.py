@@ -36,6 +36,35 @@ from reflexio.server.services.storage.storage_base import BaseStorage
 logger = logging.getLogger(__name__)
 
 
+def _matches_status_filter(
+    item_status: Status | None,
+    status_filter: list[Status | None],
+) -> bool:
+    """Check whether an item's status matches a status filter list (Python-side filtering).
+
+    Args:
+        item_status (Status | None): The item's current status
+        status_filter (list[Status | None]): Allowed status values
+
+    Returns:
+        bool: True if the item passes the filter
+    """
+    has_none = None in status_filter
+    status_strings = [
+        s.value for s in status_filter if s is not None and hasattr(s, "value")
+    ]
+    if has_none and item_status is None:
+        return True
+    item_val = (
+        item_status.value
+        if item_status is not None and hasattr(item_status, "value")
+        else item_status
+    )
+    if item_val in status_strings:
+        return True
+    return has_none and not status_strings and item_status is None
+
+
 class LocalJsonStorage(BaseStorage):
     """
     Storage class that uses local json file to store data
@@ -1990,25 +2019,10 @@ class LocalJsonStorage(BaseStorage):
                 continue
 
             # Filter by status
-            if status_filter is not None:
-                has_none = None in status_filter
-                status_strings = [
-                    s.value
-                    for s in status_filter
-                    if s is not None and hasattr(s, "value")
-                ]
-                rf_status_val = (
-                    rf.status.value
-                    if rf.status is not None and hasattr(rf.status, "value")
-                    else rf.status
-                )
-                if has_none and rf.status is None or rf_status_val in status_strings:
-                    pass  # Match
-                elif has_none and len(status_strings) == 0:
-                    if rf.status is not None:
-                        continue  # Only None allowed
-                else:
-                    continue  # No match
+            if status_filter is not None and not _matches_status_filter(
+                rf.status, status_filter
+            ):
+                continue
 
             results.append(rf)
             if len(results) >= match_count:
@@ -2085,25 +2099,10 @@ class LocalJsonStorage(BaseStorage):
                     continue
 
             # Filter by status
-            if status_filter is not None:
-                has_none = None in status_filter
-                status_strings = [
-                    s.value
-                    for s in status_filter
-                    if s is not None and hasattr(s, "value")
-                ]
-                f_status_val = (
-                    f.status.value
-                    if f.status is not None and hasattr(f.status, "value")
-                    else f.status
-                )
-                if has_none and f.status is None or f_status_val in status_strings:
-                    pass  # Match
-                elif has_none and len(status_strings) == 0:
-                    if f.status is not None:
-                        continue  # Only None allowed
-                else:
-                    continue  # No match
+            if status_filter is not None and not _matches_status_filter(
+                f.status, status_filter
+            ):
+                continue
 
             results.append(f)
             if len(results) >= match_count:

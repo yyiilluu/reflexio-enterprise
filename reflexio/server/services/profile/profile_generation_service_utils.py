@@ -325,7 +325,7 @@ def construct_incremental_profile_extraction_messages(
         previously_added.extend(profile.profile_content for profile in profile_list)
 
     formatted_previously_added = (
-        "\n".join([f"- {content}" for content in previously_added])
+        "\n".join(f"- {content}" for content in previously_added)
         if previously_added
         else "(None)"
     )

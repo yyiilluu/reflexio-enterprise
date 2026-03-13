@@ -1,7 +1,9 @@
-import traceback
+import logging
 
 from cryptography import fernet
 from cryptography.fernet import Fernet, MultiFernet
+
+logger = logging.getLogger(__name__)
 
 
 class EncryptManager:
@@ -23,7 +25,7 @@ class EncryptManager:
                 fernets += [Fernet(k)]
             except Exception:  # noqa: S112, PERF203
                 continue
-        if len(fernets) > 0:
+        if fernets:
             self.multi_fernet = MultiFernet(fernets)
 
     def rotate(self, encrypted_value: str) -> str | None:
@@ -36,11 +38,8 @@ class EncryptManager:
         except fernet.InvalidToken:
             # Token is no longer valid, just ignore
             return None
-        except Exception as e:
-            print(f"{str(e)}")
-            tbs = traceback.format_exc().split("\n")
-            for tb in tbs:
-                print(f"  {tb}")
+        except Exception:
+            logger.exception("Failed to rotate encrypted value")
             return None
 
     def encrypt(self, value: str) -> str | None:
@@ -48,11 +47,8 @@ class EncryptManager:
             return value
         try:
             return self.multi_fernet.encrypt(value.encode("utf-8")).decode("utf-8")
-        except Exception as e:
-            print(f"{str(e)}")
-            tbs = traceback.format_exc().split("\n")
-            for tb in tbs:
-                print(f"  {tb}")
+        except Exception:
+            logger.exception("Failed to encrypt value")
             return None
 
     def decrypt(self, encrypted_value: str, ttl: int | None = None) -> str | None:
@@ -65,9 +61,6 @@ class EncryptManager:
         except fernet.InvalidToken:
             # Token is no longer valid, just ignore
             return None
-        except Exception as e:
-            print(f"{str(e)}")
-            tbs = traceback.format_exc().split("\n")
-            for tb in tbs:
-                print(f"  {tb}")
+        except Exception:
+            logger.exception("Failed to decrypt value")
             return None

@@ -73,7 +73,7 @@ class StructuredFeedbackContent(BaseModel):
             feedback_value = data["feedback"]
             if feedback_value is None:
                 return {}
-            if isinstance(feedback_value, list) and len(feedback_value) > 0:
+            if isinstance(feedback_value, list) and feedback_value:
                 if len(feedback_value) > 1:
                     logger.warning(
                         "LLM returned %d feedback items in a list; using only the first",
