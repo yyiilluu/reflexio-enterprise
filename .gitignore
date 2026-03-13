@@ -169,6 +169,7 @@ cython_debug/
 .claude/*
 !.claude/commands/
 !.claude/skills/
+!.claude/rules/
 .playwright-mcp/
 
 # local storage

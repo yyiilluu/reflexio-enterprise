@@ -90,17 +90,30 @@ select = [
     "C90",    # McCabe complexity
     "S",      # flake8-bandit (security checks)
     "N",      # pep8-naming conventions
+    "ANN",    # flake8-annotations (enforce type annotations)
     "ARG",    # flake8-unused-arguments
+    "G",      # flake8-logging-format (no f-strings in logging)
+    "PTH",    # flake8-use-pathlib (pathlib over os.path)
+    "FURB",   # refurb (modern Python idioms)
+    "FLY",    # flynt (string join → f-string)
+    "PLR1714",# pylint: repeated-equality-comparison → use `in`
+    "PLR1716",# pylint: boolean-chained-comparison → chain
 ]
 ignore = [
     "E501",   # line too long (handled by formatter/black)
     "E402",   # module-level import not at top (common in __init__.py)
+    "ANN002",  # missing type for *args (often inherited from frameworks)
+    "ANN003",  # missing type for **kwargs (often inherited from frameworks)
+    "ANN204",  # missing return type for __init__ (-> None is obvious)
+    "ANN401",  # dynamically typed Any (sometimes intentional)
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "F403"]
-"reflexio/tests/**" = ["S101", "ARG001", "ARG002"]
+"reflexio/tests/**" = ["S101", "ARG001", "ARG002", "PTH", "ANN"]
 "conftest.py" = ["ARG001"]
+"demo/**" = ["PTH", "G004", "ANN"]
+"reflexio/scripts/**" = ["G004", "ANN"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
