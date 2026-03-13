@@ -15,8 +15,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Copy, Check, KeyRound, User, Mail, ShieldCheck, Terminal, Plus, Trash2, AlertTriangle, Loader2 } from "lucide-react"
-import { getApiTokens, createApiToken, deleteApiToken, deleteAccount, type ApiToken } from "@/lib/api"
+import { Copy, Check, KeyRound, User, Mail, ShieldCheck, Terminal, Plus, Trash2, AlertTriangle, Loader2, Eye, EyeOff } from "lucide-react"
+import { getApiTokens, createApiToken, deleteApiToken, revealApiToken, deleteAccount, type ApiToken } from "@/lib/api"
 import { useRouter } from "next/navigation"
 
 export default function AccountPage() {
@@ -32,6 +32,12 @@ export default function AccountPage() {
   const [createdToken, setCreatedToken] = useState<string | null>(null)
   const [createdTokenCopied, setCreatedTokenCopied] = useState(false)
   const [creating, setCreating] = useState(false)
+
+  // Reveal token state
+  const [revealedTokens, setRevealedTokens] = useState<Record<number, string>>({})
+  const [revealingTokenId, setRevealingTokenId] = useState<number | null>(null)
+  const [copiedTokenId, setCopiedTokenId] = useState<number | null>(null)
+  const [copyingTokenId, setCopyingTokenId] = useState<number | null>(null)
 
   // Delete dialog state
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -476,9 +482,77 @@ client = ReflexioClient()`
                           <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
                             <td className="px-4 py-3 font-medium text-slate-700">{t.name}</td>
                             <td className="px-4 py-3">
-                              <code className="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-1 rounded">
-                                {t.token_masked}
-                              </code>
+                              <div className="flex items-center gap-1.5">
+                                <code className="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-1 rounded">
+                                  {revealedTokens[t.id] || t.token_masked}
+                                </code>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 text-slate-400 hover:text-slate-600"
+                                  disabled={revealingTokenId === t.id}
+                                  onClick={async () => {
+                                    if (revealedTokens[t.id]) {
+                                      setRevealedTokens((prev) => {
+                                        const next = { ...prev }
+                                        delete next[t.id]
+                                        return next
+                                      })
+                                    } else {
+                                      setRevealingTokenId(t.id)
+                                      try {
+                                        const res = await revealApiToken(t.id)
+                                        setRevealedTokens((prev) => ({ ...prev, [t.id]: res.token }))
+                                      } catch {
+                                        // ignore
+                                      } finally {
+                                        setRevealingTokenId(null)
+                                      }
+                                    }
+                                  }}
+                                  title={revealedTokens[t.id] ? "Hide key" : "Reveal key"}
+                                >
+                                  {revealingTokenId === t.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : revealedTokens[t.id] ? (
+                                    <EyeOff className="h-3.5 w-3.5" />
+                                  ) : (
+                                    <Eye className="h-3.5 w-3.5" />
+                                  )}
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 text-slate-400 hover:text-slate-600"
+                                    disabled={copyingTokenId === t.id}
+                                    onClick={async () => {
+                                      let token = revealedTokens[t.id]
+                                      if (!token) {
+                                        setCopyingTokenId(t.id)
+                                        try {
+                                          const res = await revealApiToken(t.id)
+                                          token = res.token
+                                        } catch {
+                                          setCopyingTokenId(null)
+                                          return
+                                        }
+                                        setCopyingTokenId(null)
+                                      }
+                                      navigator.clipboard.writeText(token)
+                                      setCopiedTokenId(t.id)
+                                      setTimeout(() => setCopiedTokenId(null), 2000)
+                                    }}
+                                    title="Copy key"
+                                  >
+                                    {copyingTokenId === t.id ? (
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    ) : copiedTokenId === t.id ? (
+                                      <Check className="h-3.5 w-3.5 text-green-500" />
+                                    ) : (
+                                      <Copy className="h-3.5 w-3.5" />
+                                    )}
+                                  </Button>
+                              </div>
                             </td>
                             <td className="px-4 py-3 text-slate-500 text-xs">{formatDate(t.created_at)}</td>
                             <td className="px-4 py-3 text-right">

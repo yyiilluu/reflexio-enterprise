@@ -1112,6 +1112,24 @@ export async function createApiToken(name: string): Promise<ApiTokenCreateRespon
   }
 }
 
+export async function revealApiToken(tokenId: number): Promise<{ token: string }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/tokens/${tokenId}/reveal`, {
+      method: "GET",
+      headers: getHeaders(),
+    })
+
+    if (!response.ok) {
+      throw new Error(`API request failed with status ${response.status}`)
+    }
+
+    return await response.json()
+  } catch (error) {
+    console.error("Error revealing API token:", error)
+    throw error
+  }
+}
+
 export async function deleteApiToken(tokenId: number): Promise<{ success: boolean; message: string }> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/tokens/${tokenId}`, {

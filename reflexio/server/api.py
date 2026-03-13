@@ -611,6 +611,53 @@ def list_api_tokens(
             session.close()
 
 
+@app.get("/api/tokens/{token_id}/reveal")
+def reveal_api_token(
+    token_id: int,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(
+        optional_oauth2_scheme
+    ),
+):
+    """
+    Reveal the full value of an API token by ID.
+
+    Args:
+        token_id: ID of the token to reveal
+
+    Returns:
+        dict: The full token value
+    """
+    if SELF_HOST_MODE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Token management not available in self-host mode",
+        )
+
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    session = next(get_db_session())
+    try:
+        current_org = get_current_active_org(
+            token=credentials.credentials, session=session
+        )
+        tokens = get_api_tokens_by_org_id(session=session, org_id=current_org.id)
+        for t in tokens:
+            if t.id == token_id:
+                return {"token": t.token}
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Token not found",
+        )
+    finally:
+        if session is not None:
+            session.close()
+
+
 @app.post("/api/tokens", response_model=ApiTokenCreateResponse)
 def create_new_api_token(
     payload: ApiTokenCreateRequest,
