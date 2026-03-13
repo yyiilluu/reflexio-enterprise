@@ -26,8 +26,6 @@ function getHeaders(): HeadersInit {
 export type UserActionType = "click" | "scroll" | "type" | "none"
 
 export type Status = "archived" | "pending" | null
-// Alias for backwards compatibility
-export type ProfileStatus = Status
 
 export interface Interaction {
   interaction_id: string
@@ -1086,21 +1084,6 @@ export interface GetSkillsResponse {
   msg?: string
 }
 
-export interface SearchSkillsRequest {
-  query?: string
-  feedback_name?: string
-  agent_version?: string
-  skill_status?: SkillStatus
-  threshold?: number
-  top_k?: number
-}
-
-export interface SearchSkillsResponse {
-  success: boolean
-  skills: Skill[]
-  msg?: string
-}
-
 export interface UpdateSkillStatusRequest {
   skill_id: number
   skill_status: SkillStatus
@@ -1118,17 +1101,6 @@ export interface DeleteSkillRequest {
 export interface DeleteSkillResponse {
   success: boolean
   message?: string
-}
-
-export interface ExportSkillsRequest {
-  feedback_name?: string
-  agent_version?: string
-  skill_status?: SkillStatus
-}
-
-export interface ExportSkillsResponse {
-  success: boolean
-  markdown: string
 }
 
 export interface RunSkillGenerationRequest {
@@ -1159,26 +1131,6 @@ export async function getSkills(request: GetSkillsRequest): Promise<GetSkillsRes
     return data
   } catch (error) {
     console.error("Error fetching skills:", error)
-    throw error
-  }
-}
-
-export async function searchSkills(request: SearchSkillsRequest): Promise<SearchSkillsResponse> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/search_skills`, {
-      method: "POST",
-      headers: getHeaders(),
-      body: JSON.stringify(request),
-    })
-
-    if (!response.ok) {
-      throw new Error(`API request failed with status ${response.status}`)
-    }
-
-    const data = await response.json()
-    return data
-  } catch (error) {
-    console.error("Error searching skills:", error)
     throw error
   }
 }
@@ -1221,26 +1173,6 @@ export async function deleteSkill(request: DeleteSkillRequest): Promise<DeleteSk
     return data
   } catch (error) {
     console.error("Error deleting skill:", error)
-    throw error
-  }
-}
-
-export async function exportSkills(request: ExportSkillsRequest): Promise<ExportSkillsResponse> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/export_skills`, {
-      method: "POST",
-      headers: getHeaders(),
-      body: JSON.stringify(request),
-    })
-
-    if (!response.ok) {
-      throw new Error(`API request failed with status ${response.status}`)
-    }
-
-    const data = await response.json()
-    return data
-  } catch (error) {
-    console.error("Error exporting skills:", error)
     throw error
   }
 }

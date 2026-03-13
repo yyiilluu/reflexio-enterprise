@@ -18,7 +18,7 @@ import ipaddress
 from typing import Annotated, Any, Optional
 from urllib.parse import urlparse
 
-from pydantic import AfterValidator, Field, HttpUrl
+from pydantic import AfterValidator, HttpUrl
 
 
 # Embedding vector dimensions — must match config_schema.EMBEDDING_DIMENSIONS.
