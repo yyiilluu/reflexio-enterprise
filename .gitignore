@@ -187,6 +187,7 @@ reflexio/model_deployment/*/model/
 *.pem
 demo/output/*
 !demo/output/stable/
+demo/reflexio_storage/
 
 # IDE
 .vscode/

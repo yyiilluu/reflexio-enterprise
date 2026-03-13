@@ -69,12 +69,28 @@
         .context-badge { display: inline-block; font-size: 9px; font-weight: 600; padding: 1px 5px; border-radius: 9999px; vertical-align: middle; margin-left: 4px; }
         .context-badge-reflexio { background: rgba(69,123,157,0.15); color: #457b9d; }
         .context-badge-mem0 { background: rgba(124,58,237,0.15); color: #7c3aed; }
+        /* Compare mode styles */
+        .compare-panel::-webkit-scrollbar { width: 6px; }
+        .compare-panel::-webkit-scrollbar-thumb { background-color: #a8dadc; border-radius: 3px; }
+        .score-bar { height: 6px; border-radius: 3px; transition: width 0.3s ease; }
+        .winner-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; }
+        .winner-baseline { background: #fee2e2; color: #dc2626; }
+        .winner-enhanced { background: #dcfce7; color: #16a34a; }
+        .winner-tie { background: #f3f4f6; color: #6b7280; }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
     <!-- Header -->
     <header class="bg-dark text-white px-6 py-3 flex items-center justify-between shrink-0">
-        <h1 class="text-lg font-semibold tracking-wide">Conversation Viewer</h1>
+        <div class="flex items-center gap-3">
+            <h1 class="text-lg font-semibold tracking-wide">Conversation Viewer</h1>
+            <div class="flex bg-primary/50 rounded overflow-hidden text-xs">
+                <button id="view-single-btn" onclick="switchViewMode('single')"
+                        class="px-3 py-1 font-medium bg-white/20 text-white">Single</button>
+                <button id="view-compare-btn" onclick="switchViewMode('compare')"
+                        class="px-3 py-1 font-medium text-white/60 hover:text-white transition-colors">Compare</button>
+            </div>
+        </div>
         <div class="flex items-center gap-3">
             <select id="conversation-select"
                     class="bg-primary text-white text-sm rounded px-3 py-1.5 outline-none cursor-pointer min-w-[300px]">
@@ -319,8 +335,8 @@
         </div>
     </div>
 
-    <!-- Main content -->
-    <div class="flex flex-1 overflow-hidden">
+    <!-- Main content: Single view -->
+    <div id="single-view" class="flex flex-1 overflow-hidden">
         <!-- Left panel: Conversation (70%) -->
         <div class="w-[70%] flex flex-col border-r border-accent">
             <div class="px-5 py-2.5 border-b border-accent bg-white/50">
@@ -369,6 +385,72 @@
         </div>
     </div>
 
+    <!-- Compare view (hidden by default) -->
+    <div id="compare-view" class="flex-1 overflow-hidden hidden flex flex-col">
+        <!-- Compare controls bar -->
+        <div class="bg-white/60 border-b border-accent px-5 py-2 flex items-center gap-3 shrink-0">
+            <select id="compare-scenario-select" class="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:border-primary">
+                <option value="">Select scenario...</option>
+            </select>
+            <button onclick="runComparison()" id="compare-run-btn"
+                    class="bg-primary hover:bg-dark text-white text-xs font-medium px-3 py-1.5 rounded transition-colors">
+                Run Comparison
+            </button>
+            <span class="text-gray-300">|</span>
+            <select id="compare-baseline-select" class="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:border-primary max-w-[200px]">
+                <option value="">Baseline file...</option>
+            </select>
+            <select id="compare-enhanced-select" class="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:border-primary max-w-[200px]">
+                <option value="">Enhanced file...</option>
+            </select>
+            <button onclick="evaluatePair()" id="evaluate-pair-btn"
+                    class="bg-primary/70 hover:bg-dark text-white text-xs font-medium px-3 py-1.5 rounded transition-colors">
+                Evaluate Pair
+            </button>
+            <span class="text-gray-300">|</span>
+            <select id="evaluation-select" onchange="loadEvaluation(this.value)"
+                    class="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:border-primary max-w-[220px]">
+                <option value="">Saved evaluations...</option>
+            </select>
+            <span id="compare-status" class="text-xs text-gray-500 ml-auto"></span>
+        </div>
+
+        <!-- Three-panel layout -->
+        <div class="flex flex-1 overflow-hidden">
+            <!-- Baseline panel (30%) -->
+            <div class="w-[30%] flex flex-col border-r border-accent">
+                <div class="px-4 py-2 border-b border-accent bg-white/50 flex items-center gap-2">
+                    <h2 class="text-xs font-semibold text-dark uppercase tracking-wider">Baseline</h2>
+                    <span id="baseline-score-badge" class="text-[10px] font-bold text-gray-500"></span>
+                </div>
+                <div id="compare-baseline-panel" class="compare-panel flex-1 overflow-y-auto px-4 py-3 space-y-2">
+                    <p class="text-primary/40 text-xs">Run a comparison to see baseline conversation.</p>
+                </div>
+            </div>
+
+            <!-- Enhanced panel (30%) -->
+            <div class="w-[30%] flex flex-col border-r border-accent">
+                <div class="px-4 py-2 border-b border-accent bg-white/50 flex items-center gap-2">
+                    <h2 class="text-xs font-semibold text-dark uppercase tracking-wider">Enhanced</h2>
+                    <span id="enhanced-score-badge" class="text-[10px] font-bold text-gray-500"></span>
+                </div>
+                <div id="compare-enhanced-panel" class="compare-panel flex-1 overflow-y-auto px-4 py-3 space-y-2">
+                    <p class="text-primary/40 text-xs">Run a comparison to see enhanced conversation.</p>
+                </div>
+            </div>
+
+            <!-- Scores panel (40%) -->
+            <div class="w-[40%] flex flex-col bg-white/30">
+                <div class="px-4 py-2 border-b border-accent bg-white/50">
+                    <h2 class="text-xs font-semibold text-dark uppercase tracking-wider">Evaluation</h2>
+                </div>
+                <div id="compare-scores-panel" class="compare-panel flex-1 overflow-y-auto px-5 py-4">
+                    <p class="text-primary/40 text-xs">Run a comparison or load an evaluation to see scores.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // --- State ---
         let conversations = [];
@@ -382,6 +464,10 @@
         let simMode = 'simulate'; // 'simulate' or 'talk'
         let chatMode = false;
         let isChatSending = false;
+        let viewMode = 'single'; // 'single' or 'compare'
+        let currentEvaluation = null; // ComparisonResult
+        let compareBaselineTurns = [];
+        let compareEnhancedTurns = [];
 
         const selectEl = document.getElementById('conversation-select');
         const chatPanel = document.getElementById('chat-panel');
@@ -1131,6 +1217,391 @@
                 const selected = scenarios.find(s => s.key === scenarioSelect.value);
                 descEl.textContent = selected ? selected.description : '';
             });
+        }
+
+        // --- View mode toggle ---
+        function switchViewMode(mode) {
+            viewMode = mode;
+            document.getElementById('single-view').classList.toggle('hidden', mode !== 'single');
+            document.getElementById('compare-view').classList.toggle('hidden', mode !== 'compare');
+            document.getElementById('view-single-btn').className = mode === 'single'
+                ? 'px-3 py-1 font-medium bg-white/20 text-white'
+                : 'px-3 py-1 font-medium text-white/60 hover:text-white transition-colors';
+            document.getElementById('view-compare-btn').className = mode === 'compare'
+                ? 'px-3 py-1 font-medium bg-white/20 text-white'
+                : 'px-3 py-1 font-medium text-white/60 hover:text-white transition-colors';
+            if (mode === 'compare') {
+                loadCompareScenarios();
+                loadCompareFiles();
+                loadEvaluationsList();
+            }
+        }
+
+        // --- Compare mode: load scenario selector ---
+        async function loadCompareScenarios() {
+            const sel = document.getElementById('compare-scenario-select');
+            if (sel.options.length > 1) return; // already loaded
+            try {
+                const data = await api('/api/scenarios');
+                sel.innerHTML = '<option value="">Select scenario...</option>';
+                data.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s.key;
+                    opt.textContent = s.name;
+                    sel.appendChild(opt);
+                });
+            } catch {}
+        }
+
+        // --- Compare mode: load file selectors ---
+        async function loadCompareFiles() {
+            const bSel = document.getElementById('compare-baseline-select');
+            const eSel = document.getElementById('compare-enhanced-select');
+            try {
+                const data = await api('/api/conversations');
+                [bSel, eSel].forEach(sel => {
+                    sel.innerHTML = '<option value="">Select file...</option>';
+                    data.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c.filename;
+                        opt.textContent = `${c.scenario_name} (${c.turn_count}t) ${c.filename.includes('reflexio') ? '[R]' : ''}`;
+                        sel.appendChild(opt);
+                    });
+                });
+            } catch {}
+        }
+
+        // --- Compare mode: load evaluations list ---
+        async function loadEvaluationsList() {
+            const sel = document.getElementById('evaluation-select');
+            try {
+                const data = await api('/api/evaluations');
+                sel.innerHTML = '<option value="">Saved evaluations...</option>';
+                data.forEach(e => {
+                    const opt = document.createElement('option');
+                    opt.value = e.filename;
+                    const winnerTag = e.winner === 'enhanced' ? '+' : e.winner === 'baseline' ? '-' : '=';
+                    opt.textContent = `[${winnerTag}] ${e.scenario_name} (${e.baseline_score} vs ${e.enhanced_score})`;
+                    sel.appendChild(opt);
+                });
+            } catch {}
+        }
+
+        // --- Compare mode: load a saved evaluation ---
+        async function loadEvaluation(filename) {
+            if (!filename) return;
+            const status = document.getElementById('compare-status');
+            status.textContent = 'Loading evaluation...';
+            try {
+                const data = await api(`/api/evaluation/${encodeURIComponent(filename)}`);
+                currentEvaluation = data;
+
+                // Load both conversation files
+                const [bData, eData] = await Promise.all([
+                    api(`/api/conversation/${data.baseline_file.split('/').map(encodeURIComponent).join('/')}`).catch(() => null),
+                    api(`/api/conversation/${data.enhanced_file.split('/').map(encodeURIComponent).join('/')}`).catch(() => null),
+                ]);
+
+                compareBaselineTurns = bData ? bData.turns : [];
+                compareEnhancedTurns = eData ? eData.turns : [];
+
+                renderCompareView();
+                status.textContent = '';
+            } catch (e) {
+                status.textContent = 'Failed: ' + e.message;
+                status.className = 'text-xs text-red-500 ml-auto';
+            }
+        }
+
+        // --- Compare mode: evaluate a pair of files ---
+        async function evaluatePair() {
+            const baseline = document.getElementById('compare-baseline-select').value;
+            const enhanced = document.getElementById('compare-enhanced-select').value;
+            if (!baseline || !enhanced) {
+                alert('Please select both baseline and enhanced files.');
+                return;
+            }
+
+            const btn = document.getElementById('evaluate-pair-btn');
+            const status = document.getElementById('compare-status');
+            btn.disabled = true;
+            btn.textContent = 'Evaluating...';
+            status.textContent = 'Running LLM evaluation...';
+            status.className = 'text-xs text-gray-500 ml-auto';
+
+            try {
+                const res = await api('/api/evaluate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ baseline_file: baseline, enhanced_file: enhanced }),
+                });
+
+                currentEvaluation = res.evaluation;
+
+                // Load conversation turns
+                const [bData, eData] = await Promise.all([
+                    api(`/api/conversation/${baseline.split('/').map(encodeURIComponent).join('/')}`),
+                    api(`/api/conversation/${enhanced.split('/').map(encodeURIComponent).join('/')}`),
+                ]);
+                compareBaselineTurns = bData.turns;
+                compareEnhancedTurns = eData.turns;
+
+                renderCompareView();
+                loadEvaluationsList();
+                status.textContent = `Saved: ${res.evaluation_file}`;
+                status.className = 'text-xs text-green-600 ml-auto';
+            } catch (e) {
+                status.textContent = 'Failed: ' + e.message;
+                status.className = 'text-xs text-red-500 ml-auto';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Evaluate Pair';
+            }
+        }
+
+        // --- Compare mode: run full comparison (SSE) ---
+        async function runComparison() {
+            const scenario = document.getElementById('compare-scenario-select').value;
+            if (!scenario) { alert('Please select a scenario.'); return; }
+            if (!reflexioConnected) { alert('Please connect to Reflexio first (Settings > Publish).'); return; }
+
+            const btn = document.getElementById('compare-run-btn');
+            const status = document.getElementById('compare-status');
+            btn.disabled = true;
+            btn.textContent = 'Running...';
+            compareBaselineTurns = [];
+            compareEnhancedTurns = [];
+            currentEvaluation = null;
+            renderCompareView();
+
+            try {
+                const body = {
+                    scenario,
+                    model: 'gpt-5-mini',
+                    judge_model: 'gpt-5-mini',
+                    max_turns: 30,
+                    reflexio_user_id: document.getElementById('sim-user-id')?.value || 'demo-user',
+                    reflexio_agent_version: document.getElementById('sim-agent-version')?.value || 'demo-v1',
+                };
+                const res = await fetch('/api/compare/stream', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({ detail: res.statusText }));
+                    throw new Error(err.detail || 'Request failed');
+                }
+
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const parts = buffer.split('\n\n');
+                    buffer = parts.pop();
+
+                    for (const part of parts) {
+                        if (!part.trim()) continue;
+                        let eventType = 'message', data = '';
+                        for (const line of part.split('\n')) {
+                            if (line.startsWith('event: ')) eventType = line.slice(7);
+                            else if (line.startsWith('data: ')) data = line.slice(6);
+                        }
+                        if (!data) continue;
+                        const parsed = JSON.parse(data);
+
+                        if (eventType === 'status') {
+                            status.textContent = `[${parsed.phase}] ${parsed.message}`;
+                            status.className = 'text-xs text-gray-500 ml-auto';
+                        } else if (eventType === 'turn') {
+                            if (parsed.phase === 'baseline') {
+                                compareBaselineTurns.push(parsed);
+                            } else if (parsed.phase === 'enhanced') {
+                                compareEnhancedTurns.push(parsed);
+                            }
+                            renderCompareBubbles();
+                        } else if (eventType === 'evaluation') {
+                            currentEvaluation = parsed;
+                            renderCompareScores();
+                        } else if (eventType === 'done') {
+                            status.textContent = `Done! Evaluation: ${parsed.evaluation_file}`;
+                            status.className = 'text-xs text-green-600 ml-auto';
+                            loadEvaluationsList();
+                            loadCompareFiles();
+                        } else if (eventType === 'error') {
+                            throw new Error(parsed.message || 'Stream error');
+                        }
+                    }
+                }
+            } catch (e) {
+                status.textContent = 'Failed: ' + e.message;
+                status.className = 'text-xs text-red-500 ml-auto';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Run Comparison';
+            }
+        }
+
+        // --- Compare mode: render everything ---
+        function renderCompareView() {
+            renderCompareBubbles();
+            renderCompareScores();
+        }
+
+        // --- Compare mode: render conversation bubbles ---
+        function renderCompareBubbles() {
+            renderBubblesInPanel(compareBaselineTurns, 'compare-baseline-panel');
+            renderBubblesInPanel(compareEnhancedTurns, 'compare-enhanced-panel');
+        }
+
+        function renderBubblesInPanel(turns, panelId) {
+            const panel = document.getElementById(panelId);
+            if (!turns || turns.length === 0) {
+                panel.innerHTML = '<p class="text-primary/40 text-xs">No conversation data.</p>';
+                return;
+            }
+            panel.innerHTML = turns.map(turn => {
+                const isUser = turn.role === 'customer';
+                const label = isUser ? 'Customer' : 'Agent';
+                const align = isUser ? 'items-end' : 'items-start';
+                const bubbleBg = isUser ? 'bg-gray-100 text-dark' : 'bg-primary text-white';
+                const mdTheme = isUser ? 'md-light' : 'md-dark';
+                const toolHtml = (!isUser && turn.tool_interactions?.length)
+                    ? renderToolInteractions(turn.tool_interactions) : '';
+                const badgeHtml = (!isUser && turn.context_source)
+                    ? `<span class="context-badge context-badge-${turn.context_source === 'mem0' ? 'mem0' : 'reflexio'}">${turn.context_source === 'mem0' ? 'mem0' : 'Reflexio'}</span>`
+                    : '';
+                return `
+                    <div class="flex flex-col ${align}">
+                        <span class="text-[9px] text-gray-400 mb-0.5 px-1">${label} · T${turn.turn}${badgeHtml}</span>
+                        <div class="${bubbleBg} md-prose ${mdTheme} rounded-lg px-2.5 py-1.5 max-w-[95%] text-xs leading-relaxed">
+                            ${renderMarkdown(turn.content)}${toolHtml}
+                        </div>
+                    </div>`;
+            }).join('');
+            panel.scrollTop = panel.scrollHeight;
+        }
+
+        // --- Compare mode: render scores panel ---
+        function renderCompareScores() {
+            const panel = document.getElementById('compare-scores-panel');
+            if (!currentEvaluation) {
+                panel.innerHTML = '<p class="text-primary/40 text-xs">Run a comparison or load an evaluation to see scores.</p>';
+                document.getElementById('baseline-score-badge').textContent = '';
+                document.getElementById('enhanced-score-badge').textContent = '';
+                return;
+            }
+
+            const e = currentEvaluation;
+            const bm = e.baseline_metrics;
+            const em = e.enhanced_metrics;
+
+            // Update header badges
+            document.getElementById('baseline-score-badge').textContent = `Score: ${bm.overall_score}/10`;
+            document.getElementById('enhanced-score-badge').textContent = `Score: ${em.overall_score}/10`;
+
+            const winnerClass = e.winner === 'enhanced' ? 'winner-enhanced' : e.winner === 'baseline' ? 'winner-baseline' : 'winner-tie';
+            const winnerLabel = e.winner === 'enhanced' ? 'Enhanced Wins' : e.winner === 'baseline' ? 'Baseline Wins' : 'Tie';
+
+            const metrics = [
+                { label: 'Overall', b: bm.overall_score, e: em.overall_score, max: 10 },
+                { label: 'Proactivity', b: bm.agent_proactivity_score, e: em.agent_proactivity_score, max: 5 },
+                { label: 'Solution Quality', b: bm.solution_quality_score, e: em.solution_quality_score, max: 5 },
+                { label: 'Satisfaction', b: bm.customer_satisfaction_score, e: em.customer_satisfaction_score, max: 5 },
+            ];
+
+            const metricsHtml = metrics.map(m => {
+                const bPct = (m.b / m.max * 100);
+                const ePct = (m.e / m.max * 100);
+                const bColor = m.b >= m.e ? 'bg-primary' : 'bg-gray-300';
+                const eColor = m.e >= m.b ? 'bg-green-500' : 'bg-gray-300';
+                return `
+                    <div class="mb-3">
+                        <div class="flex justify-between text-[10px] text-gray-600 mb-1">
+                            <span>${m.label}</span>
+                            <span>${m.b} vs ${m.e}</span>
+                        </div>
+                        <div class="flex gap-1">
+                            <div class="flex-1">
+                                <div class="bg-gray-100 rounded-full h-1.5">
+                                    <div class="score-bar ${bColor}" style="width: ${bPct}%"></div>
+                                </div>
+                            </div>
+                            <div class="flex-1">
+                                <div class="bg-gray-100 rounded-full h-1.5">
+                                    <div class="score-bar ${eColor}" style="width: ${ePct}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+            }).join('');
+
+            const diffsHtml = (e.key_differences || []).map(d =>
+                `<li class="text-xs text-gray-700 mb-1">${escapeHtml(d)}</li>`
+            ).join('');
+
+            panel.innerHTML = `
+                <div class="text-center mb-4">
+                    <span class="winner-badge ${winnerClass}">${winnerLabel}</span>
+                </div>
+
+                <div class="mb-4">
+                    <div class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Score Comparison</div>
+                    <div class="flex gap-2 mb-2 text-[9px] text-gray-400">
+                        <span class="flex-1 text-center">Baseline</span>
+                        <span class="flex-1 text-center">Enhanced</span>
+                    </div>
+                    ${metricsHtml}
+                </div>
+
+                <div class="mb-4">
+                    <div class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Summary</div>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div class="bg-gray-50 rounded p-2">
+                            <div class="font-medium text-dark">Baseline</div>
+                            <div class="text-gray-500">${bm.total_turns} turns, ${bm.user_correction_count} corrections</div>
+                            <div class="text-gray-500">Resolved: ${bm.resolution_success ? 'Yes' : 'No'}</div>
+                        </div>
+                        <div class="bg-gray-50 rounded p-2">
+                            <div class="font-medium text-dark">Enhanced</div>
+                            <div class="text-gray-500">${em.total_turns} turns, ${em.user_correction_count} corrections</div>
+                            <div class="text-gray-500">Resolved: ${em.resolution_success ? 'Yes' : 'No'}</div>
+                        </div>
+                    </div>
+                </div>
+
+                ${diffsHtml ? `
+                <div class="mb-4">
+                    <div class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Key Differences</div>
+                    <ul class="list-disc pl-4">${diffsHtml}</ul>
+                </div>` : ''}
+
+                <div class="mb-4">
+                    <div class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Winner Explanation</div>
+                    <p class="text-xs text-gray-700">${escapeHtml(e.winner_explanation || '')}</p>
+                </div>
+
+                ${bm.user_corrections?.length ? `
+                <div class="mb-3">
+                    <div class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Baseline Corrections</div>
+                    <ul class="list-disc pl-4 text-xs text-gray-600">${bm.user_corrections.map(c => `<li>${escapeHtml(c)}</li>`).join('')}</ul>
+                </div>` : ''}
+
+                ${em.user_corrections?.length ? `
+                <div class="mb-3">
+                    <div class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Enhanced Corrections</div>
+                    <ul class="list-disc pl-4 text-xs text-gray-600">${em.user_corrections.map(c => `<li>${escapeHtml(c)}</li>`).join('')}</ul>
+                </div>` : ''}
+
+                <div class="text-[9px] text-gray-400 mt-4">
+                    Judge: ${escapeHtml(e.judge_model || '')} | ${e.evaluated_at ? new Date(e.evaluated_at).toLocaleString() : ''}
+                </div>
+            `;
         }
 
         // --- Init ---

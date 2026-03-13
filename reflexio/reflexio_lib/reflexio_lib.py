@@ -816,8 +816,15 @@ class Reflexio:
             if isinstance(config, dict):
                 config = Config(**config)
 
-            # Validate storage connection before setting config
+            # Validate storage connection before setting config.
+            # If no storage_config provided, preserve the existing one (callers
+            # like get_config() don't expose storage_config for security).
             storage_config = config.storage_config
+            if storage_config is None:
+                storage_config = (
+                    self.request_context.configurator.get_current_storage_configuration()
+                )
+                config.storage_config = storage_config
 
             # Check if storage config is ready to test
             if not self.request_context.configurator.is_storage_config_ready_to_test(

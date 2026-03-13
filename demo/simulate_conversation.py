@@ -53,27 +53,35 @@ def get_reflexio_context(reflexio_config: dict, query: str) -> str:
         user_id = reflexio_config["user_id"]
         agent_version = reflexio_config["agent_version"]
 
+        print(f"  [Reflexio] Searching with query: \"{query[:80]}\"")
+
         profile_section = ""
+        profiles_found = []
         try:
             profile_resp = client.search_profiles(
                 user_id=user_id, query=query, top_k=10, threshold=0.1
             )
             if profile_resp.success and profile_resp.user_profiles:
+                profiles_found = profile_resp.user_profiles
                 lines = []
                 for p in profile_resp.user_profiles:
                     lines.append(f"- {p.profile_content}")
                 profile_section = (
                     "\n## Known User Preferences & Information\n" + "\n".join(lines)
                 )
+            else:
+                print(f"    Profiles: 0 results (success={profile_resp.success}, msg={profile_resp.msg})")
         except Exception as e:
-            logger.warning(f"Failed to fetch profiles: {e}")
+            print(f"    Profiles: FAILED — {e}")
 
         feedback_section = ""
+        feedbacks_found = []
         try:
             feedback_resp = client.search_raw_feedbacks(
                 query=query, agent_version=agent_version, top_k=5, threshold=0.1
             )
             if feedback_resp.success and feedback_resp.raw_feedbacks:
+                feedbacks_found = feedback_resp.raw_feedbacks
                 lines = []
                 for fb in feedback_resp.raw_feedbacks:
                     parts = [f"- {fb.feedback_content}"]
@@ -91,11 +99,29 @@ def get_reflexio_context(reflexio_config: dict, query: str) -> str:
                     "you MUST follow the DO/DON'T actions even if they differ from your default steps.\n\n"
                     + "\n\n".join(lines)
                 )
+            else:
+                print(f"    Feedbacks: 0 results (success={feedback_resp.success}, msg={feedback_resp.msg})")
         except Exception as e:
-            logger.warning(f"Failed to fetch feedbacks: {e}")
+            print(f"    Feedbacks: FAILED — {e}")
 
         if not profile_section and not feedback_section:
+            print(f"    -> No context injected (local storage uses substring matching, not semantic search)")
             return ""
+
+        # Display retrieved context for this turn
+        print(f"    -> Matched {len(profiles_found)} profile(s), {len(feedbacks_found)} feedback(s)")
+        if profiles_found:
+            print("    Profiles:")
+            for p in profiles_found:
+                emb_status = f"embedding[{len(p.embedding)}]" if p.embedding else "no-embedding"
+                snippet = p.profile_content[:120] + ("..." if len(p.profile_content) > 120 else "")
+                print(f"      - [{emb_status}] {snippet}")
+        if feedbacks_found:
+            print("    Feedbacks:")
+            for fb in feedbacks_found:
+                emb_status = f"embedding[{len(fb.embedding)}]" if fb.embedding else "no-embedding"
+                snippet = fb.feedback_content[:120] + ("..." if len(fb.feedback_content) > 120 else "")
+                print(f"      - [{emb_status}] {snippet}")
 
         return (
             "\n\n---\n# Context and Corrections"

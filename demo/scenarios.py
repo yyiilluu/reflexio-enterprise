@@ -60,6 +60,7 @@ class Scenario:
     customer_opening_message: str
     max_turns: int = 30
     tools: list[ScenarioTool] = field(default_factory=list)
+    evaluation_criteria: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -493,6 +494,7 @@ Your job is to help customers resolve technical issues.
 **Style:** Professional, concise responses (no more than 3 sentences). Ask one question at a time.
 """,
     customer_opening_message="Hi, our team is having trouble with CloudOps Pro. The nightly backup job keeps failing.",
+    evaluation_criteria="Agent should quickly identify the customer prefers open-source, CLI-based, automated solutions. Should NOT suggest UI guides, vendor-locked tools, or manual steps. Should offer rclone or similar open-source approach.",
 )
 
 REQUEST_REFUND_SCENARIO = Scenario(
@@ -556,6 +558,7 @@ about unauthorized charges — it's stressful for customers.\
 """,
     customer_opening_message="Hi, I'm looking at my credit card statement and there's a $49.99 charge I don't recognize. Can you help me figure out what it is?",
     tools=[TOOL_ORDER_LOOK_UP, TOOL_ISSUE_REFUND],
+    evaluation_criteria="Agent should proactively review ALL recent charges with the customer (not just the one mentioned). Both $49.99 and $9.99 refunds should be processed without the customer having to discover the second one themselves.",
 )
 
 RESTAURANT_TOGO_ORDER = Scenario(
@@ -615,6 +618,7 @@ Estimated pickup time is 20-25 minutes."
 **Style:** Warm, friendly, concise (2-3 sentences). Suggest 3-4 options when recommending dishes.\
 """,
     customer_opening_message="Hi! I'd like to place a to-go order for pickup tonight.",
+    evaluation_criteria="Agent should ask about allergies before confirming the order, or handle the allergy disclosure gracefully. Should recommend safe peanut-free alternatives.",
 )
 
 ISP_OUTAGE_WFH = Scenario(
@@ -687,6 +691,7 @@ reach step 5 to check for outages. Use schedule_technician if a technician visit
 """,
     customer_opening_message="Hi, I'm having a lot of trouble with my internet today. It keeps dropping in and out.",
     tools=[TOOL_CHECK_AREA_OUTAGES, TOOL_SCHEDULE_TECHNICIAN],
+    evaluation_criteria="Agent should check for area outages BEFORE asking customer to restart modem. Should offer a temporary workaround (hotspot, wired connection) once outage is confirmed.",
 )
 
 SUBSCRIPTION_CANCEL_UPGRADE = Scenario(
@@ -761,6 +766,7 @@ You have access to the following tools:
         TOOL_UPGRADE_PLAN,
         TOOL_CANCEL_SUBSCRIPTION,
     ],
+    evaluation_criteria="Agent should ask about the customer's actual needs before processing cancellation. Should discover and suggest the Team plan that matches their requirements.",
 )
 
 CODING_INTERVIEW_HELP = Scenario(
@@ -827,6 +833,7 @@ which approach.
 teaching approach step by step.\
 """,
     customer_opening_message="Hey, can you help me with binary search?",
+    evaluation_criteria="Agent should quickly identify the student wants interview prep, not textbook theory. Should provide variations (rotated array, first occurrence) with worked examples, not standard binary search definition.",
 )
 
 INVESTMENT_SHORT_TERM = Scenario(
@@ -893,6 +900,7 @@ insurance, and avoid stock-heavy recommendations.
 expense ratios, etc.). Follow the consultation flow step by step. Responses are 3-5 sentences.\
 """,
     customer_opening_message="Hi, I have some savings sitting around and I want to start investing to grow my money. Can you help?",
+    evaluation_criteria="Agent should ask about timeline and risk tolerance before recommending investments. Should recommend low-risk short-term options (HYSA, CDs, T-bills) once the 18-month timeline is revealed.",
 )
 
 WEEKLY_STATUS_EMAIL = Scenario(
@@ -967,6 +975,7 @@ we shipped the checkout page redesign, started working on payment integration, a
 hit a blocker — the third-party payment API has rate limits that are way lower than we \
 expected. Can you draft something I can send to the whole company?\
 """,
+    evaluation_criteria="Agent should apply user formatting feedback incrementally: bullet points, separate blockers section, casual tone, brevity. All four preferences should be met.",
 )
 
 SCENARIOS = {
