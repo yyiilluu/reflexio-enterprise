@@ -47,7 +47,10 @@ def is_s3_config_storage_ready() -> bool:
 
 class SimpleConfigurator:
     def __init__(
-        self, org_id: str, base_dir: Optional[str] = None, config: Config = None
+        self,
+        org_id: str,
+        base_dir: Optional[str] = None,
+        config: Optional[Config] = None,
     ):
         self.org_id = org_id
         self.base_dir = base_dir

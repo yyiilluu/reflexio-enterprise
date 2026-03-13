@@ -9,7 +9,7 @@ class RequestContext:
         self,
         org_id: str,
         storage_base_dir: Optional[str] = None,
-        configurator: SimpleConfigurator = None,
+        configurator: Optional[SimpleConfigurator] = None,
     ):
         self.org_id = str(org_id)
         self.storage_base_dir = storage_base_dir
