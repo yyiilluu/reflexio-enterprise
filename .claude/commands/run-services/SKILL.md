@@ -31,10 +31,10 @@ Read port values from environment variables (respect worktree offsets):
 
 ## Execution Steps
 
-### Step 1: Activate Poetry Environment
+### Step 1: Activate Virtual Environment
 
 ```bash
-source $(poetry env info --path)/bin/activate
+source .venv/bin/activate
 ```
 
 ### Step 2: Pre-flight Dependency Checks
@@ -43,7 +43,7 @@ Run these checks before starting anything. They are idempotent and fast when dep
 
 **Python dependencies:**
 ```bash
-poetry install
+uv sync
 ```
 
 **Frontend dependencies (reflexio/website):**
@@ -146,7 +146,7 @@ Then retry from Step 4.
 **b. "ModuleNotFoundError" / "ImportError" (Python)**
 A Python dependency is missing. Fix:
 ```bash
-poetry install
+uv sync
 ```
 Then retry from Step 4.
 

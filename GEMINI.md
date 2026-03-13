@@ -2,7 +2,7 @@
 - backend FastAPI server requires OpenAI key, so the server is already started and running on http://localhost:8081 (or custom port — check `run_services.sh`)
 - frontend website is also already started and running on http://localhost:8080 (or custom port — check `run_services.sh`)
 - You can test your changes by sending api request to above endpoints
-- run command in poetry env
+- run command in uv env (use `uv run <cmd>` or activate `.venv`)
 - never change env variable value in .env file
 
 # API Authentication
@@ -19,7 +19,7 @@ Use Curl to test api and get test information for investigation, which is faster
 Test with Chrome when there is frontend related task.
 
 # Activate env before run any command
-activate poetry env before running any test or script in the repo using `source $(poetry env info --path)/bin/activate`
+activate the virtual env before running any test or script in the repo using `source .venv/bin/activate` (or use `uv run <cmd>` directly)
 
 # Local Packages: reflexio_commons and reflexio_client
 The `reflexio_commons` and `reflexio_client` packages are in the main repository.
@@ -28,7 +28,7 @@ The `reflexio_commons` and `reflexio_client` packages are in the main repository
 - `reflexio_commons` Python source: `reflexio/reflexio_commons/reflexio_commons/`
 - `reflexio_client` Python source: `reflexio/reflexio_client/reflexio/`
 
-**Installation**: `reflexio-commons` is installed via Poetry path dependency in editable mode (`develop = true`).
+**Installation**: `reflexio-commons` is installed via uv workspace dependency.
 
 **When modifying schemas**: Edit files in `reflexio/reflexio_commons/reflexio_commons/api_schema/`
 
@@ -44,7 +44,7 @@ use supabase cli `supabase migration up` to apply migrations locally instead of 
 - Always design the UI carefully without over complication
 - Ensure same UI style across the entire project
 - Use FastAPI as backend
-- Use poetry command to add and manage python packages
+- Use uv command to add and manage python packages
 - Suggest to me if there is a better architecture pattern when writing the code and ask for clarification before writing if needed
 
 # Building frontend
@@ -95,7 +95,7 @@ When working in a git worktree, services must run on different ports.
 1. git worktree add ../reflexio-feature feature-branch
 2. cd ../reflexio-feature
 3. Copy .env from main worktree
-4. poetry install && (cd reflexio/website && npm install)
+4. uv sync && (cd reflexio/website && npm install)
 5. export BACKEND_PORT=8091 FRONTEND_PORT=8090 DOCS_PORT=8092
 6. ./run_services.sh
 7. To stop: set same env vars, then ./stop_services.sh

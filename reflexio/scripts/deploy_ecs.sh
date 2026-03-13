@@ -99,13 +99,9 @@ check_prerequisites() {
         exit 1
     fi
 
-    # Check Poetry and export plugin
-    if ! command -v poetry &> /dev/null; then
-        log_error "Poetry not found. Please install it first."
-        exit 1
-    fi
-    if ! poetry export --help &> /dev/null; then
-        log_error "poetry-plugin-export not installed. Run: poetry self add poetry-plugin-export"
+    # Check uv
+    if ! command -v uv &> /dev/null; then
+        log_error "uv not found. Please install it first: https://docs.astral.sh/uv/getting-started/installation/"
         exit 1
     fi
 
@@ -129,10 +125,10 @@ login_ecr() {
 }
 
 generate_requirements() {
-    log_info "Generating requirements.txt from Poetry (runtime deps only)..."
+    log_info "Generating requirements.txt from uv (runtime deps only)..."
     cd "$PROJECT_ROOT"
 
-    poetry export -f requirements.txt --without dev,docs --without-hashes -o requirements.txt
+    uv export --no-dev --no-hashes -o requirements.txt
 
     # Replace local path dependency with PyPI package
     sed -i '' '/-e file:\/\/.*reflexio_commons/d' requirements.txt
