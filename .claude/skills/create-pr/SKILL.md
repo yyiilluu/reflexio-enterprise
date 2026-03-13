@@ -1,6 +1,6 @@
 ---
-name: pr-creator
-description: "Create high-quality pull requests via gh pr create. Use when the user wants to create a PR, submit a PR, open a pull request, submit for review, or push changes for review. Triggers on: create a pr, submit a pr, open a pull request, submit for review, make a pr, gh pr create."
+name: create-pr
+description: "Create high-quality pull requests via gh pr create. Use when the user wants to create a PR, submit a PR, open a pull request, submit for review, or push changes for review. Triggers on: create a pr, create-pr, submit a pr, open a pull request, submit for review, make a pr, gh pr create."
 ---
 
 # PR Creator
