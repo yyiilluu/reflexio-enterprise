@@ -1,0 +1,7 @@
+{
+    "include": ["reflexio"],
+    "exclude": ["reflexio/website", "reflexio/tests", "reflexio/data", "reflexio/public_docs", "**/__pycache__"],
+    "pythonVersion": "3.10",
+    "typeCheckingMode": "basic",
+    "reportMissingTypeStubs": false
+}

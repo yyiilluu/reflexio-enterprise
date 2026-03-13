@@ -1,6 +1,6 @@
 ---
 name: commit
-description: Git commit workflow with precommit hook handling, README updates, and API reference updates. Use when the user wants to commit changes. Handles precommit hooks that modify files (formatting, linting) by re-staging and retrying. Fixes failing unit tests automatically before committing. Updates README code maps if needed. Updates API reference docs when client.py or service_schemas.py changed. Does not push.
+description: Git commit workflow with precommit hook handling, lint/type checking, README updates, and API reference updates. Use when the user wants to commit changes. Handles precommit hooks that modify files (formatting, linting) by re-staging and retrying. Runs ruff lint and pyright type checks on staged Python files and fixes all errors. Fixes failing unit tests automatically before committing. Updates README code maps if needed. Updates API reference docs when client.py or service_schemas.py changed. Does not push.
 ---
 
 # Commit
@@ -14,6 +14,16 @@ Create a git commit with automatic precommit hook handling, test fixing, README 
 3. **Stage files** - Add relevant untracked/modified files if needed. Do not modify or change gitignored files, such as `.env`. Never change `.env` file even if it is modified.
 4. **Check README updates** - Run through the README Update Guidelines checklist below. If ANY criteria match, update README files before proceeding.
 5. **Update API Reference docs** - If `reflexio/reflexio_client/reflexio/client.py` or `reflexio/reflexio_commons/reflexio_commons/api_schema/service_schemas.py` changed, update `reflexio/public_docs/api-reference/` (see API Reference Update Guidelines below)
+5.5. **Run lint and type checks on staged Python files**
+   a. Get the list of staged Python files:
+      ```bash
+      git diff --cached --name-only --diff-filter=ACMR -- '*.py'
+      ```
+      If no Python files are staged, skip this step entirely.
+   b. **Ruff auto-fix**: Run `ruff check --fix <files>`. Re-stage any modified files with `git add <files>`.
+   c. **Ruff format**: Run `ruff format <files>`. Re-stage any modified files with `git add <files>`.
+   d. **Ruff remaining errors**: Run `ruff check <files>`. If any errors remain that ruff could not auto-fix, **read each error, understand the issue, and fix the code yourself**. Re-stage fixes. Do NOT proceed with unfixed ruff errors.
+   e. **Pyright type check**: Run `pyright <files>`. If any type errors are reported, **read each error, understand the type issue, and fix the code yourself**. Re-stage fixes. Do NOT proceed with unfixed pyright errors.
 6. **Attempt commit** - Run `git commit` which triggers precommit hooks
 7. **Handle hook results**:
    - If hooks **modify files** (formatting, linting): Stage the modified files with `git add -u` and retry commit

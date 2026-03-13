@@ -12,7 +12,7 @@ Perform a rigorous, senior-engineer-level code review of all uncommitted changes
 - **You are a strict reviewer, not a rubber-stamper.** Flag real problems. Do not praise code just to be nice.
 - **Never make changes directly.** Your output is a review report and an optional change plan. Wait for explicit user approval before editing any file.
 - **Ask questions when intent is ambiguous.** If you cannot tell whether something is intentional or a mistake, ask.
-- **Focus on substance over style.** Formatting issues caught by linters are low priority. Logic errors, security holes, and architectural violations are high priority.
+- **Focus on substance over style.** Formatting issues caught by pre-commit hooks are low priority. **Ruff lint violations and pyright type errors in changed files are substantive findings** — classify them by severity alongside manual review findings.
 
 ## Workflow
 
@@ -32,6 +32,19 @@ git ls-files --others --exclude-standard
 ```
 
 Read the diff carefully. For every changed file, also read the **full file** (not just the diff hunk) so you understand the surrounding context — imports, class hierarchy, sibling functions, and call sites.
+
+**Run automated lint and type checks on changed Python files:**
+```bash
+# Get changed Python files
+git diff HEAD --name-only -- '*.py'
+
+# Run ruff on changed files only
+ruff check <changed .py files>
+
+# Run pyright on changed files only
+pyright <changed .py files>
+```
+Save the ruff and pyright output — these results feed into the review checklist below.
 
 ### Phase 2 — Understand context
 
@@ -85,6 +98,7 @@ Evaluate every change against the following categories. Only report findings tha
 - Are resources cleaned up on failure (connections, file handles)?
 
 #### 3.6 Type Safety & Data Integrity
+- Review pyright output from Phase 1. All type errors in changed files are findings — classify by severity.
 - Are type hints present and correct on new/changed functions?
 - Are Pydantic models used where structured validation is needed?
 - Are there implicit type coercions that could cause subtle bugs?
@@ -190,6 +204,10 @@ Code that is duplicated across files or within files, hurting maintainability.
 Core logic that lacks test coverage. Prioritized by risk (security > correctness > edge cases).
 - [ ] `test_name_here` — What the test should verify and why it matters.
 
+### Lint & Type Check Results
+Ruff and pyright findings on changed files.
+- [ ] **[FILE:LINE]** `RULE_CODE` — Description and fix recommendation.
+
 ### Observations
 Things that are not wrong but worth noting (e.g., "this module is growing large — consider splitting in the future").
 
@@ -229,7 +247,7 @@ Then explicitly ask the user:
 
 ## What This Review Does NOT Cover
 
-- Formatting and whitespace (handled by pre-commit hooks)
-- Import ordering (handled by linters)
+- **Formatting and whitespace** (handled by pre-commit hooks and ruff format)
+- **Import ordering** (handled by ruff `I` rules)
 - Line length (handled by linters)
 - Whether the feature itself is a good idea (that is a product decision, not a code review)
