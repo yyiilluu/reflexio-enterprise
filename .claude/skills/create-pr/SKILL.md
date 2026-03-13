@@ -23,6 +23,7 @@ Run these checks before anything else:
    - Run `git checkout -b <branch-name>`
    - If there are commits on `main` that should be in the PR, they are already on the new branch (it forked from `main`). After creating the PR, optionally reset `main` back to `origin/main` to keep it clean.
 5. **Check remote tracking** — verify the current branch tracks a remote and is pushed up-to-date. If not, push with `-u` flag.
+6. **Sync submodules** — run `git submodule update --init --recursive` to ensure submodules are in sync (skip if no submodules exist).
 
 ### Step 2: Sync with Base Branch
 
@@ -92,10 +93,10 @@ Guidelines for the body:
 
 ### Step 5: Create the PR
 
-Run `gh pr create` using a HEREDOC for the body to preserve formatting:
+Write the body to a temp file and use `--body-file` to avoid shell argument length limits:
 
 ```bash
-gh pr create --title "the pr title" --body "$(cat <<'EOF'
+cat > /tmp/pr_body.md <<'EOF'
 ## Summary
 ...
 
@@ -105,7 +106,7 @@ gh pr create --title "the pr title" --body "$(cat <<'EOF'
 ## Test Plan
 ...
 EOF
-)"
+gh pr create --title "the pr title" --body-file /tmp/pr_body.md
 ```
 
 **Do NOT add:**

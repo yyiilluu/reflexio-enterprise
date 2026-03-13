@@ -17,6 +17,7 @@ Push follow-up changes to an existing PR and update its description to reflect t
 2. **Find the existing PR** — run `gh pr view --json number,title,body,url,baseRefName` to find the PR for the current branch. If no PR exists, abort and suggest using `/create-pr` instead.
 3. **Verify clean git state** — run `git status` to ensure no uncommitted changes. If there are uncommitted changes, run the `/commit` skill first to commit them.
 4. **Push latest commits** — run `git push` to ensure the remote branch is up-to-date. If the branch has diverged, push with `--force-with-lease`.
+5. **Sync submodules** — run `git submodule update --init --recursive` to ensure submodules are in sync (skip if no submodules exist).
 
 ### Step 2: Sync with Base Branch
 
@@ -83,10 +84,10 @@ Guidelines for the body:
 
 ### Step 5: Apply Updates
 
-Update the PR title and body using `gh pr edit`:
+Write the body to a temp file and use `--body-file` to avoid shell argument length limits:
 
 ```bash
-gh pr edit --title "the pr title" --body "$(cat <<'EOF'
+cat > /tmp/pr_body.md <<'EOF'
 ## Summary
 ...
 
@@ -96,7 +97,7 @@ gh pr edit --title "the pr title" --body "$(cat <<'EOF'
 ## Test Plan
 ...
 EOF
-)"
+gh pr edit --title "the pr title" --body-file /tmp/pr_body.md
 ```
 
 **Do NOT add:**
