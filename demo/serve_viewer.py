@@ -425,6 +425,46 @@ async def reflexio_status():
     return JSONResponse({"logged_in": reflexio_client is not None})
 
 
+def _load_interactions_from_file(filepath: Path) -> list[InteractionData]:
+    """
+    Load conversation turns from a JSONL file and convert them to InteractionData objects.
+
+    Args:
+        filepath (Path): Path to the JSONL conversation file
+
+    Returns:
+        list[InteractionData]: List of interaction objects ready for Reflexio publish
+    """
+    interactions = []
+    with open(filepath) as f:
+        for line in f:
+            if not line.strip():
+                continue
+            turn = json.loads(line)
+            role = "User" if turn["role"] == "customer" else "Assistant"
+            tool_interactions = turn.get("tool_interactions")
+            if tool_interactions:
+                tools_used = [
+                    ToolUsed(
+                        tool_name=ti["function_name"],
+                        tool_input=ti.get("arguments", {}),
+                    )
+                    for ti in tool_interactions
+                ]
+                interactions.append(
+                    InteractionData(
+                        role=role,
+                        content=turn["content"],
+                        tools_used=tools_used,
+                    )
+                )
+            else:
+                interactions.append(
+                    InteractionData(role=role, content=turn["content"])
+                )
+    return interactions
+
+
 @app.post("/api/reflexio/publish")
 async def reflexio_publish(req: ReflexioPublishRequest):
     """
@@ -441,34 +481,7 @@ async def reflexio_publish(req: ReflexioPublishRequest):
         raise HTTPException(status_code=404, detail="Conversation file not found")
 
     try:
-        interactions = []
-        with open(filepath) as f:
-            for line in f:
-                if not line.strip():
-                    continue
-                turn = json.loads(line)
-                role = "User" if turn["role"] == "customer" else "Assistant"
-                tool_interactions = turn.get("tool_interactions")
-                if tool_interactions:
-                    tools_used = [
-                        ToolUsed(
-                            tool_name=ti["function_name"],
-                            tool_input=ti.get("arguments", {}),
-                        )
-                        for ti in tool_interactions
-                    ]
-                    interactions.append(
-                        InteractionData(
-                            role=role,
-                            content=turn["content"],
-                            tools_used=tools_used,
-                        )
-                    )
-                else:
-                    interactions.append(
-                        InteractionData(role=role, content=turn["content"])
-                    )
-
+        interactions = _load_interactions_from_file(filepath)
         reflexio_client.publish_interaction(
             user_id=req.user_id,
             interactions=interactions,
@@ -608,6 +621,138 @@ async def evaluate_pair(req: EvaluateRequest):
         raise HTTPException(status_code=500, detail=f"Evaluation failed: {e}")
 
 
+def _stream_baseline_simulation(req: RunComparisonRequest):
+    """
+    Run baseline simulation and yield SSE events for each turn.
+
+    Args:
+        req (RunComparisonRequest): The comparison request
+
+    Yields:
+        str: SSE event strings
+
+    Returns via final 'done' yield: baseline_filename is embedded in the done event
+    """
+    yield _sse_event(
+        "status",
+        {"phase": "baseline", "message": "Starting baseline simulation..."},
+    )
+
+    baseline_filename = None
+    for item in simulate_stream(req.scenario, req.model, req.max_turns):
+        if item["event"] == "turn":
+            yield _sse_event("turn", {**item, "phase": "baseline"})
+        elif item["event"] == "done":
+            baseline_filename = item["filename"]
+        elif item["event"] == "scenario":
+            yield _sse_event("scenario", item)
+
+    yield _sse_event("_baseline_done", {"filename": baseline_filename})
+
+
+def _stream_publish_to_reflexio(req: RunComparisonRequest, baseline_filename: str):
+    """
+    Publish baseline conversation to Reflexio and yield SSE status events.
+
+    Args:
+        req (RunComparisonRequest): The comparison request
+        baseline_filename (str): Filename of the baseline JSONL
+
+    Yields:
+        str: SSE event strings
+    """
+    if req.skip_publish:
+        yield _sse_event(
+            "status",
+            {"phase": "publish", "message": "Skipping publish (skip_publish=true)"},
+        )
+        return
+
+    yield _sse_event(
+        "status",
+        {"phase": "publish", "message": "Publishing baseline to Reflexio..."},
+    )
+    baseline_path = OUTPUT_DIR / baseline_filename
+    interactions = _load_interactions_from_file(baseline_path)
+    reflexio_client.publish_interaction(
+        user_id=req.reflexio_user_id or "demo-user",
+        interactions=interactions,
+        source="demo-comparison",
+        agent_version=req.reflexio_agent_version,
+        wait_for_response=True,
+    )
+    yield _sse_event(
+        "status",
+        {"phase": "publish", "message": f"Published {len(interactions)} interactions"},
+    )
+
+
+def _stream_enhanced_simulation(req: RunComparisonRequest):
+    """
+    Run enhanced simulation with Reflexio context and yield SSE events for each turn.
+
+    Args:
+        req (RunComparisonRequest): The comparison request
+
+    Yields:
+        str: SSE event strings
+    """
+    yield _sse_event(
+        "status",
+        {"phase": "enhanced", "message": "Starting enhanced simulation with Reflexio..."},
+    )
+    rc = {
+        "client": reflexio_client,
+        "user_id": req.reflexio_user_id or "demo-user",
+        "agent_version": req.reflexio_agent_version,
+    }
+
+    enhanced_filename = None
+    for item in simulate_stream(
+        req.scenario, req.model, req.max_turns, reflexio_config=rc
+    ):
+        if item["event"] == "turn":
+            yield _sse_event("turn", {**item, "phase": "enhanced"})
+        elif item["event"] == "done":
+            enhanced_filename = item["filename"]
+
+    yield _sse_event("_enhanced_done", {"filename": enhanced_filename})
+
+
+def _stream_evaluation(
+    baseline_filename: str, enhanced_filename: str, judge_model: str
+):
+    """
+    Evaluate baseline vs enhanced conversations and yield SSE result events.
+
+    Args:
+        baseline_filename (str): Filename of the baseline JSONL
+        enhanced_filename (str): Filename of the enhanced JSONL
+        judge_model (str): LLM model to use as judge
+
+    Yields:
+        str: SSE event strings
+    """
+    yield _sse_event(
+        "status",
+        {"phase": "evaluation", "message": "Evaluating conversations..."},
+    )
+    baseline_path = OUTPUT_DIR / baseline_filename
+    enhanced_path = OUTPUT_DIR / enhanced_filename
+    result = compare_conversations(baseline_path, enhanced_path, judge_model)
+    eval_path = save_evaluation(result)
+
+    yield _sse_event("evaluation", result.model_dump())
+    yield _sse_event(
+        "done",
+        {
+            "evaluation_file": eval_path.name,
+            "baseline_file": baseline_filename,
+            "enhanced_file": enhanced_filename,
+        },
+    )
+
+
 @app.post("/api/compare/stream")
 async def run_comparison_stream(req: RunComparisonRequest):
     """
@@ -621,116 +766,29 @@ async def run_comparison_stream(req: RunComparisonRequest):
     def event_generator():
         try:
             # Phase 1: Baseline simulation
-            yield _sse_event(
-                "status",
-                {"phase": "baseline", "message": "Starting baseline simulation..."},
-            )
-
-            baseline_turns = []
-            for item in simulate_stream(req.scenario, req.model, req.max_turns):
-                if item["event"] == "turn":
-                    baseline_turns.append(item)
-                    yield _sse_event(
-                        "turn", {**item, "phase": "baseline"}
-                    )
-                elif item["event"] == "done":
-                    baseline_filename = item["filename"]
-                elif item["event"] == "scenario":
-                    yield _sse_event("scenario", item)
+            baseline_filename = None
+            for event in _stream_baseline_simulation(req):
+                data = json.loads(event.split("data: ", 1)[1].split("\n")[0])
+                if data.get("event") == "_baseline_done":
+                    baseline_filename = data["filename"]
+                    continue
+                yield event
 
             # Phase 2: Publish to Reflexio
-            if not req.skip_publish:
-                yield _sse_event(
-                    "status",
-                    {"phase": "publish", "message": "Publishing baseline to Reflexio..."},
-                )
-                baseline_path = OUTPUT_DIR / baseline_filename
-                interactions = []
-                with open(baseline_path) as f:
-                    for line in f:
-                        if not line.strip():
-                            continue
-                        turn = json.loads(line)
-                        role = "User" if turn["role"] == "customer" else "Assistant"
-                        tool_interactions = turn.get("tool_interactions")
-                        if tool_interactions:
-                            tools_used = [
-                                ToolUsed(
-                                    tool_name=ti["function_name"],
-                                    tool_input=ti.get("arguments", {}),
-                                )
-                                for ti in tool_interactions
-                            ]
-                            interactions.append(
-                                InteractionData(
-                                    role=role,
-                                    content=turn["content"],
-                                    tools_used=tools_used,
-                                )
-                            )
-                        else:
-                            interactions.append(
-                                InteractionData(role=role, content=turn["content"])
-                            )
-                reflexio_client.publish_interaction(
-                    user_id=req.reflexio_user_id or "demo-user",
-                    interactions=interactions,
-                    source="demo-comparison",
-                    agent_version=req.reflexio_agent_version,
-                    wait_for_response=True,
-                )
-                yield _sse_event(
-                    "status",
-                    {"phase": "publish", "message": f"Published {len(interactions)} interactions"},
-                )
-            else:
-                yield _sse_event(
-                    "status",
-                    {"phase": "publish", "message": "Skipping publish (skip_publish=true)"},
-                )
+            yield from _stream_publish_to_reflexio(req, baseline_filename)
 
-            # Phase 3: Enhanced simulation (with Reflexio)
-            yield _sse_event(
-                "status",
-                {"phase": "enhanced", "message": "Starting enhanced simulation with Reflexio..."},
-            )
-            rc = {
-                "client": reflexio_client,
-                "user_id": req.reflexio_user_id or "demo-user",
-                "agent_version": req.reflexio_agent_version,
-            }
-
+            # Phase 3: Enhanced simulation
             enhanced_filename = None
-            for item in simulate_stream(
-                req.scenario, req.model, req.max_turns, reflexio_config=rc
-            ):
-                if item["event"] == "turn":
-                    yield _sse_event(
-                        "turn", {**item, "phase": "enhanced"}
-                    )
-                elif item["event"] == "done":
-                    enhanced_filename = item["filename"]
+            for event in _stream_enhanced_simulation(req):
+                data = json.loads(event.split("data: ", 1)[1].split("\n")[0])
+                if data.get("event") == "_enhanced_done":
+                    enhanced_filename = data["filename"]
+                    continue
+                yield event
 
             # Phase 4: Evaluation
-            yield _sse_event(
-                "status",
-                {"phase": "evaluation", "message": "Evaluating conversations..."},
-            )
-            baseline_path = OUTPUT_DIR / baseline_filename
-            enhanced_path = OUTPUT_DIR / enhanced_filename
-            result = compare_conversations(
-                baseline_path, enhanced_path, req.judge_model
-            )
-            eval_path = save_evaluation(result)
-
-            yield _sse_event("evaluation", result.model_dump())
-            yield _sse_event(
-                "done",
-                {
-                    "evaluation_file": eval_path.name,
-                    "baseline_file": baseline_filename,
-                    "enhanced_file": enhanced_filename,
-                },
+            yield from _stream_evaluation(
+                baseline_filename, enhanced_filename, req.judge_model
             )
 
         except Exception as e:
