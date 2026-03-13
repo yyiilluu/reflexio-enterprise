@@ -44,6 +44,7 @@ Understand the full scope of changes now in the PR:
 2. Run `git diff origin/<base-branch>...HEAD --stat` for a high-level summary of changed files
 3. Run `git diff origin/<base-branch>...HEAD` to read the full diff
 4. Identify the type of change: `feat`, `fix`, `refactor`, `docs`, `chore`, etc.
+5. **Review existing PR title and body** — compare the current PR title and body (from Step 1) against the full diff. Note what's already accurately described vs. what's missing, outdated, or no longer relevant.
 
 **Important:** Look at ALL commits, not just the latest one. The updated PR description should reflect the entire branch, not just the new additions.
 
@@ -53,11 +54,11 @@ Understand the full scope of changes now in the PR:
 
 - Under 70 characters
 - Use conventional prefix: `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`
-- If the scope of the PR has changed significantly, update the title. Otherwise, keep the existing title.
+- Review the existing PR title (from Step 1). If it still accurately reflects the full scope of changes, keep it. If the scope has changed or the title is misleading, update it.
 
 #### Body
 
-Rewrite the PR body using this template — scale detail with PR complexity:
+Review the existing PR body (from Step 1) and update it to reflect the current state of the branch. Preserve any still-accurate content (e.g., context, links, decisions) rather than rewriting from scratch. Use this template — scale detail with PR complexity:
 
 ```
 ## Summary
