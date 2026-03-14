@@ -26,12 +26,10 @@ export function HowItWorks() {
 					<p className="text-sm font-semibold text-indigo-600 uppercase tracking-wider mb-3">
 						Simple & Powerful
 					</p>
-					<h2 className="text-3xl sm:text-4xl font-bold text-slate-800 mb-4">
-						How It Works
-					</h2>
+					<h2 className="text-3xl sm:text-4xl font-bold text-slate-800 mb-4">How It Works</h2>
 					<p className="text-slate-600 text-lg max-w-2xl mx-auto">
-						A continuous learning loop that turns every interaction into
-						actionable improvement — no retraining required.
+						A continuous learning loop that turns every interaction into actionable improvement — no
+						retraining required.
 					</p>
 				</div>
 
@@ -46,46 +44,22 @@ export function HowItWorks() {
 						>
 							<defs>
 								{/* Agent to Reflexio gradient */}
-								<linearGradient
-									id="agentToMem"
-									x1="0%"
-									y1="0%"
-									x2="100%"
-									y2="0%"
-								>
+								<linearGradient id="agentToMem" x1="0%" y1="0%" x2="100%" y2="0%">
 									<stop offset="0%" stopColor="#6366f1" />
 									<stop offset="100%" stopColor="#0ea5e9" />
 								</linearGradient>
 								{/* Reflexio to Memory gradient */}
-								<linearGradient
-									id="memToStore"
-									x1="0%"
-									y1="0%"
-									x2="100%"
-									y2="0%"
-								>
+								<linearGradient id="memToStore" x1="0%" y1="0%" x2="100%" y2="0%">
 									<stop offset="0%" stopColor="#0ea5e9" />
 									<stop offset="100%" stopColor="#14b8a6" />
 								</linearGradient>
 								{/* Memory to Reflexio gradient (return) */}
-								<linearGradient
-									id="storeToMem"
-									x1="100%"
-									y1="0%"
-									x2="0%"
-									y2="0%"
-								>
+								<linearGradient id="storeToMem" x1="100%" y1="0%" x2="0%" y2="0%">
 									<stop offset="0%" stopColor="#14b8a6" />
 									<stop offset="100%" stopColor="#0ea5e9" />
 								</linearGradient>
 								{/* Reflexio to Agent gradient (retrieve) */}
-								<linearGradient
-									id="memToAgent"
-									x1="100%"
-									y1="0%"
-									x2="0%"
-									y2="0%"
-								>
+								<linearGradient id="memToAgent" x1="100%" y1="0%" x2="0%" y2="0%">
 									<stop offset="0%" stopColor="#0ea5e9" />
 									<stop offset="100%" stopColor="#6366f1" />
 								</linearGradient>
@@ -278,19 +252,13 @@ export function HowItWorks() {
 									<div className="w-16 h-16 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center mx-auto mb-4">
 										<Bot className="h-8 w-8 text-white" />
 									</div>
-									<h3 className="text-lg font-semibold text-slate-800 text-center">
-										Your Agent
-									</h3>
-									<p className="text-sm text-slate-500 text-center mt-1">
-										AI-powered assistant
-									</p>
+									<h3 className="text-lg font-semibold text-slate-800 text-center">Your Agent</h3>
+									<p className="text-sm text-slate-500 text-center mt-1">AI-powered assistant</p>
 								</div>
 
 								{/* Badge */}
 								<div className="mt-4 flex items-center gap-2 bg-indigo-50 px-3 py-1.5 rounded-full border border-indigo-100">
-									<span className="text-sm font-medium text-indigo-700">
-										Publish & Retrieve
-									</span>
+									<span className="text-sm font-medium text-indigo-700">Publish & Retrieve</span>
 								</div>
 							</div>
 
@@ -302,9 +270,7 @@ export function HowItWorks() {
 										<div className="w-10 h-10 rounded-lg bg-gradient-to-br from-sky-500 to-indigo-500 flex items-center justify-center">
 											<Cloud className="h-5 w-5 text-white" />
 										</div>
-										<span className="text-xl font-bold text-slate-800">
-											Reflexio
-										</span>
+										<span className="text-xl font-bold text-slate-800">Reflexio</span>
 									</div>
 
 									{/* Extractors - 2+1 Grid */}
@@ -315,18 +281,14 @@ export function HowItWorks() {
 												<div className="w-6 h-6 rounded-md bg-violet-100 flex items-center justify-center">
 													<User className="h-3.5 w-3.5 text-violet-600" />
 												</div>
-												<span className="text-sm font-medium text-slate-700">
-													Profile
-												</span>
+												<span className="text-sm font-medium text-slate-700">Profile</span>
 											</div>
 											{/* Feedback Pill */}
 											<div className="flex-1 flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-2 border border-slate-200">
 												<div className="w-6 h-6 rounded-md bg-amber-100 flex items-center justify-center">
 													<ThumbsUp className="h-3.5 w-3.5 text-amber-600" />
 												</div>
-												<span className="text-sm font-medium text-slate-700">
-													Feedback
-												</span>
+												<span className="text-sm font-medium text-slate-700">Feedback</span>
 											</div>
 										</div>
 										{/* Success Pill */}
@@ -335,9 +297,7 @@ export function HowItWorks() {
 												<div className="w-6 h-6 rounded-md bg-emerald-100 flex items-center justify-center">
 													<Target className="h-3.5 w-3.5 text-emerald-600" />
 												</div>
-												<span className="text-sm font-medium text-slate-700">
-													Success
-												</span>
+												<span className="text-sm font-medium text-slate-700">Success</span>
 											</div>
 										</div>
 									</div>
@@ -345,9 +305,7 @@ export function HowItWorks() {
 
 								{/* Step Label */}
 								<div className="mt-4 flex items-center gap-2 bg-sky-50 px-3 py-1.5 rounded-full border border-sky-100">
-									<span className="text-sm font-medium text-sky-700">
-										Learn & Evaluate
-									</span>
+									<span className="text-sm font-medium text-sky-700">Learn & Evaluate</span>
 								</div>
 							</div>
 
@@ -364,16 +322,12 @@ export function HowItWorks() {
 									<h3 className="text-lg font-semibold text-slate-800 text-center">
 										Learning Store
 									</h3>
-									<p className="text-sm text-slate-500 text-center mt-1">
-										Persistent context
-									</p>
+									<p className="text-sm text-slate-500 text-center mt-1">Persistent context</p>
 								</div>
 
 								{/* Step Label */}
 								<div className="mt-4 flex items-center gap-2 bg-teal-50 px-3 py-1.5 rounded-full border border-teal-100">
-									<span className="text-sm font-medium text-teal-700">
-										Write & Read
-									</span>
+									<span className="text-sm font-medium text-teal-700">Write & Read</span>
 								</div>
 							</div>
 						</div>
@@ -389,25 +343,19 @@ export function HowItWorks() {
 								<div className="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center mx-auto mb-3">
 									<Bot className="h-7 w-7 text-white" />
 								</div>
-								<h3 className="text-base font-semibold text-slate-800 text-center">
-									Your Agent
-								</h3>
+								<h3 className="text-base font-semibold text-slate-800 text-center">Your Agent</h3>
 							</div>
 						</div>
 
 						{/* Bidirectional Arrow: Agent ↔ Reflexio */}
 						<div className="flex flex-col items-center gap-1">
 							<div className="flex items-center gap-3">
-								<span className="text-xs text-indigo-600 font-medium">
-									Publish
-								</span>
+								<span className="text-xs text-indigo-600 font-medium">Publish</span>
 								<ArrowDown className="w-4 h-4 text-indigo-400" />
 							</div>
 							<div className="flex items-center gap-3">
 								<ArrowDown className="w-4 h-4 text-indigo-400 rotate-180" />
-								<span className="text-xs text-indigo-600 font-medium">
-									Retrieve
-								</span>
+								<span className="text-xs text-indigo-600 font-medium">Retrieve</span>
 							</div>
 						</div>
 
@@ -418,9 +366,7 @@ export function HowItWorks() {
 									<div className="w-9 h-9 rounded-lg bg-gradient-to-br from-sky-500 to-indigo-500 flex items-center justify-center">
 										<Cloud className="h-4 w-4 text-white" />
 									</div>
-									<span className="text-lg font-bold text-slate-800">
-										Reflexio
-									</span>
+									<span className="text-lg font-bold text-slate-800">Reflexio</span>
 								</div>
 								<div className="space-y-2">
 									<div className="flex gap-2">
@@ -428,17 +374,13 @@ export function HowItWorks() {
 											<div className="w-5 h-5 rounded bg-violet-100 flex items-center justify-center">
 												<User className="h-3 w-3 text-violet-600" />
 											</div>
-											<span className="text-xs font-medium text-slate-700">
-												Profile
-											</span>
+											<span className="text-xs font-medium text-slate-700">Profile</span>
 										</div>
 										<div className="flex-1 flex items-center gap-2 bg-slate-50 rounded-lg px-2 py-1.5 border border-slate-200">
 											<div className="w-5 h-5 rounded bg-amber-100 flex items-center justify-center">
 												<ThumbsUp className="h-3 w-3 text-amber-600" />
 											</div>
-											<span className="text-xs font-medium text-slate-700">
-												Feedback
-											</span>
+											<span className="text-xs font-medium text-slate-700">Feedback</span>
 										</div>
 									</div>
 									<div className="flex justify-center">
@@ -446,16 +388,12 @@ export function HowItWorks() {
 											<div className="w-5 h-5 rounded bg-emerald-100 flex items-center justify-center">
 												<Target className="h-3 w-3 text-emerald-600" />
 											</div>
-											<span className="text-xs font-medium text-slate-700">
-												Success
-											</span>
+											<span className="text-xs font-medium text-slate-700">Success</span>
 										</div>
 									</div>
 								</div>
 							</div>
-							<div className="mt-2 text-xs text-sky-600 font-medium">
-								Learn & Evaluate
-							</div>
+							<div className="mt-2 text-xs text-sky-600 font-medium">Learn & Evaluate</div>
 						</div>
 
 						{/* Bidirectional Arrow: Reflexio ↔ Memory */}
@@ -506,14 +444,10 @@ export function HowItWorks() {
 					<div className="flex items-center gap-4 py-1">
 						<div className="flex items-center gap-1">
 							<ArrowDown className="w-4 h-4 text-indigo-400" />
-							<span className="text-[10px] text-indigo-600 font-medium">
-								Publish
-							</span>
+							<span className="text-[10px] text-indigo-600 font-medium">Publish</span>
 						</div>
 						<div className="flex items-center gap-1">
-							<span className="text-[10px] text-indigo-600 font-medium">
-								Retrieve
-							</span>
+							<span className="text-[10px] text-indigo-600 font-medium">Retrieve</span>
 							<ArrowDown className="w-4 h-4 text-indigo-400 rotate-180" />
 						</div>
 					</div>
@@ -555,14 +489,10 @@ export function HowItWorks() {
 					<div className="flex items-center gap-4 py-1">
 						<div className="flex items-center gap-1">
 							<ArrowDown className="w-4 h-4 text-teal-400" />
-							<span className="text-[10px] text-teal-600 font-medium">
-								Write
-							</span>
+							<span className="text-[10px] text-teal-600 font-medium">Write</span>
 						</div>
 						<div className="flex items-center gap-1">
-							<span className="text-[10px] text-teal-600 font-medium">
-								Read
-							</span>
+							<span className="text-[10px] text-teal-600 font-medium">Read</span>
 							<ArrowDown className="w-4 h-4 text-teal-400 rotate-180" />
 						</div>
 					</div>
@@ -575,9 +505,7 @@ export function HowItWorks() {
 							</div>
 							<div className="flex-1">
 								<div className="flex items-center gap-2">
-									<h4 className="font-semibold text-slate-800">
-										Learning Store
-									</h4>
+									<h4 className="font-semibold text-slate-800">Learning Store</h4>
 									<div className="w-5 h-5 rounded-full bg-teal-50 flex items-center justify-center animate-pulse">
 										<RefreshCw className="w-3 h-3 text-teal-500" />
 									</div>
@@ -594,48 +522,36 @@ export function HowItWorks() {
 						<div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 mb-3">
 							<Plug className="w-5 h-5 text-white" />
 						</div>
-						<h3 className="font-semibold text-slate-800 mb-2">
-							Simple Integration
-						</h3>
+						<h3 className="font-semibold text-slate-800 mb-2">Simple Integration</h3>
 						<p className="text-sm text-slate-600 leading-relaxed">
-							Wrap your existing LLM calls with a lightweight SDK — no agent
-							rewrite needed
+							Wrap your existing LLM calls with a lightweight SDK — no agent rewrite needed
 						</p>
 					</div>
 					<div className="text-center p-5 rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
 						<div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-500 mb-3">
 							<Sparkles className="w-5 h-5 text-white" />
 						</div>
-						<h3 className="font-semibold text-slate-800 mb-2">
-							Actionable Signals
-						</h3>
+						<h3 className="font-semibold text-slate-800 mb-2">Actionable Signals</h3>
 						<p className="text-sm text-slate-600 leading-relaxed">
-							Automatically extract triggering conditions and do/don't rules
-							from user corrections
+							Automatically extract triggering conditions and do/don't rules from user corrections
 						</p>
 					</div>
 					<div className="text-center p-5 rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
 						<div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-500 mb-3">
 							<RefreshCw className="w-5 h-5 text-white" />
 						</div>
-						<h3 className="font-semibold text-slate-800 mb-2">
-							Evolving Intelligence
-						</h3>
+						<h3 className="font-semibold text-slate-800 mb-2">Evolving Intelligence</h3>
 						<p className="text-sm text-slate-600 leading-relaxed">
-							Learned behaviors consolidate and resolve conflicts automatically
-							over time
+							Learned behaviors consolidate and resolve conflicts automatically over time
 						</p>
 					</div>
 					<div className="text-center p-5 rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
 						<div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 mb-3">
 							<MessageSquarePlus className="w-5 h-5 text-white" />
 						</div>
-						<h3 className="font-semibold text-slate-800 mb-2">
-							Precise Context Injection
-						</h3>
+						<h3 className="font-semibold text-slate-800 mb-2">Precise Context Injection</h3>
 						<p className="text-sm text-slate-600 leading-relaxed">
-							Only inject relevant signals at the moment of inference — reducing
-							token waste
+							Only inject relevant signals at the moment of inference — reducing token waste
 						</p>
 					</div>
 				</div>

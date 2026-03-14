@@ -11,9 +11,7 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
 	const router = useRouter();
 	const { isAuthenticated, isSelfHost } = useAuth();
 
-	const isAuthPage = AUTH_PAGES.includes(
-		pathname as (typeof AUTH_PAGES)[number],
-	);
+	const isAuthPage = AUTH_PAGES.includes(pathname as (typeof AUTH_PAGES)[number]);
 	const isLandingPage = pathname === "/";
 	const isProtectedRoute = PROTECTED_ROUTES.some(
 		(route) => pathname === route || pathname.startsWith(`${route}/`),
@@ -29,14 +27,7 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
 			if (sessionStorage.getItem("account_deleted")) return;
 			router.push("/login");
 		}
-	}, [
-		isAuthenticated,
-		isSelfHost,
-		isAuthPage,
-		isLandingPage,
-		isProtectedRoute,
-		router,
-	]);
+	}, [isAuthenticated, isSelfHost, isAuthPage, isLandingPage, isProtectedRoute, router]);
 
 	if (isAuthPage || isLandingPage) {
 		// Auth pages and landing page get full screen without sidebar
@@ -50,11 +41,7 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
 
 	// Don't render protected pages until auth check is complete
 	// Allow rendering during account deletion flow so success dialog can show
-	if (
-		!isSelfHost &&
-		!isAuthenticated &&
-		!sessionStorage.getItem("account_deleted")
-	) {
+	if (!isSelfHost && !isAuthenticated && !sessionStorage.getItem("account_deleted")) {
 		return null;
 	}
 
@@ -62,9 +49,7 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
 	return (
 		<div className="flex h-screen overflow-hidden">
 			<ResponsiveSidebar />
-			<main className="flex-1 overflow-y-auto bg-background pt-16 md:pt-0">
-				{children}
-			</main>
+			<main className="flex-1 overflow-y-auto bg-background pt-16 md:pt-0">{children}</main>
 		</div>
 	);
 }

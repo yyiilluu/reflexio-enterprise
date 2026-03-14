@@ -1,13 +1,6 @@
 "use client";
 
-import {
-	AlertCircle,
-	CheckCircle,
-	Save,
-	Settings,
-	Undo2,
-	Workflow,
-} from "lucide-react";
+import { AlertCircle, CheckCircle, Save, Settings, Undo2, Workflow } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AdvancedSettingsSection } from "@/components/settings/sections/AdvancedSettingsSection";
 import { AgentContextSection } from "@/components/settings/sections/AgentContextSection";
@@ -19,13 +12,7 @@ import { ProfileExtractorsSection } from "@/components/settings/sections/Profile
 // Section components
 import { StorageConfigSection } from "@/components/settings/sections/StorageConfigSection";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	Dialog,
 	DialogContent,
@@ -66,28 +53,21 @@ import {
 
 export default function SettingsPage() {
 	const [config, setConfig] = useState<Config>(getDefaultConfig());
-	const [originalConfig, setOriginalConfig] = useState<Config>(
-		getDefaultConfig(),
-	);
-	const [saveStatus, setSaveStatus] = useState<
-		"idle" | "saving" | "success" | "error"
-	>("idle");
+	const [originalConfig, setOriginalConfig] = useState<Config>(getDefaultConfig());
+	const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success" | "error">("idle");
 	const [loading, setLoading] = useState(true);
 	const [errorMessage, setErrorMessage] = useState<string>("");
 	const [openaiMode, setOpenaiMode] = useState<"direct" | "azure">("direct");
 	const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
 
-	const hasUnsavedChanges =
-		!loading && !configsAreEqual(config, originalConfig);
+	const hasUnsavedChanges = !loading && !configsAreEqual(config, originalConfig);
 
 	// Fetch config from backend on mount
 	useEffect(() => {
 		const fetchConfigData = async () => {
 			try {
 				const backendConfig = await getConfig();
-				const frontendConfig = backendToFrontendConfig(
-					backendConfig as BackendConfig,
-				);
+				const frontendConfig = backendToFrontendConfig(backendConfig as BackendConfig);
 				setConfig(frontendConfig);
 				setOriginalConfig(frontendConfig);
 				if (frontendConfig.api_key_config?.openai?.azure_config) {
@@ -95,11 +75,7 @@ export default function SettingsPage() {
 				}
 			} catch (error) {
 				console.error("Error fetching config:", error);
-				setErrorMessage(
-					error instanceof Error
-						? error.message
-						: "Failed to load configuration",
-				);
+				setErrorMessage(error instanceof Error ? error.message : "Failed to load configuration");
 			} finally {
 				setLoading(false);
 			}
@@ -108,9 +84,7 @@ export default function SettingsPage() {
 	}, []);
 
 	// --- API key config helpers ---
-	const updateCustomEndpointConfig = (
-		updates: Partial<CustomEndpointConfig>,
-	) => {
+	const updateCustomEndpointConfig = (updates: Partial<CustomEndpointConfig>) => {
 		const current = config.api_key_config?.custom_endpoint;
 		const merged = {
 			model: current?.model || "",
@@ -119,8 +93,7 @@ export default function SettingsPage() {
 			...updates,
 		};
 		// Clear custom_endpoint entirely when all fields are empty
-		const customEndpoint =
-			merged.model || merged.api_key || merged.api_base ? merged : undefined;
+		const customEndpoint = merged.model || merged.api_key || merged.api_base ? merged : undefined;
 		setConfig({
 			...config,
 			api_key_config: {
@@ -149,11 +122,9 @@ export default function SettingsPage() {
 					...config.api_key_config?.openai,
 					azure_config: {
 						api_key: config.api_key_config?.openai?.azure_config?.api_key || "",
-						endpoint:
-							config.api_key_config?.openai?.azure_config?.endpoint || "",
+						endpoint: config.api_key_config?.openai?.azure_config?.endpoint || "",
 						api_version:
-							config.api_key_config?.openai?.azure_config?.api_version ||
-							"2024-02-15-preview",
+							config.api_key_config?.openai?.azure_config?.api_version || "2024-02-15-preview",
 						...config.api_key_config?.openai?.azure_config,
 						...updates,
 					},
@@ -258,9 +229,7 @@ export default function SettingsPage() {
 			setTimeout(() => setSaveStatus("idle"), 3000);
 		} catch (error) {
 			console.error("Error saving config:", error);
-			setErrorMessage(
-				error instanceof Error ? error.message : "Failed to save configuration",
-			);
+			setErrorMessage(error instanceof Error ? error.message : "Failed to save configuration");
 			setSaveStatus("error");
 			setTimeout(() => setSaveStatus("idle"), 3000);
 		}
@@ -309,10 +278,7 @@ export default function SettingsPage() {
 		});
 	};
 
-	const updateProfileExtractor = (
-		id: string,
-		updates: Partial<ProfileExtractorConfig>,
-	) => {
+	const updateProfileExtractor = (id: string, updates: Partial<ProfileExtractorConfig>) => {
 		setConfig({
 			...config,
 			profile_extractor_configs: config.profile_extractor_configs.map((pec) =>
@@ -324,32 +290,20 @@ export default function SettingsPage() {
 	const removeProfileExtractor = (id: string) => {
 		setConfig({
 			...config,
-			profile_extractor_configs: config.profile_extractor_configs.filter(
-				(pec) => pec.id !== id,
-			),
+			profile_extractor_configs: config.profile_extractor_configs.filter((pec) => pec.id !== id),
 		});
 	};
 
 	const addRequestSourceToExtractor = (extractorId: string, source: string) => {
-		const ext = config.profile_extractor_configs.find(
-			(pec) => pec.id === extractorId,
-		);
+		const ext = config.profile_extractor_configs.find((pec) => pec.id === extractorId);
 		if (ext)
 			updateProfileExtractor(extractorId, {
-				request_sources_enabled: [
-					...(ext.request_sources_enabled || []),
-					source,
-				],
+				request_sources_enabled: [...(ext.request_sources_enabled || []), source],
 			});
 	};
 
-	const removeRequestSourceFromExtractor = (
-		extractorId: string,
-		sourceIndex: number,
-	) => {
-		const ext = config.profile_extractor_configs.find(
-			(pec) => pec.id === extractorId,
-		);
+	const removeRequestSourceFromExtractor = (extractorId: string, sourceIndex: number) => {
+		const ext = config.profile_extractor_configs.find((pec) => pec.id === extractorId);
 		if (ext?.request_sources_enabled)
 			updateProfileExtractor(extractorId, {
 				request_sources_enabled: ext.request_sources_enabled.filter(
@@ -377,10 +331,7 @@ export default function SettingsPage() {
 		});
 	};
 
-	const updateAgentFeedback = (
-		id: string,
-		updates: Partial<AgentFeedbackConfig>,
-	) => {
+	const updateAgentFeedback = (id: string, updates: Partial<AgentFeedbackConfig>) => {
 		setConfig({
 			...config,
 			agent_feedback_configs: config.agent_feedback_configs.map((afc) =>
@@ -392,37 +343,23 @@ export default function SettingsPage() {
 	const removeAgentFeedback = (id: string) => {
 		setConfig({
 			...config,
-			agent_feedback_configs: config.agent_feedback_configs.filter(
-				(afc) => afc.id !== id,
-			),
+			agent_feedback_configs: config.agent_feedback_configs.filter((afc) => afc.id !== id),
 		});
 	};
 
 	const addRequestSourceToFeedback = (feedbackId: string, source: string) => {
-		const fb = config.agent_feedback_configs.find(
-			(afc) => afc.id === feedbackId,
-		);
+		const fb = config.agent_feedback_configs.find((afc) => afc.id === feedbackId);
 		if (fb)
 			updateAgentFeedback(feedbackId, {
-				request_sources_enabled: [
-					...(fb.request_sources_enabled || []),
-					source,
-				],
+				request_sources_enabled: [...(fb.request_sources_enabled || []), source],
 			});
 	};
 
-	const removeRequestSourceFromFeedback = (
-		feedbackId: string,
-		sourceIndex: number,
-	) => {
-		const fb = config.agent_feedback_configs.find(
-			(afc) => afc.id === feedbackId,
-		);
+	const removeRequestSourceFromFeedback = (feedbackId: string, sourceIndex: number) => {
+		const fb = config.agent_feedback_configs.find((afc) => afc.id === feedbackId);
 		if (fb?.request_sources_enabled)
 			updateAgentFeedback(feedbackId, {
-				request_sources_enabled: fb.request_sources_enabled.filter(
-					(_, idx) => idx !== sourceIndex,
-				),
+				request_sources_enabled: fb.request_sources_enabled.filter((_, idx) => idx !== sourceIndex),
 			});
 	};
 
@@ -441,10 +378,7 @@ export default function SettingsPage() {
 		});
 	};
 
-	const updateAgentSuccess = (
-		id: string,
-		updates: Partial<AgentSuccessConfig>,
-	) => {
+	const updateAgentSuccess = (id: string, updates: Partial<AgentSuccessConfig>) => {
 		setConfig({
 			...config,
 			agent_success_configs: config.agent_success_configs.map((asc) =>
@@ -456,9 +390,7 @@ export default function SettingsPage() {
 	const removeAgentSuccess = (id: string) => {
 		setConfig({
 			...config,
-			agent_success_configs: config.agent_success_configs.filter(
-				(asc) => asc.id !== id,
-			),
+			agent_success_configs: config.agent_success_configs.filter((asc) => asc.id !== id),
 		});
 	};
 
@@ -466,10 +398,7 @@ export default function SettingsPage() {
 	const addTool = () => {
 		setConfig({
 			...config,
-			tool_can_use: [
-				...(config.tool_can_use || []),
-				{ tool_name: "", tool_description: "" },
-			],
+			tool_can_use: [...(config.tool_can_use || []), { tool_name: "", tool_description: "" }],
 		});
 	};
 
@@ -516,9 +445,7 @@ export default function SettingsPage() {
 								<div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
 									<Settings className="h-5 w-5 text-white" />
 								</div>
-								<h1 className="text-3xl font-bold tracking-tight text-slate-800">
-									Settings
-								</h1>
+								<h1 className="text-3xl font-bold tracking-tight text-slate-800">Settings</h1>
 							</div>
 							<p className="text-slate-500 mt-1 ml-13">
 								Configure storage, extractors, and evaluation criteria
@@ -572,12 +499,9 @@ export default function SettingsPage() {
 								<AlertCircle className="h-5 w-5 text-amber-600" />
 							</div>
 							<div>
-								<p className="text-sm text-amber-800 font-semibold">
-									You have unsaved changes
-								</p>
+								<p className="text-sm text-amber-800 font-semibold">You have unsaved changes</p>
 								<p className="text-xs text-amber-600 mt-0.5">
-									Your configuration has been modified. Don&apos;t forget to
-									save before leaving.
+									Your configuration has been modified. Don&apos;t forget to save before leaving.
 								</p>
 							</div>
 						</div>
@@ -651,18 +575,14 @@ export default function SettingsPage() {
 								/>
 								<AgentContextSection
 									config={config}
-									onContextChange={(v) =>
-										setConfig({ ...config, agent_context_prompt: v })
-									}
+									onContextChange={(v) => setConfig({ ...config, agent_context_prompt: v })}
 									onAddTool={addTool}
 									onUpdateTool={updateTool}
 									onRemoveTool={removeTool}
 								/>
 								<ExtractionParamsSection
 									config={config}
-									onWindowSizeChange={(v) =>
-										setConfig({ ...config, extraction_window_size: v })
-									}
+									onWindowSizeChange={(v) => setConfig({ ...config, extraction_window_size: v })}
 									onWindowStrideChange={(v) =>
 										setConfig({ ...config, extraction_window_stride: v })
 									}
@@ -720,8 +640,7 @@ export default function SettingsPage() {
 													Reflexio Workflow
 												</CardTitle>
 												<CardDescription className="text-xs mt-1 text-slate-500">
-													Visual representation of how your configuration
-													processes data
+													Visual representation of how your configuration processes data
 												</CardDescription>
 											</div>
 										</div>
@@ -729,10 +648,9 @@ export default function SettingsPage() {
 									<CardContent>
 										<div className="mb-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
 											<p className="text-sm text-slate-600">
-												This diagram shows how requests flow through the
-												Reflexio system based on your current configuration.
-												Click on nodes to view detailed information about each
-												component.
+												This diagram shows how requests flow through the Reflexio system based on
+												your current configuration. Click on nodes to view detailed information
+												about each component.
 											</p>
 										</div>
 										<WorkflowVisualization config={config} />
@@ -790,8 +708,8 @@ export default function SettingsPage() {
 							</DialogTitle>
 						</div>
 						<DialogDescription className="text-sm text-slate-600 pt-2">
-							Are you sure you want to discard all unsaved changes? This will
-							revert the configuration to the last saved state.
+							Are you sure you want to discard all unsaved changes? This will revert the
+							configuration to the last saved state.
 						</DialogDescription>
 					</DialogHeader>
 					<DialogFooter className="gap-2 sm:gap-0">

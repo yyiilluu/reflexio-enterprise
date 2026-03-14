@@ -12,18 +12,8 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
-import {
-	Collapsible,
-	CollapsibleContent,
-	CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { FieldLabel } from "../FieldLabel";
@@ -85,17 +75,11 @@ export function ProfileExtractorsSection({
 							className="border border-slate-200 rounded-xl bg-white overflow-hidden divide-y divide-slate-100"
 						>
 							{extractors.map((extractor) => (
-								<AccordionItem
-									key={extractor.id}
-									value={extractor.id}
-									className="border-b-0 px-5"
-								>
+								<AccordionItem key={extractor.id} value={extractor.id} className="border-b-0 px-5">
 									<div
 										className="flex items-center py-3 gap-3 cursor-pointer hover:bg-muted/50 transition-colors rounded-t-lg"
 										onClick={(e) => {
-											const trigger = (
-												e.currentTarget as HTMLElement
-											).querySelector(
+											const trigger = (e.currentTarget as HTMLElement).querySelector(
 												"[data-radix-collection-item]",
 											) as HTMLElement;
 											if (trigger && !trigger.contains(e.target as Node)) {
@@ -148,9 +132,7 @@ export function ProfileExtractorsSection({
 									<AccordionContent className="pt-2 pb-5 space-y-4">
 										{/* Primary fields */}
 										<div>
-											<FieldLabel htmlFor={`ext-name-${extractor.id}`}>
-												Extractor Name
-											</FieldLabel>
+											<FieldLabel htmlFor={`ext-name-${extractor.id}`}>Extractor Name</FieldLabel>
 											<Input
 												id={`ext-name-${extractor.id}`}
 												value={extractor.extractor_name}
@@ -223,29 +205,21 @@ export function ProfileExtractorsSection({
 												</div>
 
 												<div>
-													<FieldLabel>
-														Enabled Request Sources (Optional)
-													</FieldLabel>
+													<FieldLabel>Enabled Request Sources (Optional)</FieldLabel>
 													<p className="text-xs text-muted-foreground mb-3">
-														Specify which request sources should trigger profile
-														extraction. Leave empty to enable all sources.
+														Specify which request sources should trigger profile extraction. Leave
+														empty to enable all sources.
 													</p>
 													<TagManager
 														tags={extractor.request_sources_enabled || []}
-														onAdd={(source) =>
-															onAddRequestSource(extractor.id, source)
-														}
-														onRemove={(idx) =>
-															onRemoveRequestSource(extractor.id, idx)
-														}
+														onAdd={(source) => onAddRequestSource(extractor.id, source)}
+														onRemove={(idx) => onRemoveRequestSource(extractor.id, idx)}
 													/>
 												</div>
 
 												<WindowOverrideFields
 													windowSize={extractor.extraction_window_size_override}
-													windowStride={
-														extractor.extraction_window_stride_override
-													}
+													windowStride={extractor.extraction_window_stride_override}
 													onWindowSizeChange={(v) =>
 														onUpdate(extractor.id, {
 															extraction_window_size_override: v,

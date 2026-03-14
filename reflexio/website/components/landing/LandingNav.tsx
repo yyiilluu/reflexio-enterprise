@@ -37,12 +37,7 @@ export function LandingNav() {
 					{/* Logo */}
 					<Link href="/" className="flex items-center gap-2 group">
 						<div className="h-9 w-9 rounded-xl bg-white flex items-center justify-center shadow-lg shadow-indigo-500/25 group-hover:shadow-indigo-500/40 transition-shadow p-1">
-							<Image
-								src="/reflexio_fav.svg"
-								alt="Reflexio"
-								width={28}
-								height={28}
-							/>
+							<Image src="/reflexio_fav.svg" alt="Reflexio" width={28} height={28} />
 						</div>
 						<span className="font-bold text-xl text-slate-800">Reflexio</span>
 					</Link>
@@ -82,16 +77,9 @@ export function LandingNav() {
 								{/* Mobile Logo */}
 								<div className="flex items-center gap-2 pb-4 border-b border-slate-100">
 									<div className="h-9 w-9 rounded-xl bg-white flex items-center justify-center shadow-sm p-1">
-										<Image
-											src="/reflexio_fav.svg"
-											alt="Reflexio"
-											width={28}
-											height={28}
-										/>
+										<Image src="/reflexio_fav.svg" alt="Reflexio" width={28} height={28} />
 									</div>
-									<span className="font-bold text-xl text-slate-800">
-										Reflexio
-									</span>
+									<span className="font-bold text-xl text-slate-800">Reflexio</span>
 								</div>
 
 								{/* Mobile Navigation Links */}
@@ -110,10 +98,7 @@ export function LandingNav() {
 
 								{/* Mobile CTA */}
 								<div className="flex flex-col gap-3 pt-4 border-t border-slate-100">
-									<Button
-										asChild
-										className="w-full bg-gradient-to-r from-indigo-600 to-purple-600"
-									>
+									<Button asChild className="w-full bg-gradient-to-r from-indigo-600 to-purple-600">
 										<Link href="/login" onClick={() => setIsOpen(false)}>
 											Get Started
 										</Link>

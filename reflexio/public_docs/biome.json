@@ -6,11 +6,12 @@
 		"useIgnoreFile": true
 	},
 	"files": {
-		"ignoreUnknown": false
+		"ignoreUnknown": true
 	},
 	"formatter": {
 		"enabled": true,
-		"indentStyle": "tab"
+		"indentStyle": "tab",
+		"lineWidth": 100
 	},
 	"linter": {
 		"enabled": true,
@@ -18,12 +19,18 @@
 			"recommended": true,
 			"suspicious": {
 				"noExplicitAny": "warn"
+			},
+			"correctness": {
+				"useExhaustiveDependencies": "error",
+				"noUnusedVariables": "error"
 			}
 		}
 	},
 	"javascript": {
 		"formatter": {
-			"quoteStyle": "double"
+			"quoteStyle": "double",
+			"jsxQuoteStyle": "double",
+			"trailingCommas": "all"
 		}
 	},
 	"assist": {

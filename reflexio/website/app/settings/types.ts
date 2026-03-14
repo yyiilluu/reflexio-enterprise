@@ -187,51 +187,27 @@ export const inferStorageConfig = (storageConfig: any): StorageConfig => {
 
 // Helper function to deep compare configs for unsaved changes detection
 export const configsAreEqual = (config1: Config, config2: Config): boolean => {
-	if (
-		JSON.stringify(config1.storage_config) !==
-		JSON.stringify(config2.storage_config)
-	)
+	if (JSON.stringify(config1.storage_config) !== JSON.stringify(config2.storage_config))
 		return false;
-	if (
-		(config1.agent_context_prompt || "") !==
-		(config2.agent_context_prompt || "")
-	)
-		return false;
-	if (
-		JSON.stringify(config1.tool_can_use || []) !==
-		JSON.stringify(config2.tool_can_use || [])
-	)
+	if ((config1.agent_context_prompt || "") !== (config2.agent_context_prompt || "")) return false;
+	if (JSON.stringify(config1.tool_can_use || []) !== JSON.stringify(config2.tool_can_use || []))
 		return false;
 	if (
 		config1.extraction_window_size !== config2.extraction_window_size ||
 		config1.extraction_window_stride !== config2.extraction_window_stride
 	)
 		return false;
-	if (
-		JSON.stringify(config1.api_key_config || {}) !==
-		JSON.stringify(config2.api_key_config || {})
-	)
+	if (JSON.stringify(config1.api_key_config || {}) !== JSON.stringify(config2.api_key_config || {}))
 		return false;
-	if (
-		JSON.stringify(config1.llm_config || {}) !==
-		JSON.stringify(config2.llm_config || {})
-	)
+	if (JSON.stringify(config1.llm_config || {}) !== JSON.stringify(config2.llm_config || {}))
 		return false;
 
-	const extractors1 = config1.profile_extractor_configs.map(
-		({ id, ...rest }) => rest,
-	);
-	const extractors2 = config2.profile_extractor_configs.map(
-		({ id, ...rest }) => rest,
-	);
+	const extractors1 = config1.profile_extractor_configs.map(({ id, ...rest }) => rest);
+	const extractors2 = config2.profile_extractor_configs.map(({ id, ...rest }) => rest);
 	if (JSON.stringify(extractors1) !== JSON.stringify(extractors2)) return false;
 
-	const feedback1 = config1.agent_feedback_configs.map(
-		({ id, ...rest }) => rest,
-	);
-	const feedback2 = config2.agent_feedback_configs.map(
-		({ id, ...rest }) => rest,
-	);
+	const feedback1 = config1.agent_feedback_configs.map(({ id, ...rest }) => rest);
+	const feedback2 = config2.agent_feedback_configs.map(({ id, ...rest }) => rest);
 	if (JSON.stringify(feedback1) !== JSON.stringify(feedback2)) return false;
 
 	const success1 = config1.agent_success_configs.map(({ id, ...rest }) => rest);
@@ -242,31 +218,23 @@ export const configsAreEqual = (config1: Config, config2: Config): boolean => {
 };
 
 // Helper functions to convert between backend and frontend configs
-export const backendToFrontendConfig = (
-	backendConfig: BackendConfig,
-): Config => {
+export const backendToFrontendConfig = (backendConfig: BackendConfig): Config => {
 	return {
 		storage_config: inferStorageConfig(backendConfig.storage_config),
 		agent_context_prompt: backendConfig.agent_context_prompt,
 		tool_can_use: backendConfig.tool_can_use,
-		profile_extractor_configs: (
-			backendConfig.profile_extractor_configs || []
-		).map((config) => ({
+		profile_extractor_configs: (backendConfig.profile_extractor_configs || []).map((config) => ({
 			id: generateId(),
 			...config,
 		})),
-		agent_feedback_configs: (backendConfig.agent_feedback_configs || []).map(
-			(config) => ({
-				id: generateId(),
-				...config,
-			}),
-		),
-		agent_success_configs: (backendConfig.agent_success_configs || []).map(
-			(config) => ({
-				id: generateId(),
-				...config,
-			}),
-		),
+		agent_feedback_configs: (backendConfig.agent_feedback_configs || []).map((config) => ({
+			id: generateId(),
+			...config,
+		})),
+		agent_success_configs: (backendConfig.agent_success_configs || []).map((config) => ({
+			id: generateId(),
+			...config,
+		})),
 		extraction_window_size: backendConfig.extraction_window_size,
 		extraction_window_stride: backendConfig.extraction_window_stride,
 		api_key_config: backendConfig.api_key_config,
@@ -281,15 +249,9 @@ export const frontendToBackendConfig = (config: Config): BackendConfig => {
 		storage_config: storageConfigWithoutType as any,
 		agent_context_prompt: config.agent_context_prompt,
 		tool_can_use: config.tool_can_use,
-		profile_extractor_configs: config.profile_extractor_configs.map(
-			({ id, ...rest }) => rest,
-		),
-		agent_feedback_configs: config.agent_feedback_configs.map(
-			({ id, ...rest }) => rest,
-		),
-		agent_success_configs: config.agent_success_configs.map(
-			({ id, ...rest }) => rest,
-		),
+		profile_extractor_configs: config.profile_extractor_configs.map(({ id, ...rest }) => rest),
+		agent_feedback_configs: config.agent_feedback_configs.map(({ id, ...rest }) => rest),
+		agent_success_configs: config.agent_success_configs.map(({ id, ...rest }) => rest),
 		extraction_window_size: config.extraction_window_size,
 		extraction_window_stride: config.extraction_window_stride,
 		api_key_config: config.api_key_config,

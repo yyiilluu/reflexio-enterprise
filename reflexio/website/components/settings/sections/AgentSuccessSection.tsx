@@ -12,18 +12,8 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
-import {
-	Collapsible,
-	CollapsibleContent,
-	CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { FieldLabel } from "../FieldLabel";
 import { WindowOverrideFields } from "../WindowOverrideFields";
@@ -77,17 +67,11 @@ export function AgentSuccessSection({
 							className="border border-slate-200 rounded-xl bg-white overflow-hidden divide-y divide-slate-100"
 						>
 							{successes.map((success) => (
-								<AccordionItem
-									key={success.id}
-									value={success.id}
-									className="border-b-0 px-5"
-								>
+								<AccordionItem key={success.id} value={success.id} className="border-b-0 px-5">
 									<div
 										className="flex items-center py-3 gap-3 cursor-pointer hover:bg-muted/50 transition-colors rounded-t-lg"
 										onClick={(e) => {
-											const trigger = (
-												e.currentTarget as HTMLElement
-											).querySelector(
+											const trigger = (e.currentTarget as HTMLElement).querySelector(
 												"[data-radix-collection-item]",
 											) as HTMLElement;
 											if (trigger && !trigger.contains(e.target as Node)) {
@@ -102,12 +86,11 @@ export function AgentSuccessSection({
 											<Badge variant="secondary" className="text-xs shrink-0">
 												Success
 											</Badge>
-											{success.sampling_rate !== undefined &&
-												success.sampling_rate < 1 && (
-													<span className="text-xs text-slate-500 shrink-0">
-														{(success.sampling_rate * 100).toFixed(0)}% sampling
-													</span>
-												)}
+											{success.sampling_rate !== undefined && success.sampling_rate < 1 && (
+												<span className="text-xs text-slate-500 shrink-0">
+													{(success.sampling_rate * 100).toFixed(0)}% sampling
+												</span>
+											)}
 										</AccordionTrigger>
 										<Button
 											variant="ghost"
@@ -128,9 +111,7 @@ export function AgentSuccessSection({
 									<AccordionContent className="pt-2 pb-5 space-y-4">
 										{/* Primary fields */}
 										<div>
-											<FieldLabel htmlFor={`suc-name-${success.id}`}>
-												Evaluation Name
-											</FieldLabel>
+											<FieldLabel htmlFor={`suc-name-${success.id}`}>Evaluation Name</FieldLabel>
 											<Input
 												id={`suc-name-${success.id}`}
 												value={success.evaluation_name}
@@ -146,9 +127,7 @@ export function AgentSuccessSection({
 										</div>
 
 										<div>
-											<FieldLabel htmlFor={`suc-def-${success.id}`}>
-												Success Definition
-											</FieldLabel>
+											<FieldLabel htmlFor={`suc-def-${success.id}`}>Success Definition</FieldLabel>
 											<textarea
 												id={`suc-def-${success.id}`}
 												value={success.success_definition_prompt}
@@ -175,9 +154,7 @@ export function AgentSuccessSection({
 														type="range"
 														min="0"
 														max="100"
-														value={(
-															(success.sampling_rate ?? 1.0) * 100
-														).toFixed(0)}
+														value={((success.sampling_rate ?? 1.0) * 100).toFixed(0)}
 														onChange={(e) =>
 															onUpdate(success.id, {
 																sampling_rate: parseFloat(e.target.value) / 100,
@@ -193,16 +170,10 @@ export function AgentSuccessSection({
 														min="0"
 														max="100"
 														step="1"
-														value={(
-															(success.sampling_rate ?? 1.0) * 100
-														).toFixed(0)}
+														value={((success.sampling_rate ?? 1.0) * 100).toFixed(0)}
 														onChange={(e) => {
 															const value = parseFloat(e.target.value);
-															if (
-																!Number.isNaN(value) &&
-																value >= 0 &&
-																value <= 100
-															) {
+															if (!Number.isNaN(value) && value >= 0 && value <= 100) {
 																onUpdate(success.id, {
 																	sampling_rate: value / 100,
 																});
@@ -241,9 +212,7 @@ export function AgentSuccessSection({
 
 												<WindowOverrideFields
 													windowSize={success.extraction_window_size_override}
-													windowStride={
-														success.extraction_window_stride_override
-													}
+													windowStride={success.extraction_window_stride_override}
 													onWindowSizeChange={(v) =>
 														onUpdate(success.id, {
 															extraction_window_size_override: v,

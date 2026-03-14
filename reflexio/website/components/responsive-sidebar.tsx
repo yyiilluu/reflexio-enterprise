@@ -4,12 +4,7 @@ import { Menu } from "lucide-react";
 import { useState } from "react";
 import { MobileSidebar } from "@/components/mobile-sidebar";
 import { Sidebar } from "@/components/sidebar";
-import {
-	Sheet,
-	SheetContent,
-	SheetTitle,
-	SheetTrigger,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 export function ResponsiveSidebar() {
 	const [open, setOpen] = useState(false);

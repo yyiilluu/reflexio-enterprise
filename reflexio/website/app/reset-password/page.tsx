@@ -5,13 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
@@ -22,9 +16,9 @@ function ResetPasswordForm() {
 
 	const [newPassword, setNewPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
-	const [status, setStatus] = useState<
-		"idle" | "loading" | "success" | "error" | "no_token"
-	>("idle");
+	const [status, setStatus] = useState<"idle" | "loading" | "success" | "error" | "no_token">(
+		"idle",
+	);
 	const [message, setMessage] = useState("");
 
 	useEffect(() => {
@@ -82,8 +76,7 @@ function ResetPasswordForm() {
 			<div className="text-center py-4">
 				<AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
 				<p className="text-sm text-muted-foreground mb-4">
-					Invalid or missing reset token. Please request a new password reset
-					link.
+					Invalid or missing reset token. Please request a new password reset link.
 				</p>
 				<Button asChild variant="outline" className="w-full">
 					<Link href="/forgot-password">Request New Link</Link>
@@ -188,10 +181,7 @@ export default function ResetPasswordPage() {
 						<div className="mt-6 text-center">
 							<p className="text-sm text-muted-foreground">
 								Remember your password?{" "}
-								<Link
-									href="/login"
-									className="font-medium text-primary hover:underline"
-								>
+								<Link href="/login" className="font-medium text-primary hover:underline">
 									Sign in
 								</Link>
 							</p>

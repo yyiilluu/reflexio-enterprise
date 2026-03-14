@@ -58,18 +58,12 @@ export function AggregatorNode({ data }: AggregatorNodeProps) {
 						</div>
 
 						{/* Aggregator Name */}
-						<div
-							className="font-semibold text-sm"
-							style={{ color: colors.text }}
-						>
+						<div className="font-semibold text-sm" style={{ color: colors.text }}>
 							{data.feedbackName}
 						</div>
 
 						{/* Table Destination */}
-						<div
-							className="flex items-center gap-1.5 text-xs"
-							style={{ color: colors.text }}
-						>
+						<div className="flex items-center gap-1.5 text-xs" style={{ color: colors.text }}>
 							<div
 								className="w-1.5 h-1.5 rounded-full"
 								style={{ backgroundColor: colors.border }}
@@ -105,14 +99,8 @@ export function AggregatorNode({ data }: AggregatorNodeProps) {
 				onMouseLeave={() => setShowTooltip(false)}
 			>
 				{/* Header */}
-				<div
-					className="mb-4 pb-3 border-b-2"
-					style={{ borderColor: colors.border }}
-				>
-					<div
-						className="font-bold text-base mb-1"
-						style={{ color: colors.text }}
-					>
+				<div className="mb-4 pb-3 border-b-2" style={{ borderColor: colors.border }}>
+					<div className="font-bold text-base mb-1" style={{ color: colors.text }}>
 						{data.feedbackName} - Aggregator
 					</div>
 					<div className="text-xs text-gray-600">

@@ -16,10 +16,7 @@ interface AuthContextType {
 	isAuthenticated: boolean;
 	userEmail: string | null;
 	token: string | null;
-	login: (
-		email: string,
-		password: string,
-	) => Promise<{ success: boolean; error?: string }>;
+	login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
 	register: (
 		email: string,
 		password: string,
@@ -88,9 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			});
 
 			if (!response.ok) {
-				const error = await response
-					.json()
-					.catch(() => ({ detail: "Login failed" }));
+				const error = await response.json().catch(() => ({ detail: "Login failed" }));
 				return { success: false, error: error.detail || "Login failed" };
 			}
 
@@ -149,9 +144,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 					if (typeof error.detail === "string") {
 						message = error.detail;
 					} else if (Array.isArray(error.detail)) {
-						message = error.detail
-							.map((e: { msg?: string }) => e.msg || String(e))
-							.join("; ");
+						message = error.detail.map((e: { msg?: string }) => e.msg || String(e)).join("; ");
 					}
 				} catch {
 					if (response.statusText) {

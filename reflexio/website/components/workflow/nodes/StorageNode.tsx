@@ -64,13 +64,9 @@ export function StorageNode({ data }: StorageNodeProps) {
 						</div>
 
 						<div className="text-center">
-							<div className="font-bold text-lg text-white drop-shadow-md mb-1">
-								{data.label}
-							</div>
+							<div className="font-bold text-lg text-white drop-shadow-md mb-1">{data.label}</div>
 							<div className="bg-white/90 px-4 py-1.5 rounded-full shadow-sm">
-								<span className="text-xs font-semibold text-gray-600">
-									Type:
-								</span>
+								<span className="text-xs font-semibold text-gray-600">Type:</span>
 								<span className="text-xs font-bold text-[#588157] ml-1 uppercase">
 									{data.storageType}
 								</span>
@@ -115,12 +111,8 @@ export function StorageNode({ data }: StorageNodeProps) {
 							<div className="flex items-start gap-3">
 								<div className="text-2xl">{table.icon}</div>
 								<div className="flex-1">
-									<div className="font-bold text-gray-800 mb-1">
-										{table.name}
-									</div>
-									<div className="text-xs text-gray-600 leading-relaxed">
-										{table.description}
-									</div>
+									<div className="font-bold text-gray-800 mb-1">{table.name}</div>
+									<div className="text-xs text-gray-600 leading-relaxed">{table.description}</div>
 								</div>
 							</div>
 						</div>

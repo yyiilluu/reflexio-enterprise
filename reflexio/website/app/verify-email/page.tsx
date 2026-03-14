@@ -10,9 +10,9 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 function VerifyEmailContent() {
-	const [status, setStatus] = useState<
-		"loading" | "success" | "error" | "already_verified"
-	>("loading");
+	const [status, setStatus] = useState<"loading" | "success" | "error" | "already_verified">(
+		"loading",
+	);
 	const [message, setMessage] = useState("");
 	const searchParams = useSearchParams();
 	const token = searchParams.get("token");
@@ -62,9 +62,7 @@ function VerifyEmailContent() {
 				return (
 					<>
 						<Loader2 className="h-16 w-16 text-primary animate-spin mx-auto mb-4" />
-						<h2 className="text-2xl font-semibold mb-2">
-							Verifying Your Email
-						</h2>
+						<h2 className="text-2xl font-semibold mb-2">Verifying Your Email</h2>
 						<p className="text-muted-foreground">
 							Please wait while we verify your email address...
 						</p>
@@ -76,8 +74,7 @@ function VerifyEmailContent() {
 						<CheckCircle className="h-16 w-16 text-emerald-500 mx-auto mb-4" />
 						<h2 className="text-2xl font-semibold mb-2">Email Verified!</h2>
 						<p className="text-muted-foreground mb-6">
-							Your email has been successfully verified. You can now access all
-							features.
+							Your email has been successfully verified. You can now access all features.
 						</p>
 						<Button asChild className="w-full">
 							<Link href="/login">Continue to Login</Link>
@@ -111,10 +108,7 @@ function VerifyEmailContent() {
 							</Button>
 							<p className="text-sm text-muted-foreground text-center">
 								Need a new verification link?{" "}
-								<Link
-									href="/resend-verification"
-									className="text-primary hover:underline"
-								>
+								<Link href="/resend-verification" className="text-primary hover:underline">
 									Resend verification email
 								</Link>
 							</p>

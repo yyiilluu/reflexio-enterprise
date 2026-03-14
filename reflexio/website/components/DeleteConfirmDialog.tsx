@@ -38,9 +38,7 @@ export function DeleteConfirmDialog({
 						<div className="h-10 w-10 rounded-xl bg-gradient-to-br from-red-50 to-red-100 flex items-center justify-center flex-shrink-0 border border-red-200">
 							<AlertCircle className="h-5 w-5 text-red-500" />
 						</div>
-						<DialogTitle className="text-xl font-semibold text-slate-800">
-							{title}
-						</DialogTitle>
+						<DialogTitle className="text-xl font-semibold text-slate-800">{title}</DialogTitle>
 					</div>
 					<DialogDescription className="text-sm text-slate-600 pt-2">
 						{description}
@@ -49,9 +47,7 @@ export function DeleteConfirmDialog({
 
 				{itemDetails && (
 					<div className="bg-slate-50 border border-slate-200 rounded-lg p-4 my-2">
-						<div className="text-sm space-y-1.5 text-slate-700">
-							{itemDetails}
-						</div>
+						<div className="text-sm space-y-1.5 text-slate-700">{itemDetails}</div>
 					</div>
 				)}
 

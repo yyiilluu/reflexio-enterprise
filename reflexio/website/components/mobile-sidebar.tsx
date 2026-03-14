@@ -92,8 +92,7 @@ const navSections: NavSection[] = [
 
 export function MobileSidebar() {
 	const pathname = usePathname();
-	const { isAuthenticated, userEmail, logout, isSelfHost, isFeatureEnabled } =
-		useAuth();
+	const { isAuthenticated, userEmail, logout, isSelfHost, isFeatureEnabled } = useAuth();
 
 	return (
 		<div className="flex h-screen w-64 flex-col bg-background shadow-[4px_0_12px_-2px_rgba(29,53,87,0.08)] relative z-10">
@@ -102,22 +101,13 @@ export function MobileSidebar() {
 				<div className="p-6">
 					<div className="flex items-center gap-2 mb-2">
 						<div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center flex-shrink-0 shadow-lg shadow-indigo-500/25 p-1">
-							<Image
-								src="/reflexio_fav.svg"
-								alt="Reflexio"
-								width={24}
-								height={24}
-							/>
+							<Image src="/reflexio_fav.svg" alt="Reflexio" width={24} height={24} />
 						</div>
 						<div className="overflow-hidden">
-							<h1 className="text-xl font-bold text-foreground whitespace-nowrap">
-								Reflexio
-							</h1>
+							<h1 className="text-xl font-bold text-foreground whitespace-nowrap">Reflexio</h1>
 						</div>
 					</div>
-					<p className="text-sm text-muted-foreground font-medium">
-						User Profiler Portal
-					</p>
+					<p className="text-sm text-muted-foreground font-medium">User Profiler Portal</p>
 				</div>
 			</div>
 			{/* Gradient separator */}
@@ -137,10 +127,7 @@ export function MobileSidebar() {
 						{/* Section Items */}
 						<div className="space-y-1">
 							{section.items
-								.filter(
-									(item) =>
-										!item.featureFlag || isFeatureEnabled(item.featureFlag),
-								)
+								.filter((item) => !item.featureFlag || isFeatureEnabled(item.featureFlag))
 								.map((item) => {
 									const Icon = item.icon;
 									const isActive = pathname === item.href;
@@ -207,9 +194,7 @@ export function MobileSidebar() {
 
 				{/* Version Info */}
 				<div className="p-4">
-					<p className="text-xs text-muted-foreground font-medium">
-						Version 1.0.0
-					</p>
+					<p className="text-xs text-muted-foreground font-medium">Version 1.0.0</p>
 					<p className="text-xs text-muted-foreground/70 mt-0.5">
 						{isSelfHost ? "Self-Hosted" : "Production"}
 					</p>

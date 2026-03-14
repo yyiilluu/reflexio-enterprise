@@ -40,27 +40,17 @@ export function SlidingWindowNode({ data }: SlidingWindowNodeProps) {
 						</div>
 
 						<div className="text-center">
-							<div className="font-bold text-lg text-white drop-shadow-md mb-2">
-								{data.label}
-							</div>
+							<div className="font-bold text-lg text-white drop-shadow-md mb-2">{data.label}</div>
 
 							<div className="flex items-center justify-center gap-4">
 								<div className="bg-white/90 px-4 py-2 rounded-lg shadow-md">
-									<div className="text-xs text-gray-600 font-semibold">
-										Window Size
-									</div>
-									<div className="text-lg font-bold text-[#fb8500]">
-										{data.windowSize || "—"}
-									</div>
+									<div className="text-xs text-gray-600 font-semibold">Window Size</div>
+									<div className="text-lg font-bold text-[#fb8500]">{data.windowSize || "—"}</div>
 								</div>
 
 								<div className="bg-white/90 px-4 py-2 rounded-lg shadow-md">
-									<div className="text-xs text-gray-600 font-semibold">
-										Stride
-									</div>
-									<div className="text-lg font-bold text-[#fb8500]">
-										{data.windowStride || "—"}
-									</div>
+									<div className="text-xs text-gray-600 font-semibold">Stride</div>
+									<div className="text-lg font-bold text-[#fb8500]">{data.windowStride || "—"}</div>
 								</div>
 							</div>
 						</div>
@@ -69,24 +59,15 @@ export function SlidingWindowNode({ data }: SlidingWindowNodeProps) {
 						<div className="bg-white/90 px-4 py-3 rounded-lg shadow-md w-full">
 							<div className="mb-3 space-y-1">
 								<p className="text-xs text-gray-600">
-									<strong className="text-[#fb8500]">
-										Window Size ({windowSize}):
-									</strong>{" "}
-									Number of interactions processed in each batch
+									<strong className="text-[#fb8500]">Window Size ({windowSize}):</strong> Number of
+									interactions processed in each batch
 								</p>
 								<p className="text-xs text-gray-600">
-									<strong className="text-[#fb8500]">
-										Stride ({windowStride}):
-									</strong>{" "}
-									Distance between start of consecutive windows
+									<strong className="text-[#fb8500]">Stride ({windowStride}):</strong> Distance
+									between start of consecutive windows
 								</p>
 							</div>
-							<svg
-								width="100%"
-								height="110"
-								viewBox="0 0 280 110"
-								className="overflow-visible"
-							>
+							<svg width="100%" height="110" viewBox="0 0 280 110" className="overflow-visible">
 								{(() => {
 									// Scaling to fit visualization
 									const timelineStart = 20;
@@ -138,20 +119,18 @@ export function SlidingWindowNode({ data }: SlidingWindowNodeProps) {
 											/>
 
 											{/* Data points along timeline */}
-											{[
-												...Array(
-													Math.floor((timelineEnd - timelineStart) / 12) + 1,
+											{[...Array(Math.floor((timelineEnd - timelineStart) / 12) + 1)].map(
+												(_, i) => (
+													<circle
+														key={`dot-${i}`}
+														cx={timelineStart + i * 12}
+														cy="55"
+														r="2"
+														fill="#457b9d"
+														opacity="0.4"
+													/>
 												),
-											].map((_, i) => (
-												<circle
-													key={`dot-${i}`}
-													cx={timelineStart + i * 12}
-													cy="55"
-													r="2"
-													fill="#457b9d"
-													opacity="0.4"
-												/>
-											))}
+											)}
 
 											{/* Window 1 */}
 											<rect
@@ -236,13 +215,7 @@ export function SlidingWindowNode({ data }: SlidingWindowNodeProps) {
 											</defs>
 
 											{/* Relationship label */}
-											<text
-												x="20"
-												y="106"
-												fontSize="9"
-												fill="#666"
-												fontWeight="600"
-											>
+											<text x="20" y="106" fontSize="9" fill="#666" fontWeight="600">
 												{relationship}
 											</text>
 											<text x="160" y="106" fontSize="8" fill="#999">
@@ -277,21 +250,16 @@ export function SlidingWindowNode({ data }: SlidingWindowNodeProps) {
 				onMouseEnter={() => setShowTooltip(true)}
 				onMouseLeave={() => setShowTooltip(false)}
 			>
-				<div className="font-bold text-base mb-2 text-[#fb8500]">
-					🔄 Sliding Window Processing
-				</div>
+				<div className="font-bold text-base mb-2 text-[#fb8500]">🔄 Sliding Window Processing</div>
 				<div className="space-y-2 text-gray-700 leading-relaxed">
 					<p>
-						<strong>Window Size:</strong> Maximum number of interactions to
-						process in one batch.
+						<strong>Window Size:</strong> Maximum number of interactions to process in one batch.
 					</p>
 					<p>
-						<strong>Stride:</strong> Number of new interactions needed before
-						triggering extraction.
+						<strong>Stride:</strong> Number of new interactions needed before triggering extraction.
 					</p>
 					<p className="pt-2 border-t border-gray-200 text-xs">
-						When new interaction count ≥ stride, all extractors are triggered to
-						process the batch.
+						When new interaction count ≥ stride, all extractors are triggered to process the batch.
 					</p>
 				</div>
 			</Tooltip>

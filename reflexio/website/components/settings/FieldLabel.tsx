@@ -2,12 +2,7 @@
 
 import { HelpCircle } from "lucide-react";
 import { Label } from "@/components/ui/label";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface FieldLabelProps {
 	htmlFor?: string;
@@ -17,13 +12,7 @@ interface FieldLabelProps {
 	className?: string;
 }
 
-export function FieldLabel({
-	htmlFor,
-	children,
-	tooltip,
-	required,
-	className,
-}: FieldLabelProps) {
+export function FieldLabel({ htmlFor, children, tooltip, required, className }: FieldLabelProps) {
 	return (
 		<div className={`flex items-center gap-1.5 mb-2 ${className ?? ""}`}>
 			<Label htmlFor={htmlFor} className="text-sm font-medium text-slate-700">

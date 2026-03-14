@@ -27,8 +27,8 @@ export function CTA() {
 							Stop Fixing the Same Agent Mistakes
 						</h2>
 						<p className="text-white/80 text-lg mb-8 max-w-xl mx-auto">
-							Add a learning loop to your agents in minutes. Free to start,
-							scales with the value created.
+							Add a learning loop to your agents in minutes. Free to start, scales with the value
+							created.
 						</p>
 
 						<div className="flex flex-col sm:flex-row gap-4 justify-center">

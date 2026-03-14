@@ -12,10 +12,7 @@ const TOKEN_COOKIE_NAME = "reflexio_token";
 const USER_EMAIL_COOKIE_NAME = "reflexio_user_email";
 const FEATURE_FLAGS_KEY = "reflexio_feature_flags";
 
-const ERROR_MESSAGES: Record<
-	string,
-	{ message: string; link: string; linkText: string }
-> = {
+const ERROR_MESSAGES: Record<string, { message: string; link: string; linkText: string }> = {
 	email_exists: {
 		message:
 			"An account with this email already exists. Please sign in with your email and password.",
@@ -23,8 +20,7 @@ const ERROR_MESSAGES: Record<
 		linkText: "Go to Login",
 	},
 	no_account: {
-		message:
-			"No account found with this email. Please create an account first.",
+		message: "No account found with this email. Please create an account first.",
 		link: "/register",
 		linkText: "Go to Register",
 	},

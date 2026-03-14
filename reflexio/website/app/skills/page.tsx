@@ -18,7 +18,7 @@ import {
 	XCircle,
 	Zap,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { Badge } from "@/components/ui/badge";
@@ -135,12 +135,7 @@ interface SkillRowProps {
 	isUpdating?: boolean;
 }
 
-function SkillRow({
-	skill,
-	onUpdateStatus,
-	onDelete,
-	isUpdating = false,
-}: SkillRowProps) {
+function SkillRow({ skill, onUpdateStatus, onDelete, isUpdating = false }: SkillRowProps) {
 	const [expanded, setExpanded] = useState(false);
 
 	return (
@@ -163,13 +158,8 @@ function SkillRow({
 						{/* Main Info */}
 						<div className="flex-1 min-w-0">
 							<div className="flex items-center gap-2 flex-wrap">
-								<span className="font-semibold text-slate-800 text-sm">
-									{skill.skill_name}
-								</span>
-								<Badge
-									variant="outline"
-									className="text-xs border-slate-200 text-slate-600"
-								>
+								<span className="font-semibold text-slate-800 text-sm">{skill.skill_name}</span>
+								<Badge variant="outline" className="text-xs border-slate-200 text-slate-600">
 									v{skill.version}
 								</Badge>
 								<Badge className="text-xs bg-slate-100 text-slate-600 hover:bg-slate-100">
@@ -178,11 +168,8 @@ function SkillRow({
 								<Badge className="text-xs bg-slate-100 text-slate-600 hover:bg-slate-100">
 									{skill.agent_version}
 								</Badge>
-								<Badge
-									className={`text-xs ${getStatusBadgeClass(skill.skill_status)}`}
-								>
-									{skill.skill_status.charAt(0).toUpperCase() +
-										skill.skill_status.slice(1)}
+								<Badge className={`text-xs ${getStatusBadgeClass(skill.skill_status)}`}>
+									{skill.skill_status.charAt(0).toUpperCase() + skill.skill_status.slice(1)}
 								</Badge>
 							</div>
 							<p className="text-sm text-slate-500 mt-1 truncate">
@@ -194,9 +181,7 @@ function SkillRow({
 					{/* Right side */}
 					<div className="flex items-center gap-3 flex-shrink-0">
 						<div className="text-right">
-							<p className="text-xs text-slate-500">
-								{getRelativeTime(skill.updated_at)}
-							</p>
+							<p className="text-xs text-slate-500">{getRelativeTime(skill.updated_at)}</p>
 							<p className="text-xs text-slate-400">
 								{new Date(skill.updated_at * 1000).toLocaleDateString("en-US", {
 									month: "short",
@@ -251,11 +236,7 @@ function SkillRow({
 								size="sm"
 								className="h-8 w-8 p-0 text-slate-400 hover:text-slate-600"
 							>
-								{expanded ? (
-									<ChevronUp className="h-4 w-4" />
-								) : (
-									<ChevronDown className="h-4 w-4" />
-								)}
+								{expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
 							</Button>
 						</div>
 					</div>
@@ -270,9 +251,7 @@ function SkillRow({
 						<div className="space-y-4">
 							{skill.instructions && (
 								<div>
-									<h4 className="text-sm font-semibold mb-2 text-slate-800">
-										Instructions
-									</h4>
+									<h4 className="text-sm font-semibold mb-2 text-slate-800">Instructions</h4>
 									<div className="text-sm text-slate-600 leading-relaxed bg-white p-3 rounded-lg border border-slate-200 prose prose-sm prose-slate max-w-none prose-headings:text-slate-800 prose-headings:font-semibold prose-headings:mt-3 prose-headings:mb-1 prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-code:text-teal-700 prose-code:bg-teal-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-pre:bg-slate-900 prose-pre:text-slate-100 prose-pre:rounded-lg">
 										<ReactMarkdown>{skill.instructions}</ReactMarkdown>
 									</div>
@@ -281,16 +260,13 @@ function SkillRow({
 
 							{skill.blocking_issues.length > 0 && (
 								<div>
-									<h4 className="text-sm font-semibold mb-2 text-slate-800">
-										Blocking Issues
-									</h4>
+									<h4 className="text-sm font-semibold mb-2 text-slate-800">Blocking Issues</h4>
 									<div className="bg-white p-3 rounded-lg border border-slate-200 space-y-2">
 										{skill.blocking_issues.map((issue, i) => (
 											<div key={i} className="flex items-start gap-2 text-sm">
 												<AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
 												<span className="text-slate-600">
-													<span className="font-medium">[{issue.kind}]</span>{" "}
-													{issue.details}
+													<span className="font-medium">[{issue.kind}]</span> {issue.details}
 												</span>
 											</div>
 										))}
@@ -302,15 +278,11 @@ function SkillRow({
 						{/* Right Column */}
 						<div className="space-y-4">
 							<div>
-								<h4 className="text-sm font-semibold mb-3 text-slate-800">
-									Details
-								</h4>
+								<h4 className="text-sm font-semibold mb-3 text-slate-800">Details</h4>
 								<div className="space-y-2 bg-white p-3 rounded-lg border border-slate-200">
 									<div className="flex justify-between text-sm">
 										<span className="text-slate-500">Skill ID:</span>
-										<span className="font-mono text-slate-700">
-											#{skill.skill_id}
-										</span>
+										<span className="font-mono text-slate-700">#{skill.skill_id}</span>
 									</div>
 									<div className="flex justify-between text-sm">
 										<span className="text-slate-500">Version:</span>
@@ -318,21 +290,15 @@ function SkillRow({
 									</div>
 									<div className="flex justify-between text-sm">
 										<span className="text-slate-500">Agent Version:</span>
-										<span className="text-slate-700">
-											{skill.agent_version}
-										</span>
+										<span className="text-slate-700">{skill.agent_version}</span>
 									</div>
 									<div className="flex justify-between text-sm">
 										<span className="text-slate-500">Feedback Name:</span>
-										<span className="text-slate-700">
-											{skill.feedback_name}
-										</span>
+										<span className="text-slate-700">{skill.feedback_name}</span>
 									</div>
 									<div className="flex justify-between text-sm">
 										<span className="text-slate-500">Status:</span>
-										<Badge
-											className={`text-xs ${getStatusBadgeClass(skill.skill_status)}`}
-										>
+										<Badge className={`text-xs ${getStatusBadgeClass(skill.skill_status)}`}>
 											{skill.skill_status}
 										</Badge>
 									</div>
@@ -353,9 +319,7 @@ function SkillRow({
 
 							{skill.allowed_tools.length > 0 && (
 								<div>
-									<h4 className="text-sm font-semibold mb-2 text-slate-800">
-										Allowed Tools
-									</h4>
+									<h4 className="text-sm font-semibold mb-2 text-slate-800">Allowed Tools</h4>
 									<div className="flex flex-wrap gap-1.5">
 										{skill.allowed_tools.map((tool, i) => (
 											<Badge
@@ -372,9 +336,7 @@ function SkillRow({
 
 							{skill.raw_feedback_ids.length > 0 && (
 								<div>
-									<h4 className="text-sm font-semibold mb-2 text-slate-800">
-										Raw Feedback IDs
-									</h4>
+									<h4 className="text-sm font-semibold mb-2 text-slate-800">Raw Feedback IDs</h4>
 									<div className="flex flex-wrap gap-1.5">
 										{skill.raw_feedback_ids.map((id, i) => (
 											<Badge
@@ -389,9 +351,7 @@ function SkillRow({
 							)}
 
 							<div>
-								<h4 className="text-sm font-semibold mb-2 text-slate-800">
-									Export
-								</h4>
+								<h4 className="text-sm font-semibold mb-2 text-slate-800">Export</h4>
 								<Button
 									size="sm"
 									variant="outline"
@@ -407,9 +367,7 @@ function SkillRow({
 							</div>
 
 							<div>
-								<h4 className="text-sm font-semibold mb-2 text-slate-800">
-									Status Management
-								</h4>
+								<h4 className="text-sm font-semibold mb-2 text-slate-800">Status Management</h4>
 								<div className="flex gap-2">
 									<Button
 										size="sm"
@@ -419,9 +377,7 @@ function SkillRow({
 										}}
 										disabled={isUpdating}
 										className={`flex-1 ${skill.skill_status === "draft" ? "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 border-0" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"}`}
-										variant={
-											skill.skill_status === "draft" ? "default" : "outline"
-										}
+										variant={skill.skill_status === "draft" ? "default" : "outline"}
 									>
 										{isUpdating ? (
 											<RefreshCw className="h-4 w-4 mr-1 animate-spin" />
@@ -438,9 +394,7 @@ function SkillRow({
 										}}
 										disabled={isUpdating}
 										className={`flex-1 ${skill.skill_status === "published" ? "bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 border-0" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"}`}
-										variant={
-											skill.skill_status === "published" ? "default" : "outline"
-										}
+										variant={skill.skill_status === "published" ? "default" : "outline"}
 									>
 										{isUpdating ? (
 											<RefreshCw className="h-4 w-4 mr-1 animate-spin" />
@@ -457,11 +411,7 @@ function SkillRow({
 										}}
 										disabled={isUpdating}
 										className={`flex-1 ${skill.skill_status === "deprecated" ? "bg-gradient-to-r from-slate-500 to-slate-600 hover:from-slate-600 hover:to-slate-700 border-0" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"}`}
-										variant={
-											skill.skill_status === "deprecated"
-												? "default"
-												: "outline"
-										}
+										variant={skill.skill_status === "deprecated" ? "default" : "outline"}
 									>
 										{isUpdating ? (
 											<RefreshCw className="h-4 w-4 mr-1 animate-spin" />
@@ -492,8 +442,7 @@ export default function SkillsPage() {
 	// Filter state
 	const [searchQuery, setSearchQuery] = useState("");
 	const [selectedAgent, setSelectedAgent] = useState<string>("all");
-	const [selectedFeedbackName, setSelectedFeedbackName] =
-		useState<string>("all");
+	const [selectedFeedbackName, setSelectedFeedbackName] = useState<string>("all");
 	const [selectedStatus, setSelectedStatus] = useState<string>("all");
 
 	// Delete confirmation state
@@ -514,7 +463,7 @@ export default function SkillsPage() {
 		type: "success" | "error";
 	} | null>(null);
 
-	const fetchSkills = async () => {
+	const fetchSkills = useCallback(async () => {
 		setIsLoading(true);
 		setError(null);
 		try {
@@ -530,7 +479,7 @@ export default function SkillsPage() {
 		} finally {
 			setIsLoading(false);
 		}
-	};
+	}, []);
 
 	// Fetch data (skip if feature is disabled to avoid a 403)
 	useEffect(() => {
@@ -560,38 +509,24 @@ export default function SkillsPage() {
 				skill.description.toLowerCase().includes(query) ||
 				skill.instructions.toLowerCase().includes(query);
 
-			const matchesAgent =
-				selectedAgent === "all" || skill.agent_version === selectedAgent;
+			const matchesAgent = selectedAgent === "all" || skill.agent_version === selectedAgent;
 			const matchesFeedbackName =
-				selectedFeedbackName === "all" ||
-				skill.feedback_name === selectedFeedbackName;
-			const matchesStatus =
-				selectedStatus === "all" || skill.skill_status === selectedStatus;
+				selectedFeedbackName === "all" || skill.feedback_name === selectedFeedbackName;
+			const matchesStatus = selectedStatus === "all" || skill.skill_status === selectedStatus;
 
-			return (
-				matchesSearch && matchesAgent && matchesFeedbackName && matchesStatus
-			);
+			return matchesSearch && matchesAgent && matchesFeedbackName && matchesStatus;
 		});
-	}, [
-		skills,
-		searchQuery,
-		selectedAgent,
-		selectedFeedbackName,
-		selectedStatus,
-	]);
+	}, [skills, searchQuery, selectedAgent, selectedFeedbackName, selectedStatus]);
 
 	// Statistics
 	const totalSkills = skills.length;
-	const publishedCount = skills.filter(
-		(s) => s.skill_status === "published",
-	).length;
+	const publishedCount = skills.filter((s) => s.skill_status === "published").length;
 	const draftCount = skills.filter((s) => s.skill_status === "draft").length;
 
 	// Active filters
 	const activeFilters = useMemo(() => {
 		const filters: { key: string; label: string; value: string }[] = [];
-		if (searchQuery)
-			filters.push({ key: "search", label: "Search", value: searchQuery });
+		if (searchQuery) filters.push({ key: "search", label: "Search", value: searchQuery });
 		if (selectedAgent !== "all")
 			filters.push({ key: "agent", label: "Agent", value: selectedAgent });
 		if (selectedFeedbackName !== "all")
@@ -632,11 +567,7 @@ export default function SkillsPage() {
 	// Update skill status
 	const handleUpdateStatus = async (skillId: number, status: SkillStatus) => {
 		// Optimistic update
-		setSkills(
-			skills.map((s) =>
-				s.skill_id === skillId ? { ...s, skill_status: status } : s,
-			),
-		);
+		setSkills(skills.map((s) => (s.skill_id === skillId ? { ...s, skill_status: status } : s)));
 		setUpdatingSkillId(skillId);
 
 		try {
@@ -645,9 +576,7 @@ export default function SkillsPage() {
 				skill_status: status,
 			});
 			if (!response.success) {
-				setError(
-					`Failed to update skill status: ${response.message || "Unknown error"}`,
-				);
+				setError(`Failed to update skill status: ${response.message || "Unknown error"}`);
 				await fetchSkills();
 			}
 		} catch (err) {
@@ -687,10 +616,7 @@ export default function SkillsPage() {
 			console.error("Error deleting skill:", err);
 			setMessageModalConfig({
 				title: "Delete Failed",
-				message:
-					err instanceof Error
-						? err.message
-						: "An error occurred while deleting the skill",
+				message: err instanceof Error ? err.message : "An error occurred while deleting the skill",
 				type: "error",
 			});
 			setShowMessageModal(true);
@@ -755,8 +681,7 @@ export default function SkillsPage() {
 			console.error("Error generating skills:", err);
 			setMessageModalConfig({
 				title: "Error Generating Skills",
-				message:
-					err instanceof Error ? err.message : "An unexpected error occurred",
+				message: err instanceof Error ? err.message : "An unexpected error occurred",
 				type: "error",
 			});
 			setShowMessageModal(true);
@@ -772,12 +697,10 @@ export default function SkillsPage() {
 					<div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center mx-auto mb-6 shadow-lg">
 						<Lock className="h-8 w-8 text-slate-500" />
 					</div>
-					<h2 className="text-2xl font-bold text-slate-800 mb-3">
-						Skills Not Available
-					</h2>
+					<h2 className="text-2xl font-bold text-slate-800 mb-3">Skills Not Available</h2>
 					<p className="text-slate-500">
-						The Skills feature is not enabled for your organization. Please
-						contact support if you believe this is an error.
+						The Skills feature is not enabled for your organization. Please contact support if you
+						believe this is an error.
 					</p>
 				</div>
 			</div>
@@ -794,9 +717,7 @@ export default function SkillsPage() {
 							<div className="h-10 w-10 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-teal-500/25">
 								<Sparkles className="h-5 w-5 text-white" />
 							</div>
-							<h1 className="text-3xl font-bold tracking-tight text-slate-800">
-								Skills
-							</h1>
+							<h1 className="text-3xl font-bold tracking-tight text-slate-800">Skills</h1>
 						</div>
 						<p className="text-slate-500 mt-1 ml-13">
 							Manage AI-generated skills derived from feedback patterns
@@ -814,9 +735,7 @@ export default function SkillsPage() {
 								<div className="flex items-center gap-3">
 									<AlertCircle className="h-5 w-5 text-red-500" />
 									<div>
-										<p className="font-semibold text-red-600">
-											Error Loading Skills
-										</p>
+										<p className="font-semibold text-red-600">Error Loading Skills</p>
 										<p className="text-sm text-slate-600">{error}</p>
 									</div>
 									<Button
@@ -856,12 +775,8 @@ export default function SkillsPage() {
 										</div>
 									</CardHeader>
 									<CardContent>
-										<div className="text-3xl font-bold text-slate-800">
-											{totalSkills}
-										</div>
-										<p className="text-xs text-slate-500 mt-1">
-											All skills across versions
-										</p>
+										<div className="text-3xl font-bold text-slate-800">{totalSkills}</div>
+										<p className="text-xs text-slate-500 mt-1">All skills across versions</p>
 									</CardContent>
 								</Card>
 
@@ -875,31 +790,21 @@ export default function SkillsPage() {
 										</div>
 									</CardHeader>
 									<CardContent>
-										<div className="text-3xl font-bold text-slate-800">
-											{publishedCount}
-										</div>
-										<p className="text-xs text-slate-500 mt-1">
-											Active published skills
-										</p>
+										<div className="text-3xl font-bold text-slate-800">{publishedCount}</div>
+										<p className="text-xs text-slate-500 mt-1">Active published skills</p>
 									</CardContent>
 								</Card>
 
 								<Card className="border bg-gradient-to-br from-amber-50 to-orange-50 border-amber-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
 									<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-										<CardTitle className="text-sm font-semibold text-slate-600">
-											Draft
-										</CardTitle>
+										<CardTitle className="text-sm font-semibold text-slate-600">Draft</CardTitle>
 										<div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg">
 											<FileText className="h-5 w-5 text-white" />
 										</div>
 									</CardHeader>
 									<CardContent>
-										<div className="text-3xl font-bold text-slate-800">
-											{draftCount}
-										</div>
-										<p className="text-xs text-slate-500 mt-1">
-											Skills awaiting review
-										</p>
+										<div className="text-3xl font-bold text-slate-800">{draftCount}</div>
+										<p className="text-xs text-slate-500 mt-1">Skills awaiting review</p>
 									</CardContent>
 								</Card>
 							</div>
@@ -966,9 +871,7 @@ export default function SkillsPage() {
 											</Label>
 											<select
 												value={selectedFeedbackName}
-												onChange={(e) =>
-													setSelectedFeedbackName(e.target.value)
-												}
+												onChange={(e) => setSelectedFeedbackName(e.target.value)}
 												className="w-full h-10 rounded-md border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200 focus:border-teal-300"
 											>
 												<option value="all">All Names</option>
@@ -1000,9 +903,7 @@ export default function SkillsPage() {
 									{/* Active Filter Badges */}
 									{activeFilters.length > 0 && (
 										<div className="flex items-center gap-2 mt-4 pt-4 border-t border-slate-100">
-											<span className="text-xs text-slate-500">
-												Active filters:
-											</span>
+											<span className="text-xs text-slate-500">Active filters:</span>
 											{activeFilters.map((filter) => (
 												<Badge
 													key={filter.key}
@@ -1121,16 +1022,14 @@ export default function SkillsPage() {
 							</DialogTitle>
 						</div>
 						<DialogDescription className="text-sm text-slate-600 pt-2">
-							Generate skills from aggregated feedback patterns. This will
-							analyze existing feedbacks and create new skills.
+							Generate skills from aggregated feedback patterns. This will analyze existing
+							feedbacks and create new skills.
 						</DialogDescription>
 					</DialogHeader>
 
 					<div className="space-y-4 py-4">
 						<div>
-							<Label className="text-sm font-medium text-slate-700">
-								Agent Version *
-							</Label>
+							<Label className="text-sm font-medium text-slate-700">Agent Version *</Label>
 							<Input
 								placeholder="e.g., v1.0.0"
 								value={generateAgentVersion}
@@ -1139,9 +1038,7 @@ export default function SkillsPage() {
 							/>
 						</div>
 						<div>
-							<Label className="text-sm font-medium text-slate-700">
-								Feedback Name *
-							</Label>
+							<Label className="text-sm font-medium text-slate-700">Feedback Name *</Label>
 							<Input
 								placeholder="e.g., agent_feedback"
 								value={generateFeedbackName}

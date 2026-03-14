@@ -3,13 +3,7 @@
 import { Brain, Plus, Trash2 } from "lucide-react";
 import type { Config, ToolUseConfig } from "@/app/settings/types";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { FieldLabel } from "../FieldLabel";
 
@@ -34,9 +28,7 @@ export function AgentContextSection({
 				<div className="flex items-center gap-3">
 					<Brain className="h-4 w-4 text-slate-400" />
 					<div>
-						<CardTitle className="text-lg font-semibold text-slate-800">
-							Agent Context
-						</CardTitle>
+						<CardTitle className="text-lg font-semibold text-slate-800">Agent Context</CardTitle>
 						<CardDescription className="text-xs mt-1 text-muted-foreground">
 							Define agent working environment
 						</CardDescription>
@@ -62,19 +54,14 @@ export function AgentContextSection({
 				<div className="mt-6">
 					<div className="flex items-center justify-between mb-3">
 						<FieldLabel>Available Tools</FieldLabel>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={onAddTool}
-							className="h-8 text-sm"
-						>
+						<Button variant="ghost" size="sm" onClick={onAddTool} className="h-8 text-sm">
 							<Plus className="h-4 w-4 mr-1" />
 							Add Tool
 						</Button>
 					</div>
 					<p className="text-xs text-muted-foreground mb-3">
-						Define tools the agent can use. These are shared across success
-						evaluation and feedback extraction.
+						Define tools the agent can use. These are shared across success evaluation and feedback
+						extraction.
 					</p>
 					<div className="space-y-3">
 						{config.tool_can_use?.map((tool, toolIndex) => (
@@ -85,9 +72,7 @@ export function AgentContextSection({
 								<div className="flex-1 grid grid-cols-2 gap-3">
 									<Input
 										value={tool.tool_name}
-										onChange={(e) =>
-											onUpdateTool(toolIndex, { tool_name: e.target.value })
-										}
+										onChange={(e) => onUpdateTool(toolIndex, { tool_name: e.target.value })}
 										placeholder="Tool name"
 										className="h-10 text-sm"
 									/>

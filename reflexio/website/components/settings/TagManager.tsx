@@ -37,8 +37,7 @@ export function TagManager({
 					variant="outline"
 					size="sm"
 					onClick={(e) => {
-						const input = e.currentTarget
-							.previousElementSibling as HTMLInputElement;
+						const input = e.currentTarget.previousElementSibling as HTMLInputElement;
 						if (input?.value.trim()) {
 							onAdd(input.value.trim());
 							input.value = "";

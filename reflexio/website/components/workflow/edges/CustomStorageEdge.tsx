@@ -17,9 +17,7 @@ function getPointOnBezier(
 	t: number,
 ) {
 	// Calculate control points for the Bezier curve
-	const distance = Math.sqrt(
-		(targetX - sourceX) ** 2 + (targetY - sourceY) ** 2,
-	);
+	const distance = Math.sqrt((targetX - sourceX) ** 2 + (targetY - sourceY) ** 2);
 	const offset = distance * 0.25;
 
 	let cp1x = sourceX;
@@ -44,10 +42,8 @@ function getPointOnBezier(
 	const t2 = t * t;
 	const t3 = t2 * t;
 
-	const x =
-		mt3 * sourceX + 3 * mt2 * t * cp1x + 3 * mt * t2 * cp2x + t3 * targetX;
-	const y =
-		mt3 * sourceY + 3 * mt2 * t * cp1y + 3 * mt * t2 * cp2y + t3 * targetY;
+	const x = mt3 * sourceX + 3 * mt2 * t * cp1x + 3 * mt * t2 * cp2x + t3 * targetX;
+	const y = mt3 * sourceY + 3 * mt2 * t * cp1y + 3 * mt * t2 * cp2y + t3 * targetY;
 
 	return { x, y };
 }

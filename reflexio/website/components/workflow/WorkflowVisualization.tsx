@@ -88,9 +88,7 @@ interface WorkflowVisualizationProps {
 	config: Config;
 }
 
-export default function WorkflowVisualization({
-	config,
-}: WorkflowVisualizationProps) {
+export default function WorkflowVisualization({ config }: WorkflowVisualizationProps) {
 	const { nodes, edges } = useMemo(() => {
 		const generatedNodes: Node[] = [];
 		const generatedEdges: Edge[] = [];
@@ -297,11 +295,8 @@ export default function WorkflowVisualization({
 			if (extractor.type === "feedback") {
 				const feedbackConfig = extractor.config as AgentFeedbackConfig;
 				const aggregatorId = `aggregator-${extractor.id}`;
-				const minThreshold =
-					feedbackConfig.feedback_aggregator_config?.min_feedback_threshold ??
-					2;
-				const refreshCount =
-					feedbackConfig.feedback_aggregator_config?.refresh_count ?? 2;
+				const minThreshold = feedbackConfig.feedback_aggregator_config?.min_feedback_threshold ?? 2;
+				const refreshCount = feedbackConfig.feedback_aggregator_config?.refresh_count ?? 2;
 
 				// Create aggregator node positioned lower than the extractor for better edge visibility
 				const aggregatorY = y + 80; // Offset downward by 80px
@@ -455,8 +450,7 @@ export default function WorkflowVisualization({
 				type: "default",
 				position: { x: extractorX, y: centerY - 50 },
 				data: {
-					label:
-						"No extractors configured\nAdd extractors in the Extractor Settings tab",
+					label: "No extractors configured\nAdd extractors in the Extractor Settings tab",
 				},
 				style: {
 					background: "#f1faee",
@@ -486,8 +480,7 @@ export default function WorkflowVisualization({
 		// Base height + additional height for each extractor vertically
 		const baseHeight = 600;
 		const verticalNodeSpacing = 200;
-		const additionalHeight =
-			totalExtractors > 0 ? totalExtractors * verticalNodeSpacing : 0;
+		const additionalHeight = totalExtractors > 0 ? totalExtractors * verticalNodeSpacing : 0;
 
 		return Math.min(baseHeight + additionalHeight, 1600); // Cap at 1600px for vertical space
 	}, [config]);

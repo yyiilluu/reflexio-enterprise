@@ -2,13 +2,7 @@
 
 import { Database } from "lucide-react";
 import type { Config, StorageConfig, StorageType } from "@/app/settings/types";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { FieldLabel } from "../FieldLabel";
 import { PasswordInput } from "../PasswordInput";

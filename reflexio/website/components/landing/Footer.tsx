@@ -13,18 +13,12 @@ export function Footer() {
 					<div className="col-span-2 md:col-span-1">
 						<div className="flex items-center gap-2 mb-4">
 							<div className="h-9 w-9 rounded-xl bg-white flex items-center justify-center shadow-lg shadow-indigo-500/25 p-1">
-								<Image
-									src="/reflexio_fav.svg"
-									alt="Reflexio"
-									width={28}
-									height={28}
-								/>
+								<Image src="/reflexio_fav.svg" alt="Reflexio" width={28} height={28} />
 							</div>
 							<span className="font-bold text-xl text-slate-800">Reflexio</span>
 						</div>
 						<p className="text-sm text-slate-600 leading-relaxed mb-4">
-							The learning layer that turns AI agents into self-improving
-							systems.
+							The learning layer that turns AI agents into self-improving systems.
 						</p>
 						{/* Social Links */}
 						<div className="flex gap-3">
@@ -45,9 +39,7 @@ export function Footer() {
 
 					{/* Product Links */}
 					<div>
-						<h4 className="font-semibold text-slate-800 mb-4 text-sm">
-							Product
-						</h4>
+						<h4 className="font-semibold text-slate-800 mb-4 text-sm">Product</h4>
 						<ul className="space-y-3">
 							<li>
 								<a
@@ -90,9 +82,7 @@ export function Footer() {
 
 					{/* Resources Links */}
 					<div>
-						<h4 className="font-semibold text-slate-800 mb-4 text-sm">
-							Resources
-						</h4>
+						<h4 className="font-semibold text-slate-800 mb-4 text-sm">Resources</h4>
 						<ul className="space-y-3">
 							<li>
 								<Link
@@ -159,9 +149,7 @@ export function Footer() {
 						<p className="text-sm text-slate-500">
 							&copy; {new Date().getFullYear()} Reflexio. All rights reserved.
 						</p>
-						<p className="text-sm text-slate-500">
-							Built with care for developers
-						</p>
+						<p className="text-sm text-slate-500">Built with care for developers</p>
 					</div>
 				</div>
 			</div>

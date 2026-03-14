@@ -6,19 +6,18 @@
 		"useIgnoreFile": true
 	},
 	"files": {
-		"ignoreUnknown": false,
-		"includes": [
-			"**/*.ts",
-			"**/*.tsx",
-			"**/*.js",
-			"**/*.jsx",
-			"**/*.mts",
-			"**/*.json"
-		]
+		"ignoreUnknown": true
 	},
 	"formatter": {
 		"enabled": true,
-		"indentStyle": "tab"
+		"indentStyle": "tab",
+		"lineWidth": 100
+	},
+	"css": {
+		"parser": {
+			"cssModules": true,
+			"tailwindDirectives": true
+		}
 	},
 	"linter": {
 		"enabled": true,
@@ -27,23 +26,26 @@
 			"a11y": {
 				"noLabelWithoutControl": "warn",
 				"noStaticElementInteractions": "warn",
+				"noSvgWithoutTitle": "off",
 				"useButtonType": "warn",
-				"useKeyWithClickEvents": "warn",
-				"noSvgWithoutTitle": "warn"
+				"useKeyWithClickEvents": "warn"
 			},
 			"suspicious": {
 				"noArrayIndexKey": "warn",
 				"noExplicitAny": "warn"
 			},
 			"correctness": {
-				"useExhaustiveDependencies": "warn",
-				"noUnknownProperty": "warn"
+				"noUnknownProperty": "warn",
+				"useExhaustiveDependencies": "error",
+				"noUnusedVariables": "error"
 			}
 		}
 	},
 	"javascript": {
 		"formatter": {
-			"quoteStyle": "double"
+			"quoteStyle": "double",
+			"jsxQuoteStyle": "double",
+			"trailingCommas": "all"
 		}
 	},
 	"assist": {

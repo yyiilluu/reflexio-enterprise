@@ -12,18 +12,8 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
-import {
-	Collapsible,
-	CollapsibleContent,
-	CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { FieldLabel } from "../FieldLabel";
 import { TagManager } from "../TagManager";
@@ -82,17 +72,11 @@ export function AgentFeedbackSection({
 							className="border border-slate-200 rounded-xl bg-white overflow-hidden divide-y divide-slate-100"
 						>
 							{feedbacks.map((feedback) => (
-								<AccordionItem
-									key={feedback.id}
-									value={feedback.id}
-									className="border-b-0 px-5"
-								>
+								<AccordionItem key={feedback.id} value={feedback.id} className="border-b-0 px-5">
 									<div
 										className="flex items-center py-3 gap-3 cursor-pointer hover:bg-muted/50 transition-colors rounded-t-lg"
 										onClick={(e) => {
-											const trigger = (
-												e.currentTarget as HTMLElement
-											).querySelector(
+											const trigger = (e.currentTarget as HTMLElement).querySelector(
 												"[data-radix-collection-item]",
 											) as HTMLElement;
 											if (trigger && !trigger.contains(e.target as Node)) {
@@ -127,9 +111,7 @@ export function AgentFeedbackSection({
 									<AccordionContent className="pt-2 pb-5 space-y-4">
 										{/* Primary fields */}
 										<div>
-											<FieldLabel htmlFor={`fb-name-${feedback.id}`}>
-												Feedback Name
-											</FieldLabel>
+											<FieldLabel htmlFor={`fb-name-${feedback.id}`}>Feedback Name</FieldLabel>
 											<Input
 												id={`fb-name-${feedback.id}`}
 												value={feedback.feedback_name}
@@ -145,9 +127,7 @@ export function AgentFeedbackSection({
 										</div>
 
 										<div>
-											<FieldLabel htmlFor={`fb-def-${feedback.id}`}>
-												Feedback Definition
-											</FieldLabel>
+											<FieldLabel htmlFor={`fb-def-${feedback.id}`}>Feedback Definition</FieldLabel>
 											<textarea
 												id={`fb-def-${feedback.id}`}
 												value={feedback.feedback_definition_prompt}
@@ -176,18 +156,13 @@ export function AgentFeedbackSection({
 													id={`fb-threshold-${feedback.id}`}
 													type="number"
 													min="1"
-													value={
-														feedback.feedback_aggregator_config
-															?.min_feedback_threshold || 2
-													}
+													value={feedback.feedback_aggregator_config?.min_feedback_threshold || 2}
 													onChange={(e) =>
 														onUpdate(feedback.id, {
 															feedback_aggregator_config: {
-																min_feedback_threshold:
-																	parseInt(e.target.value, 10) || 2,
+																min_feedback_threshold: parseInt(e.target.value, 10) || 2,
 																refresh_count:
-																	feedback.feedback_aggregator_config
-																		?.refresh_count ?? 2,
+																	feedback.feedback_aggregator_config?.refresh_count ?? 2,
 															},
 														})
 													}
@@ -208,18 +183,13 @@ export function AgentFeedbackSection({
 													id={`fb-refresh-${feedback.id}`}
 													type="number"
 													min="1"
-													value={
-														feedback.feedback_aggregator_config
-															?.refresh_count || 2
-													}
+													value={feedback.feedback_aggregator_config?.refresh_count || 2}
 													onChange={(e) =>
 														onUpdate(feedback.id, {
 															feedback_aggregator_config: {
 																min_feedback_threshold:
-																	feedback.feedback_aggregator_config
-																		?.min_feedback_threshold ?? 2,
-																refresh_count:
-																	parseInt(e.target.value, 10) || 2,
+																	feedback.feedback_aggregator_config?.min_feedback_threshold ?? 2,
+																refresh_count: parseInt(e.target.value, 10) || 2,
 															},
 														})
 													}
@@ -254,30 +224,21 @@ export function AgentFeedbackSection({
 												</div>
 
 												<div>
-													<FieldLabel>
-														Enabled Request Sources (Optional)
-													</FieldLabel>
+													<FieldLabel>Enabled Request Sources (Optional)</FieldLabel>
 													<p className="text-xs text-muted-foreground mb-3">
-														Specify which request sources should trigger
-														feedback extraction. Leave empty to enable all
-														sources.
+														Specify which request sources should trigger feedback extraction. Leave
+														empty to enable all sources.
 													</p>
 													<TagManager
 														tags={feedback.request_sources_enabled || []}
-														onAdd={(source) =>
-															onAddRequestSource(feedback.id, source)
-														}
-														onRemove={(idx) =>
-															onRemoveRequestSource(feedback.id, idx)
-														}
+														onAdd={(source) => onAddRequestSource(feedback.id, source)}
+														onRemove={(idx) => onRemoveRequestSource(feedback.id, idx)}
 													/>
 												</div>
 
 												<WindowOverrideFields
 													windowSize={feedback.extraction_window_size_override}
-													windowStride={
-														feedback.extraction_window_stride_override
-													}
+													windowStride={feedback.extraction_window_stride_override}
 													onWindowSizeChange={(v) =>
 														onUpdate(feedback.id, {
 															extraction_window_size_override: v,

@@ -1,13 +1,6 @@
 "use client";
 
-import {
-	CheckCircle2,
-	Cpu,
-	GitCompare,
-	RefreshCw,
-	Shield,
-	Sliders,
-} from "lucide-react";
+import { CheckCircle2, Cpu, GitCompare, RefreshCw, Shield, Sliders } from "lucide-react";
 
 const comparisonData = [
 	{
@@ -113,12 +106,9 @@ export function ValuePropositions() {
 					<p className="text-sm font-semibold text-indigo-600 uppercase tracking-wider mb-3">
 						Why Choose Us
 					</p>
-					<h2 className="text-3xl sm:text-4xl font-bold text-slate-800 mb-4">
-						Why Reflexio?
-					</h2>
+					<h2 className="text-3xl sm:text-4xl font-bold text-slate-800 mb-4">Why Reflexio?</h2>
 					<p className="text-slate-600 text-lg max-w-2xl mx-auto">
-						Built different from the ground up to create agents that actually
-						learn
+						Built different from the ground up to create agents that actually learn
 					</p>
 				</div>
 
@@ -135,12 +125,8 @@ export function ValuePropositions() {
 									<prop.icon className={`h-6 w-6 ${prop.color}`} />
 								</div>
 								<div>
-									<h3 className="font-semibold text-slate-800 mb-2">
-										{prop.title}
-									</h3>
-									<p className="text-sm text-slate-600 leading-relaxed">
-										{prop.description}
-									</p>
+									<h3 className="font-semibold text-slate-800 mb-2">{prop.title}</h3>
+									<p className="text-sm text-slate-600 leading-relaxed">{prop.description}</p>
 								</div>
 							</div>
 						</div>
@@ -168,17 +154,13 @@ export function ValuePropositions() {
 								<h3 className="font-semibold text-slate-500 text-sm uppercase tracking-wide">
 									Traditional Memory
 								</h3>
-								<p className="text-xs text-slate-400 mt-1">
-									Vector DBs, Mem0, Zep
-								</p>
+								<p className="text-xs text-slate-400 mt-1">Vector DBs, Mem0, Zep</p>
 							</div>
 							<div className="bg-emerald-50 border-b border-slate-200 p-5 sm:p-6">
 								<h3 className="font-semibold text-emerald-700 text-sm uppercase tracking-wide">
 									Reflexio
 								</h3>
-								<p className="text-xs text-emerald-600/70 mt-1">
-									Behavioral learning layer
-								</p>
+								<p className="text-xs text-emerald-600/70 mt-1">Behavioral learning layer</p>
 							</div>
 						</div>
 
@@ -187,16 +169,12 @@ export function ValuePropositions() {
 							<div
 								key={index}
 								className={`grid grid-cols-2 ${
-									index !== comparisonData.length - 1
-										? "border-b border-slate-100"
-										: ""
+									index !== comparisonData.length - 1 ? "border-b border-slate-100" : ""
 								} ${row.isPhilosophy ? "bg-slate-50/50" : ""} hover:bg-slate-50/30 transition-colors`}
 							>
 								{/* Traditional Column */}
 								<div className="border-r border-slate-100 p-4 sm:p-5 flex items-center">
-									<p
-										className={`text-slate-500 text-sm ${row.isPhilosophy ? "italic" : ""}`}
-									>
+									<p className={`text-slate-500 text-sm ${row.isPhilosophy ? "italic" : ""}`}>
 										{row.traditional}
 									</p>
 								</div>
@@ -205,17 +183,10 @@ export function ValuePropositions() {
 								<div className="p-4 sm:p-5 flex items-center">
 									<div className="flex items-start gap-2.5">
 										<CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-										<p
-											className={`text-sm ${row.isPhilosophy ? "italic" : ""}`}
-										>
-											<span className="font-medium text-slate-800">
-												{row.reflexio}
-											</span>
+										<p className={`text-sm ${row.isPhilosophy ? "italic" : ""}`}>
+											<span className="font-medium text-slate-800">{row.reflexio}</span>
 											{row.reflexioHighlight && (
-												<span className="text-slate-500">
-													{" "}
-													{row.reflexioHighlight}
-												</span>
+												<span className="text-slate-500"> {row.reflexioHighlight}</span>
 											)}
 										</p>
 									</div>

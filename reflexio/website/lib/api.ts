@@ -109,13 +109,10 @@ export async function getAllProfiles(
 			params.append("status_filter", statusFilter);
 		}
 
-		const response = await fetch(
-			`${API_BASE_URL}/api/get_all_profiles?${params.toString()}`,
-			{
-				method: "GET",
-				headers: getHeaders(),
-			},
-		);
+		const response = await fetch(`${API_BASE_URL}/api/get_all_profiles?${params.toString()}`, {
+			method: "GET",
+			headers: getHeaders(),
+		});
 
 		if (!response.ok) {
 			throw new Error(`API request failed with status ${response.status}`);
@@ -192,17 +189,12 @@ export async function getInteractions(
 	}
 }
 
-export async function getAllInteractions(
-	limit: number = 100,
-): Promise<GetInteractionsResponse> {
+export async function getAllInteractions(limit: number = 100): Promise<GetInteractionsResponse> {
 	try {
-		const response = await fetch(
-			`${API_BASE_URL}/api/get_all_interactions?limit=${limit}`,
-			{
-				method: "GET",
-				headers: getHeaders(),
-			},
-		);
+		const response = await fetch(`${API_BASE_URL}/api/get_all_interactions?limit=${limit}`, {
+			method: "GET",
+			headers: getHeaders(),
+		});
 
 		if (!response.ok) {
 			throw new Error(`API request failed with status ${response.status}`);
@@ -253,9 +245,7 @@ export interface GetRequestsResponse {
 	msg?: string;
 }
 
-export async function getRequests(
-	request: GetRequestsRequest,
-): Promise<GetRequestsResponse> {
+export async function getRequests(request: GetRequestsRequest): Promise<GetRequestsResponse> {
 	try {
 		const response = await fetch(`${API_BASE_URL}/api/get_requests`, {
 			method: "POST",
@@ -279,11 +269,7 @@ export async function getRequests(
 export type FeedbackStatus = "pending" | "approved" | "rejected";
 
 export interface BlockingIssue {
-	kind:
-		| "missing_tool"
-		| "permission_denied"
-		| "external_dependency"
-		| "policy_restriction";
+	kind: "missing_tool" | "permission_denied" | "external_dependency" | "policy_restriction";
 	details: string;
 }
 
@@ -363,9 +349,7 @@ export async function getRawFeedbacks(
 	}
 }
 
-export async function getFeedbacks(
-	request: GetFeedbacksRequest,
-): Promise<GetFeedbacksResponse> {
+export async function getFeedbacks(request: GetFeedbacksRequest): Promise<GetFeedbacksResponse> {
 	try {
 		const response = await fetch(`${API_BASE_URL}/api/get_feedbacks`, {
 			method: "POST",
@@ -492,9 +476,7 @@ export interface DeleteRequestResponse {
 	message?: string;
 }
 
-export async function deleteRequest(
-	request: DeleteRequestRequest,
-): Promise<DeleteRequestResponse> {
+export async function deleteRequest(request: DeleteRequestRequest): Promise<DeleteRequestResponse> {
 	try {
 		const response = await fetch(`${API_BASE_URL}/api/delete_request`, {
 			method: "DELETE",
@@ -524,9 +506,7 @@ export interface DeleteSessionResponse {
 	deleted_requests_count?: number;
 }
 
-export async function deleteSession(
-	request: DeleteSessionRequest,
-): Promise<DeleteSessionResponse> {
+export async function deleteSession(request: DeleteSessionRequest): Promise<DeleteSessionResponse> {
 	try {
 		const response = await fetch(`${API_BASE_URL}/api/delete_session`, {
 			method: "DELETE",
@@ -639,14 +619,11 @@ export async function getAgentSuccessEvaluationResults(
 	request: GetAgentSuccessEvaluationResultsRequest = {},
 ): Promise<GetAgentSuccessEvaluationResultsResponse> {
 	try {
-		const response = await fetch(
-			`${API_BASE_URL}/api/get_agent_success_evaluation_results`,
-			{
-				method: "POST",
-				headers: getHeaders(),
-				body: JSON.stringify(request),
-			},
-		);
+		const response = await fetch(`${API_BASE_URL}/api/get_agent_success_evaluation_results`, {
+			method: "POST",
+			headers: getHeaders(),
+			body: JSON.stringify(request),
+		});
 
 		if (!response.ok) {
 			throw new Error(`API request failed with status ${response.status}`);
@@ -689,9 +666,7 @@ export interface SetConfigResponse {
 	msg?: string;
 }
 
-export async function setConfig(
-	config: ConfigResponse,
-): Promise<SetConfigResponse> {
+export async function setConfig(config: ConfigResponse): Promise<SetConfigResponse> {
 	try {
 		const response = await fetch(`${API_BASE_URL}/api/set_config`, {
 			method: "POST",
@@ -808,14 +783,11 @@ export async function upgradeAllRawFeedbacks(
 	request: UpgradeRawFeedbacksRequest = {},
 ): Promise<UpgradeRawFeedbacksResponse> {
 	try {
-		const response = await fetch(
-			`${API_BASE_URL}/api/upgrade_all_raw_feedbacks`,
-			{
-				method: "POST",
-				headers: getHeaders(),
-				body: JSON.stringify(request),
-			},
-		);
+		const response = await fetch(`${API_BASE_URL}/api/upgrade_all_raw_feedbacks`, {
+			method: "POST",
+			headers: getHeaders(),
+			body: JSON.stringify(request),
+		});
 
 		if (!response.ok) {
 			throw new Error(`API request failed with status ${response.status}`);
@@ -833,14 +805,11 @@ export async function downgradeAllRawFeedbacks(
 	request: DowngradeRawFeedbacksRequest = {},
 ): Promise<DowngradeRawFeedbacksResponse> {
 	try {
-		const response = await fetch(
-			`${API_BASE_URL}/api/downgrade_all_raw_feedbacks`,
-			{
-				method: "POST",
-				headers: getHeaders(),
-				body: JSON.stringify(request),
-			},
-		);
+		const response = await fetch(`${API_BASE_URL}/api/downgrade_all_raw_feedbacks`, {
+			method: "POST",
+			headers: getHeaders(),
+			body: JSON.stringify(request),
+		});
 
 		if (!response.ok) {
 			throw new Error(`API request failed with status ${response.status}`);
@@ -874,14 +843,11 @@ export async function rerunProfileGeneration(
 	request: RerunProfileGenerationRequest,
 ): Promise<RerunProfileGenerationResponse> {
 	try {
-		const response = await fetch(
-			`${API_BASE_URL}/api/rerun_profile_generation`,
-			{
-				method: "POST",
-				headers: getHeaders(),
-				body: JSON.stringify(request),
-			},
-		);
+		const response = await fetch(`${API_BASE_URL}/api/rerun_profile_generation`, {
+			method: "POST",
+			headers: getHeaders(),
+			body: JSON.stringify(request),
+		});
 
 		if (!response.ok) {
 			throw new Error(`API request failed with status ${response.status}`);
@@ -913,14 +879,11 @@ export async function rerunFeedbackGeneration(
 	request: RerunFeedbackGenerationRequest,
 ): Promise<RerunFeedbackGenerationResponse> {
 	try {
-		const response = await fetch(
-			`${API_BASE_URL}/api/rerun_feedback_generation`,
-			{
-				method: "POST",
-				headers: getHeaders(),
-				body: JSON.stringify(request),
-			},
-		);
+		const response = await fetch(`${API_BASE_URL}/api/rerun_feedback_generation`, {
+			method: "POST",
+			headers: getHeaders(),
+			body: JSON.stringify(request),
+		});
 
 		if (!response.ok) {
 			throw new Error(`API request failed with status ${response.status}`);
@@ -949,14 +912,11 @@ export async function runFeedbackAggregation(
 	request: RunFeedbackAggregationRequest,
 ): Promise<RunFeedbackAggregationResponse> {
 	try {
-		const response = await fetch(
-			`${API_BASE_URL}/api/run_feedback_aggregation`,
-			{
-				method: "POST",
-				headers: getHeaders(),
-				body: JSON.stringify(request),
-			},
-		);
+		const response = await fetch(`${API_BASE_URL}/api/run_feedback_aggregation`, {
+			method: "POST",
+			headers: getHeaders(),
+			body: JSON.stringify(request),
+		});
 
 		if (!response.ok) {
 			throw new Error(`API request failed with status ${response.status}`);
@@ -1035,11 +995,7 @@ export async function deleteRawFeedback(
 }
 
 // Operation status types
-export type OperationStatus =
-	| "in_progress"
-	| "completed"
-	| "failed"
-	| "cancelled";
+export type OperationStatus = "in_progress" | "completed" | "failed" | "cancelled";
 
 export interface OperationStatusInfo {
 	service_name: string;
@@ -1069,13 +1025,10 @@ export async function getOperationStatus(
 ): Promise<GetOperationStatusResponse> {
 	try {
 		const params = new URLSearchParams({ service_name: serviceName });
-		const response = await fetch(
-			`${API_BASE_URL}/api/get_operation_status?${params.toString()}`,
-			{
-				method: "GET",
-				headers: getHeaders(),
-			},
-		);
+		const response = await fetch(`${API_BASE_URL}/api/get_operation_status?${params.toString()}`, {
+			method: "GET",
+			headers: getHeaders(),
+		});
 
 		// Handle 404 gracefully - no operation found is a valid state
 		if (response.status === 404) {
@@ -1103,9 +1056,7 @@ export interface CancelOperationResponse {
 	msg?: string;
 }
 
-export async function cancelOperation(
-	serviceName?: string,
-): Promise<CancelOperationResponse> {
+export async function cancelOperation(serviceName?: string): Promise<CancelOperationResponse> {
 	try {
 		const response = await fetch(`${API_BASE_URL}/api/cancel_operation`, {
 			method: "POST",
@@ -1163,9 +1114,7 @@ export async function getApiTokens(): Promise<ApiTokenListResponse> {
 	}
 }
 
-export async function createApiToken(
-	name: string,
-): Promise<ApiTokenCreateResponse> {
+export async function createApiToken(name: string): Promise<ApiTokenCreateResponse> {
 	try {
 		const response = await fetch(`${API_BASE_URL}/api/tokens`, {
 			method: "POST",
@@ -1184,17 +1133,12 @@ export async function createApiToken(
 	}
 }
 
-export async function revealApiToken(
-	tokenId: number,
-): Promise<{ token: string }> {
+export async function revealApiToken(tokenId: number): Promise<{ token: string }> {
 	try {
-		const response = await fetch(
-			`${API_BASE_URL}/api/tokens/${tokenId}/reveal`,
-			{
-				method: "GET",
-				headers: getHeaders(),
-			},
-		);
+		const response = await fetch(`${API_BASE_URL}/api/tokens/${tokenId}/reveal`, {
+			method: "GET",
+			headers: getHeaders(),
+		});
 
 		if (!response.ok) {
 			throw new Error(`API request failed with status ${response.status}`);
@@ -1218,9 +1162,7 @@ export async function deleteApiToken(
 
 		if (!response.ok) {
 			const data = await response.json().catch(() => ({}));
-			throw new Error(
-				data.detail || `API request failed with status ${response.status}`,
-			);
+			throw new Error(data.detail || `API request failed with status ${response.status}`);
 		}
 
 		return await response.json();
@@ -1241,9 +1183,7 @@ export async function deleteAccount(
 
 	if (!response.ok) {
 		const data = await response.json().catch(() => ({}));
-		throw new Error(
-			data.detail || `Failed to delete account (${response.status})`,
-		);
+		throw new Error(data.detail || `Failed to delete account (${response.status})`);
 	}
 
 	return await response.json();
@@ -1312,9 +1252,7 @@ export interface RunSkillGenerationResponse {
 	skills_updated: number;
 }
 
-export async function getSkills(
-	request: GetSkillsRequest,
-): Promise<GetSkillsResponse> {
+export async function getSkills(request: GetSkillsRequest): Promise<GetSkillsResponse> {
 	try {
 		const response = await fetch(`${API_BASE_URL}/api/get_skills`, {
 			method: "POST",
@@ -1356,9 +1294,7 @@ export async function updateSkillStatus(
 	}
 }
 
-export async function deleteSkill(
-	request: DeleteSkillRequest,
-): Promise<DeleteSkillResponse> {
+export async function deleteSkill(request: DeleteSkillRequest): Promise<DeleteSkillResponse> {
 	try {
 		const response = await fetch(`${API_BASE_URL}/api/delete_skill`, {
 			method: "DELETE",

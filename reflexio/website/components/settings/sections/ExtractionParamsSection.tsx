@@ -2,13 +2,7 @@
 
 import { Sliders } from "lucide-react";
 import type { Config } from "@/app/settings/types";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { FieldLabel } from "../FieldLabel";
 
@@ -53,15 +47,11 @@ export function ExtractionParamsSection({
 							min="1"
 							value={config.extraction_window_size ?? ""}
 							onChange={(e) =>
-								onWindowSizeChange(
-									e.target.value ? parseInt(e.target.value, 10) : undefined,
-								)
+								onWindowSizeChange(e.target.value ? parseInt(e.target.value, 10) : undefined)
 							}
 							placeholder="10"
 						/>
-						<p className="text-xs text-muted-foreground mt-1">
-							Interactions per window
-						</p>
+						<p className="text-xs text-muted-foreground mt-1">Interactions per window</p>
 					</div>
 
 					<div>
@@ -77,15 +67,11 @@ export function ExtractionParamsSection({
 							min="1"
 							value={config.extraction_window_stride ?? ""}
 							onChange={(e) =>
-								onWindowStrideChange(
-									e.target.value ? parseInt(e.target.value, 10) : undefined,
-								)
+								onWindowStrideChange(e.target.value ? parseInt(e.target.value, 10) : undefined)
 							}
 							placeholder="5"
 						/>
-						<p className="text-xs text-muted-foreground mt-1">
-							Skip between windows
-						</p>
+						<p className="text-xs text-muted-foreground mt-1">Skip between windows</p>
 					</div>
 				</div>
 			</CardContent>

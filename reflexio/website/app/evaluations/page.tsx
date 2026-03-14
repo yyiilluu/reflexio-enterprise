@@ -17,16 +17,10 @@ import {
 	Search,
 	XCircle,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
 	type AgentSuccessEvaluationResult,
@@ -60,9 +54,7 @@ const getRelativeTime = (timestamp: number): string => {
 };
 
 // Helper function to get comparison badge styling
-const getComparisonBadgeStyle = (
-	comparison: RegularVsShadow | null | undefined,
-) => {
+const getComparisonBadgeStyle = (comparison: RegularVsShadow | null | undefined) => {
 	if (!comparison) return null;
 	switch (comparison) {
 		case "regular_is_better":
@@ -104,8 +96,7 @@ interface ConversationRowProps {
 function ConversationRow({ interaction }: ConversationRowProps) {
 	const isUser = interaction.role === "User";
 	const hasRegular = interaction.content && interaction.content.trim() !== "";
-	const hasShadow =
-		interaction.shadow_content && interaction.shadow_content.trim() !== "";
+	const hasShadow = interaction.shadow_content && interaction.shadow_content.trim() !== "";
 
 	// For user messages, show spanning both columns (same content)
 	if (isUser) {
@@ -115,9 +106,7 @@ function ConversationRow({ interaction }: ConversationRowProps) {
 					<Badge className="text-xs bg-blue-100 text-blue-700">User</Badge>
 				</div>
 				<div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-					<p className="text-sm text-slate-700 whitespace-pre-wrap">
-						{interaction.content}
-					</p>
+					<p className="text-sm text-slate-700 whitespace-pre-wrap">{interaction.content}</p>
 				</div>
 			</div>
 		);
@@ -129,15 +118,11 @@ function ConversationRow({ interaction }: ConversationRowProps) {
 			{/* Regular Response */}
 			<div>
 				<div className="flex items-center gap-2 mb-1">
-					<Badge className="text-xs bg-slate-100 text-slate-600">
-						Assistant (Regular)
-					</Badge>
+					<Badge className="text-xs bg-slate-100 text-slate-600">Assistant (Regular)</Badge>
 				</div>
 				<div className="bg-white border border-emerald-200 rounded-lg p-3 h-full">
 					{hasRegular ? (
-						<p className="text-sm text-slate-700 whitespace-pre-wrap">
-							{interaction.content}
-						</p>
+						<p className="text-sm text-slate-700 whitespace-pre-wrap">{interaction.content}</p>
 					) : (
 						<p className="text-sm text-slate-400 italic">No content</p>
 					)}
@@ -147,9 +132,7 @@ function ConversationRow({ interaction }: ConversationRowProps) {
 			{/* Shadow Response */}
 			<div>
 				<div className="flex items-center gap-2 mb-1">
-					<Badge className="text-xs bg-slate-100 text-slate-600">
-						Assistant (Shadow)
-					</Badge>
+					<Badge className="text-xs bg-slate-100 text-slate-600">Assistant (Shadow)</Badge>
 				</div>
 				<div className="bg-white border border-violet-200 rounded-lg p-3 h-full">
 					{hasShadow ? (
@@ -173,20 +156,13 @@ interface ComparisonSectionProps {
 	onRetry: () => void;
 }
 
-function ComparisonSection({
-	interactions,
-	loading,
-	error,
-	onRetry,
-}: ComparisonSectionProps) {
+function ComparisonSection({ interactions, loading, error, onRetry }: ComparisonSectionProps) {
 	// Loading state
 	if (loading) {
 		return (
 			<div className="flex items-center justify-center py-8">
 				<Loader2 className="h-6 w-6 animate-spin text-indigo-500 mr-2" />
-				<span className="text-sm text-slate-500">
-					Loading comparison data...
-				</span>
+				<span className="text-sm text-slate-500">Loading comparison data...</span>
 			</div>
 		);
 	}
@@ -227,9 +203,7 @@ function ComparisonSection({
 		<div className="space-y-4">
 			<div className="flex items-center gap-2 mb-4">
 				<GitCompare className="h-4 w-4 text-indigo-600" />
-				<span className="text-sm font-semibold text-slate-800">
-					Side-by-Side Comparison
-				</span>
+				<span className="text-sm font-semibold text-slate-800">Side-by-Side Comparison</span>
 			</div>
 
 			{/* Header row */}
@@ -249,10 +223,7 @@ function ComparisonSection({
 			{/* Conversation messages */}
 			<div className="space-y-4">
 				{interactions.map((interaction, index) => (
-					<ConversationRow
-						key={interaction.interaction_id || index}
-						interaction={interaction}
-					/>
+					<ConversationRow key={interaction.interaction_id || index} interaction={interaction} />
 				))}
 			</div>
 		</div>
@@ -272,9 +243,7 @@ function FailureDetailsSection({ result }: FailureDetailsSectionProps) {
 				<div>
 					<div className="flex items-center gap-2 mb-2">
 						<AlertTriangle className="h-4 w-4 text-red-500" />
-						<span className="text-sm font-semibold text-slate-800">
-							Failure Reason
-						</span>
+						<span className="text-sm font-semibold text-slate-800">Failure Reason</span>
 					</div>
 					<p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg">
 						{result.failure_reason}
@@ -292,12 +261,8 @@ interface EvaluationRowProps {
 
 function EvaluationRow({ result }: EvaluationRowProps) {
 	const [expanded, setExpanded] = useState(false);
-	const [activeTab, setActiveTab] = useState<"failure" | "comparison">(
-		"failure",
-	);
-	const [comparisonData, setComparisonData] = useState<Interaction[] | null>(
-		null,
-	);
+	const [activeTab, setActiveTab] = useState<"failure" | "comparison">("failure");
+	const [comparisonData, setComparisonData] = useState<Interaction[] | null>(null);
 	const [comparisonLoading, setComparisonLoading] = useState(false);
 	const [comparisonError, setComparisonError] = useState<string | null>(null);
 
@@ -329,9 +294,7 @@ function EvaluationRow({ result }: EvaluationRowProps) {
 				setComparisonError("No interactions found for this request");
 			}
 		} catch (err) {
-			setComparisonError(
-				err instanceof Error ? err.message : "Failed to load comparison data",
-			);
+			setComparisonError(err instanceof Error ? err.message : "Failed to load comparison data");
 		} finally {
 			setComparisonLoading(false);
 		}
@@ -390,10 +353,7 @@ function EvaluationRow({ result }: EvaluationRowProps) {
 									{result.is_success ? "Success" : "Failed"}
 								</Badge>
 								{!result.is_success && result.failure_type && (
-									<Badge
-										variant="outline"
-										className="text-xs border-slate-200 text-slate-600"
-									>
+									<Badge variant="outline" className="text-xs border-slate-200 text-slate-600">
 										{result.failure_type}
 									</Badge>
 								)}
@@ -422,9 +382,7 @@ function EvaluationRow({ result }: EvaluationRowProps) {
 										{result.evaluation_name}
 									</Badge>
 								)}
-								<span className="truncate">
-									Version: {result.agent_version}
-								</span>
+								<span className="truncate">Version: {result.agent_version}</span>
 								{result.number_of_correction_per_session > 0 && (
 									<span className="flex items-center gap-1 text-slate-500">
 										<RotateCcw className="h-3 w-3" />
@@ -432,15 +390,13 @@ function EvaluationRow({ result }: EvaluationRowProps) {
 										{result.number_of_correction_per_session !== 1 ? "s" : ""}
 									</span>
 								)}
-								{result.is_success &&
-									result.user_turns_to_resolution != null && (
-										<span className="flex items-center gap-1 text-slate-500">
-											<MessageSquare className="h-3 w-3" />
-											{result.user_turns_to_resolution} turn
-											{result.user_turns_to_resolution !== 1 ? "s" : ""} to
-											resolve
-										</span>
-									)}
+								{result.is_success && result.user_turns_to_resolution != null && (
+									<span className="flex items-center gap-1 text-slate-500">
+										<MessageSquare className="h-3 w-3" />
+										{result.user_turns_to_resolution} turn
+										{result.user_turns_to_resolution !== 1 ? "s" : ""} to resolve
+									</span>
+								)}
 							</div>
 						</div>
 					</div>
@@ -448,12 +404,8 @@ function EvaluationRow({ result }: EvaluationRowProps) {
 					{/* Right side: time and expand button */}
 					<div className="flex items-center gap-3 flex-shrink-0">
 						<div className="text-right">
-							<p className="text-xs text-slate-500">
-								{getRelativeTime(result.created_at)}
-							</p>
-							<p className="text-xs text-slate-400">
-								{formatDate(result.created_at)}
-							</p>
+							<p className="text-xs text-slate-500">{getRelativeTime(result.created_at)}</p>
+							<p className="text-xs text-slate-400">{formatDate(result.created_at)}</p>
 						</div>
 						{isExpandable && (
 							<Button
@@ -461,11 +413,7 @@ function EvaluationRow({ result }: EvaluationRowProps) {
 								size="sm"
 								className="h-8 w-8 p-0 text-slate-400 hover:text-slate-600"
 							>
-								{expanded ? (
-									<ChevronUp className="h-4 w-4" />
-								) : (
-									<ChevronDown className="h-4 w-4" />
-								)}
+								{expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
 							</Button>
 						)}
 					</div>
@@ -500,8 +448,7 @@ function EvaluationRow({ result }: EvaluationRowProps) {
 								onClick={(e) => {
 									e.stopPropagation();
 									setActiveTab("comparison");
-									if (!comparisonData && !comparisonLoading)
-										fetchComparisonData();
+									if (!comparisonData && !comparisonLoading) fetchComparisonData();
 								}}
 								className={
 									activeTab === "comparison"
@@ -536,9 +483,7 @@ function EvaluationRow({ result }: EvaluationRowProps) {
 }
 
 export default function EvaluationsPage() {
-	const [evaluations, setEvaluations] = useState<
-		AgentSuccessEvaluationResult[]
-	>([]);
+	const [evaluations, setEvaluations] = useState<AgentSuccessEvaluationResult[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [searchQuery, setSearchQuery] = useState("");
@@ -547,7 +492,7 @@ export default function EvaluationsPage() {
 	const [limit] = useState(100);
 
 	// Fetch evaluations from API
-	const fetchEvaluations = async () => {
+	const fetchEvaluations = useCallback(async () => {
 		setLoading(true);
 		setError(null);
 		try {
@@ -562,15 +507,11 @@ export default function EvaluationsPage() {
 				setError(data.msg || "Failed to fetch evaluations");
 			}
 		} catch (err) {
-			setError(
-				err instanceof Error
-					? err.message
-					: "An error occurred while fetching evaluations",
-			);
+			setError(err instanceof Error ? err.message : "An error occurred while fetching evaluations");
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, [limit]);
 
 	// Fetch on component mount
 	useEffect(() => {
@@ -581,14 +522,10 @@ export default function EvaluationsPage() {
 	const totalEvaluations = evaluations.length;
 	const successCount = evaluations.filter((e) => e.is_success).length;
 	const successRate =
-		totalEvaluations > 0
-			? ((successCount / totalEvaluations) * 100).toFixed(1)
-			: "0";
+		totalEvaluations > 0 ? ((successCount / totalEvaluations) * 100).toFixed(1) : "0";
 
 	// Calculate Regular vs Shadow win rate
-	const evaluationsWithComparison = evaluations.filter(
-		(e) => e.regular_vs_shadow != null,
-	);
+	const evaluationsWithComparison = evaluations.filter((e) => e.regular_vs_shadow != null);
 	const regularBetter = evaluationsWithComparison.filter(
 		(e) => e.regular_vs_shadow === "regular_is_better",
 	).length;
@@ -604,10 +541,7 @@ export default function EvaluationsPage() {
 	const regularVsShadowWinRate =
 		evaluationsWithComparison.length > 0
 			? (
-					((regularBetter +
-						regularSlightlyBetter -
-						shadowBetter -
-						shadowSlightlyBetter) /
+					((regularBetter + regularSlightlyBetter - shadowBetter - shadowSlightlyBetter) /
 						evaluationsWithComparison.length) *
 					100
 				).toFixed(1)
@@ -617,10 +551,8 @@ export default function EvaluationsPage() {
 	const avgCorrections =
 		totalEvaluations > 0
 			? (
-					evaluations.reduce(
-						(sum, e) => sum + (e.number_of_correction_per_session || 0),
-						0,
-					) / totalEvaluations
+					evaluations.reduce((sum, e) => sum + (e.number_of_correction_per_session || 0), 0) /
+					totalEvaluations
 				).toFixed(1)
 			: "0";
 
@@ -631,33 +563,25 @@ export default function EvaluationsPage() {
 	const avgTurnsToResolution =
 		successfulWithTurns.length > 0
 			? (
-					successfulWithTurns.reduce(
-						(sum, e) => sum + (e.user_turns_to_resolution || 0),
-						0,
-					) / successfulWithTurns.length
+					successfulWithTurns.reduce((sum, e) => sum + (e.user_turns_to_resolution || 0), 0) /
+					successfulWithTurns.length
 				).toFixed(1)
 			: null;
 
 	// Calculate escalation rate
 	const escalatedCount = evaluations.filter((e) => e.is_escalated).length;
 	const escalationRate =
-		totalEvaluations > 0
-			? ((escalatedCount / totalEvaluations) * 100).toFixed(1)
-			: "0";
+		totalEvaluations > 0 ? ((escalatedCount / totalEvaluations) * 100).toFixed(1) : "0";
 
 	// Get unique agent versions
-	const agentVersions = Array.from(
-		new Set(evaluations.map((e) => e.agent_version)),
-	).sort();
+	const agentVersions = Array.from(new Set(evaluations.map((e) => e.agent_version))).sort();
 
 	// Filter evaluations
 	const filteredEvaluations = evaluations.filter((evaluation) => {
 		const matchesSearch =
 			searchQuery === "" ||
 			evaluation.session_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			evaluation.agent_version
-				.toLowerCase()
-				.includes(searchQuery.toLowerCase()) ||
+			evaluation.agent_version.toLowerCase().includes(searchQuery.toLowerCase()) ||
 			evaluation.failure_type.toLowerCase().includes(searchQuery.toLowerCase());
 
 		const matchesVersion =
@@ -681,9 +605,7 @@ export default function EvaluationsPage() {
 							<div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/25">
 								<CheckCircle className="h-5 w-5 text-white" />
 							</div>
-							<h1 className="text-3xl font-bold tracking-tight text-slate-800">
-								Evaluations
-							</h1>
+							<h1 className="text-3xl font-bold tracking-tight text-slate-800">Evaluations</h1>
 						</div>
 						<p className="text-slate-500 mt-1 ml-13">
 							Monitor agent performance and identify improvement opportunities
@@ -708,9 +630,7 @@ export default function EvaluationsPage() {
 								<div className="flex items-start gap-3">
 									<AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
 									<div className="flex-1">
-										<h3 className="font-semibold text-red-600 mb-1">
-											Error Loading Evaluations
-										</h3>
+										<h3 className="font-semibold text-red-600 mb-1">Error Loading Evaluations</h3>
 										<p className="text-sm text-slate-600">{error}</p>
 										<Button
 											variant="outline"
@@ -756,9 +676,7 @@ export default function EvaluationsPage() {
 												Success Rate
 											</span>
 										</div>
-										<span className="text-2xl font-bold text-slate-800">
-											{successRate}%
-										</span>
+										<span className="text-2xl font-bold text-slate-800">{successRate}%</span>
 										<span className="text-xs text-slate-400 mt-0.5">
 											{successCount} of {totalEvaluations}
 										</span>
@@ -772,12 +690,8 @@ export default function EvaluationsPage() {
 												Avg Corrections
 											</span>
 										</div>
-										<span className="text-2xl font-bold text-slate-800">
-											{avgCorrections}
-										</span>
-										<span className="text-xs text-slate-400 mt-0.5">
-											per session
-										</span>
+										<span className="text-2xl font-bold text-slate-800">{avgCorrections}</span>
+										<span className="text-xs text-slate-400 mt-0.5">per session</span>
 									</div>
 
 									{/* Avg Turns to Resolve */}
@@ -805,9 +719,7 @@ export default function EvaluationsPage() {
 												Escalation Rate
 											</span>
 										</div>
-										<span className="text-2xl font-bold text-slate-800">
-											{escalationRate}%
-										</span>
+										<span className="text-2xl font-bold text-slate-800">{escalationRate}%</span>
 										<span className="text-xs text-slate-400 mt-0.5">
 											{escalatedCount} escalated
 										</span>
@@ -840,9 +752,7 @@ export default function EvaluationsPage() {
 								<div className="flex items-center gap-3">
 									<Filter className="h-4 w-4 text-slate-400" />
 									<div>
-										<CardTitle className="text-lg font-semibold text-slate-800">
-											Filters
-										</CardTitle>
+										<CardTitle className="text-lg font-semibold text-slate-800">Filters</CardTitle>
 										<CardDescription className="text-xs mt-1 text-slate-500">
 											Refine evaluation results
 										</CardDescription>
@@ -853,9 +763,7 @@ export default function EvaluationsPage() {
 								<div className="grid gap-4 md:grid-cols-3">
 									{/* Search */}
 									<div>
-										<label className="text-sm font-medium mb-2 block text-slate-700">
-											Search
-										</label>
+										<label className="text-sm font-medium mb-2 block text-slate-700">Search</label>
 										<div className="relative">
 											<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
 											<Input
@@ -888,9 +796,7 @@ export default function EvaluationsPage() {
 
 									{/* Status Filter */}
 									<div>
-										<label className="text-sm font-medium mb-2 block text-slate-700">
-											Status
-										</label>
+										<label className="text-sm font-medium mb-2 block text-slate-700">Status</label>
 										<select
 											value={selectedStatus}
 											onChange={(e) => setSelectedStatus(e.target.value)}
@@ -904,13 +810,9 @@ export default function EvaluationsPage() {
 								</div>
 
 								{/* Active filters indicator */}
-								{(searchQuery ||
-									selectedVersion !== "all" ||
-									selectedStatus !== "all") && (
+								{(searchQuery || selectedVersion !== "all" || selectedStatus !== "all") && (
 									<div className="mt-4 flex items-center gap-2">
-										<span className="text-sm text-slate-500">
-											Active filters:
-										</span>
+										<span className="text-sm text-slate-500">Active filters:</span>
 										{searchQuery && (
 											<Badge className="text-xs bg-indigo-100 text-indigo-700 hover:bg-indigo-100">
 												Search: {searchQuery}
@@ -949,12 +851,9 @@ export default function EvaluationsPage() {
 						<div>
 							<div className="mb-4 flex items-center justify-between">
 								<div>
-									<h2 className="text-lg font-semibold text-slate-800">
-										Evaluation Results
-									</h2>
+									<h2 className="text-lg font-semibold text-slate-800">Evaluation Results</h2>
 									<p className="text-xs mt-1 text-slate-500">
-										Showing {filteredEvaluations.length} of {totalEvaluations}{" "}
-										evaluations
+										Showing {filteredEvaluations.length} of {totalEvaluations} evaluations
 									</p>
 								</div>
 								<Button
@@ -964,9 +863,7 @@ export default function EvaluationsPage() {
 									disabled={loading}
 									className="border-slate-200 hover:bg-slate-50 text-slate-700"
 								>
-									<RefreshCw
-										className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
-									/>
+									<RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
 									Refresh
 								</Button>
 							</div>

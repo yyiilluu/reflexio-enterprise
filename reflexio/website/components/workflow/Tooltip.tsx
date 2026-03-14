@@ -130,7 +130,5 @@ export function Tooltip({
 	);
 
 	// Render in portal to avoid overflow issues
-	return typeof window !== "undefined"
-		? createPortal(tooltipContent, document.body)
-		: null;
+	return typeof window !== "undefined" ? createPortal(tooltipContent, document.body) : null;
 }

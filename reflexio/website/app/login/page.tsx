@@ -6,13 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { GoogleIcon } from "@/components/icons/oauth-icons";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/lib/auth-context";
@@ -82,9 +76,7 @@ export default function LoginPage() {
 							<LogIn className="h-6 w-6 text-primary" />
 							<CardTitle className="text-2xl">Sign In</CardTitle>
 						</div>
-						<CardDescription>
-							Enter your credentials to access your account
-						</CardDescription>
+						<CardDescription>Enter your credentials to access your account</CardDescription>
 					</CardHeader>
 					<CardContent>
 						<form onSubmit={handleSubmit} className="space-y-4">
@@ -129,10 +121,7 @@ export default function LoginPage() {
 									placeholder="••••••••"
 								/>
 								<div className="text-right">
-									<Link
-										href="/forgot-password"
-										className="text-sm text-primary hover:underline"
-									>
+									<Link href="/forgot-password" className="text-sm text-primary hover:underline">
 										Forgot password?
 									</Link>
 								</div>
@@ -162,9 +151,7 @@ export default function LoginPage() {
 										<Separator className="w-full" />
 									</div>
 									<div className="relative flex justify-center text-xs uppercase">
-										<span className="bg-card px-2 text-muted-foreground">
-											Or continue with
-										</span>
+										<span className="bg-card px-2 text-muted-foreground">Or continue with</span>
 									</div>
 								</div>
 								<div className="grid gap-2">
@@ -200,10 +187,7 @@ export default function LoginPage() {
 						<div className="mt-6 text-center">
 							<p className="text-sm text-muted-foreground">
 								Don't have an account?{" "}
-								<Link
-									href="/register"
-									className="font-medium text-primary hover:underline"
-								>
+								<Link href="/register" className="font-medium text-primary hover:underline">
 									Sign up
 								</Link>
 							</p>

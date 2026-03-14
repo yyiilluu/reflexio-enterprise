@@ -16,12 +16,8 @@ export function RequestNode({ data }: RequestNodeProps) {
 						<Inbox className="h-8 w-8 text-[#457b9d]" />
 					</div>
 					<div className="text-center">
-						<div className="font-bold text-lg text-[#1d3557] mb-1">
-							{data.label}
-						</div>
-						<div className="text-sm text-[#1d3557]/80 font-medium">
-							Sessions & Interactions
-						</div>
+						<div className="font-bold text-lg text-[#1d3557] mb-1">{data.label}</div>
+						<div className="text-sm text-[#1d3557]/80 font-medium">Sessions & Interactions</div>
 					</div>
 				</div>
 				<Handle

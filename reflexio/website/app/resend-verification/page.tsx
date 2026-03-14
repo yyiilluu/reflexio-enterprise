@@ -4,22 +4,14 @@ import { AlertCircle, CheckCircle, Loader2, Mail } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 export default function ResendVerificationPage() {
 	const [email, setEmail] = useState("");
-	const [status, setStatus] = useState<
-		"idle" | "loading" | "success" | "error"
-	>("idle");
+	const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
 	const [message, setMessage] = useState("");
 
 	const handleSubmit = async (e: React.FormEvent) => {
@@ -54,8 +46,7 @@ export default function ResendVerificationPage() {
 							<CardTitle className="text-2xl">Resend Verification</CardTitle>
 						</div>
 						<CardDescription>
-							Enter your email address and we'll send you a new verification
-							link.
+							Enter your email address and we'll send you a new verification link.
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
@@ -91,11 +82,7 @@ export default function ResendVerificationPage() {
 									/>
 								</div>
 
-								<Button
-									type="submit"
-									disabled={status === "loading"}
-									className="w-full"
-								>
+								<Button type="submit" disabled={status === "loading"} className="w-full">
 									{status === "loading" ? (
 										<>
 											<Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -114,10 +101,7 @@ export default function ResendVerificationPage() {
 						<div className="mt-6 text-center">
 							<p className="text-sm text-muted-foreground">
 								Remember your password?{" "}
-								<Link
-									href="/login"
-									className="font-medium text-primary hover:underline"
-								>
+								<Link href="/login" className="font-medium text-primary hover:underline">
 									Sign in
 								</Link>
 							</p>

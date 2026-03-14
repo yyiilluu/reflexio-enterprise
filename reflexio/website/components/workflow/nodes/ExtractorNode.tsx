@@ -100,19 +100,13 @@ export function ExtractorNode({ data }: ExtractorNodeProps) {
 
 						{/* Extractor Name */}
 						{data.name && (
-							<div
-								className="font-semibold text-sm"
-								style={{ color: colors.text }}
-							>
+							<div className="font-semibold text-sm" style={{ color: colors.text }}>
 								{data.name}
 							</div>
 						)}
 
 						{/* Table Destination */}
-						<div
-							className="flex items-center gap-1.5 text-xs"
-							style={{ color: colors.text }}
-						>
+						<div className="flex items-center gap-1.5 text-xs" style={{ color: colors.text }}>
 							<div
 								className="w-1.5 h-1.5 rounded-full"
 								style={{ backgroundColor: colors.border }}
@@ -148,14 +142,8 @@ export function ExtractorNode({ data }: ExtractorNodeProps) {
 				onMouseLeave={() => setShowTooltip(false)}
 			>
 				{/* Header */}
-				<div
-					className="mb-4 pb-3 border-b-2"
-					style={{ borderColor: colors.border }}
-				>
-					<div
-						className="font-bold text-base mb-1"
-						style={{ color: colors.text }}
-					>
+				<div className="mb-4 pb-3 border-b-2" style={{ borderColor: colors.border }}>
+					<div className="font-bold text-base mb-1" style={{ color: colors.text }}>
 						{data.name || getTypeLabel(data.type)}
 					</div>
 					<div className="text-xs text-gray-600">
@@ -173,9 +161,7 @@ export function ExtractorNode({ data }: ExtractorNodeProps) {
 							📝 Definition Prompt
 						</div>
 						<div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 leading-relaxed">
-							{data.prompt.length > 300
-								? `${data.prompt.substring(0, 300)}...`
-								: data.prompt}
+							{data.prompt.length > 300 ? `${data.prompt.substring(0, 300)}...` : data.prompt}
 						</div>
 					</div>
 				)}
@@ -187,9 +173,7 @@ export function ExtractorNode({ data }: ExtractorNodeProps) {
 							🏷️ Metadata Definition
 						</div>
 						<div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-gray-700 leading-relaxed">
-							{data.metadata.length > 200
-								? `${data.metadata.substring(0, 200)}...`
-								: data.metadata}
+							{data.metadata.length > 200 ? `${data.metadata.substring(0, 200)}...` : data.metadata}
 						</div>
 					</div>
 				)}

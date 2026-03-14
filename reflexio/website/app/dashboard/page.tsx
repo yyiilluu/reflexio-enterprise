@@ -9,7 +9,7 @@ import {
 	TrendingUp,
 	Users,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
 	CartesianGrid,
 	Line,
@@ -19,18 +19,8 @@ import {
 	XAxis,
 	YAxis,
 } from "recharts";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
-import {
-	type DashboardStats,
-	getDashboardStats,
-	type TimeSeriesDataPoint,
-} from "@/lib/api";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { type DashboardStats, getDashboardStats, type TimeSeriesDataPoint } from "@/lib/api";
 
 // Helper function to format timestamps into readable time labels
 const formatTimeLabel = (timestamp: number, granularity: string): string => {
@@ -42,9 +32,7 @@ const formatTimeLabel = (timestamp: number, granularity: string): string => {
 	} else if (granularity === "weekly") {
 		// Calculate week number
 		const startOfYear = new Date(date.getFullYear(), 0, 1);
-		const days = Math.floor(
-			(date.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000),
-		);
+		const days = Math.floor((date.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000));
 		const weekNumber = Math.ceil((days + startOfYear.getDay() + 1) / 7);
 		return `Week ${weekNumber}`;
 	} else {
@@ -103,8 +91,7 @@ const getTimeBucket = (timestamp: number, granularity: string): number => {
 	if (granularity === "daily") {
 		// Start of day
 		return Math.floor(
-			new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime() /
-				1000,
+			new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime() / 1000,
 		);
 	} else if (granularity === "weekly") {
 		// Start of week (Monday)
@@ -113,17 +100,11 @@ const getTimeBucket = (timestamp: number, granularity: string): number => {
 		const monday = new Date(date);
 		monday.setDate(date.getDate() - diff);
 		return Math.floor(
-			new Date(
-				monday.getFullYear(),
-				monday.getMonth(),
-				monday.getDate(),
-			).getTime() / 1000,
+			new Date(monday.getFullYear(), monday.getMonth(), monday.getDate()).getTime() / 1000,
 		);
 	} else {
 		// Start of month
-		return Math.floor(
-			new Date(date.getFullYear(), date.getMonth(), 1).getTime() / 1000,
-		);
+		return Math.floor(new Date(date.getFullYear(), date.getMonth(), 1).getTime() / 1000);
 	}
 };
 
@@ -173,12 +154,8 @@ function ChartCard({
 			<CardHeader className="pb-4">
 				<div className="flex items-center justify-between gap-4">
 					<div>
-						<CardTitle className="text-lg font-semibold text-slate-800">
-							{title}
-						</CardTitle>
-						<CardDescription className="mt-1 text-slate-500">
-							{description}
-						</CardDescription>
+						<CardTitle className="text-lg font-semibold text-slate-800">{title}</CardTitle>
+						<CardDescription className="mt-1 text-slate-500">{description}</CardDescription>
 					</div>
 					<div className="flex gap-1 bg-slate-100 p-1 rounded-xl">
 						{(["daily", "weekly", "monthly"] as const).map((gran) => (
@@ -211,10 +188,7 @@ function ChartCard({
 					</div>
 				) : (
 					<ResponsiveContainer width="100%" height={280}>
-						<LineChart
-							data={data}
-							margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
-						>
+						<LineChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
 							<defs>
 								<linearGradient
 									id={`gradient-${title.replace(/\s/g, "")}`}
@@ -321,24 +295,22 @@ export default function Dashboard() {
 	const [interactionsGranularity, setInteractionsGranularity] = useState<
 		"daily" | "weekly" | "monthly"
 	>("daily");
-	const [profilesGranularity, setProfilesGranularity] = useState<
-		"daily" | "weekly" | "monthly"
-	>("daily");
-	const [feedbacksGranularity, setFeedbacksGranularity] = useState<
-		"daily" | "weekly" | "monthly"
-	>("daily");
+	const [profilesGranularity, setProfilesGranularity] = useState<"daily" | "weekly" | "monthly">(
+		"daily",
+	);
+	const [feedbacksGranularity, setFeedbacksGranularity] = useState<"daily" | "weekly" | "monthly">(
+		"daily",
+	);
 	const [evaluationsGranularity, setEvaluationsGranularity] = useState<
 		"daily" | "weekly" | "monthly"
 	>("daily");
 
-	const [dashboardData, setDashboardData] = useState<DashboardStats | null>(
-		null,
-	);
+	const [dashboardData, setDashboardData] = useState<DashboardStats | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
 	// Fetch dashboard data (only once, no granularity needed)
-	const fetchDashboardData = async () => {
+	const fetchDashboardData = useCallback(async () => {
 		setIsLoading(true);
 		setError(null);
 
@@ -356,7 +328,7 @@ export default function Dashboard() {
 		} finally {
 			setIsLoading(false);
 		}
-	};
+	}, []);
 
 	// Initial load only - granularity is handled client-side
 	useEffect(() => {
@@ -368,8 +340,7 @@ export default function Dashboard() {
 		? [
 				{
 					title: "User Interactions",
-					value:
-						dashboardData.current_period.total_interactions.toLocaleString(),
+					value: dashboardData.current_period.total_interactions.toLocaleString(),
 					description: "Total interactions recorded",
 					icon: MessageSquare,
 					trend: calculateTrend(
@@ -423,9 +394,7 @@ export default function Dashboard() {
 						<div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
 							<LayoutDashboard className="h-5 w-5 text-white" />
 						</div>
-						<h1 className="text-3xl font-bold tracking-tight text-slate-800">
-							Dashboard
-						</h1>
+						<h1 className="text-3xl font-bold tracking-tight text-slate-800">Dashboard</h1>
 					</div>
 					<p className="text-slate-500 mt-1 ml-13">
 						Monitor and analyze user profiling metrics in real-time
@@ -480,12 +449,8 @@ export default function Dashboard() {
 											</div>
 										</CardHeader>
 										<CardContent>
-											<div className="text-3xl font-bold text-slate-800">
-												{stat.value}
-											</div>
-											<p className="text-xs text-slate-500 mt-1">
-												{stat.description}
-											</p>
+											<div className="text-3xl font-bold text-slate-800">{stat.value}</div>
+											<p className="text-xs text-slate-500 mt-1">{stat.description}</p>
 											<div
 												className={`flex items-center gap-1 mt-3 text-sm font-semibold ${stat.trend.isPositive ? "text-emerald-600" : "text-red-500"}`}
 											>

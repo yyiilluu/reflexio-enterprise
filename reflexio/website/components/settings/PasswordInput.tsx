@@ -12,12 +12,7 @@ interface PasswordInputProps {
 	className?: string;
 }
 
-export function PasswordInput({
-	value,
-	onChange,
-	placeholder,
-	className,
-}: PasswordInputProps) {
+export function PasswordInput({ value, onChange, placeholder, className }: PasswordInputProps) {
 	const [visible, setVisible] = useState(false);
 
 	return (

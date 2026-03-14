@@ -25,13 +25,7 @@ import type {
 } from "@/app/settings/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { FieldLabel } from "../FieldLabel";
@@ -99,14 +93,11 @@ export function AdvancedSettingsSection({
 	const [expanded, setExpanded] = useState(false);
 
 	const defaultProvider = useMemo<ProviderId>(() => {
-		const firstConfigured = PROVIDERS.find((p) =>
-			isProviderConfigured(p.id, config),
-		);
+		const firstConfigured = PROVIDERS.find((p) => isProviderConfigured(p.id, config));
 		return firstConfigured?.id ?? "custom_endpoint";
 	}, [config]);
 
-	const [selectedProvider, setSelectedProvider] =
-		useState<ProviderId>(defaultProvider);
+	const [selectedProvider, setSelectedProvider] = useState<ProviderId>(defaultProvider);
 
 	// Sync selectedProvider when config loads asynchronously
 	useEffect(() => {
@@ -172,9 +163,7 @@ export function AdvancedSettingsSection({
 						{/* Configured provider pills */}
 						{configuredProviders.length > 0 && (
 							<div className="flex items-center gap-2 flex-wrap">
-								<span className="text-xs text-muted-foreground">
-									Configured:
-								</span>
+								<span className="text-xs text-muted-foreground">Configured:</span>
 								{configuredProviders.map((p) => (
 									<button
 										key={p.id}
@@ -196,9 +185,7 @@ export function AdvancedSettingsSection({
 						{/* Provider dropdown */}
 						<select
 							value={selectedProvider}
-							onChange={(e) =>
-								setSelectedProvider(e.target.value as ProviderId)
-							}
+							onChange={(e) => setSelectedProvider(e.target.value as ProviderId)}
 							className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
 						>
 							{PROVIDERS.map((p) => {
@@ -217,14 +204,11 @@ export function AdvancedSettingsSection({
 						<div className="p-5 border border-slate-200 rounded-lg space-y-4 bg-slate-50">
 							<div className="flex items-center gap-2">
 								<Globe className="h-4 w-4 text-slate-400" />
-								<span className="text-sm font-semibold text-slate-800">
-									Custom Endpoint
-								</span>
+								<span className="text-sm font-semibold text-slate-800">Custom Endpoint</span>
 							</div>
 							<p className="text-xs text-muted-foreground">
-								Connect to any OpenAI-compatible endpoint (e.g., vLLM, LiteLLM
-								proxy, Ollama). When configured, this takes priority over all
-								other providers for LLM completion calls.
+								Connect to any OpenAI-compatible endpoint (e.g., vLLM, LiteLLM proxy, Ollama). When
+								configured, this takes priority over all other providers for LLM completion calls.
 							</p>
 							<div className="grid gap-4 sm:grid-cols-3">
 								<div>
@@ -232,9 +216,7 @@ export function AdvancedSettingsSection({
 									<Input
 										type="text"
 										value={config.api_key_config?.custom_endpoint?.model || ""}
-										onChange={(e) =>
-											onUpdateCustomEndpoint({ model: e.target.value })
-										}
+										onChange={(e) => onUpdateCustomEndpoint({ model: e.target.value })}
 										placeholder="e.g., openai/mistral"
 										className="h-10"
 									/>
@@ -246,28 +228,18 @@ export function AdvancedSettingsSection({
 									<FieldLabel>Endpoint URL</FieldLabel>
 									<Input
 										type="text"
-										value={
-											config.api_key_config?.custom_endpoint?.api_base || ""
-										}
-										onChange={(e) =>
-											onUpdateCustomEndpoint({ api_base: e.target.value })
-										}
+										value={config.api_key_config?.custom_endpoint?.api_base || ""}
+										onChange={(e) => onUpdateCustomEndpoint({ api_base: e.target.value })}
 										placeholder="http://localhost:8000/v1"
 										className="h-10"
 									/>
-									<p className="text-xs text-muted-foreground mt-1">
-										Base URL of the API
-									</p>
+									<p className="text-xs text-muted-foreground mt-1">Base URL of the API</p>
 								</div>
 								<div>
 									<FieldLabel>API Key</FieldLabel>
 									<PasswordInput
-										value={
-											config.api_key_config?.custom_endpoint?.api_key || ""
-										}
-										onChange={(value) =>
-											onUpdateCustomEndpoint({ api_key: value })
-										}
+										value={config.api_key_config?.custom_endpoint?.api_key || ""}
+										onChange={(value) => onUpdateCustomEndpoint({ api_key: value })}
 										placeholder="API key (if required)"
 									/>
 									<p className="text-xs text-muted-foreground mt-1">
@@ -282,9 +254,7 @@ export function AdvancedSettingsSection({
 						<div className="p-5 border border-slate-200 rounded-lg space-y-4 bg-slate-50">
 							<div className="flex items-center gap-2">
 								<Cpu className="h-4 w-4 text-slate-400" />
-								<span className="text-sm font-semibold text-slate-800">
-									OpenAI Configuration
-								</span>
+								<span className="text-sm font-semibold text-slate-800">OpenAI Configuration</span>
 							</div>
 
 							<div>
@@ -333,13 +303,8 @@ export function AdvancedSettingsSection({
 										<div>
 											<FieldLabel>Azure API Key</FieldLabel>
 											<PasswordInput
-												value={
-													config.api_key_config?.openai?.azure_config
-														?.api_key || ""
-												}
-												onChange={(value) =>
-													onUpdateAzureOpenAI({ api_key: value })
-												}
+												value={config.api_key_config?.openai?.azure_config?.api_key || ""}
+												onChange={(value) => onUpdateAzureOpenAI({ api_key: value })}
 												placeholder="Azure OpenAI API Key"
 											/>
 										</div>
@@ -347,13 +312,8 @@ export function AdvancedSettingsSection({
 											<FieldLabel>Endpoint</FieldLabel>
 											<Input
 												type="text"
-												value={
-													config.api_key_config?.openai?.azure_config
-														?.endpoint || ""
-												}
-												onChange={(e) =>
-													onUpdateAzureOpenAI({ endpoint: e.target.value })
-												}
+												value={config.api_key_config?.openai?.azure_config?.endpoint || ""}
+												onChange={(e) => onUpdateAzureOpenAI({ endpoint: e.target.value })}
 												placeholder="https://your-resource.openai.azure.com/"
 												className="h-10"
 											/>
@@ -365,12 +325,10 @@ export function AdvancedSettingsSection({
 											<Input
 												type="text"
 												value={
-													config.api_key_config?.openai?.azure_config
-														?.api_version || "2024-02-15-preview"
+													config.api_key_config?.openai?.azure_config?.api_version ||
+													"2024-02-15-preview"
 												}
-												onChange={(e) =>
-													onUpdateAzureOpenAI({ api_version: e.target.value })
-												}
+												onChange={(e) => onUpdateAzureOpenAI({ api_version: e.target.value })}
 												placeholder="2024-02-15-preview"
 												className="h-10"
 											/>
@@ -379,10 +337,7 @@ export function AdvancedSettingsSection({
 											<FieldLabel>Deployment Name (Optional)</FieldLabel>
 											<Input
 												type="text"
-												value={
-													config.api_key_config?.openai?.azure_config
-														?.deployment_name || ""
-												}
+												value={config.api_key_config?.openai?.azure_config?.deployment_name || ""}
 												onChange={(e) =>
 													onUpdateAzureOpenAI({
 														deployment_name: e.target.value || undefined,
@@ -394,8 +349,7 @@ export function AdvancedSettingsSection({
 										</div>
 									</div>
 									<p className="text-xs text-muted-foreground">
-										Configure Azure OpenAI Service credentials for enterprise
-										deployments
+										Configure Azure OpenAI Service credentials for enterprise deployments
 									</p>
 								</div>
 							)}
@@ -450,9 +404,7 @@ export function AdvancedSettingsSection({
 						<div className="p-5 border border-slate-200 rounded-lg space-y-4 bg-slate-50">
 							<div className="flex items-center gap-2">
 								<Sparkles className="h-4 w-4 text-slate-400" />
-								<span className="text-sm font-semibold text-slate-800">
-									MiniMax Configuration
-								</span>
+								<span className="text-sm font-semibold text-slate-800">MiniMax Configuration</span>
 							</div>
 							<div>
 								<FieldLabel>MiniMax API Key</FieldLabel>
@@ -462,8 +414,8 @@ export function AdvancedSettingsSection({
 									placeholder="eyJ..."
 								/>
 								<p className="text-xs text-muted-foreground mt-2">
-									Your MiniMax API key. Use model prefix &quot;minimax/&quot;
-									(e.g., minimax/MiniMax-Text-01)
+									Your MiniMax API key. Use model prefix &quot;minimax/&quot; (e.g.,
+									minimax/MiniMax-Text-01)
 								</p>
 							</div>
 						</div>
@@ -475,13 +427,11 @@ export function AdvancedSettingsSection({
 					<div className="p-5 border border-slate-200 rounded-lg space-y-4 bg-slate-50">
 						<div className="flex items-center gap-2">
 							<Layers className="h-4 w-4 text-slate-400" />
-							<span className="text-sm font-semibold text-slate-800">
-								LLM Model Configuration
-							</span>
+							<span className="text-sm font-semibold text-slate-800">LLM Model Configuration</span>
 						</div>
 						<p className="text-xs text-muted-foreground">
-							Override default model names. Leave empty to use system defaults
-							from site configuration.
+							Override default model names. Leave empty to use system defaults from site
+							configuration.
 						</p>
 
 						<div className="grid gap-4 sm:grid-cols-3">
@@ -500,9 +450,7 @@ export function AdvancedSettingsSection({
 									placeholder="e.g., gpt-5-nano"
 									className="h-10"
 								/>
-								<p className="text-xs text-muted-foreground mt-1">
-									Model for extraction checks
-								</p>
+								<p className="text-xs text-muted-foreground mt-1">Model for extraction checks</p>
 							</div>
 							<div>
 								<FieldLabel>Generation Model</FieldLabel>
@@ -534,9 +482,7 @@ export function AdvancedSettingsSection({
 									placeholder="e.g., text-embedding-3-small"
 									className="h-10"
 								/>
-								<p className="text-xs text-muted-foreground mt-1">
-									Model for embeddings
-								</p>
+								<p className="text-xs text-muted-foreground mt-1">Model for embeddings</p>
 							</div>
 						</div>
 					</div>

@@ -26,13 +26,7 @@ import { useEffect, useMemo, useState } from "react";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	Dialog,
 	DialogContent,
@@ -150,10 +144,7 @@ function RawFeedbackRow({ feedback, onDelete }: RawFeedbackRowProps) {
 								<span className="font-semibold text-slate-800 font-mono text-sm">
 									#{feedback.raw_feedback_id}
 								</span>
-								<Badge
-									variant="outline"
-									className="text-xs border-slate-200 text-slate-600"
-								>
+								<Badge variant="outline" className="text-xs border-slate-200 text-slate-600">
 									{formatFeedbackName(feedback.feedback_name)}
 								</Badge>
 								<Badge className="text-xs bg-slate-100 text-slate-600 hover:bg-slate-100">
@@ -169,17 +160,12 @@ function RawFeedbackRow({ feedback, onDelete }: RawFeedbackRowProps) {
 					{/* Right side: time and expand button */}
 					<div className="flex items-center gap-3 flex-shrink-0">
 						<div className="text-right">
-							<p className="text-xs text-slate-500">
-								{getRelativeTime(feedback.created_at)}
-							</p>
+							<p className="text-xs text-slate-500">{getRelativeTime(feedback.created_at)}</p>
 							<p className="text-xs text-slate-400">
-								{new Date(feedback.created_at * 1000).toLocaleDateString(
-									"en-US",
-									{
-										month: "short",
-										day: "numeric",
-									},
-								)}
+								{new Date(feedback.created_at * 1000).toLocaleDateString("en-US", {
+									month: "short",
+									day: "numeric",
+								})}
 							</p>
 						</div>
 						<div className="flex items-center gap-1">
@@ -199,11 +185,7 @@ function RawFeedbackRow({ feedback, onDelete }: RawFeedbackRowProps) {
 								size="sm"
 								className="h-8 w-8 p-0 text-slate-400 hover:text-slate-600"
 							>
-								{expanded ? (
-									<ChevronUp className="h-4 w-4" />
-								) : (
-									<ChevronDown className="h-4 w-4" />
-								)}
+								{expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
 							</Button>
 						</div>
 					</div>
@@ -217,9 +199,7 @@ function RawFeedbackRow({ feedback, onDelete }: RawFeedbackRowProps) {
 						{/* Left Column */}
 						<div className="space-y-4">
 							<div>
-								<h4 className="text-sm font-semibold mb-2 text-slate-800">
-									Feedback Content
-								</h4>
+								<h4 className="text-sm font-semibold mb-2 text-slate-800">Feedback Content</h4>
 								<p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-lg whitespace-pre-wrap">
 									{formatFeedbackContent(feedback)}
 								</p>
@@ -229,21 +209,15 @@ function RawFeedbackRow({ feedback, onDelete }: RawFeedbackRowProps) {
 						{/* Right Column */}
 						<div className="space-y-4">
 							<div>
-								<h4 className="text-sm font-semibold mb-3 text-slate-800">
-									Details
-								</h4>
+								<h4 className="text-sm font-semibold mb-3 text-slate-800">Details</h4>
 								<div className="space-y-2 bg-slate-50 p-3 rounded-lg">
 									<div className="flex justify-between text-sm">
 										<span className="text-slate-500">Feedback ID:</span>
-										<span className="font-mono text-slate-700">
-											#{feedback.raw_feedback_id}
-										</span>
+										<span className="font-mono text-slate-700">#{feedback.raw_feedback_id}</span>
 									</div>
 									<div className="flex justify-between text-sm">
 										<span className="text-slate-500">Agent Version:</span>
-										<span className="text-slate-700">
-											{feedback.agent_version}
-										</span>
+										<span className="text-slate-700">{feedback.agent_version}</span>
 									</div>
 									<div className="flex justify-between text-sm">
 										<span className="text-slate-500">Feedback Type:</span>
@@ -253,15 +227,11 @@ function RawFeedbackRow({ feedback, onDelete }: RawFeedbackRowProps) {
 									</div>
 									<div className="flex justify-between text-sm">
 										<span className="text-slate-500">Request ID:</span>
-										<span className="font-mono text-xs text-slate-700">
-											{feedback.request_id}
-										</span>
+										<span className="font-mono text-xs text-slate-700">{feedback.request_id}</span>
 									</div>
 									<div className="flex justify-between text-sm">
 										<span className="text-slate-500">Source:</span>
-										<span className="text-slate-700">
-											{feedback.source || "N/A"}
-										</span>
+										<span className="text-slate-700">{feedback.source || "N/A"}</span>
 									</div>
 									<div className="flex justify-between text-sm">
 										<span className="text-slate-500">Created At:</span>
@@ -287,12 +257,7 @@ interface FeedbackRowProps {
 	isUpdating?: boolean;
 }
 
-function FeedbackRow({
-	feedback,
-	onUpdateStatus,
-	onDelete,
-	isUpdating = false,
-}: FeedbackRowProps) {
+function FeedbackRow({ feedback, onUpdateStatus, onDelete, isUpdating = false }: FeedbackRowProps) {
 	const [expanded, setExpanded] = useState(false);
 	const StatusIcon = getStatusIcon(feedback.feedback_status);
 
@@ -352,18 +317,13 @@ function FeedbackRow({
 								<span className="font-semibold text-slate-800 font-mono text-sm">
 									#{feedback.feedback_id}
 								</span>
-								<Badge
-									variant="outline"
-									className="text-xs border-slate-200 text-slate-600"
-								>
+								<Badge variant="outline" className="text-xs border-slate-200 text-slate-600">
 									{formatFeedbackName(feedback.feedback_name)}
 								</Badge>
 								<Badge className="text-xs bg-slate-100 text-slate-600 hover:bg-slate-100">
 									{feedback.agent_version}
 								</Badge>
-								<Badge
-									className={`text-xs flex items-center gap-1 ${getStatusBadgeClass()}`}
-								>
+								<Badge className={`text-xs flex items-center gap-1 ${getStatusBadgeClass()}`}>
 									<StatusIcon className="h-3 w-3" />
 									{feedback.feedback_status.charAt(0).toUpperCase() +
 										feedback.feedback_status.slice(1)}
@@ -378,17 +338,12 @@ function FeedbackRow({
 					{/* Right side: time and expand button */}
 					<div className="flex items-center gap-3 flex-shrink-0">
 						<div className="text-right">
-							<p className="text-xs text-slate-500">
-								{getRelativeTime(feedback.created_at)}
-							</p>
+							<p className="text-xs text-slate-500">{getRelativeTime(feedback.created_at)}</p>
 							<p className="text-xs text-slate-400">
-								{new Date(feedback.created_at * 1000).toLocaleDateString(
-									"en-US",
-									{
-										month: "short",
-										day: "numeric",
-									},
-								)}
+								{new Date(feedback.created_at * 1000).toLocaleDateString("en-US", {
+									month: "short",
+									day: "numeric",
+								})}
 							</p>
 						</div>
 						<div className="flex items-center gap-1">
@@ -408,11 +363,7 @@ function FeedbackRow({
 								size="sm"
 								className="h-8 w-8 p-0 text-slate-400 hover:text-slate-600"
 							>
-								{expanded ? (
-									<ChevronUp className="h-4 w-4" />
-								) : (
-									<ChevronDown className="h-4 w-4" />
-								)}
+								{expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
 							</Button>
 						</div>
 					</div>
@@ -436,18 +387,12 @@ function FeedbackRow({
 
 							{feedback.feedback_metadata && (
 								<div>
-									<h4 className="text-sm font-semibold mb-2 text-slate-800">
-										Metadata
-									</h4>
+									<h4 className="text-sm font-semibold mb-2 text-slate-800">Metadata</h4>
 									<div className="bg-slate-50 p-3 rounded-lg">
 										<pre className="text-xs font-mono whitespace-pre-wrap text-slate-700">
 											{(() => {
 												try {
-													return JSON.stringify(
-														JSON.parse(feedback.feedback_metadata),
-														null,
-														2,
-													);
+													return JSON.stringify(JSON.parse(feedback.feedback_metadata), null, 2);
 												} catch {
 													return feedback.feedback_metadata;
 												}
@@ -461,21 +406,15 @@ function FeedbackRow({
 						{/* Right Column */}
 						<div className="space-y-4">
 							<div>
-								<h4 className="text-sm font-semibold mb-3 text-slate-800">
-									Details
-								</h4>
+								<h4 className="text-sm font-semibold mb-3 text-slate-800">Details</h4>
 								<div className="space-y-2 bg-slate-50 p-3 rounded-lg">
 									<div className="flex justify-between text-sm">
 										<span className="text-slate-500">Feedback ID:</span>
-										<span className="font-mono text-slate-700">
-											#{feedback.feedback_id}
-										</span>
+										<span className="font-mono text-slate-700">#{feedback.feedback_id}</span>
 									</div>
 									<div className="flex justify-between text-sm">
 										<span className="text-slate-500">Agent Version:</span>
-										<span className="text-slate-700">
-											{feedback.agent_version}
-										</span>
+										<span className="text-slate-700">{feedback.agent_version}</span>
 									</div>
 									<div className="flex justify-between text-sm">
 										<span className="text-slate-500">Feedback Type:</span>
@@ -485,9 +424,7 @@ function FeedbackRow({
 									</div>
 									<div className="flex justify-between text-sm">
 										<span className="text-slate-500">Status:</span>
-										<Badge
-											className={`text-xs flex items-center gap-1 ${getStatusBadgeClass()}`}
-										>
+										<Badge className={`text-xs flex items-center gap-1 ${getStatusBadgeClass()}`}>
 											<StatusIcon className="h-3 w-3" />
 											{feedback.feedback_status}
 										</Badge>
@@ -502,9 +439,7 @@ function FeedbackRow({
 							</div>
 
 							<div>
-								<h4 className="text-sm font-semibold mb-2 text-slate-800">
-									Status Management
-								</h4>
+								<h4 className="text-sm font-semibold mb-2 text-slate-800">Status Management</h4>
 								<div className="flex gap-2">
 									<Button
 										size="sm"
@@ -514,11 +449,7 @@ function FeedbackRow({
 										}}
 										disabled={isUpdating}
 										className={`flex-1 ${feedback.feedback_status === "approved" ? "bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 border-0" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"}`}
-										variant={
-											feedback.feedback_status === "approved"
-												? "default"
-												: "outline"
-										}
+										variant={feedback.feedback_status === "approved" ? "default" : "outline"}
 									>
 										{isUpdating ? (
 											<RefreshCw className="h-4 w-4 mr-1 animate-spin" />
@@ -535,11 +466,7 @@ function FeedbackRow({
 										}}
 										disabled={isUpdating}
 										className={`flex-1 ${feedback.feedback_status === "rejected" ? "bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 border-0" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"}`}
-										variant={
-											feedback.feedback_status === "rejected"
-												? "default"
-												: "outline"
-										}
+										variant={feedback.feedback_status === "rejected" ? "default" : "outline"}
 									>
 										{isUpdating ? (
 											<RefreshCw className="h-4 w-4 mr-1 animate-spin" />
@@ -559,13 +486,12 @@ function FeedbackRow({
 }
 
 export default function FeedbacksPage() {
-	const [activeTab, setActiveTab] = useState<
-		"aggregated" | "current" | "pending" | "archived"
-	>("aggregated");
+	const [activeTab, setActiveTab] = useState<"aggregated" | "current" | "pending" | "archived">(
+		"aggregated",
+	);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [selectedAgent, setSelectedAgent] = useState<string>("all");
-	const [selectedFeedbackName, setSelectedFeedbackName] =
-		useState<string>("all");
+	const [selectedFeedbackName, setSelectedFeedbackName] = useState<string>("all");
 	const [selectedStatus, setSelectedStatus] = useState<string>("all");
 	const [rawFeedbacks, setRawFeedbacks] = useState<RawFeedback[]>([]);
 	const [rawFeedbackCounts, setRawFeedbackCounts] = useState<{
@@ -576,9 +502,7 @@ export default function FeedbacksPage() {
 	const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
-	const [updatingFeedbackId, setUpdatingFeedbackId] = useState<number | null>(
-		null,
-	);
+	const [updatingFeedbackId, setUpdatingFeedbackId] = useState<number | null>(null);
 
 	// Rerun feedback generation state
 	const [showRerunFeedbackModal, setShowRerunFeedbackModal] = useState(false);
@@ -590,8 +514,7 @@ export default function FeedbacksPage() {
 	const [rerunEndDate, setRerunEndDate] = useState("");
 	const [operationStatusFeedback, setOperationStatusFeedback] =
 		useState<OperationStatusInfo | null>(null);
-	const [showOperationBannerFeedback, setShowOperationBannerFeedback] =
-		useState(false);
+	const [showOperationBannerFeedback, setShowOperationBannerFeedback] = useState(false);
 
 	// Run feedback aggregation state
 	const [showRunAggregationModal, setShowRunAggregationModal] = useState(false);
@@ -608,15 +531,11 @@ export default function FeedbacksPage() {
 	} | null>(null);
 
 	// Delete confirmation state for raw feedbacks
-	const [rawFeedbackToDelete, setRawFeedbackToDelete] =
-		useState<RawFeedback | null>(null);
-	const [deletingRawFeedback, setDeletingRawFeedback] =
-		useState<boolean>(false);
+	const [rawFeedbackToDelete, setRawFeedbackToDelete] = useState<RawFeedback | null>(null);
+	const [deletingRawFeedback, setDeletingRawFeedback] = useState<boolean>(false);
 
 	// Delete confirmation state for aggregated feedbacks
-	const [feedbackToDelete, setFeedbackToDelete] = useState<Feedback | null>(
-		null,
-	);
+	const [feedbackToDelete, setFeedbackToDelete] = useState<Feedback | null>(null);
 	const [deletingFeedback, setDeletingFeedback] = useState<boolean>(false);
 
 	// Upgrade/Downgrade state
@@ -647,27 +566,19 @@ export default function FeedbacksPage() {
 				]);
 
 				if (rawResponse.success) {
-					const allRaw = rawResponse.raw_feedbacks.sort(
-						(a, b) => b.created_at - a.created_at,
-					);
+					const allRaw = rawResponse.raw_feedbacks.sort((a, b) => b.created_at - a.created_at);
 					setRawFeedbacks(allRaw);
 
 					// Calculate counts by status
 					setRawFeedbackCounts({
-						current: allRaw.filter(
-							(f) => f.status === null || f.status === undefined,
-						).length,
+						current: allRaw.filter((f) => f.status === null || f.status === undefined).length,
 						pending: allRaw.filter((f) => f.status === "pending").length,
 						archived: allRaw.filter((f) => f.status === "archived").length,
 					});
 				}
 
 				if (feedbackResponse.success) {
-					setFeedbacks(
-						feedbackResponse.feedbacks.sort(
-							(a, b) => b.created_at - a.created_at,
-						),
-					);
+					setFeedbacks(feedbackResponse.feedbacks.sort((a, b) => b.created_at - a.created_at));
 				}
 			} catch (err) {
 				console.error("Error fetching feedbacks:", err);
@@ -703,27 +614,19 @@ export default function FeedbacksPage() {
 						]);
 
 						if (rawResponse.success) {
-							const allRaw = rawResponse.raw_feedbacks.sort(
-								(a, b) => b.created_at - a.created_at,
-							);
+							const allRaw = rawResponse.raw_feedbacks.sort((a, b) => b.created_at - a.created_at);
 							setRawFeedbacks(allRaw);
 
 							// Recalculate counts by status
 							setRawFeedbackCounts({
-								current: allRaw.filter(
-									(f) => f.status === null || f.status === undefined,
-								).length,
+								current: allRaw.filter((f) => f.status === null || f.status === undefined).length,
 								pending: allRaw.filter((f) => f.status === "pending").length,
 								archived: allRaw.filter((f) => f.status === "archived").length,
 							});
 						}
 
 						if (feedbackResponse.success) {
-							setFeedbacks(
-								feedbackResponse.feedbacks.sort(
-									(a, b) => b.created_at - a.created_at,
-								),
-							);
+							setFeedbacks(feedbackResponse.feedbacks.sort((a, b) => b.created_at - a.created_at));
 						}
 
 						// Stop polling
@@ -785,10 +688,7 @@ export default function FeedbacksPage() {
 	}, [showOperationBannerFeedback]);
 
 	// Helper to check if showing raw feedbacks
-	const isRawTab =
-		activeTab === "current" ||
-		activeTab === "pending" ||
-		activeTab === "archived";
+	const isRawTab = activeTab === "current" || activeTab === "pending" || activeTab === "archived";
 
 	// Get unique values for filters
 	const uniqueAgents = useMemo(() => {
@@ -807,16 +707,12 @@ export default function FeedbacksPage() {
 
 	// Unique values from pending raw feedbacks only (for adopt modal filters)
 	const pendingFeedbackNames = useMemo(() => {
-		const names = rawFeedbacks
-			.filter((f) => f.status === "pending")
-			.map((f) => f.feedback_name);
+		const names = rawFeedbacks.filter((f) => f.status === "pending").map((f) => f.feedback_name);
 		return Array.from(new Set(names)).sort();
 	}, [rawFeedbacks]);
 
 	const pendingAgentVersions = useMemo(() => {
-		const versions = rawFeedbacks
-			.filter((f) => f.status === "pending")
-			.map((f) => f.agent_version);
+		const versions = rawFeedbacks.filter((f) => f.status === "pending").map((f) => f.agent_version);
 		return Array.from(new Set(versions)).sort();
 	}, [rawFeedbacks]);
 
@@ -839,90 +735,50 @@ export default function FeedbacksPage() {
 
 			const matchesSearch =
 				searchQuery === "" ||
-				feedback.feedback_content
-					.toLowerCase()
-					.includes(searchQuery.toLowerCase()) ||
+				feedback.feedback_content.toLowerCase().includes(searchQuery.toLowerCase()) ||
 				feedback.request_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-				feedback.feedback_name
-					.toLowerCase()
-					.includes(searchQuery.toLowerCase());
+				feedback.feedback_name.toLowerCase().includes(searchQuery.toLowerCase());
 
-			const matchesAgent =
-				selectedAgent === "all" || feedback.agent_version === selectedAgent;
+			const matchesAgent = selectedAgent === "all" || feedback.agent_version === selectedAgent;
 			const matchesFeedbackName =
-				selectedFeedbackName === "all" ||
-				feedback.feedback_name === selectedFeedbackName;
+				selectedFeedbackName === "all" || feedback.feedback_name === selectedFeedbackName;
 
-			return (
-				matchesStatusTab && matchesSearch && matchesAgent && matchesFeedbackName
-			);
+			return matchesStatusTab && matchesSearch && matchesAgent && matchesFeedbackName;
 		});
-	}, [
-		rawFeedbacks,
-		activeTab,
-		searchQuery,
-		selectedAgent,
-		selectedFeedbackName,
-	]);
+	}, [rawFeedbacks, activeTab, searchQuery, selectedAgent, selectedFeedbackName]);
 
 	// Filter aggregated feedbacks
 	const filteredFeedbacks = useMemo(() => {
 		return feedbacks.filter((feedback) => {
 			const matchesSearch =
 				searchQuery === "" ||
-				feedback.feedback_content
-					.toLowerCase()
-					.includes(searchQuery.toLowerCase()) ||
-				feedback.feedback_name
-					.toLowerCase()
-					.includes(searchQuery.toLowerCase()) ||
-				feedback.feedback_metadata
-					.toLowerCase()
-					.includes(searchQuery.toLowerCase());
+				feedback.feedback_content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+				feedback.feedback_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+				feedback.feedback_metadata.toLowerCase().includes(searchQuery.toLowerCase());
 
-			const matchesAgent =
-				selectedAgent === "all" || feedback.agent_version === selectedAgent;
+			const matchesAgent = selectedAgent === "all" || feedback.agent_version === selectedAgent;
 			const matchesFeedbackName =
-				selectedFeedbackName === "all" ||
-				feedback.feedback_name === selectedFeedbackName;
-			const matchesStatus =
-				selectedStatus === "all" || feedback.feedback_status === selectedStatus;
+				selectedFeedbackName === "all" || feedback.feedback_name === selectedFeedbackName;
+			const matchesStatus = selectedStatus === "all" || feedback.feedback_status === selectedStatus;
 
-			return (
-				matchesSearch && matchesAgent && matchesFeedbackName && matchesStatus
-			);
+			return matchesSearch && matchesAgent && matchesFeedbackName && matchesStatus;
 		});
-	}, [
-		feedbacks,
-		searchQuery,
-		selectedAgent,
-		selectedFeedbackName,
-		selectedStatus,
-	]);
+	}, [feedbacks, searchQuery, selectedAgent, selectedFeedbackName, selectedStatus]);
 
 	// Calculate statistics
 	const totalRaw = rawFeedbacks.length;
 	const totalAggregated = feedbacks.length;
-	const pending = feedbacks.filter(
-		(f) => f.feedback_status === "pending",
-	).length;
-	const approved = feedbacks.filter(
-		(f) => f.feedback_status === "approved",
-	).length;
+	const pending = feedbacks.filter((f) => f.feedback_status === "pending").length;
+	const approved = feedbacks.filter((f) => f.feedback_status === "approved").length;
 	const recentRaw = rawFeedbacks.filter((f) => {
 		const hourAgo = Date.now() / 1000 - 60 * 60;
 		return f.created_at > hourAgo;
 	}).length;
 
-	const updateFeedbackStatus = async (
-		feedbackId: number,
-		status: FeedbackStatus,
-	) => {
+	const updateFeedbackStatus = async (feedbackId: number, status: FeedbackStatus) => {
 		// Optimistically update the UI
 		setFeedbacks(
-			feedbacks.map((f) =>
-				f.feedback_id === feedbackId ? { ...f, feedback_status: status } : f,
-			),
+			feedbacks.map((f) => (f.feedback_id === feedbackId ? { ...f, feedback_status: status } : f)),
 		);
 		setUpdatingFeedbackId(feedbackId);
 
@@ -935,17 +791,11 @@ export default function FeedbacksPage() {
 
 			if (!response.success) {
 				// Revert on failure
-				setError(
-					`Failed to update feedback status: ${response.msg || "Unknown error"}`,
-				);
+				setError(`Failed to update feedback status: ${response.msg || "Unknown error"}`);
 				// Fetch fresh data to revert the optimistic update
 				const feedbackResponse = await getFeedbacks({ limit: 1000 });
 				if (feedbackResponse.success) {
-					setFeedbacks(
-						feedbackResponse.feedbacks.sort(
-							(a, b) => b.created_at - a.created_at,
-						),
-					);
+					setFeedbacks(feedbackResponse.feedbacks.sort((a, b) => b.created_at - a.created_at));
 				}
 			}
 		} catch (err) {
@@ -955,17 +805,10 @@ export default function FeedbacksPage() {
 			try {
 				const feedbackResponse = await getFeedbacks({ limit: 1000 });
 				if (feedbackResponse.success) {
-					setFeedbacks(
-						feedbackResponse.feedbacks.sort(
-							(a, b) => b.created_at - a.created_at,
-						),
-					);
+					setFeedbacks(feedbackResponse.feedbacks.sort((a, b) => b.created_at - a.created_at));
 				}
 			} catch (fetchErr) {
-				console.error(
-					"Error fetching feedbacks after failed update:",
-					fetchErr,
-				);
+				console.error("Error fetching feedbacks after failed update:", fetchErr);
 			}
 		} finally {
 			setUpdatingFeedbackId(null);
@@ -982,27 +825,19 @@ export default function FeedbacksPage() {
 			]);
 
 			if (rawResponse.success) {
-				const allRaw = rawResponse.raw_feedbacks.sort(
-					(a, b) => b.created_at - a.created_at,
-				);
+				const allRaw = rawResponse.raw_feedbacks.sort((a, b) => b.created_at - a.created_at);
 				setRawFeedbacks(allRaw);
 
 				// Recalculate counts by status
 				setRawFeedbackCounts({
-					current: allRaw.filter(
-						(f) => f.status === null || f.status === undefined,
-					).length,
+					current: allRaw.filter((f) => f.status === null || f.status === undefined).length,
 					pending: allRaw.filter((f) => f.status === "pending").length,
 					archived: allRaw.filter((f) => f.status === "archived").length,
 				});
 			}
 
 			if (feedbackResponse.success) {
-				setFeedbacks(
-					feedbackResponse.feedbacks.sort(
-						(a, b) => b.created_at - a.created_at,
-					),
-				);
+				setFeedbacks(feedbackResponse.feedbacks.sort((a, b) => b.created_at - a.created_at));
 			}
 		} catch (err) {
 			console.error("Error fetching feedbacks:", err);
@@ -1029,18 +864,14 @@ export default function FeedbacksPage() {
 			if (response.success) {
 				// Remove from the list
 				setRawFeedbacks(
-					rawFeedbacks.filter(
-						(f) => f.raw_feedback_id !== rawFeedbackToDelete.raw_feedback_id,
-					),
+					rawFeedbacks.filter((f) => f.raw_feedback_id !== rawFeedbackToDelete.raw_feedback_id),
 				);
 				// Recalculate counts
 				const updatedRaw = rawFeedbacks.filter(
 					(f) => f.raw_feedback_id !== rawFeedbackToDelete.raw_feedback_id,
 				);
 				setRawFeedbackCounts({
-					current: updatedRaw.filter(
-						(f) => f.status === null || f.status === undefined,
-					).length,
+					current: updatedRaw.filter((f) => f.status === null || f.status === undefined).length,
 					pending: updatedRaw.filter((f) => f.status === "pending").length,
 					archived: updatedRaw.filter((f) => f.status === "archived").length,
 				});
@@ -1058,9 +889,7 @@ export default function FeedbacksPage() {
 			setMessageModalConfig({
 				title: "Delete Failed",
 				message:
-					err instanceof Error
-						? err.message
-						: "An error occurred while deleting the raw feedback",
+					err instanceof Error ? err.message : "An error occurred while deleting the raw feedback",
 				type: "error",
 			});
 			setShowMessageModal(true);
@@ -1085,11 +914,7 @@ export default function FeedbacksPage() {
 
 			if (response.success) {
 				// Remove from the list
-				setFeedbacks(
-					feedbacks.filter(
-						(f) => f.feedback_id !== feedbackToDelete.feedback_id,
-					),
-				);
+				setFeedbacks(feedbacks.filter((f) => f.feedback_id !== feedbackToDelete.feedback_id));
 				setFeedbackToDelete(null);
 			} else {
 				setMessageModalConfig({
@@ -1104,9 +929,7 @@ export default function FeedbacksPage() {
 			setMessageModalConfig({
 				title: "Delete Failed",
 				message:
-					err instanceof Error
-						? err.message
-						: "An error occurred while deleting the feedback",
+					err instanceof Error ? err.message : "An error occurred while deleting the feedback",
 				type: "error",
 			});
 			setShowMessageModal(true);
@@ -1218,8 +1041,7 @@ export default function FeedbacksPage() {
 			if (response.success) {
 				setMessageModalConfig({
 					title: "Feedback Aggregation Completed",
-					message:
-						response.message || "Feedback aggregation completed successfully.",
+					message: response.message || "Feedback aggregation completed successfully.",
 					type: "success",
 				});
 				setShowMessageModal(true);
@@ -1274,16 +1096,10 @@ export default function FeedbacksPage() {
 			const response = await upgradeAllRawFeedbacks(request);
 
 			if (response.success) {
-				const lines = [
-					`${response.raw_feedbacks_promoted} raw feedbacks promoted to current`,
-				];
+				const lines = [`${response.raw_feedbacks_promoted} raw feedbacks promoted to current`];
 				if (adoptArchiveCurrent) {
-					lines.push(
-						`${response.raw_feedbacks_archived} raw feedbacks archived`,
-					);
-					lines.push(
-						`${response.raw_feedbacks_deleted} old archived raw feedbacks deleted`,
-					);
+					lines.push(`${response.raw_feedbacks_archived} raw feedbacks archived`);
+					lines.push(`${response.raw_feedbacks_deleted} old archived raw feedbacks deleted`);
 				}
 				setMessageModalConfig({
 					title: "Raw Feedbacks Upgraded Successfully",
@@ -1369,9 +1185,7 @@ export default function FeedbacksPage() {
 							<div className="h-10 w-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-500/25">
 								<BarChart3 className="h-5 w-5 text-white" />
 							</div>
-							<h1 className="text-3xl font-bold tracking-tight text-slate-800">
-								Feedbacks
-							</h1>
+							<h1 className="text-3xl font-bold tracking-tight text-slate-800">Feedbacks</h1>
 						</div>
 						<p className="text-slate-500 mt-1 ml-13">
 							Monitor and manage agent feedback data and performance insights
@@ -1388,20 +1202,15 @@ export default function FeedbacksPage() {
 						<div className="p-4 max-w-[1800px] mx-auto">
 							<div className="flex items-center justify-between">
 								<div className="flex items-center gap-3">
-									<Loader2
-										className="h-5 w-5 animate-spin"
-										style={{ color: "#1d3557" }}
-									/>
+									<Loader2 className="h-5 w-5 animate-spin" style={{ color: "#1d3557" }} />
 									<div>
 										<p className="font-semibold" style={{ color: "#1d3557" }}>
 											Feedback generation in progress
 										</p>
 										<p className="text-sm" style={{ color: "#1d3557" }}>
-											{operationStatusFeedback.stats
-												?.total_interactions_processed || 0}{" "}
+											{operationStatusFeedback.stats?.total_interactions_processed || 0}{" "}
 											interactions processed
-											{operationStatusFeedback.progress_percentage !==
-												undefined &&
+											{operationStatusFeedback.progress_percentage !== undefined &&
 												` (${operationStatusFeedback.progress_percentage.toFixed(0)}%)`}
 										</p>
 									</div>
@@ -1411,13 +1220,8 @@ export default function FeedbacksPage() {
 									size="sm"
 									onClick={async () => {
 										try {
-											const result = await cancelOperation(
-												"feedback_generation",
-											);
-											if (
-												result.success &&
-												result.cancelled_services.length > 0
-											) {
+											const result = await cancelOperation("feedback_generation");
+											if (result.success && result.cancelled_services.length > 0) {
 												// Hide banner (triggers useEffect cleanup which stops polling)
 												setShowOperationBannerFeedback(false);
 												setMessageModalConfig({
@@ -1427,11 +1231,10 @@ export default function FeedbacksPage() {
 												});
 												setShowMessageModal(true);
 												// Refresh data
-												const [rawResponse, feedbackResponse] =
-													await Promise.all([
-														getRawFeedbacks({ limit: 10000 }),
-														getFeedbacks({ limit: 1000 }),
-													]);
+												const [rawResponse, feedbackResponse] = await Promise.all([
+													getRawFeedbacks({ limit: 10000 }),
+													getFeedbacks({ limit: 1000 }),
+												]);
 												if (rawResponse.success) {
 													const allRaw = rawResponse.raw_feedbacks.sort(
 														(a, b) => b.created_at - a.created_at,
@@ -1439,22 +1242,15 @@ export default function FeedbacksPage() {
 													setRawFeedbacks(allRaw);
 													setRawFeedbackCounts({
 														current: allRaw.filter(
-															(f) =>
-																f.status === null || f.status === undefined,
+															(f) => f.status === null || f.status === undefined,
 														).length,
-														pending: allRaw.filter(
-															(f) => f.status === "pending",
-														).length,
-														archived: allRaw.filter(
-															(f) => f.status === "archived",
-														).length,
+														pending: allRaw.filter((f) => f.status === "pending").length,
+														archived: allRaw.filter((f) => f.status === "archived").length,
 													});
 												}
 												if (feedbackResponse.success) {
 													setFeedbacks(
-														feedbackResponse.feedbacks.sort(
-															(a, b) => b.created_at - a.created_at,
-														),
+														feedbackResponse.feedbacks.sort((a, b) => b.created_at - a.created_at),
 													);
 												}
 											}
@@ -1481,9 +1277,7 @@ export default function FeedbacksPage() {
 								<div className="flex items-center gap-3">
 									<AlertCircle className="h-5 w-5 text-red-500" />
 									<div>
-										<p className="font-semibold text-red-600">
-											Error Loading Feedbacks
-										</p>
+										<p className="font-semibold text-red-600">Error Loading Feedbacks</p>
 										<p className="text-sm text-slate-600">{error}</p>
 									</div>
 									<Button
@@ -1523,8 +1317,7 @@ export default function FeedbacksPage() {
 												Feedback Overview
 											</CardTitle>
 											<CardDescription className="text-xs mt-0.5 text-slate-500">
-												{totalRaw} raw feedback{totalRaw !== 1 ? "s" : ""}{" "}
-												collected
+												{totalRaw} raw feedback{totalRaw !== 1 ? "s" : ""} collected
 											</CardDescription>
 										</div>
 									</div>
@@ -1539,12 +1332,8 @@ export default function FeedbacksPage() {
 													Raw
 												</span>
 											</div>
-											<span className="text-2xl font-bold text-slate-800">
-												{totalRaw}
-											</span>
-											<span className="text-xs text-slate-400 mt-0.5">
-												individual items
-											</span>
+											<span className="text-2xl font-bold text-slate-800">{totalRaw}</span>
+											<span className="text-xs text-slate-400 mt-0.5">individual items</span>
 										</div>
 
 										{/* Aggregated */}
@@ -1555,12 +1344,8 @@ export default function FeedbacksPage() {
 													Aggregated
 												</span>
 											</div>
-											<span className="text-2xl font-bold text-slate-800">
-												{totalAggregated}
-											</span>
-											<span className="text-xs text-slate-400 mt-0.5">
-												processed summaries
-											</span>
+											<span className="text-2xl font-bold text-slate-800">{totalAggregated}</span>
+											<span className="text-xs text-slate-400 mt-0.5">processed summaries</span>
 										</div>
 
 										{/* Pending Review */}
@@ -1571,12 +1356,8 @@ export default function FeedbacksPage() {
 													Pending
 												</span>
 											</div>
-											<span className="text-2xl font-bold text-slate-800">
-												{pending}
-											</span>
-											<span className="text-xs text-slate-400 mt-0.5">
-												awaiting approval
-											</span>
+											<span className="text-2xl font-bold text-slate-800">{pending}</span>
+											<span className="text-xs text-slate-400 mt-0.5">awaiting approval</span>
 										</div>
 
 										{/* Approved */}
@@ -1587,12 +1368,8 @@ export default function FeedbacksPage() {
 													Approved
 												</span>
 											</div>
-											<span className="text-2xl font-bold text-slate-800">
-												{approved}
-											</span>
-											<span className="text-xs text-slate-400 mt-0.5">
-												validated feedbacks
-											</span>
+											<span className="text-2xl font-bold text-slate-800">{approved}</span>
+											<span className="text-xs text-slate-400 mt-0.5">validated feedbacks</span>
 										</div>
 
 										{/* Recent (1h) */}
@@ -1603,12 +1380,8 @@ export default function FeedbacksPage() {
 													Recent (1h)
 												</span>
 											</div>
-											<span className="text-2xl font-bold text-slate-800">
-												{recentRaw}
-											</span>
-											<span className="text-xs text-slate-400 mt-0.5">
-												new raw feedbacks
-											</span>
+											<span className="text-2xl font-bold text-slate-800">{recentRaw}</span>
+											<span className="text-xs text-slate-400 mt-0.5">new raw feedbacks</span>
 										</div>
 									</div>
 								</CardContent>
@@ -1696,12 +1469,10 @@ export default function FeedbacksPage() {
 													<Layers className="h-5 w-5 text-white" />
 												</div>
 												<div>
-													<h3 className="font-semibold text-slate-800">
-														Run Feedback Aggregation
-													</h3>
+													<h3 className="font-semibold text-slate-800">Run Feedback Aggregation</h3>
 													<p className="text-sm text-slate-500">
-														Aggregate raw feedbacks into consolidated insights
-														for a specific agent version and feedback type.
+														Aggregate raw feedbacks into consolidated insights for a specific agent
+														version and feedback type.
 													</p>
 												</div>
 											</div>
@@ -1741,16 +1512,13 @@ export default function FeedbacksPage() {
 														Rerun Feedback Generation
 													</h3>
 													<p className="text-sm text-slate-500">
-														Generate new feedbacks from interactions with
-														optional filters.
+														Generate new feedbacks from interactions with optional filters.
 													</p>
 												</div>
 											</div>
 											<Button
 												onClick={() => setShowRerunFeedbackModal(true)}
-												disabled={
-													operationStatusFeedback?.status === "in_progress"
-												}
+												disabled={operationStatusFeedback?.status === "in_progress"}
 												className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white border-0"
 											>
 												{operationStatusFeedback?.status === "in_progress" ? (
@@ -1784,9 +1552,8 @@ export default function FeedbacksPage() {
 														Adopt Pending Raw Feedbacks
 													</h3>
 													<p className="text-sm text-slate-500">
-														Promote {rawFeedbackCounts.pending} pending raw
-														feedbacks to current status with optional filtering
-														and archive control.
+														Promote {rawFeedbackCounts.pending} pending raw feedbacks to current
+														status with optional filtering and archive control.
 													</p>
 												</div>
 											</div>
@@ -1826,9 +1593,8 @@ export default function FeedbacksPage() {
 														Restore All Archived Raw Feedbacks to Current
 													</h3>
 													<p className="text-sm text-slate-500">
-														Restore {rawFeedbackCounts.archived} archived raw
-														feedbacks to current status, archiving existing
-														current raw feedbacks.
+														Restore {rawFeedbackCounts.archived} archived raw feedbacks to current
+														status, archiving existing current raw feedbacks.
 													</p>
 												</div>
 											</div>
@@ -1870,9 +1636,7 @@ export default function FeedbacksPage() {
 									</div>
 								</CardHeader>
 								<CardContent>
-									<div
-										className={`grid gap-4 ${!isRawTab ? "md:grid-cols-4" : "md:grid-cols-3"}`}
-									>
+									<div className={`grid gap-4 ${!isRawTab ? "md:grid-cols-4" : "md:grid-cols-3"}`}>
 										{/* Search */}
 										<div>
 											<label className="text-sm font-medium mb-2 block text-slate-700">
@@ -1915,9 +1679,7 @@ export default function FeedbacksPage() {
 											</label>
 											<select
 												value={selectedFeedbackName}
-												onChange={(e) =>
-													setSelectedFeedbackName(e.target.value)
-												}
+												onChange={(e) => setSelectedFeedbackName(e.target.value)}
 												className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300"
 											>
 												<option value="all">All Types</option>
@@ -1955,9 +1717,7 @@ export default function FeedbacksPage() {
 										selectedFeedbackName !== "all" ||
 										selectedStatus !== "all") && (
 										<div className="mt-4 flex items-center gap-2">
-											<span className="text-sm text-slate-500">
-												Active filters:
-											</span>
+											<span className="text-sm text-slate-500">Active filters:</span>
 											{searchQuery && (
 												<Badge className="text-xs bg-indigo-100 text-indigo-700 hover:bg-indigo-100">
 													Search: {searchQuery}
@@ -2011,15 +1771,9 @@ export default function FeedbacksPage() {
 											Feedback Results
 										</h2>
 										<p className="text-xs mt-1 text-slate-500">
-											Showing{" "}
+											Showing {isRawTab ? filteredRawFeedbacks.length : filteredFeedbacks.length} of{" "}
 											{isRawTab
-												? filteredRawFeedbacks.length
-												: filteredFeedbacks.length}{" "}
-											of{" "}
-											{isRawTab
-												? rawFeedbackCounts[
-														activeTab as "current" | "pending" | "archived"
-													]
+												? rawFeedbackCounts[activeTab as "current" | "pending" | "archived"]
 												: totalAggregated}{" "}
 											feedbacks
 										</p>
@@ -2032,9 +1786,7 @@ export default function FeedbacksPage() {
 											disabled={isLoading}
 											className="border-slate-200 hover:bg-slate-50 text-slate-700"
 										>
-											<RefreshCw
-												className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
-											/>
+											<RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
 											Refresh
 										</Button>
 									</div>
@@ -2091,10 +1843,7 @@ export default function FeedbacksPage() {
 			</div>
 
 			{/* Rerun Feedback Generation Modal */}
-			<Dialog
-				open={showRerunFeedbackModal}
-				onOpenChange={setShowRerunFeedbackModal}
-			>
+			<Dialog open={showRerunFeedbackModal} onOpenChange={setShowRerunFeedbackModal}>
 				<DialogContent className="sm:max-w-[550px]">
 					<DialogHeader>
 						<div className="flex items-center gap-3 mb-2">
@@ -2106,8 +1855,8 @@ export default function FeedbacksPage() {
 							</DialogTitle>
 						</div>
 						<DialogDescription className="text-slate-600">
-							Generate new feedbacks from interactions with optional filters.
-							All fields except agent version are optional.
+							Generate new feedbacks from interactions with optional filters. All fields except
+							agent version are optional.
 						</DialogDescription>
 					</DialogHeader>
 
@@ -2144,8 +1893,7 @@ export default function FeedbacksPage() {
 								className="h-10"
 							/>
 							<p className="text-xs text-muted-foreground">
-								Optional: Filter to specific feedback type (leave empty for all
-								types)
+								Optional: Filter to specific feedback type (leave empty for all types)
 							</p>
 						</div>
 
@@ -2238,10 +1986,7 @@ export default function FeedbacksPage() {
 			</Dialog>
 
 			{/* Run Feedback Aggregation Modal */}
-			<Dialog
-				open={showRunAggregationModal}
-				onOpenChange={setShowRunAggregationModal}
-			>
+			<Dialog open={showRunAggregationModal} onOpenChange={setShowRunAggregationModal}>
 				<DialogContent className="sm:max-w-[500px]">
 					<DialogHeader>
 						<div className="flex items-center gap-3 mb-2">
@@ -2253,18 +1998,15 @@ export default function FeedbacksPage() {
 							</DialogTitle>
 						</div>
 						<DialogDescription className="text-slate-600">
-							Aggregate raw feedbacks into consolidated insights. Both agent
-							version and feedback name are required.
+							Aggregate raw feedbacks into consolidated insights. Both agent version and feedback
+							name are required.
 						</DialogDescription>
 					</DialogHeader>
 
 					<div className="space-y-5 py-4">
 						{/* Agent Version */}
 						<div className="space-y-2">
-							<Label
-								htmlFor="aggregation-agent-version"
-								className="font-medium"
-							>
+							<Label htmlFor="aggregation-agent-version" className="font-medium">
 								Agent Version <span className="text-destructive">*</span>
 							</Label>
 							<Input
@@ -2282,10 +2024,7 @@ export default function FeedbacksPage() {
 
 						{/* Feedback Name */}
 						<div className="space-y-2">
-							<Label
-								htmlFor="aggregation-feedback-name"
-								className="font-medium"
-							>
+							<Label htmlFor="aggregation-feedback-name" className="font-medium">
 								Feedback Name <span className="text-destructive">*</span>
 							</Label>
 							<Input
@@ -2420,18 +2159,15 @@ export default function FeedbacksPage() {
 							</DialogTitle>
 						</div>
 						<DialogDescription className="pt-2 text-slate-600">
-							Promote pending raw feedbacks to current status. Choose how to
-							handle existing current feedbacks and optionally filter which
-							pending feedbacks to adopt.
+							Promote pending raw feedbacks to current status. Choose how to handle existing current
+							feedbacks and optionally filter which pending feedbacks to adopt.
 						</DialogDescription>
 					</DialogHeader>
 
 					<div className="space-y-5 py-2">
 						{/* Adoption Mode */}
 						<div>
-							<label className="text-sm font-medium mb-3 block text-slate-700">
-								Adoption Mode
-							</label>
+							<label className="text-sm font-medium mb-3 block text-slate-700">Adoption Mode</label>
 							<div className="space-y-2">
 								<label className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors has-[:checked]:border-emerald-300 has-[:checked]:bg-emerald-50/50">
 									<input
@@ -2446,9 +2182,8 @@ export default function FeedbacksPage() {
 											Adopt & Archive Current
 										</div>
 										<div className="text-xs text-slate-500 mt-0.5">
-											Archive all current raw feedbacks and replace them with
-											pending ones. Previously archived feedbacks will be
-											deleted.
+											Archive all current raw feedbacks and replace them with pending ones.
+											Previously archived feedbacks will be deleted.
 										</div>
 									</div>
 								</label>
@@ -2461,12 +2196,10 @@ export default function FeedbacksPage() {
 										className="mt-0.5 accent-emerald-600"
 									/>
 									<div>
-										<div className="font-medium text-sm text-slate-800">
-											Adopt Only
-										</div>
+										<div className="font-medium text-sm text-slate-800">Adopt Only</div>
 										<div className="text-xs text-slate-500 mt-0.5">
-											Promote pending feedbacks to current without archiving
-											existing ones. Current feedbacks remain unchanged.
+											Promote pending feedbacks to current without archiving existing ones. Current
+											feedbacks remain unchanged.
 										</div>
 									</div>
 								</label>
@@ -2533,8 +2266,7 @@ export default function FeedbacksPage() {
 										</li>
 										<li className="flex items-center gap-2">
 											<Trash2 className="h-3.5 w-3.5 text-red-400 flex-shrink-0" />
-											Delete {rawFeedbackCounts.archived} previously archived
-											feedbacks
+											Delete {rawFeedbackCounts.archived} previously archived feedbacks
 										</li>
 									</>
 								) : (
@@ -2580,21 +2312,15 @@ export default function FeedbacksPage() {
 						<>
 							<div className="flex justify-between">
 								<span className="text-muted-foreground">Feedback ID:</span>
-								<span className="font-mono text-xs">
-									#{rawFeedbackToDelete.raw_feedback_id}
-								</span>
+								<span className="font-mono text-xs">#{rawFeedbackToDelete.raw_feedback_id}</span>
 							</div>
 							<div className="flex justify-between">
 								<span className="text-muted-foreground">Feedback Name:</span>
-								<span>
-									{formatFeedbackName(rawFeedbackToDelete.feedback_name)}
-								</span>
+								<span>{formatFeedbackName(rawFeedbackToDelete.feedback_name)}</span>
 							</div>
 							<div>
 								<span className="text-muted-foreground">Content:</span>
-								<p className="text-sm mt-1 line-clamp-2">
-									{rawFeedbackToDelete.feedback_content}
-								</p>
+								<p className="text-sm mt-1 line-clamp-2">{rawFeedbackToDelete.feedback_content}</p>
 							</div>
 						</>
 					)
@@ -2617,21 +2343,15 @@ export default function FeedbacksPage() {
 						<>
 							<div className="flex justify-between">
 								<span className="text-muted-foreground">Feedback ID:</span>
-								<span className="font-mono text-xs">
-									#{feedbackToDelete.feedback_id}
-								</span>
+								<span className="font-mono text-xs">#{feedbackToDelete.feedback_id}</span>
 							</div>
 							<div className="flex justify-between">
 								<span className="text-muted-foreground">Feedback Name:</span>
-								<span>
-									{formatFeedbackName(feedbackToDelete.feedback_name)}
-								</span>
+								<span>{formatFeedbackName(feedbackToDelete.feedback_name)}</span>
 							</div>
 							<div>
 								<span className="text-muted-foreground">Content:</span>
-								<p className="text-sm mt-1 line-clamp-2">
-									{feedbackToDelete.feedback_content}
-								</p>
+								<p className="text-sm mt-1 line-clamp-2">{feedbackToDelete.feedback_content}</p>
 							</div>
 						</>
 					)

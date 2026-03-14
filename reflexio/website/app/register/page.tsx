@@ -17,13 +17,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { GoogleIcon } from "@/components/icons/oauth-icons";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/lib/auth-context";
@@ -93,11 +87,7 @@ export default function RegisterPage() {
 		setIsLoading(true);
 
 		try {
-			const result = await register(
-				email,
-				password,
-				invitationCode || undefined,
-			);
+			const result = await register(email, password, invitationCode || undefined);
 			if (result.success) {
 				if (result.autoVerified) {
 					// Auto-verified via invitation code — show success notice
@@ -132,9 +122,7 @@ export default function RegisterPage() {
 								<CheckCircle className="h-8 w-8 text-primary" />
 							</div>
 							<CardTitle className="text-2xl">Account Created</CardTitle>
-							<CardDescription>
-								Your account has been verified automatically
-							</CardDescription>
+							<CardDescription>Your account has been verified automatically</CardDescription>
 						</CardHeader>
 						<CardContent className="text-center">
 							<p className="font-medium text-lg mb-4">{email}</p>
@@ -142,8 +130,7 @@ export default function RegisterPage() {
 								<div className="flex items-start gap-3 text-left">
 									<CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
 									<p className="text-sm text-muted-foreground">
-										Your account is ready. You can now sign in with your
-										credentials.
+										Your account is ready. You can now sign in with your credentials.
 									</p>
 								</div>
 							</div>
@@ -168,9 +155,7 @@ export default function RegisterPage() {
 								<Mail className="h-8 w-8 text-primary" />
 							</div>
 							<CardTitle className="text-2xl">Check Your Email</CardTitle>
-							<CardDescription>
-								We've sent a verification link to
-							</CardDescription>
+							<CardDescription>We've sent a verification link to</CardDescription>
 						</CardHeader>
 						<CardContent className="text-center">
 							<p className="font-medium text-lg mb-4">{email}</p>
@@ -183,10 +168,7 @@ export default function RegisterPage() {
 										</p>
 										<p>
 											The link will expire in{" "}
-											<span className="font-medium text-foreground">
-												7 days
-											</span>
-											.
+											<span className="font-medium text-foreground">7 days</span>.
 										</p>
 									</div>
 								</div>
@@ -197,10 +179,7 @@ export default function RegisterPage() {
 								</Button>
 								<p className="text-sm text-muted-foreground">
 									Didn't receive the email?{" "}
-									<Link
-										href="/resend-verification"
-										className="text-primary hover:underline"
-									>
+									<Link href="/resend-verification" className="text-primary hover:underline">
 										Resend verification link
 									</Link>
 								</p>
@@ -221,9 +200,7 @@ export default function RegisterPage() {
 							<UserPlus className="h-6 w-6 text-primary" />
 							<CardTitle className="text-2xl">Create Account</CardTitle>
 						</div>
-						<CardDescription>
-							Sign up to get started with Reflexio
-						</CardDescription>
+						<CardDescription>Sign up to get started with Reflexio</CardDescription>
 					</CardHeader>
 					<CardContent>
 						{/* Error Alert */}
@@ -237,10 +214,7 @@ export default function RegisterPage() {
 						{/* Invitation Code Field (shown at top when required) */}
 						{invitationRequired && (
 							<div className="space-y-2 mb-4">
-								<label
-									htmlFor="invitationCodeTop"
-									className="block text-sm font-medium"
-								>
+								<label htmlFor="invitationCodeTop" className="block text-sm font-medium">
 									Invitation Code
 								</label>
 								<Input
@@ -368,19 +342,10 @@ export default function RegisterPage() {
 										{(
 											[
 												[passwordChecks.minLength, "At least 12 characters"],
-												[
-													passwordChecks.hasUppercase,
-													"One uppercase letter (A-Z)",
-												],
-												[
-													passwordChecks.hasLowercase,
-													"One lowercase letter (a-z)",
-												],
+												[passwordChecks.hasUppercase, "One uppercase letter (A-Z)"],
+												[passwordChecks.hasLowercase, "One lowercase letter (a-z)"],
 												[passwordChecks.hasNumber, "One number (0-9)"],
-												[
-													passwordChecks.hasSpecial,
-													"One special character (!@#$%^&*)",
-												],
+												[passwordChecks.hasSpecial, "One special character (!@#$%^&*)"],
 											] as [boolean, string][]
 										).map(([passed, label]) => (
 											<li key={label} className="flex items-center gap-2">
@@ -389,11 +354,7 @@ export default function RegisterPage() {
 												) : (
 													<X className="h-4 w-4 text-muted-foreground" />
 												)}
-												<span
-													className={
-														passed ? "text-green-600" : "text-muted-foreground"
-													}
-												>
+												<span className={passed ? "text-green-600" : "text-muted-foreground"}>
 													{label}
 												</span>
 											</li>
@@ -404,10 +365,7 @@ export default function RegisterPage() {
 
 							{/* Confirm Password Field */}
 							<div className="space-y-2">
-								<label
-									htmlFor="confirmPassword"
-									className="block text-sm font-medium"
-								>
+								<label htmlFor="confirmPassword" className="block text-sm font-medium">
 									Confirm Password
 								</label>
 								<div className="relative">
@@ -442,14 +400,9 @@ export default function RegisterPage() {
 							{/* Invitation Code Field (only show in form when optional) */}
 							{!invitationRequired && (
 								<div className="space-y-2">
-									<label
-										htmlFor="invitationCode"
-										className="block text-sm font-medium"
-									>
+									<label htmlFor="invitationCode" className="block text-sm font-medium">
 										Invitation Code{" "}
-										<span className="text-muted-foreground font-normal">
-											(optional)
-										</span>
+										<span className="text-muted-foreground font-normal">(optional)</span>
 									</label>
 									<Input
 										id="invitationCode"
@@ -471,11 +424,7 @@ export default function RegisterPage() {
 							)}
 
 							{/* Submit Button */}
-							<Button
-								type="submit"
-								disabled={isLoading || !allChecksPassed}
-								className="w-full"
-							>
+							<Button type="submit" disabled={isLoading || !allChecksPassed} className="w-full">
 								{isLoading ? (
 									<>
 										<Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -494,10 +443,7 @@ export default function RegisterPage() {
 						<div className="mt-6 text-center">
 							<p className="text-sm text-muted-foreground">
 								Already have an account?{" "}
-								<Link
-									href="/login"
-									className="font-medium text-primary hover:underline"
-								>
+								<Link href="/login" className="font-medium text-primary hover:underline">
 									Sign in
 								</Link>
 							</p>

@@ -47,9 +47,8 @@ export function Features() {
 						From Static Agents to Self-Improving Systems
 					</h2>
 					<p className="text-slate-600 text-lg max-w-2xl mx-auto">
-						Your agents interact with users thousands of times, but the lessons
-						from those interactions are trapped in logs. Reflexio closes that
-						loop.
+						Your agents interact with users thousands of times, but the lessons from those
+						interactions are trapped in logs. Reflexio closes that loop.
 					</p>
 				</div>
 
@@ -67,12 +66,8 @@ export function Features() {
 							</div>
 
 							{/* Content */}
-							<h3 className="text-xl font-semibold text-slate-800 mb-3">
-								{feature.title}
-							</h3>
-							<p className="text-slate-600 leading-relaxed">
-								{feature.description}
-							</p>
+							<h3 className="text-xl font-semibold text-slate-800 mb-3">{feature.title}</h3>
+							<p className="text-slate-600 leading-relaxed">{feature.description}</p>
 
 							{/* Decorative gradient line */}
 							<div

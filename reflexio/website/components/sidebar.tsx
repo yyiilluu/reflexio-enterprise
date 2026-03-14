@@ -22,12 +22,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Separator } from "@/components/ui/separator";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/lib/auth-context";
 import { cn } from "@/lib/utils";
 
@@ -107,8 +102,7 @@ export function Sidebar() {
 	const pathname = usePathname();
 	const [expandedItems, setExpandedItems] = useState<string[]>([]);
 	const [isCollapsed, setIsCollapsed] = useState(false);
-	const { isAuthenticated, userEmail, logout, isSelfHost, isFeatureEnabled } =
-		useAuth();
+	const { isAuthenticated, userEmail, logout, isSelfHost, isFeatureEnabled } = useAuth();
 
 	// Load collapsed state from localStorage on mount
 	useEffect(() => {
@@ -127,9 +121,7 @@ export function Sidebar() {
 
 	const toggleExpanded = (title: string) => {
 		setExpandedItems((prev) =>
-			prev.includes(title)
-				? prev.filter((item) => item !== title)
-				: [...prev, title],
+			prev.includes(title) ? prev.filter((item) => item !== title) : [...prev, title],
 		);
 	};
 
@@ -146,12 +138,7 @@ export function Sidebar() {
 					<div className={cn("p-6", isCollapsed && "px-4 py-6")}>
 						<div className="flex items-center gap-2 mb-2">
 							<div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center flex-shrink-0 shadow-lg shadow-indigo-500/25 p-1">
-								<Image
-									src="/reflexio_fav.svg"
-									alt="Reflexio"
-									width={24}
-									height={24}
-								/>
+								<Image src="/reflexio_fav.svg" alt="Reflexio" width={24} height={24} />
 							</div>
 							{!isCollapsed && (
 								<div className="overflow-hidden">
@@ -162,9 +149,7 @@ export function Sidebar() {
 							)}
 						</div>
 						{!isCollapsed && (
-							<p className="text-sm text-slate-500 font-medium">
-								User Profiler Portal
-							</p>
+							<p className="text-sm text-slate-500 font-medium">User Profiler Portal</p>
 						)}
 					</div>
 
@@ -209,23 +194,17 @@ export function Sidebar() {
 									</h2>
 								</div>
 							)}
-							{isCollapsed && sectionIndex > 0 && (
-								<Separator className="my-3 bg-slate-200" />
-							)}
+							{isCollapsed && sectionIndex > 0 && <Separator className="my-3 bg-slate-200" />}
 
 							{/* Section Items */}
 							<div className="space-y-1">
 								{section.items
-									.filter(
-										(item) =>
-											!item.featureFlag || isFeatureEnabled(item.featureFlag),
-									)
+									.filter((item) => !item.featureFlag || isFeatureEnabled(item.featureFlag))
 									.map((item) => {
 										const Icon = item.icon;
 										const isActive = pathname === item.href;
 										const isExpanded = expandedItems.includes(item.title);
-										const hasChildren =
-											item.children && item.children.length > 0;
+										const hasChildren = item.children && item.children.length > 0;
 
 										const linkContent = (
 											<Link
@@ -245,10 +224,7 @@ export function Sidebar() {
 												}}
 											>
 												<Icon
-													className={cn(
-														"h-5 w-5 flex-shrink-0",
-														isActive && "text-indigo-600",
-													)}
+													className={cn("h-5 w-5 flex-shrink-0", isActive && "text-indigo-600")}
 												/>
 												{!isCollapsed && (
 													<>
@@ -268,9 +244,7 @@ export function Sidebar() {
 											<div key={item.title}>
 												{isCollapsed ? (
 													<Tooltip>
-														<TooltipTrigger asChild>
-															{linkContent}
-														</TooltipTrigger>
+														<TooltipTrigger asChild>{linkContent}</TooltipTrigger>
 														<TooltipContent side="right">
 															<p>{item.title}</p>
 														</TooltipContent>
@@ -379,9 +353,7 @@ export function Sidebar() {
 					{/* Version Info */}
 					{!isCollapsed && (
 						<div className="p-4">
-							<p className="text-xs text-slate-500 font-medium">
-								Version 1.0.0
-							</p>
+							<p className="text-xs text-slate-500 font-medium">Version 1.0.0</p>
 							<p className="text-xs text-slate-400 mt-0.5">
 								{isSelfHost ? "Self-Hosted" : "Production"}
 							</p>

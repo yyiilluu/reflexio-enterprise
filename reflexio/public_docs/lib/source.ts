@@ -6,13 +6,9 @@ import { docs } from "@/.source";
 const mdxSource = createMDXSource(docs.docs, docs.meta);
 
 // Resolve lazy files getter to an array for compatibility
-const resolvedSource: Source<
-	typeof mdxSource extends Source<infer C> ? C : never
-> = {
+const resolvedSource: Source<typeof mdxSource extends Source<infer C> ? C : never> = {
 	files:
-		typeof mdxSource.files === "function"
-			? (mdxSource.files as () => any[])()
-			: mdxSource.files,
+		typeof mdxSource.files === "function" ? (mdxSource.files as () => any[])() : mdxSource.files,
 };
 
 export const source = loader({

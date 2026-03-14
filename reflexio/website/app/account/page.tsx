@@ -18,13 +18,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	Dialog,
 	DialogContent,
@@ -61,9 +55,7 @@ export default function AccountPage() {
 	const [creating, setCreating] = useState(false);
 
 	// Reveal token state
-	const [revealedTokens, setRevealedTokens] = useState<Record<number, string>>(
-		{},
-	);
+	const [revealedTokens, setRevealedTokens] = useState<Record<number, string>>({});
 	const [revealingTokenId, setRevealingTokenId] = useState<number | null>(null);
 	const [copiedTokenId, setCopiedTokenId] = useState<number | null>(null);
 	const [copyingTokenId, setCopyingTokenId] = useState<number | null>(null);
@@ -77,9 +69,7 @@ export default function AccountPage() {
 	const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
 	const [deleteAccountPassword, setDeleteAccountPassword] = useState("");
 	const [deletingAccount, setDeletingAccount] = useState(false);
-	const [deleteAccountError, setDeleteAccountError] = useState<string | null>(
-		null,
-	);
+	const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
 	const [deleteAccountSuccess, setDeleteAccountSuccess] = useState(false);
 	const [countdown, setCountdown] = useState(10);
 
@@ -143,8 +133,7 @@ export default function AccountPage() {
 		}
 	};
 
-	const firstTokenValue =
-		tokens.length > 0 ? tokens[0].token_masked : "your-api-key";
+	const firstTokenValue = tokens.length > 0 ? tokens[0].token_masked : "your-api-key";
 
 	const codeSnippet = `from reflexio import ReflexioClient
 
@@ -177,9 +166,7 @@ client = ReflexioClient()`;
 			setCountdown(10);
 			await logout(true);
 		} catch (error) {
-			setDeleteAccountError(
-				error instanceof Error ? error.message : "Failed to delete account",
-			);
+			setDeleteAccountError(error instanceof Error ? error.message : "Failed to delete account");
 		} finally {
 			setDeletingAccount(false);
 		}
@@ -226,13 +213,9 @@ client = ReflexioClient()`;
 							<div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
 								<KeyRound className="h-5 w-5 text-white" />
 							</div>
-							<h1 className="text-3xl font-bold tracking-tight text-slate-800">
-								Account
-							</h1>
+							<h1 className="text-3xl font-bold tracking-tight text-slate-800">Account</h1>
 						</div>
-						<p className="text-slate-500 mt-1 ml-12">
-							Manage your account and API access
-						</p>
+						<p className="text-slate-500 mt-1 ml-12">Manage your account and API access</p>
 					</div>
 				</div>
 			</div>
@@ -267,9 +250,7 @@ client = ReflexioClient()`;
 											Email
 										</p>
 										<p className="text-sm font-medium text-slate-800 truncate">
-											{isSelfHost
-												? "Self-Hosted (no auth)"
-												: userEmail || "Not logged in"}
+											{isSelfHost ? "Self-Hosted (no auth)" : userEmail || "Not logged in"}
 										</p>
 									</div>
 								</div>
@@ -301,12 +282,10 @@ client = ReflexioClient()`;
 					>
 						<DialogContent>
 							<DialogHeader>
-								<DialogTitle className="text-red-600">
-									Delete Account
-								</DialogTitle>
+								<DialogTitle className="text-red-600">Delete Account</DialogTitle>
 								<DialogDescription>
-									This action is permanent and cannot be undone. All your data
-									will be deleted, including:
+									This action is permanent and cannot be undone. All your data will be deleted,
+									including:
 								</DialogDescription>
 							</DialogHeader>
 							<div className="space-y-3">
@@ -323,9 +302,7 @@ client = ReflexioClient()`;
 									</div>
 								)}
 								<div>
-									<Label htmlFor="delete-password">
-										Enter your password to confirm
-									</Label>
+									<Label htmlFor="delete-password">Enter your password to confirm</Label>
 									<Input
 										id="delete-password"
 										type="password"
@@ -333,8 +310,7 @@ client = ReflexioClient()`;
 										value={deleteAccountPassword}
 										onChange={(e) => setDeleteAccountPassword(e.target.value)}
 										onKeyDown={(e) => {
-											if (e.key === "Enter" && deleteAccountPassword.trim())
-												handleDeleteAccount();
+											if (e.key === "Enter" && deleteAccountPassword.trim()) handleDeleteAccount();
 										}}
 										className="mt-2"
 									/>
@@ -370,12 +346,9 @@ client = ReflexioClient()`;
 							onEscapeKeyDown={(e) => e.preventDefault()}
 						>
 							<DialogHeader>
-								<DialogTitle className="text-emerald-600">
-									Account Deleted
-								</DialogTitle>
+								<DialogTitle className="text-emerald-600">Account Deleted</DialogTitle>
 								<DialogDescription>
-									Your account has been successfully deleted. All your data has
-									been removed.
+									Your account has been successfully deleted. All your data has been removed.
 								</DialogDescription>
 							</DialogHeader>
 							<div className="py-2">
@@ -415,9 +388,7 @@ client = ReflexioClient()`;
 										<KeyRound className="h-4 w-4 text-amber-600" />
 									</div>
 									<div>
-										<CardTitle className="text-lg font-semibold text-slate-800">
-											API Keys
-										</CardTitle>
+										<CardTitle className="text-lg font-semibold text-slate-800">API Keys</CardTitle>
 										<CardDescription className="text-xs mt-1 text-slate-500">
 											Manage API keys for authenticating with the Reflexio SDK
 										</CardDescription>
@@ -443,8 +414,7 @@ client = ReflexioClient()`;
 													<DialogHeader>
 														<DialogTitle>Create API Key</DialogTitle>
 														<DialogDescription>
-															Give your new API key a name to help you identify
-															it later.
+															Give your new API key a name to help you identify it later.
 														</DialogDescription>
 													</DialogHeader>
 													<div className="py-4">
@@ -455,17 +425,13 @@ client = ReflexioClient()`;
 															value={newTokenName}
 															onChange={(e) => setNewTokenName(e.target.value)}
 															onKeyDown={(e) => {
-																if (e.key === "Enter" && newTokenName.trim())
-																	handleCreate();
+																if (e.key === "Enter" && newTokenName.trim()) handleCreate();
 															}}
 															className="mt-2"
 														/>
 													</div>
 													<DialogFooter>
-														<Button
-															variant="outline"
-															onClick={handleCloseCreate}
-														>
+														<Button variant="outline" onClick={handleCloseCreate}>
 															Cancel
 														</Button>
 														<Button
@@ -481,16 +447,14 @@ client = ReflexioClient()`;
 													<DialogHeader>
 														<DialogTitle>API Key Created</DialogTitle>
 														<DialogDescription>
-															Copy your API key now. You won&apos;t be able to
-															see it again.
+															Copy your API key now. You won&apos;t be able to see it again.
 														</DialogDescription>
 													</DialogHeader>
 													<div className="py-4 space-y-3">
 														<div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
 															<AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
 															<p className="text-xs text-amber-800">
-																Save this key securely. It will only be shown
-																once.
+																Save this key securely. It will only be shown once.
 															</p>
 														</div>
 														<div className="flex items-center gap-2">
@@ -569,13 +533,8 @@ client = ReflexioClient()`;
 											</thead>
 											<tbody className="divide-y divide-slate-100">
 												{tokens.map((t) => (
-													<tr
-														key={t.id}
-														className="hover:bg-slate-50/50 transition-colors"
-													>
-														<td className="px-4 py-3 font-medium text-slate-700">
-															{t.name}
-														</td>
+													<tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
+														<td className="px-4 py-3 font-medium text-slate-700">{t.name}</td>
 														<td className="px-4 py-3">
 															<div className="flex items-center gap-1.5">
 																<code className="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-1 rounded">
@@ -608,11 +567,7 @@ client = ReflexioClient()`;
 																			}
 																		}
 																	}}
-																	title={
-																		revealedTokens[t.id]
-																			? "Hide key"
-																			: "Reveal key"
-																	}
+																	title={revealedTokens[t.id] ? "Hide key" : "Reveal key"}
 																>
 																	{revealingTokenId === t.id ? (
 																		<Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -642,10 +597,7 @@ client = ReflexioClient()`;
 																		}
 																		navigator.clipboard.writeText(token);
 																		setCopiedTokenId(t.id);
-																		setTimeout(
-																			() => setCopiedTokenId(null),
-																			2000,
-																		);
+																		setTimeout(() => setCopiedTokenId(null), 2000);
 																	}}
 																	title="Copy key"
 																>
@@ -704,22 +656,15 @@ client = ReflexioClient()`;
 												<DialogTitle>Delete API Key</DialogTitle>
 												<DialogDescription>
 													Are you sure you want to delete the API key &quot;
-													{tokenToDelete?.name}&quot;? Any applications using
-													this key will stop working.
+													{tokenToDelete?.name}&quot;? Any applications using this key will stop
+													working.
 												</DialogDescription>
 											</DialogHeader>
 											<DialogFooter>
-												<Button
-													variant="outline"
-													onClick={() => setDeleteOpen(false)}
-												>
+												<Button variant="outline" onClick={() => setDeleteOpen(false)}>
 													Cancel
 												</Button>
-												<Button
-													variant="destructive"
-													onClick={handleDelete}
-													disabled={deleting}
-												>
+												<Button variant="destructive" onClick={handleDelete} disabled={deleting}>
 													{deleting ? "Deleting..." : "Delete"}
 												</Button>
 											</DialogFooter>
@@ -733,9 +678,7 @@ client = ReflexioClient()`;
 												<Terminal className="h-4 w-4 text-slate-300" />
 											</div>
 											<div>
-												<p className="text-sm font-semibold text-slate-800">
-													Quick Start
-												</p>
+												<p className="text-sm font-semibold text-slate-800">Quick Start</p>
 												<p className="text-xs text-slate-500">
 													Copy this snippet to start using the SDK
 												</p>
@@ -786,9 +729,7 @@ client = ReflexioClient()`;
 							<CardContent>
 								<div className="flex items-center justify-between p-4 rounded-xl border border-red-100 bg-red-50/50">
 									<div>
-										<p className="text-sm font-medium text-slate-800">
-											Delete Account
-										</p>
+										<p className="text-sm font-medium text-slate-800">Delete Account</p>
 										<p className="text-xs text-slate-500 mt-0.5">
 											Permanently delete your account and all associated data
 										</p>
