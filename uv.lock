@@ -4519,7 +4519,7 @@ dependencies = [
     { name = "openai" },
     { name = "passlib" },
     { name = "psycopg2-binary" },
-    { name = "pydantic" },
+    { name = "pydantic", extra = ["email"] },
     { name = "python-dotenv" },
     { name = "python-jose" },
     { name = "redis" },

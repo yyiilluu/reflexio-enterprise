@@ -30,41 +30,29 @@ Client (SDK/Web)
 
 ## Prerequisites
 
-| Tool | Version | Purpose |
-|------|---------|---------|
-| Python | >= 3.10 | Backend runtime |
-| uv | latest | Python dependency management |
-| Node.js + npm | >= 18 | Frontend and docs build |
-| Supabase CLI | latest | Local database (optional for self-host) |
+| Tool | Version | Purpose | Install |
+|------|---------|---------|---------|
+| uv | latest | Python dependency management | [docs.astral.sh/uv](https://docs.astral.sh/uv/getting-started/installation/) |
+| Node.js + npm | >= 18 | Frontend and docs build | [nodejs.org](https://nodejs.org/) |
+| Supabase CLI | latest | Local database (optional for self-host) | [supabase.com/docs/guides/cli](https://supabase.com/docs/guides/cli/getting-started) |
 
 ## Quick Start
 
 ```shell
-uv sync
-source .venv/bin/activate
-./run_services.sh   # Starts API (8081), Website (8080), Docs (8082)
-./stop_services.sh  # Stop all services
-./stop_services.sh --full # Stop all services including supabase
+cp .env.example .env                         # Configure environment (set at least one LLM API key)
+uv sync                                      # Install Python dependencies (includes workspace packages)
+npm --prefix reflexio/website install         # Install frontend dependencies
+npm --prefix reflexio/public_docs install     # Install docs dependencies
+./run_services.sh                             # Starts API (8081), Website (8080), Docs (8082), and Supabase
+./stop_services.sh                            # Stop app services (Supabase keeps running)
+./stop_services.sh --full                     # Stop everything including Supabase
 ```
 
 **Claude Code users:** Run `/run-services` (in claude code) instead of `./run_services.sh` (in bash) — it auto-installs missing dependencies, health-checks services, and diagnoses/fixes/retries on failure.
 
-**Package Setup:**
-
-For local development (editable install):
-```shell
-pip install -e reflexio/reflexio_commons/
-pip install -e reflexio/reflexio_client/
-```
-
-Or install from PyPI:
-```shell
-pip install reflexio-commons reflexio
-```
-
 **Self-Host Mode** (no database, no auth):
 ```shell
-# Set SELF_HOST=true in .env
+# Set SELF_HOST=true in .env (requires S3 config for org settings, see .env.example)
 ./run_services.sh  # Data stored in reflexio/data/
 ```
 
