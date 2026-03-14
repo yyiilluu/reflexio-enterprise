@@ -35,6 +35,7 @@ Client (SDK/Web)
 |------|---------|---------|---------|
 | uv | latest | Python dependency management | [docs.astral.sh/uv](https://docs.astral.sh/uv/getting-started/installation/) |
 | Node.js + npm | >= 18 | Frontend and docs build | [nodejs.org](https://nodejs.org/) |
+| Biome | latest | TypeScript/JavaScript lint & format | `npm install --save-dev @biomejs/biome` (per-project) |
 | Supabase CLI | latest | Local database (optional for self-host) | [supabase.com/docs/guides/cli](https://supabase.com/docs/guides/cli/getting-started) |
 
 ## Quick Start
@@ -72,6 +73,10 @@ supabase start && supabase db reset  # Start and create schema
 - See `supabase_login/README.md`
 
 ## Development
+
+**Code Quality:**
+- **Python:** Ruff (lint + format) and Pyright (type check)
+- **TypeScript/JavaScript:** Biome (lint + format) and tsc (type check)
 
 ```shell
 docker compose -f ./docker-compose-local.yaml up -d --build

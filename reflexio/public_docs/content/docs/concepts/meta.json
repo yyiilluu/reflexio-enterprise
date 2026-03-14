@@ -1,4 +1,10 @@
 {
-  "title": "Core Concepts",
-  "pages": ["core-concepts", "requests-and-groups", "interactions", "user-profiles", "agent-feedback"]
+	"title": "Core Concepts",
+	"pages": [
+		"core-concepts",
+		"requests-and-groups",
+		"interactions",
+		"user-profiles",
+		"agent-feedback"
+	]
 }

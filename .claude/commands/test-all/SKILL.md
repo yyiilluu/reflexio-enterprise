@@ -1,6 +1,6 @@
 ---
 name: test-all
-description: Run lint checks, type checks, and all tests including e2e tests and tests skipped during pre-commit. Investigates failures to determine if they are application bugs or test issues, and fixes application bugs rather than weakening tests.
+description: Run lint checks (ruff for Python, Biome for TS/JS), type checks (pyright for Python, tsc for TS/JS), and all tests including e2e tests and tests skipped during pre-commit. Investigates failures to determine if they are application bugs or test issues, and fixes application bugs rather than weakening tests.
 ---
 
 # Test All
@@ -10,8 +10,10 @@ Run the complete test suite including tests that are normally skipped during pre
 ## Overview
 
 This command runs all tests in the repository:
-- **Lint checks** via ruff (code quality, security, complexity)
-- **Type checks** via pyright (type safety)
+- **Python lint checks** via ruff (code quality, security, complexity)
+- **Python type checks** via pyright (type safety)
+- **TypeScript/JavaScript lint checks** via Biome (code quality, formatting, import sorting)
+- **TypeScript/JavaScript type checks** via tsc (type safety)
 - **Unit tests** in `reflexio/tests/` (excluding e2e and tests under reflexio/tests/server/llm/)
 - **E2E tests** in `reflexio/tests/e2e_tests/` (skip all the low priority test by NOT setting RUN_LOW_PRIORITY env variable)
 - **Tests skipped during pre-commit** (those decorated with `@skip_in_precommit`)
@@ -50,6 +52,26 @@ If any errors remain that ruff could not auto-fix, **read each error, understand
 pyright
 ```
 Pyright uses `pyrightconfig.json` for scope. If any type errors are reported, **read each error, understand the type issue, and fix the code yourself**. Do NOT skip unfixed type errors.
+
+**0d. Biome auto-fix (TypeScript/JavaScript):**
+```bash
+cd reflexio/website && npx biome check --write . && cd ../..
+cd reflexio/public_docs && npx biome check --write . && cd ../..
+```
+
+**0e. Biome remaining errors:**
+```bash
+cd reflexio/website && npx biome check . && cd ../..
+cd reflexio/public_docs && npx biome check . && cd ../..
+```
+If any errors remain that Biome could not auto-fix, **read each error, understand the issue, and fix the code yourself**. Do NOT skip unfixed Biome errors.
+
+**0f. TypeScript type check:**
+```bash
+cd reflexio/website && npx tsc --noEmit && cd ../..
+cd reflexio/public_docs && npx tsc --noEmit && cd ../..
+```
+If any type errors are reported, **read each error, understand the type issue, and fix the code yourself**. Do NOT skip unfixed tsc errors.
 
 **Only proceed to tests after all lint and type errors are resolved.**
 

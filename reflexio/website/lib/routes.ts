@@ -3,21 +3,21 @@
  */
 
 export const AUTH_PAGES = [
-  "/login",
-  "/register",
-  "/forgot-password",
-  "/reset-password",
-  "/verify-email",
-  "/resend-verification",
-] as const
+	"/login",
+	"/register",
+	"/forgot-password",
+	"/reset-password",
+	"/verify-email",
+	"/resend-verification",
+] as const;
 
 export const PROTECTED_ROUTES = [
-  "/dashboard",
-  "/profiles",
-  "/interactions",
-  "/feedbacks",
-  "/evaluations",
-  "/skills",
-  "/settings",
-  "/account",
-] as const
+	"/dashboard",
+	"/profiles",
+	"/interactions",
+	"/feedbacks",
+	"/evaluations",
+	"/skills",
+	"/settings",
+	"/account",
+] as const;
