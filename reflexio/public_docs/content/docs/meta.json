@@ -1,10 +1,10 @@
 {
-  "pages": [
-    "index",
-    "getting-started",
-    "concepts",
-    "web-portal",
-    "api-reference",
-    "examples"
-  ]
+	"pages": [
+		"index",
+		"getting-started",
+		"concepts",
+		"web-portal",
+		"api-reference",
+		"examples"
+	]
 }

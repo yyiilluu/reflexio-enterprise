@@ -1,6 +1,6 @@
 ---
 name: commit
-description: Git commit workflow with precommit hook handling, lint/type checking, README updates, and API reference updates. Use when the user wants to commit changes. Handles precommit hooks that modify files (formatting, linting) by re-staging and retrying. Runs ruff lint and pyright type checks on staged Python files and fixes all errors. Fixes failing unit tests automatically before committing. Updates README code maps if needed. Updates API reference docs when client.py or service_schemas.py changed. Does not push.
+description: Git commit workflow with precommit hook handling, lint/type checking, README updates, and API reference updates. Use when the user wants to commit changes. Handles precommit hooks that modify files (formatting, linting) by re-staging and retrying. Runs ruff lint and pyright type checks on staged Python files, and Biome lint and tsc type checks on staged TS/JS files, fixing all errors. Fixes failing unit tests automatically before committing. Updates README code maps if needed. Updates API reference docs when client.py or service_schemas.py changed. Does not push.
 ---
 
 # Commit
@@ -26,6 +26,20 @@ Create a git commit with automatic precommit hook handling, test fixing, README 
    c. **Ruff format**: Run `ruff format <files>`. Re-stage any modified files with `git add <files>`.
    d. **Ruff remaining errors**: Run `ruff check <files>`. If any errors remain that ruff could not auto-fix, **read each error, understand the issue, and fix the code yourself**. Re-stage fixes. Do NOT proceed with unfixed ruff errors.
    e. **Pyright type check**: Run `pyright <files>`. If any type errors are reported, **read each error, understand the type issue, and fix the code yourself**. Re-stage fixes. Do NOT proceed with unfixed pyright errors.
+   f. Get the list of staged TypeScript/JavaScript files:
+      ```bash
+      git diff --cached --name-only --diff-filter=ACMR -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.mts'
+      ```
+      If no TS/JS files are staged, skip steps 6g-6i entirely.
+   g. **Biome auto-fix**: Run `npx biome check --write <files>` from the relevant project root
+      (`reflexio/website/` or `reflexio/public_docs/` depending on file path).
+      Re-stage any modified files with `git add <files>`.
+   h. **Biome remaining errors**: Run `npx biome check <files>`.
+      If any errors remain that Biome could not auto-fix, **read each error, understand the issue,
+      and fix the code yourself**. Re-stage fixes. Do NOT proceed with unfixed Biome errors.
+   i. **TypeScript type check**: Run `npx tsc --noEmit` from the relevant project root.
+      If any type errors are reported, **read each error, understand the type issue,
+      and fix the code yourself**. Re-stage fixes. Do NOT proceed with unfixed tsc errors.
 7. **Attempt commit** - Run `git commit` which triggers precommit hooks
 8. **Handle hook results**:
    - If hooks **modify files** (formatting, linting): Stage the modified files with `git add -u` and retry commit

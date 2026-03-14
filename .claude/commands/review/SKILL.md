@@ -48,7 +48,7 @@ Read the diff carefully. For every changed file, also read the **full file** (no
 **Run automated checks on changed files (language-aware):**
 1. Detect languages from changed file extensions.
 2. For Python files (`*.py`): run `ruff check <files>` and `pyright <files>`.
-3. For TypeScript/JavaScript files (`*.ts`, `*.tsx`, `*.js`, `*.jsx`): run `npx tsc --noEmit` and `npx eslint <files>` (if `tsconfig.json` / `.eslintrc` exists).
+3. For TypeScript/JavaScript files (`*.ts`, `*.tsx`, `*.js`, `*.jsx`, `*.mts`): run `npx tsc --noEmit` and `npx biome check <files>` from the relevant project root (`reflexio/website/` or `reflexio/public_docs/`).
 4. Skip linters for languages without configured tooling.
 
 Save the lint and type check output — these results feed into the review checklist below.
@@ -108,7 +108,7 @@ When you encounter ambiguity during the checklist, note your assumption inline (
 
 #### 3.6 Type Safety & Data Integrity
 - Review lint and type check output from Phase 1. All type errors in changed files are findings — classify by severity.
-- For TypeScript files, review `tsc` output from Phase 1 alongside pyright guidance.
+- For TypeScript files, review `tsc` and Biome output from Phase 1 alongside pyright guidance.
 - Are type hints present and correct on new/changed functions?
 - Are Pydantic models used where structured validation is needed?
 - Are there implicit type coercions that could cause subtle bugs?
