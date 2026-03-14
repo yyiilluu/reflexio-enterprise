@@ -10,26 +10,83 @@ Start all local development services with pre-flight dependency checks and autom
 ## Overview
 
 This command automates the full startup workflow:
-0. Starts Supabase (if not already running)
-1. Checks and installs missing dependencies
-2. Stops any existing services to free ports
-3. Starts all services via `run_services.sh`
-4. Health-checks each service (including Supabase)
-5. Diagnoses and fixes failures, then retries (up to 2 retries)
+0. Smart port selection — auto-detects free port group or reuses current worktree's ports
+1. Starts Supabase (if not already running)
+2. Checks and installs missing dependencies
+3. Stops any existing services (only if needed)
+4. Starts all services via `run_services.sh`
+5. Health-checks each service (including Supabase)
+6. Diagnoses and fixes failures, then retries (up to 2 retries)
 
 ## Port Configuration
 
-Read port values from environment variables (respect worktree offsets):
+Ports are allocated in groups of 3 with a +10 offset between groups:
 
-| Service | Env Var | Default |
-|---------|---------|---------|
-| Backend (FastAPI) | `BACKEND_PORT` | 8081 |
+| Group | Frontend | Backend | Docs |
+|-------|----------|---------|------|
+| Default | 8080 | 8081 | 8082 |
+| +10 | 8090 | 8091 | 8092 |
+| +20 | 8100 | 8101 | 8102 |
+| +30 | 8110 | 8111 | 8112 |
+| +40 | 8120 | 8121 | 8122 |
+
+| Service | Env Var | Base Port |
+|---------|---------|-----------|
 | Frontend (Next.js) | `FRONTEND_PORT` | 8080 |
+| Backend (FastAPI) | `BACKEND_PORT` | 8081 |
 | Docs (Fumadocs) | `DOCS_PORT` | 8082 |
 | Supabase REST | - | 54321 |
 | Supabase DB | - | 54322 |
 
+Step 0 (Smart Port Selection) determines which group to use automatically, unless ports are already set via environment variables.
+
 ## Execution Steps
+
+### Step 0: Smart Port Selection
+
+**Pre-check:** If `BACKEND_PORT`, `FRONTEND_PORT`, or `DOCS_PORT` are already set in the environment, skip auto-detection entirely and use those values directly. Report "Using pre-configured ports" and proceed to Step 1.
+
+**0.1** Get current worktree root:
+```bash
+WORKTREE_ROOT=$(git rev-parse --show-toplevel)
+```
+
+**0.2** For each port group (offset 0, 10, 20, 30, 40 — max 5 attempts), check all 3 ports in the group. For each port, determine its status:
+
+```bash
+PID=$(lsof -t -i:$PORT 2>/dev/null | head -1)
+```
+
+If no PID → port is **free**.
+
+If PID exists, get the process's working directory:
+```bash
+PROC_CWD=$(lsof -a -p $PID -d cwd -Fn 2>/dev/null | tail -1 | sed 's/^n//')
+```
+
+Then classify:
+- **own** — `$PROC_CWD` starts with `$WORKTREE_ROOT` (use prefix match, since child processes like Next.js run from subdirectories like `$WORKTREE_ROOT/reflexio/website`)
+- **other** — `$PROC_CWD` does NOT start with `$WORKTREE_ROOT`
+
+**0.3** Decision per group:
+- All 3 ports are **free** or **own** → **use this group**. Any "own" ports will be restarted in Step 3.
+- Any port is **other** → **skip this group**, try the next offset (+10)
+- All 5 groups exhausted → report error: "All port groups (8080-8122) are occupied by other worktrees. Free some ports or set BACKEND_PORT/FRONTEND_PORT/DOCS_PORT manually."
+
+**0.4** Export the chosen ports:
+```bash
+export FRONTEND_PORT=<8080+N>
+export BACKEND_PORT=<8081+N>
+export DOCS_PORT=<8082+N>
+export API_BACKEND_URL="http://localhost:${BACKEND_PORT}"
+```
+
+Report which group was selected and why, e.g.:
+- "Using default ports (8080/8081/8082) — all free"
+- "Using default ports (8080/8081/8082) — restarting own services"
+- "Using offset +10 ports (8090/8091/8092) — default ports occupied by another worktree"
+
+Also record whether any ports in the chosen group were "own" (needs stop) or all "free" (skip stop).
 
 ### Step 1: Activate Virtual Environment
 
@@ -73,20 +130,21 @@ Expected: 200
 
 If Supabase fails to start, check Docker Desktop is running and report to user.
 
-### Step 3: Stop Existing Services
+### Step 3: Stop Existing Services (Conditional)
 
-Free ports before starting fresh:
+**If any ports in the chosen group were classified as "own" in Step 0:** stop existing services first:
 ```bash
 ./stop_services.sh
 ```
-
 Wait 2 seconds for ports to fully release.
+
+**If all ports were "free":** skip this step entirely — nothing to stop.
 
 ### Step 4: Start Services
 
-Run `run_services.sh` in the background and capture output:
+Run `run_services.sh` in the background with the exported port variables:
 ```bash
-./run_services.sh > /tmp/reflexio-services.log 2>&1 &
+FRONTEND_PORT=$FRONTEND_PORT BACKEND_PORT=$BACKEND_PORT DOCS_PORT=$DOCS_PORT ./run_services.sh > /tmp/reflexio-services.log 2>&1 &
 ```
 
 Wait ~15 seconds for services to boot. Next.js compilation takes time on first request.
@@ -103,19 +161,19 @@ Expected: 200
 
 **Backend:**
 ```bash
-curl --max-time 10 -s -o /dev/null -w "%{http_code}" http://localhost:${BACKEND_PORT:-8081}/docs
+curl --max-time 10 -s -o /dev/null -w "%{http_code}" http://localhost:${BACKEND_PORT}/docs
 ```
 Expected: 200
 
 **Frontend:**
 ```bash
-curl --max-time 10 -s -o /dev/null -w "%{http_code}" http://localhost:${FRONTEND_PORT:-8080}
+curl --max-time 10 -s -o /dev/null -w "%{http_code}" http://localhost:${FRONTEND_PORT}
 ```
 Expected: 200 or 3xx (redirect is OK)
 
 **Docs:**
 ```bash
-curl --max-time 10 -s -o /dev/null -w "%{http_code}" http://localhost:${DOCS_PORT:-8082}
+curl --max-time 10 -s -o /dev/null -w "%{http_code}" http://localhost:${DOCS_PORT}
 ```
 Expected: 200 or 3xx (redirect is OK)
 
@@ -130,7 +188,7 @@ cat /tmp/reflexio-services.log
 
 Also check if processes are even running:
 ```bash
-lsof -i:${BACKEND_PORT:-8081} -i:${FRONTEND_PORT:-8080} -i:${DOCS_PORT:-8082}
+lsof -i:${BACKEND_PORT} -i:${FRONTEND_PORT} -i:${DOCS_PORT}
 ```
 
 #### Common Failure Patterns and Fixes
@@ -192,10 +250,14 @@ Report a summary table:
 Service    | Port  | Status
 -----------|-------|-------
 Supabase   | 54321 | Running
-Backend    | 8081  | Running
-Frontend   | 8080  | Running
-Docs       | 8082  | FAILED - [error summary]
+Backend    | 8091  | Running
+Frontend   | 8090  | Running
+Docs       | 8092  | Running
+
+Port group: offset +10 (8090/8091/8092) — default ports occupied by another worktree
 ```
+
+Include the port group selection reason in the summary (e.g., "all free", "restarting own services", "default ports occupied by another worktree").
 
 If all services are running, confirm success. If any failed after retries, show:
 - The specific error message from logs
@@ -205,5 +267,5 @@ If all services are running, confirm success. If any failed after retries, show:
 
 - **Do NOT modify `.env` files** — port overrides come from shell environment variables only
 - **Logs location**: `/tmp/reflexio-services.log` contains combined service output
-- **Worktree support**: If `BACKEND_PORT`, `FRONTEND_PORT`, or `DOCS_PORT` env vars are set, those ports are used automatically
+- **Smart port selection**: Ports are auto-detected unless `BACKEND_PORT`, `FRONTEND_PORT`, or `DOCS_PORT` env vars are already set
 - If the user mentions a specific service to start (e.g., "just start the backend"), adapt the workflow to only start/check that service
