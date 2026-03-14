@@ -123,7 +123,7 @@ build_image() {
 
     # Build image
     log_info "Building image (this includes Fumadocs build)..."
-    docker build --platform linux/amd64 -f Dockerfile.base -t "${ECR_REPO_NAME}:latest" .
+    docker build --platform linux/amd64 -f docker/Dockerfile.base -t "${ECR_REPO_NAME}:latest" .
 
     # Tag and push
     docker tag "${ECR_REPO_NAME}:latest" "${ECR_URI}:latest"

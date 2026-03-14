@@ -128,11 +128,11 @@ generate_requirements() {
     log_info "Generating requirements.txt from uv (runtime deps only)..."
     cd "$PROJECT_ROOT"
 
-    uv export --no-dev --no-hashes -o requirements.txt
+    uv export --no-dev --no-hashes -o docker/requirements.txt
 
     # Replace local path dependency with PyPI package
-    sed -i '' '/-e file:\/\/.*reflexio_commons/d' requirements.txt
-    echo "reflexio-commons" >> requirements.txt
+    sed -i '' '/-e file:\/\/.*reflexio_commons/d' docker/requirements.txt
+    echo "reflexio-commons" >> docker/requirements.txt
 
     log_success "requirements.txt generated"
 }
@@ -141,7 +141,7 @@ build_image() {
     log_info "Building Docker image using Dockerfile.base..."
     cd "$PROJECT_ROOT"
 
-    docker build --platform linux/amd64 -f Dockerfile.base -t "${ECR_REPO_NAME}:latest" .
+    docker build --platform linux/amd64 -f docker/Dockerfile.base -t "${ECR_REPO_NAME}:latest" .
 
     log_success "Docker image built successfully"
 }

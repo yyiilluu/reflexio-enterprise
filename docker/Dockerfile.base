@@ -4,7 +4,7 @@
 # =============================================================================
 #
 # Usage:
-#   docker build -f Dockerfile.base -t reflexio:latest .
+#   docker build -f docker/Dockerfile.base -t reflexio:latest .
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -74,7 +74,7 @@ RUN mkdir -p /var/log/supervisor
 WORKDIR /app
 
 # Copy and install Python dependencies
-COPY requirements.txt ./
+COPY docker/requirements.txt ./
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
@@ -108,7 +108,7 @@ COPY --from=docs-builder /app/docs/public ./reflexio/public_docs/public
 COPY supabase/ ./supabase/
 
 # Copy supervisord config
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Expose ports
 EXPOSE 8080 8081 8082
