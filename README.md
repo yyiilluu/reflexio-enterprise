@@ -44,6 +44,7 @@ uv sync
 source .venv/bin/activate
 ./run_services.sh   # Starts API (8081), Website (8080), Docs (8082)
 ./stop_services.sh  # Stop all services
+./stop_services.sh --full # Stop all services including supabase
 ```
 
 **Claude Code users:** Run `/run-services` (in claude code) instead of `./run_services.sh` (in bash) — it auto-installs missing dependencies, health-checks services, and diagnoses/fixes/retries on failure.

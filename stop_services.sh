@@ -1,5 +1,10 @@
 #!/bin/bash
 
+FULL_STOP=false
+if [ "$1" = "--full" ] || [ "$1" = "-f" ]; then
+    FULL_STOP=true
+fi
+
 # Configurable ports (must match what was used in run_services.sh)
 BACKEND_PORT=${BACKEND_PORT:-8081}
 FRONTEND_PORT=${FRONTEND_PORT:-8080}
@@ -46,12 +51,14 @@ fi
 # Stop docs
 pkill -f "next dev.*-p ${DOCS_PORT}" && echo "Stopped docs" || echo "Docs not running"
 
-# Stop Supabase
-if supabase status > /dev/null 2>&1; then
-    supabase stop
-    echo "Stopped Supabase"
-else
-    echo "Supabase not running"
+# Stop Supabase (only with --full/-f flag)
+if [ "$FULL_STOP" = true ]; then
+    if supabase status > /dev/null 2>&1; then
+        supabase stop
+        echo "Stopped Supabase"
+    else
+        echo "Supabase not running"
+    fi
 fi
 
 echo "All services stopped."
