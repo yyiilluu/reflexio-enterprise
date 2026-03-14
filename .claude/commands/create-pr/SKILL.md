@@ -7,6 +7,8 @@ description: "Create high-quality pull requests via gh pr create. Use when the u
 
 Create well-structured, reviewer-friendly pull requests following best practices.
 
+**CRITICAL: This skill MUST always result in a PR being created. Do NOT stop early, do NOT ask the user to run another command first. Handle all prerequisites (committing, branching, pushing) inline and proceed to `gh pr create`.**
+
 ---
 
 ## Workflow
@@ -15,59 +17,62 @@ Create well-structured, reviewer-friendly pull requests following best practices
 
 Run these checks before anything else:
 
-1. **Verify GitHub CLI authentication** — run `gh api user --jq '.login'` to confirm the CLI is authenticated. If this fails, the user needs to run `gh auth login` first.
-2. **Verify clean git state** — run `git status` to ensure no uncommitted changes. If there are uncommitted changes, run the `/commit` skill first to commit them (this handles precommit hooks, README updates, API doc updates, and AI instruction file syncing). If the `/commit` skill is not available, manually stage and commit the changes before proceeding.
-3. **Determine the base branch** — default to `main`. If the user specifies a different base, use that. Capture as `$BASE_BRANCH` and use consistently in all subsequent steps.
-4. **Ensure you are on a feature branch** — if currently on `main` (or the base branch), create a feature branch first:
-   - Pick a descriptive branch name (e.g., `feat/short-description`)
+1. **Verify GitHub CLI authentication** — run `gh api user --jq '.login'` to confirm the CLI is authenticated. If this fails, tell the user to run `gh auth login` first and stop.
+2. **Determine the base branch** — default to `main`. If the user specifies a different base, use that. Capture as `$BASE_BRANCH`.
+
+### Step 2: Commit Uncommitted Changes
+
+Run `git status` to check for uncommitted changes. If there are uncommitted changes, commit them **directly** — do NOT delegate to another skill or tell the user to commit first.
+
+1. **Stage changes** — run `git add <files>` for relevant modified/untracked files. Do not stage `.env` or gitignored files.
+2. **Lint and format** — if Python files are staged, run:
+   ```bash
+   ruff check --fix <files> && ruff format <files>
+   ```
+   Re-stage any modified files.
+3. **Commit** — write a conventional commit message based on the staged diff:
+   ```bash
+   git commit -m "<type>: <description>"
+   ```
+   If precommit hooks modify files, re-stage with `git add -u` and retry (up to 3 times).
+
+### Step 3: Ensure Feature Branch
+
+1. **Check current branch** — run `git branch --show-current`.
+2. **If on `$BASE_BRANCH`**, create a feature branch:
+   - Analyze the commits/changes to pick a descriptive name (e.g., `feat/add-auth`, `fix/login-bug`)
    - Run `git checkout -b <branch-name>`
-   - If there are commits on `main` that should be in the PR, they are already on the new branch (it forked from `main`). After creating the PR, optionally reset `main` back to `origin/main` to keep it clean.
-5. **Check remote tracking** — verify the current branch tracks a remote and is pushed up-to-date. If not, push with `-u` flag.
-6. **Sync submodules** — check if `.gitmodules` exists first. If it does, run `git submodule update --init --recursive`. If not, skip this step.
+3. **If on a different branch**, check whether the branch has PR-worthy commits vs `$BASE_BRANCH`:
+   - Run `git log $BASE_BRANCH..HEAD --oneline`
+   - If there are commits, use the current branch as-is
+   - If there are NO commits (branch is at same point as base), this means something went wrong — investigate and fix
 
-### Step 2: Sync with Base Branch
+### Step 4: Sync with Base Branch
 
-Ensure the feature branch is up-to-date with the base branch to avoid merge conflicts in the PR:
+1. **Fetch latest** — run `git fetch origin $BASE_BRANCH`
+2. **Check for divergence** — run `git log HEAD..origin/$BASE_BRANCH --oneline`
+3. **Rebase if needed** — if the base branch has new commits:
+   a. Run `git rebase origin/$BASE_BRANCH`
+   b. If conflicts arise, surface them to the user — show both sides and ask which to keep. Do not silently resolve.
+   c. After resolving, `git add <file>` and `git rebase --continue`
 
-1. **Fetch latest remote** — run `git fetch origin $BASE_BRANCH`
-2. **Check for divergence** — run `git log HEAD..origin/$BASE_BRANCH --oneline` to see if the base branch has new commits
-3. **Rebase if needed** — if there are new commits on the base branch:
-   a. If there are uncommitted changes, stash them first: `git stash`
-   b. Run `git rebase origin/$BASE_BRANCH`
-   c. **Resolve conflicts** — if the rebase hits conflicts:
-      - Read the conflicting files to understand both sides
-      - Surface the conflict to the user — show both sides and ask which version to keep. Do not silently resolve conflicts.
-      - Stage resolved files: `git add <file>`
-      - Continue: `git rebase --continue`
-      - Repeat until rebase completes
-   d. If changes were stashed, pop them: `git stash pop`
-      - If the stash pop conflicts, resolve those too
-4. **Verify clean state** — run `git status` to confirm no unresolved conflicts remain
+### Step 5: Push
 
-### Step 3: Analyze Changes
+Push the branch to remote:
+```bash
+git push -u origin HEAD
+```
+If the push is rejected (e.g., diverged history after rebase), use `git push --force-with-lease -u origin HEAD`.
 
-Understand the full scope of changes that will be in the PR:
+### Step 6: Analyze Changes and Draft PR
 
-1. Run `git log $BASE_BRANCH..HEAD --oneline` to see all commits on this branch
-2. Run `git diff $BASE_BRANCH...HEAD --stat` for a high-level summary of changed files
-3. Run `git diff $BASE_BRANCH...HEAD` to read the full diff
-4. **Check PR size** — check total lines changed. If >500 lines, warn the user that the PR is large and suggest splitting before continuing to draft.
-5. Identify the type of change: `feat`, `fix`, `refactor`, `docs`, `chore`, etc.
-
-**Important:** Look at ALL commits, not just the latest one.
-
-### Step 4: Draft the PR
-
-#### Title
-
-- Under 70 characters
-- Use conventional prefix: `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`
-- Reference issue/ticket numbers when applicable (e.g., `feat: add user auth (#42)`)
-- Short and scannable — put details in the body, not the title
-
-#### Body
-
-Use this template — scale detail with PR complexity:
+1. **Analyze** — run these in parallel:
+   - `git log $BASE_BRANCH..HEAD --oneline` — all commits
+   - `git diff $BASE_BRANCH...HEAD --stat` — files changed summary
+   - `git diff $BASE_BRANCH...HEAD` — full diff
+2. **Check PR size** — if >500 lines changed, warn the user but continue.
+3. **Draft title** — under 70 characters, conventional prefix (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`).
+4. **Draft body** using this template:
 
 ```
 ## Summary
@@ -83,18 +88,16 @@ Use this template — scale detail with PR complexity:
 <How the changes were verified — manual testing steps, automated tests run, curl commands, etc.>
 ```
 
-Guidelines for the body:
-- State the purpose clearly — explain *why*, not just *what*
-- Provide context and background with links to relevant issues/docs
-- For work-in-progress PRs, use the `--draft` flag (see Step 5) rather than prefixing the title with `[WIP]`
-- Include Mermaid diagrams when they simplify explanation of workflows or architecture
-- Keep PRs focused on a single concern — suggest splitting if the PR is too large
-- Do NOT include any "Generated with Claude Code" footer or bot attribution lines
+Guidelines:
+- Explain *why*, not just *what*
+- For WIP PRs, use the `--draft` flag instead of `[WIP]` prefix
+- Include Mermaid diagrams when they clarify workflows or architecture
+- Do NOT include any "Generated with Claude Code" footer or bot attribution
 - Do NOT include `Co-Authored-By` lines
 
-### Step 5: Create the PR
+### Step 7: Create the PR
 
-Write the body to a temp file and use `--body-file` to avoid shell argument length limits:
+Write body to a temp file and create the PR:
 
 ```bash
 cat > /tmp/pr_body.md <<'EOF'
@@ -107,29 +110,29 @@ cat > /tmp/pr_body.md <<'EOF'
 ## Test Plan
 ...
 EOF
-gh pr create --title "the pr title" --body-file /tmp/pr_body.md
+gh pr create --title "the pr title" --base $BASE_BRANCH --body-file /tmp/pr_body.md
 ```
 
 **Optional flags:**
-- If the user indicates this is a WIP or draft PR, add the `--draft` flag.
-- If the user specifies reviewers, add `--reviewer <handle>` (comma-separated for multiple).
-- If the user specifies assignees, add `--assignee <handle>`.
+- WIP/draft: add `--draft`
+- Reviewers: add `--reviewer <handle>`
+- Assignees: add `--assignee <handle>`
 
 **Do NOT add:**
 - `--author` flag (gh uses the authenticated user automatically)
 - Any `Co-Authored-By` trailer
 - Any "Generated with Claude Code" footer
 
-### Step 6: Report
+### Step 8: Report
 
 - Return the PR URL so the user can review it
-- If `gh pr create` fails, diagnose the error and suggest fixes
+- If `gh pr create` fails, diagnose the error and retry with fixes
 
 ---
 
-## Best Practices Encoded
+## Best Practices
 
-**Commit History:** If the commit history is messy, suggest rebasing to clean it up before creating the PR. Clean commits that explain *why* make review much easier.
+**Commit History:** If the commit history is messy, suggest rebasing to clean it up before creating the PR.
 
 **Feedback Requests:** If the user mentions wanting specific feedback, add a "Feedback Requested" section to the body.
 
