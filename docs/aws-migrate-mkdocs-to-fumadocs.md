@@ -198,7 +198,7 @@ echo "Task definition updated with port 8082"
 
 ## Step 5: Build and Push Updated Docker Image
 
-The updated `Dockerfile.base` now includes a `docs-builder` stage that builds the Fumadocs site, and `supervisord.conf` includes a `[program:docs]` section that runs it on port 8082.
+The updated `docker/Dockerfile.base` now includes a `docs-builder` stage that builds the Fumadocs site, and `docker/supervisord.conf` includes a `[program:docs]` section that runs it on port 8082.
 
 ```bash
 cd /Users/yilu/repos/reflexio
@@ -208,7 +208,7 @@ aws ecr get-login-password --region $AWS_REGION | \
     docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
 
 # Build image (includes Fumadocs build in docs-builder stage)
-docker build --platform linux/amd64 -f Dockerfile.base -t ${ECR_REPO_NAME}:latest .
+docker build --platform linux/amd64 -f docker/Dockerfile.base -t ${ECR_REPO_NAME}:latest .
 
 # Tag and push
 docker tag ${ECR_REPO_NAME}:latest ${ECR_URI}:latest
@@ -377,9 +377,9 @@ The ECS service changes (port 8082, docs target group) are harmless to keep even
 
 | File | Change |
 |------|--------|
-| `Dockerfile.base` | Added `docs-builder` stage; copies built docs into image; exposes port 8082 |
-| `Dockerfile.update` | Removed `public_docs` copy to preserve pre-built docs from base |
-| `supervisord.conf` | Added `[program:docs]` running Fumadocs on port 8082 (256MB memory) |
+| `docker/Dockerfile.base` | Added `docs-builder` stage; copies built docs into image; exposes port 8082 |
+| `docker/Dockerfile.update` | Removed `public_docs` copy to preserve pre-built docs from base |
+| `docker/supervisord.conf` | Added `[program:docs]` running Fumadocs on port 8082 (256MB memory) |
 | `reflexio/scripts/update_docs.sh` | Rewritten: now rebuilds Docker image and redeploys ECS |
 | `docs/aws-ecs-deployment.md` | Updated architecture, removed S3 steps, added docs target group/routing |
 

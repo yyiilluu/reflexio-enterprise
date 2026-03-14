@@ -143,11 +143,11 @@ aws ecr get-login-password --region $AWS_REGION | \
     docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
 
 # Option 1: Build base image (when dependencies change - slower)
-docker build --platform linux/amd64 -f Dockerfile.base -t ${ECR_REPO_NAME}:latest .
+docker build --platform linux/amd64 -f docker/Dockerfile.base -t ${ECR_REPO_NAME}:latest .
 
 # Option 2: Build update image (when only code changes - faster)
-# Requires base image built first with: docker build -f Dockerfile.base -t reflexio-base:latest .
-# docker build --platform linux/amd64 -f Dockerfile.update -t ${ECR_REPO_NAME}:latest .
+# Requires base image built first with: docker build -f docker/Dockerfile.base -t reflexio-base:latest .
+# docker build --platform linux/amd64 -f docker/Dockerfile.update -t ${ECR_REPO_NAME}:latest .
 
 # Tag and push
 docker tag ${ECR_REPO_NAME}:latest ${ECR_URI}:latest
@@ -666,7 +666,7 @@ curl http://$ALB_DNS/api/health
 ```bash
 # Build and push new image
 cd /Users/yilu/repos/user_profiler
-docker build --platform linux/amd64 -f Dockerfile.base -t ${ECR_REPO_NAME}:latest .
+docker build --platform linux/amd64 -f docker/Dockerfile.base -t ${ECR_REPO_NAME}:latest .
 docker tag ${ECR_REPO_NAME}:latest ${ECR_URI}:latest
 
 aws ecr get-login-password --region $AWS_REGION | \

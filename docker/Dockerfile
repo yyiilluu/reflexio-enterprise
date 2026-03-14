@@ -13,7 +13,7 @@ WORKDIR ./
 COPY . .
 
 # Install dependencies
-RUN pip install -r requirements.txt
+RUN pip install -r docker/requirements.txt
 
 # Install Supabase CLI
 RUN curl -fsSL https://supabase.com/install.sh | sh

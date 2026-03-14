@@ -97,7 +97,7 @@ aws ecr get-login-password --region $AWS_REGION | \
     docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
 
 # Build image
-docker build --platform linux/amd64 -f Dockerfile.base -t ${ECR_REPO_NAME}:latest .
+docker build --platform linux/amd64 -f docker/Dockerfile.base -t ${ECR_REPO_NAME}:latest .
 
 # Tag and push
 docker tag ${ECR_REPO_NAME}:latest ${ECR_URI}:latest
@@ -802,7 +802,7 @@ cd /Users/yilu/repos/reflexio
 aws ecr get-login-password --region $AWS_REGION | \
     docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
 
-docker build --platform linux/amd64 -f Dockerfile.base -t ${ECR_REPO_NAME}:latest .
+docker build --platform linux/amd64 -f docker/Dockerfile.base -t ${ECR_REPO_NAME}:latest .
 docker tag ${ECR_REPO_NAME}:latest ${ECR_URI}:latest
 docker push ${ECR_URI}:latest
 
@@ -833,7 +833,7 @@ cd /Users/yilu/repos/reflexio
 aws ecr get-login-password --region $AWS_REGION | \
     docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
 
-docker build --platform linux/amd64 -f Dockerfile.base -t ${ECR_REPO_NAME}:latest .
+docker build --platform linux/amd64 -f docker/Dockerfile.base -t ${ECR_REPO_NAME}:latest .
 docker tag ${ECR_REPO_NAME}:latest ${ECR_URI}:latest
 docker push ${ECR_URI}:latest
 

@@ -146,7 +146,7 @@ aws ecr get-login-password --region $AWS_REGION | \
     docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
 
 # Build image
-docker build --platform linux/amd64 -f Dockerfile.base -t ${ECR_REPO_NAME}:latest .
+docker build --platform linux/amd64 -f docker/Dockerfile.base -t ${ECR_REPO_NAME}:latest .
 
 # Tag and push
 docker tag ${ECR_REPO_NAME}:latest ${ECR_URI}:latest
@@ -608,7 +608,7 @@ After deployment, access the Reflexio UI to configure your Supabase storage:
 ```bash
 # Build and push new image
 cd /path/to/user_profiler
-docker build --platform linux/amd64 -f Dockerfile.base -t ${ECR_REPO_NAME}:latest .
+docker build --platform linux/amd64 -f docker/Dockerfile.base -t ${ECR_REPO_NAME}:latest .
 docker tag ${ECR_REPO_NAME}:latest ${ECR_URI}:latest
 
 aws ecr get-login-password --region $AWS_REGION | \

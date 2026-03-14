@@ -4,10 +4,10 @@
 # =============================================================================
 #
 # Prerequisites:
-#   docker build -f Dockerfile.base -t agenticmem:latest .
+#   docker build -f docker/Dockerfile.base -t agenticmem:latest .
 #
 # Usage:
-#   docker build -f Dockerfile.update -t agenticmem:latest .
+#   docker build -f docker/Dockerfile.update -t agenticmem:latest .
 #
 # What this re-copies:
 #   - reflexio_commons (shared schemas)
@@ -48,4 +48,4 @@ COPY reflexio/data ./reflexio/data
 COPY supabase/ ./supabase/
 
 # Re-copy supervisord config
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf

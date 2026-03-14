@@ -883,7 +883,7 @@ After this upgrade, use the same deployment process:
 cd /Users/yilu/repos/user_profiler
 
 # Build and push
-docker build --platform linux/amd64 -f Dockerfile.base -t ${ECR_REPO_NAME}:latest .
+docker build --platform linux/amd64 -f docker/Dockerfile.base -t ${ECR_REPO_NAME}:latest .
 docker tag ${ECR_REPO_NAME}:latest ${ECR_URI}:latest
 docker push ${ECR_URI}:latest
 

@@ -13,6 +13,7 @@ Description: AI agent memory system that makes AI agents personalized and self-i
 | `supabase/` | Local Supabase - user data (profiles, interactions, feedbacks), atomic lock RPC | Migrations |
 | `supabase_login/` | Cloud Supabase - authentication (organizations, API keys) | [README](supabase_login/README.md) |
 | `demo/` | Conversation simulation demo - scenarios, simulator, and live viewer | [README](demo/readme.md) |
+| `docker/` | Docker build and deployment files | `Dockerfile.base`, `Dockerfile.update`, `docker-compose.yaml`, `supervisord.conf` |
 | `docs/` | Deployment guides | AWS ECS, Supabase migration, AWS SES email setup |
 
 ## Architecture
@@ -89,7 +90,7 @@ See `notebooks/reflexio_cookbook.ipynb` and `reflexio/tests/readme.md`
 
 **Docker:**
 ```shell
-docker build -t reflexio-amd64:latest -f Dockerfile.base .
+docker build -t reflexio-amd64:latest -f docker/Dockerfile.base .
 sh reflexio/scripts/deploy_ecs.sh
 ```
 
