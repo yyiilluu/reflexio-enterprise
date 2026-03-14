@@ -4519,11 +4519,7 @@ dependencies = [
     { name = "openai" },
     { name = "passlib" },
     { name = "psycopg2-binary" },
-<<<<<<< HEAD
-    { name = "pydantic", extra = ["email"] },
-=======
     { name = "pydantic" },
->>>>>>> fcec1a7 (chore: add pydantic dep, fix fetchone null safety, update hero copy)
     { name = "python-dotenv" },
     { name = "python-jose" },
     { name = "redis" },
