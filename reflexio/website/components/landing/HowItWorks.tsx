@@ -443,7 +443,7 @@ export function HowItWorks() {
             </div>
             <h3 className="font-semibold text-slate-800 mb-2">Actionable Signals</h3>
             <p className="text-sm text-slate-600 leading-relaxed">
-              Automatically extract triggering conditions and do/don't rules from user corrections
+              Automatically extract triggering conditions and do/don&apos;t rules from user corrections
             </p>
           </div>
           <div className="text-center p-5 rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md transition-shadow">

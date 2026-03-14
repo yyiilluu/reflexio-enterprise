@@ -39,7 +39,7 @@ export interface Interaction {
   interacted_image_url: string
   image_encoding: string
   shadow_content?: string
-  tools_used?: { tool_name: string; tool_input: Record<string, any> }[]
+  tools_used?: { tool_name: string; tool_input: Record<string, unknown> }[]
   embedding: number[]
   shadow_redacted_content?: string
 }
@@ -624,7 +624,7 @@ export async function getAgentSuccessEvaluationResults(
 
 // Config types (simplified for API layer)
 export interface ConfigResponse {
-  [key: string]: any
+  [key: string]: unknown
 }
 
 export async function getConfig(): Promise<ConfigResponse> {
@@ -985,8 +985,8 @@ export interface OperationStatusInfo {
   current_user_id?: string
   processed_user_ids: string[]
   failed_user_ids: { user_id: string; error: string }[]
-  request_params: Record<string, any>
-  stats: Record<string, any>
+  request_params: Record<string, unknown>
+  stats: Record<string, unknown>
   error_message?: string
   progress_percentage: number
 }

@@ -22,7 +22,7 @@ import {
   Sparkles,
   KeyRound,
 } from "lucide-react"
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import {
   Tooltip,
   TooltipContent,
@@ -106,16 +106,11 @@ const navSections: NavSection[] = [
 export function Sidebar() {
   const pathname = usePathname()
   const [expandedItems, setExpandedItems] = useState<string[]>([])
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false
+    return localStorage.getItem("sidebar-collapsed") === "true"
+  })
   const { isAuthenticated, userEmail, logout, isSelfHost, isFeatureEnabled } = useAuth()
-
-  // Load collapsed state from localStorage on mount
-  useEffect(() => {
-    const saved = localStorage.getItem("sidebar-collapsed")
-    if (saved !== null) {
-      setIsCollapsed(saved === "true")
-    }
-  }, [])
 
   // Save collapsed state to localStorage
   const toggleCollapsed = () => {
@@ -316,7 +311,7 @@ export function Sidebar() {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
-                        onClick={logout}
+                        onClick={() => logout()}
                         className={cn(
                           "w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700 rounded-lg transition-all",
                           isCollapsed && "justify-center"

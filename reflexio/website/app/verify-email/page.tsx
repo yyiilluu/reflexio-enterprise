@@ -10,17 +10,13 @@ import Link from "next/link"
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ""
 
 function VerifyEmailContent() {
-  const [status, setStatus] = useState<"loading" | "success" | "error" | "already_verified">("loading")
-  const [message, setMessage] = useState("")
   const searchParams = useSearchParams()
   const token = searchParams.get("token")
+  const [status, setStatus] = useState<"loading" | "success" | "error" | "already_verified">(() => token ? "loading" : "error")
+  const [message, setMessage] = useState(() => token ? "" : "No verification token provided")
 
   useEffect(() => {
-    if (!token) {
-      setStatus("error")
-      setMessage("No verification token provided")
-      return
-    }
+    if (!token) return
 
     const verifyEmail = async () => {
       try {
@@ -45,7 +41,7 @@ function VerifyEmailContent() {
           setStatus("error")
           setMessage(data.detail || "Verification failed")
         }
-      } catch (error) {
+      } catch {
         setStatus("error")
         setMessage("Network error. Please try again.")
       }

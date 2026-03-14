@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -45,22 +45,28 @@ const ERROR_MESSAGES: Record<string, { message: string; link: string; linkText: 
   },
 }
 
-export default function AuthCallbackPage() {
+function AuthCallbackContent() {
   const searchParams = useSearchParams()
-  const [status, setStatus] = useState<"loading" | "error">("loading")
-  const [errorInfo, setErrorInfo] = useState(ERROR_MESSAGES.oauth_failed)
+
+  const [status] = useState<"loading" | "error">(() => {
+    const error = searchParams.get("error")
+    if (error) return "error"
+    const token = searchParams.get("token")
+    const email = searchParams.get("email")
+    if (token && email) return "loading"
+    return "error"
+  })
+
+  const [errorInfo] = useState(() => {
+    const error = searchParams.get("error")
+    if (error) return ERROR_MESSAGES[error] || ERROR_MESSAGES.oauth_failed
+    return ERROR_MESSAGES.oauth_failed
+  })
 
   useEffect(() => {
     const token = searchParams.get("token")
     const email = searchParams.get("email")
     const featureFlags = searchParams.get("feature_flags")
-    const error = searchParams.get("error")
-
-    if (error) {
-      setErrorInfo(ERROR_MESSAGES[error] || ERROR_MESSAGES.oauth_failed)
-      setStatus("error")
-      return
-    }
 
     if (token && email) {
       // Store token and email in cookies (7 days expiry)
@@ -78,11 +84,7 @@ export default function AuthCallbackPage() {
 
       // Force full page reload to pick up cookies in AuthProvider
       window.location.href = "/"
-      return
     }
-
-    // No token and no error — something went wrong
-    setStatus("error")
   }, [searchParams])
 
   if (status === "loading") {
@@ -117,5 +119,22 @@ export default function AuthCallbackPage() {
         </Card>
       </div>
     </div>
+  )
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen p-4 bg-background">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      }
+    >
+      <AuthCallbackContent />
+    </Suspense>
   )
 }

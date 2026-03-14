@@ -44,7 +44,7 @@ function getPointOnBezier(
 }
 
 export default function CustomStorageEdge({
-  id,
+  id: _id,
   sourceX,
   sourceY,
   targetX,

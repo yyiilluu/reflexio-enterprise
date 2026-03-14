@@ -175,7 +175,7 @@ export function MobileSidebar() {
                   </span>
                 </div>
                 <button
-                  onClick={logout}
+                  onClick={() => logout()}
                   className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-foreground/70 hover:bg-accent hover:text-accent-foreground rounded-lg transition-all"
                 >
                   <LogOut className="h-4 w-4" />

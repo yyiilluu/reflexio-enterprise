@@ -89,7 +89,7 @@ export default function RegisterPage() {
       } else {
         setError(result.error || "Registration failed")
       }
-    } catch (err) {
+    } catch {
       setError("An unexpected error occurred")
     } finally {
       setIsLoading(false)
@@ -148,7 +148,7 @@ export default function RegisterPage() {
               </div>
               <CardTitle className="text-2xl">Check Your Email</CardTitle>
               <CardDescription>
-                We've sent a verification link to
+                We&apos;ve sent a verification link to
               </CardDescription>
             </CardHeader>
             <CardContent className="text-center">
@@ -171,7 +171,7 @@ export default function RegisterPage() {
                   <Link href="/login">Go to Login</Link>
                 </Button>
                 <p className="text-sm text-muted-foreground">
-                  Didn't receive the email?{" "}
+                  Didn&apos;t receive the email?{" "}
                   <Link href="/resend-verification" className="text-primary hover:underline">
                     Resend verification link
                   </Link>

@@ -30,7 +30,7 @@ export default function ForgotPasswordPage() {
       const data = await response.json()
       setStatus("success")
       setMessage(data.message)
-    } catch (error) {
+    } catch {
       setStatus("error")
       setMessage("Network error. Please try again.")
     }
@@ -46,7 +46,7 @@ export default function ForgotPasswordPage() {
               <CardTitle className="text-2xl">Forgot Password</CardTitle>
             </div>
             <CardDescription>
-              Enter your email address and we'll send you a link to reset your password.
+              Enter your email address and we&apos;ll send you a link to reset your password.
             </CardDescription>
           </CardHeader>
           <CardContent>

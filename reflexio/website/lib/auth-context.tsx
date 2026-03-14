@@ -1,6 +1,6 @@
 "use client"
 
-import React, { createContext, useContext, useState, useEffect } from "react"
+import React, { createContext, useContext, useState } from "react"
 import Cookies from "js-cookie"
 import { useRouter } from "next/navigation"
 
@@ -26,40 +26,25 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [token, setToken] = useState<string | null>(null)
-  const [userEmail, setUserEmail] = useState<string | null>(null)
-  const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>({})
-  const [isLoading, setIsLoading] = useState(true)
-  const router = useRouter()
-
-  // Initialize auth state from cookies/localStorage
-  useEffect(() => {
-    if (SELF_HOST) {
-      // In self-host mode, no authentication needed, all features enabled
-      setIsLoading(false)
-      return
-    }
-
-    const storedToken = Cookies.get(TOKEN_COOKIE_NAME)
-    const storedEmail = Cookies.get(USER_EMAIL_COOKIE_NAME)
-
-    if (storedToken) {
-      setToken(storedToken)
-      setUserEmail(storedEmail || null)
-    }
-
-    // Restore feature flags from localStorage
+  const [token, setToken] = useState<string | null>(() => {
+    if (SELF_HOST || typeof window === "undefined") return null
+    return Cookies.get(TOKEN_COOKIE_NAME) || null
+  })
+  const [userEmail, setUserEmail] = useState<string | null>(() => {
+    if (SELF_HOST || typeof window === "undefined") return null
+    return Cookies.get(USER_EMAIL_COOKIE_NAME) || null
+  })
+  const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>(() => {
+    if (SELF_HOST || typeof window === "undefined") return {}
     try {
       const storedFlags = localStorage.getItem(FEATURE_FLAGS_KEY)
-      if (storedFlags) {
-        setFeatureFlags(JSON.parse(storedFlags))
-      }
+      if (storedFlags) return JSON.parse(storedFlags)
     } catch {
       // Ignore parse errors
     }
-
-    setIsLoading(false)
-  }, [])
+    return {}
+  })
+  const router = useRouter()
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
@@ -199,11 +184,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isSelfHost: SELF_HOST,
     featureFlags,
     isFeatureEnabled,
-  }
-
-  // Show loading state while checking cookies
-  if (isLoading) {
-    return null
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

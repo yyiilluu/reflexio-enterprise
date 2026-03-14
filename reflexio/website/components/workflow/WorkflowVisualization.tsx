@@ -64,7 +64,7 @@ interface AgentSuccessConfig {
 
 interface StorageConfig {
   type: "local" | "s3" | "supabase"
-  [key: string]: any
+  [key: string]: unknown
 }
 
 interface Config {
@@ -94,11 +94,9 @@ export default function WorkflowVisualization({ config }: WorkflowVisualizationP
 
     // Node dimensions (measured widths and heights for centering)
     const requestNodeHeight = 160
-    const requestNodeWidth = 280
     const slidingWindowNodeHeight = 480 // Tall due to SVG visualization, stats, and button
     const slidingWindowNodeWidth = 380 // Wide because of animation
     const extractorNodeWidth = 250
-    const storageNodeWidth = 300
 
     // 1. Request Entry Node (leftmost) - center aligned with sliding window
     const requestNodeY = centerY - requestNodeHeight / 2
@@ -108,7 +106,6 @@ export default function WorkflowVisualization({ config }: WorkflowVisualizationP
       position: { x: currentX, y: requestNodeY },
       data: { label: "Request Entry" },
     })
-    const requestNodeX = currentX
     currentX += horizontalSpacing
 
     // 2. Sliding Window Node - center aligned with request entry
@@ -364,19 +361,15 @@ export default function WorkflowVisualization({ config }: WorkflowVisualizationP
     })
 
     // Connect aggregators and non-feedback extractors to storage
-    allExtractors.forEach((extractor, idx) => {
+    allExtractors.forEach((extractor) => {
       const edgeColor =
         extractor.type === "profile" ? "#9c27b0" :
         extractor.type === "feedback" ? "#ff9800" : "#588157"
-
-      // Calculate y position for this extractor (same as in the loop above)
-      const extractorY = startY + idx * verticalNodeSpacing
 
       if (extractor.type === "feedback") {
         // For feedback extractors, connect the aggregator to storage
         // (raw feedback to storage edge is already created above)
         const aggregatorId = `aggregator-${extractor.id}`
-        const aggregatorY = extractorY + 80 // Same offset as when creating the aggregator node
         generatedEdges.push({
           id: `e-${aggregatorId}-storage`,
           source: aggregatorId,

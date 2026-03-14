@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, createElement } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -239,7 +239,7 @@ interface FeedbackRowProps {
 
 function FeedbackRow({ feedback, onUpdateStatus, onDelete, isUpdating = false }: FeedbackRowProps) {
   const [expanded, setExpanded] = useState(false)
-  const StatusIcon = getStatusIcon(feedback.feedback_status)
+  const statusIcon = getStatusIcon(feedback.feedback_status)
 
   const getStatusBg = () => {
     switch (feedback.feedback_status) {
@@ -276,7 +276,7 @@ function FeedbackRow({ feedback, onUpdateStatus, onDelete, isUpdating = false }:
             {/* Status Icon */}
             <div className="flex-shrink-0">
               <div className={`h-8 w-8 rounded-lg ${getStatusBg()} flex items-center justify-center`}>
-                <StatusIcon className={`h-4 w-4 ${getStatusIconColor()}`} />
+                {createElement(statusIcon, { className: `h-4 w-4 ${getStatusIconColor()}` })}
               </div>
             </div>
 
@@ -293,7 +293,7 @@ function FeedbackRow({ feedback, onUpdateStatus, onDelete, isUpdating = false }:
                   {feedback.agent_version}
                 </Badge>
                 <Badge className={`text-xs flex items-center gap-1 ${getStatusBadgeClass()}`}>
-                  <StatusIcon className="h-3 w-3" />
+                  {createElement(statusIcon, { className: "h-3 w-3" })}
                   {feedback.feedback_status.charAt(0).toUpperCase() + feedback.feedback_status.slice(1)}
                 </Badge>
               </div>
@@ -385,7 +385,7 @@ function FeedbackRow({ feedback, onUpdateStatus, onDelete, isUpdating = false }:
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-500">Status:</span>
                     <Badge className={`text-xs flex items-center gap-1 ${getStatusBadgeClass()}`}>
-                      <StatusIcon className="h-3 w-3" />
+                      {createElement(statusIcon, { className: "h-3 w-3" })}
                       {feedback.feedback_status}
                     </Badge>
                   </div>
@@ -890,7 +890,7 @@ export default function FeedbacksPage() {
 
     setRerunningFeedback(true)
     try {
-      const request: any = {
+      const request: Record<string, string> = {
         agent_version: rerunAgentVersion.trim(),
       }
 
@@ -909,7 +909,7 @@ export default function FeedbacksPage() {
       }
 
       // Fire-and-forget API call
-      rerunFeedbackGeneration(request)
+      rerunFeedbackGeneration(request as unknown as Parameters<typeof rerunFeedbackGeneration>[0])
 
       // Close modal immediately and show success message
       setShowRerunFeedbackModal(false)
@@ -933,11 +933,11 @@ export default function FeedbacksPage() {
         type: "success"
       })
       setShowMessageModal(true)
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error starting feedback rerun:", error)
       setMessageModalConfig({
         title: "Error Starting Feedback Generation",
-        message: error.message || "An unexpected error occurred",
+        message: error instanceof Error ? error.message : "An unexpected error occurred",
         type: "error"
       })
       setShowMessageModal(true)
@@ -997,11 +997,11 @@ export default function FeedbacksPage() {
       // Reset form fields
       setAggregationAgentVersion("")
       setAggregationFeedbackName("")
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error running feedback aggregation:", error)
       setMessageModalConfig({
         title: "Error Running Feedback Aggregation",
-        message: error.message || "An unexpected error occurred",
+        message: error instanceof Error ? error.message : "An unexpected error occurred",
         type: "error"
       })
       setShowMessageModal(true)
@@ -1051,11 +1051,11 @@ export default function FeedbacksPage() {
         })
         setShowMessageModal(true)
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error upgrading raw feedbacks:", error)
       setMessageModalConfig({
         title: "Upgrade Failed",
-        message: error.message || "An unexpected error occurred",
+        message: error instanceof Error ? error.message : "An unexpected error occurred",
         type: "error",
       })
       setShowMessageModal(true)
@@ -1096,11 +1096,11 @@ export default function FeedbacksPage() {
         })
         setShowMessageModal(true)
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error downgrading raw feedbacks:", error)
       setMessageModalConfig({
         title: "Restore Failed",
-        message: error.message || "An unexpected error occurred",
+        message: error instanceof Error ? error.message : "An unexpected error occurred",
         type: "error",
       })
       setShowMessageModal(true)
@@ -1140,7 +1140,7 @@ export default function FeedbacksPage() {
                     Feedback generation in progress
                   </p>
                   <p className="text-sm" style={{ color: "#1d3557" }}>
-                    {operationStatusFeedback.stats?.total_interactions_processed || 0} interactions processed
+                    {Number(operationStatusFeedback.stats?.total_interactions_processed || 0)} interactions processed
                     {operationStatusFeedback.progress_percentage !== undefined &&
                       ` (${operationStatusFeedback.progress_percentage.toFixed(0)}%)`}
                   </p>

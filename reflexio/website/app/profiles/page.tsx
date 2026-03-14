@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -26,7 +26,7 @@ import {
   CheckCircle,
   RotateCcw,
 } from "lucide-react"
-import { getProfiles, getAllProfiles, deleteProfile, getProfileStatistics, upgradeAllProfiles, downgradeAllProfiles, rerunProfileGeneration, getOperationStatus, cancelOperation, type UserProfile as ApiUserProfile, type ProfileStatistics, type Status, type OperationStatusInfo } from "@/lib/api"
+import { getProfiles, getAllProfiles, deleteProfile, getProfileStatistics, upgradeAllProfiles, downgradeAllProfiles, rerunProfileGeneration, getOperationStatus, cancelOperation, type UserProfile as ApiUserProfile, type ProfileStatistics, type OperationStatusInfo } from "@/lib/api"
 import {
   Dialog,
   DialogContent,
@@ -459,7 +459,7 @@ export default function ProfilesPage() {
   } | null>(null)
 
   // Fetch profiles from API based on status
-  const fetchProfiles = async (searchUserId: string, limit: number, status: "current" | "archived" | "pending") => {
+  const fetchProfiles = useCallback(async (searchUserId: string, limit: number, status: "current" | "archived" | "pending") => {
     setLoading(true)
     setError("")
 
@@ -504,7 +504,7 @@ export default function ProfilesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   // Debounced search effect - auto-fetch when userId, topK, or activeStatusTab changes
   useEffect(() => {
@@ -513,12 +513,12 @@ export default function ProfilesPage() {
     }, 1000)
 
     return () => clearTimeout(timer)
-  }, [userId, topK, activeStatusTab])
+  }, [userId, topK, activeStatusTab, fetchProfiles])
 
   // Initial load - fetch all profiles immediately on mount
   useEffect(() => {
     fetchProfiles("", topK, "current")
-  }, [])
+  }, [fetchProfiles, topK])
 
   // Fetch profile statistics on mount
   useEffect(() => {
@@ -632,7 +632,7 @@ export default function ProfilesPage() {
     }, 3000)
 
     return () => clearInterval(intervalId)
-  }, [shouldPollStatus]) // Only depend on shouldPollStatus
+  }, [shouldPollStatus, activeStatusTab, operationStatus?.status, topK, userId, fetchProfiles])
 
   // Helper to fetch profile statistics
   const fetchProfileStatistics = async () => {
@@ -648,12 +648,6 @@ export default function ProfilesPage() {
 
   // Calculate statistics
   const totalProfiles = profiles.length
-  const activeProfiles = profiles.filter((p) => !isExpired(p.expiration_timestamp)).length
-  const expiringSoonCount = profiles.filter((p) => isExpiringSoon(p.expiration_timestamp)).length
-  const recentProfiles = profiles.filter((p) => {
-    const dayAgo = Date.now() / 1000 - 24 * 60 * 60
-    return p.last_modified_timestamp > dayAgo
-  }).length
 
   // Get unique values for filters
   const uniqueUsers = useMemo(() => {
@@ -710,7 +704,7 @@ export default function ProfilesPage() {
         setEditedProfile(null)
         setCustomFeaturesJson("")
         setJsonError("")
-      } catch (error) {
+      } catch {
         setJsonError("Invalid JSON format. Please fix the JSON before saving.")
       }
     }
@@ -762,10 +756,6 @@ export default function ProfilesPage() {
     } finally {
       setDeleting(false)
     }
-  }
-
-  const cancelDelete = () => {
-    setProfileToDelete(null)
   }
 
   // Refresh statistics after upgrade/downgrade
@@ -1365,7 +1355,7 @@ export default function ProfilesPage() {
                     {searchQuery && (
                       <Badge className="text-xs bg-indigo-100 text-indigo-700 hover:bg-indigo-100">
                         <Search className="h-3 w-3 mr-1" />
-                        "{searchQuery}"
+                        &quot;{searchQuery}&quot;
                       </Badge>
                     )}
                     {selectedUser !== "all" && (

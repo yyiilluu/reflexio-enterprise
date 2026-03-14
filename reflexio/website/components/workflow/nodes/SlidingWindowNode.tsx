@@ -85,7 +85,6 @@ export function SlidingWindowNode({ data }: SlidingWindowNodeProps) {
 
                   // Position windows
                   const window1Start = timelineStart
-                  const window1End = window1Start + scaledWindowSize
                   const window2Start = window1Start + scaledStride
                   const window2End = window2Start + scaledWindowSize
 

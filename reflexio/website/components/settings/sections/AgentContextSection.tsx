@@ -44,7 +44,7 @@ export function AgentContextSection({
             placeholder="Define agent working environment, tools available, and action space..."
             rows={8}
           />
-          <p className="text-xs text-muted-foreground mt-2">Define the agent's working environment and context</p>
+          <p className="text-xs text-muted-foreground mt-2">Define the agent&apos;s working environment and context</p>
         </div>
 
         <div className="mt-6">

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect, useRef } from "react"
+import { useState, useMemo, useEffect, useRef, createElement } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -85,7 +85,7 @@ interface InteractionItemProps {
 
 function InteractionItem({ interaction, onDelete }: InteractionItemProps) {
   const [expanded, setExpanded] = useState(false)
-  const ActionIcon = getActionIcon(interaction.user_action)
+  const actionIcon = getActionIcon(interaction.user_action)
 
   return (
     <div className="hover:bg-slate-50/50 transition-colors">
@@ -97,7 +97,7 @@ function InteractionItem({ interaction, onDelete }: InteractionItemProps) {
           >
             {/* Action Icon */}
             <div className="h-6 w-6 rounded-md bg-blue-100 flex items-center justify-center flex-shrink-0">
-              <ActionIcon className="h-3.5 w-3.5 text-blue-600" />
+              {createElement(actionIcon, { className: "h-3.5 w-3.5 text-blue-600" })}
             </div>
 
             {/* Main Info */}
@@ -110,7 +110,7 @@ function InteractionItem({ interaction, onDelete }: InteractionItemProps) {
                   {interaction.role}
                 </Badge>
                 <Badge className="text-xs flex items-center gap-1 bg-slate-100 text-slate-600 hover:bg-slate-100">
-                  <ActionIcon className="h-3 w-3" />
+                  {createElement(actionIcon, { className: "h-3 w-3" })}
                   {interaction.user_action}
                 </Badge>
                 {interaction.tools_used && interaction.tools_used.length > 0 && interaction.tools_used.map((tool, idx) => (

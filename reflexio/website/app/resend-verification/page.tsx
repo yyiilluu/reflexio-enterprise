@@ -30,7 +30,7 @@ export default function ResendVerificationPage() {
       const data = await response.json()
       setStatus("success")
       setMessage(data.message)
-    } catch (error) {
+    } catch {
       setStatus("error")
       setMessage("Network error. Please try again.")
     }
@@ -46,7 +46,7 @@ export default function ResendVerificationPage() {
               <CardTitle className="text-2xl">Resend Verification</CardTitle>
             </div>
             <CardDescription>
-              Enter your email address and we'll send you a new verification link.
+              Enter your email address and we&apos;ll send you a new verification link.
             </CardDescription>
           </CardHeader>
           <CardContent>

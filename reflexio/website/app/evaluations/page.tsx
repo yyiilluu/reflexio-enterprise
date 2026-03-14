@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -443,7 +443,7 @@ export default function EvaluationsPage() {
   const [limit] = useState(100)
 
   // Fetch evaluations from API
-  const fetchEvaluations = async () => {
+  const fetchEvaluations = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -462,12 +462,12 @@ export default function EvaluationsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [limit])
 
   // Fetch on component mount
   useEffect(() => {
     fetchEvaluations()
-  }, [limit])
+  }, [fetchEvaluations])
 
   // Calculate statistics
   const totalEvaluations = evaluations.length

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, Suspense } from "react"
+import { useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -16,14 +16,8 @@ function ResetPasswordForm() {
 
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error" | "no_token">("idle")
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error" | "no_token">(() => token ? "idle" : "no_token")
   const [message, setMessage] = useState("")
-
-  useEffect(() => {
-    if (!token) {
-      setStatus("no_token")
-    }
-  }, [token])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -63,7 +57,7 @@ function ResetPasswordForm() {
         setStatus("error")
         setMessage(data.detail || "Failed to reset password")
       }
-    } catch (error) {
+    } catch {
       setStatus("error")
       setMessage("Network error. Please try again.")
     }

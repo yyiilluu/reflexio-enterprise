@@ -4,6 +4,7 @@ export type StorageType = "local" | "supabase"
 export interface StorageConfigLocal {
   type: "local"
   dir_path: string
+  [key: string]: string
 }
 
 export interface StorageConfigSupabase {
@@ -11,6 +12,7 @@ export interface StorageConfigSupabase {
   url: string
   key: string
   db_url: string
+  [key: string]: string
 }
 
 export type StorageConfig = StorageConfigLocal | StorageConfigSupabase
@@ -151,8 +153,10 @@ export interface BackendAgentSuccessConfig {
   extraction_window_stride_override?: number
 }
 
+export type BackendStorageConfig = Omit<StorageConfigLocal, 'type'> | Omit<StorageConfigSupabase, 'type'> | StorageConfig
+
 export interface BackendConfig {
-  storage_config: StorageConfig
+  storage_config: BackendStorageConfig
   agent_context_prompt?: string
   tool_can_use?: ToolUseConfig[]
   profile_extractor_configs?: BackendProfileExtractorConfig[]
@@ -168,7 +172,7 @@ export interface BackendConfig {
 export const generateId = () => Math.random().toString(36).substring(2, 9)
 
 // Helper function to infer storage type and add type field
-export const inferStorageConfig = (storageConfig: any): StorageConfig => {
+export const inferStorageConfig = (storageConfig: BackendStorageConfig | Record<string, string> | null | undefined): StorageConfig => {
   if (!storageConfig) {
     return { type: "local", dir_path: "" }
   }
@@ -190,16 +194,16 @@ export const configsAreEqual = (config1: Config, config2: Config): boolean => {
   if (JSON.stringify(config1.api_key_config || {}) !== JSON.stringify(config2.api_key_config || {})) return false
   if (JSON.stringify(config1.llm_config || {}) !== JSON.stringify(config2.llm_config || {})) return false
 
-  const extractors1 = config1.profile_extractor_configs.map(({ id, ...rest }) => rest)
-  const extractors2 = config2.profile_extractor_configs.map(({ id, ...rest }) => rest)
+  const extractors1 = config1.profile_extractor_configs.map(({ id: _id, ...rest }) => rest)
+  const extractors2 = config2.profile_extractor_configs.map(({ id: _id, ...rest }) => rest)
   if (JSON.stringify(extractors1) !== JSON.stringify(extractors2)) return false
 
-  const feedback1 = config1.agent_feedback_configs.map(({ id, ...rest }) => rest)
-  const feedback2 = config2.agent_feedback_configs.map(({ id, ...rest }) => rest)
+  const feedback1 = config1.agent_feedback_configs.map(({ id: _id, ...rest }) => rest)
+  const feedback2 = config2.agent_feedback_configs.map(({ id: _id, ...rest }) => rest)
   if (JSON.stringify(feedback1) !== JSON.stringify(feedback2)) return false
 
-  const success1 = config1.agent_success_configs.map(({ id, ...rest }) => rest)
-  const success2 = config2.agent_success_configs.map(({ id, ...rest }) => rest)
+  const success1 = config1.agent_success_configs.map(({ id: _id, ...rest }) => rest)
+  const success2 = config2.agent_success_configs.map(({ id: _id, ...rest }) => rest)
   if (JSON.stringify(success1) !== JSON.stringify(success2)) return false
 
   return true
@@ -231,15 +235,15 @@ export const backendToFrontendConfig = (backendConfig: BackendConfig): Config =>
 }
 
 export const frontendToBackendConfig = (config: Config): BackendConfig => {
-  const { type, ...storageConfigWithoutType } = config.storage_config
+  const { type: _type, ...storageConfigWithoutType } = config.storage_config
 
   return {
-    storage_config: storageConfigWithoutType as any,
+    storage_config: storageConfigWithoutType,
     agent_context_prompt: config.agent_context_prompt,
     tool_can_use: config.tool_can_use,
-    profile_extractor_configs: config.profile_extractor_configs.map(({ id, ...rest }) => rest),
-    agent_feedback_configs: config.agent_feedback_configs.map(({ id, ...rest }) => rest),
-    agent_success_configs: config.agent_success_configs.map(({ id, ...rest }) => rest),
+    profile_extractor_configs: config.profile_extractor_configs.map(({ id: _id, ...rest }) => rest),
+    agent_feedback_configs: config.agent_feedback_configs.map(({ id: _id, ...rest }) => rest),
+    agent_success_configs: config.agent_success_configs.map(({ id: _id, ...rest }) => rest),
     extraction_window_size: config.extraction_window_size,
     extraction_window_stride: config.extraction_window_stride,
     api_key_config: config.api_key_config,

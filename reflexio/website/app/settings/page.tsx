@@ -20,7 +20,7 @@ import {
   Workflow,
   Undo2,
 } from "lucide-react"
-import { getConfig, setConfig as setConfigAPI } from "@/lib/api"
+import { getConfig, setConfig as setConfigAPI, type ConfigResponse } from "@/lib/api"
 import WorkflowVisualization from "@/components/workflow/WorkflowVisualization"
 
 // Section components
@@ -74,7 +74,7 @@ export default function SettingsPage() {
     const fetchConfigData = async () => {
       try {
         const backendConfig = await getConfig()
-        const frontendConfig = backendToFrontendConfig(backendConfig as BackendConfig)
+        const frontendConfig = backendToFrontendConfig(backendConfig as unknown as BackendConfig)
         setConfig(frontendConfig)
         setOriginalConfig(frontendConfig)
         if (frontendConfig.api_key_config?.openai?.azure_config) {
@@ -182,7 +182,7 @@ export default function SettingsPage() {
 
     try {
       const backendConfig = frontendToBackendConfig(config)
-      const result = await setConfigAPI(backendConfig as any)
+      const result = await setConfigAPI(backendConfig as unknown as ConfigResponse)
       if (!result.success) {
         setErrorMessage(result.msg || "Failed to save configuration")
         setSaveStatus("error")
