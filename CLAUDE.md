@@ -39,6 +39,12 @@ use supabase cli `supabase migration up` to apply migrations locally instead of 
 - **Python**: Ruff (lint + format), Pyright (type check)
 - **TypeScript/JavaScript**: Biome (lint + format), tsc (type check)
 
+# Browser Testing (agent-browser)
+- Use `agent-browser` skill for visual verification of frontend UI changes
+- Install: `npm i -g agent-browser` then `agent-browser install` (downloads Chrome)
+- If `agent-browser` is not installed when a frontend UI task needs it, help the developer install it before proceeding
+- Core workflow: `open <url>` → `snapshot -i` → interact with refs → re-snapshot
+
 # Git Worktree Development
 When working in a git worktree, services must run on different ports. Use `/run-services` skill for automatic port handling.
 
