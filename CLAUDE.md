@@ -95,7 +95,7 @@ When working in a git worktree, services must run on different ports.
 1. git worktree add ../reflexio-feature feature-branch
 2. cd ../reflexio-feature
 3. Copy .env from main worktree
-4. uv sync && (cd reflexio/website && npm install)
+4. uv sync && uv pip install -e reflexio/reflexio_commons -e reflexio/reflexio_client && (cd reflexio/website && npm install)
 5. export BACKEND_PORT=8091 FRONTEND_PORT=8090 DOCS_PORT=8092
 6. ./run_services.sh
 7. To stop: set same env vars, then ./stop_services.sh
@@ -104,3 +104,4 @@ When working in a git worktree, services must run on different ports.
 - Supabase is shared across worktrees (54321/54322) — no changes needed
 - Do NOT modify .env for port variables — export in shell instead
 - API testing: use http://localhost:$BACKEND_PORT/token
+- **Worktree editable packages**: `uv sync` resolves workspace editable installs (`reflexio_commons`, `reflexio_client`) from the lockfile, which may point to a different worktree's path. Running `uv pip install -e` after `uv sync` forces them to resolve to the current worktree.

@@ -11,8 +11,8 @@ Start all local development services with pre-flight dependency checks and autom
 
 This command automates the full startup workflow:
 0. Smart port selection — auto-detects free port group or reuses current worktree's ports
-1. Starts Supabase (if not already running)
-2. Checks and installs missing dependencies
+1. Pre-flight dependency checks (uv sync, venv, npm, worktree editable packages)
+2. Starts Supabase (if not already running)
 3. Stops any existing services (only if needed)
 4. Starts all services via `run_services.sh`
 5. Health-checks each service (including Supabase)
@@ -88,19 +88,24 @@ Report which group was selected and why, e.g.:
 
 Also record whether any ports in the chosen group were "own" (needs stop) or all "free" (skip stop).
 
-### Step 1: Activate Virtual Environment
+### Step 1: Pre-flight Dependency Checks
 
+Run these checks before starting anything. They are idempotent and fast when deps are already installed.
+
+**Python dependencies (run first — creates `.venv` if missing):**
+```bash
+uv sync
+```
+
+**Activate virtual environment (after `uv sync` so `.venv` exists):**
 ```bash
 source .venv/bin/activate
 ```
 
-### Step 2: Pre-flight Dependency Checks
-
-Run these checks before starting anything. They are idempotent and fast when deps are already installed.
-
-**Python dependencies:**
+**Worktree editable packages:**
+In a git worktree, `uv sync` may resolve `reflexio_commons` and `reflexio_client` to a different worktree's path. Check and fix:
 ```bash
-uv sync
+python -c "import reflexio_commons; import os; assert os.path.abspath(reflexio_commons.__file__).startswith(os.path.abspath('.'))" 2>/dev/null || uv pip install -e reflexio/reflexio_commons -e reflexio/reflexio_client
 ```
 
 **Frontend dependencies (reflexio/website):**
@@ -115,7 +120,7 @@ Check if `node_modules` exists and has content. If missing or empty, install:
 ls reflexio/public_docs/node_modules/.package-lock.json 2>/dev/null || (cd reflexio/public_docs && npm install)
 ```
 
-### Step 2.5: Start Supabase
+### Step 2: Start Supabase
 
 Check if Supabase is running, start if not:
 ```bash
@@ -129,6 +134,11 @@ curl --max-time 10 -s -o /dev/null -w "%{http_code}" http://127.0.0.1:54321/rest
 Expected: 200
 
 If Supabase fails to start, check Docker Desktop is running and report to user.
+
+Also apply any pending migrations:
+```bash
+supabase migration up
+```
 
 ### Step 3: Stop Existing Services (Conditional)
 
@@ -161,7 +171,7 @@ Expected: 200
 
 **Backend:**
 ```bash
-curl --max-time 10 -s -o /dev/null -w "%{http_code}" http://localhost:${BACKEND_PORT}/docs
+curl --max-time 10 -s -o /dev/null -w "%{http_code}" http://localhost:${BACKEND_PORT}/health
 ```
 Expected: 200
 
@@ -201,10 +211,17 @@ cd reflexio/website && npm install   # or reflexio/public_docs
 ```
 Then retry from Step 4.
 
-**b. "ModuleNotFoundError" / "ImportError" (Python)**
+**b. "ModuleNotFoundError" / "ImportError" (Python — general)**
 A Python dependency is missing. Fix:
 ```bash
 uv sync
+```
+Then retry from Step 4.
+
+**b2. "ModuleNotFoundError" for `reflexio_commons` or `reflexio_client` (worktree path mismatch)**
+In a worktree, editable packages may resolve to a different worktree's path. Fix:
+```bash
+uv pip install -e reflexio/reflexio_commons -e reflexio/reflexio_client
 ```
 Then retry from Step 4.
 
@@ -234,7 +251,7 @@ Another Supabase instance on 54321. Fix:
 ```bash
 supabase stop
 ```
-Then retry from Step 2.5.
+Then retry from Step 2.
 
 #### Retry Logic
 
