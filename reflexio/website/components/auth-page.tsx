@@ -563,6 +563,17 @@ export function AuthPageContent({ defaultTab }: { defaultTab: "login" | "registe
 						)}
 					</CardContent>
 				</Card>
+				<p className="text-center text-xs text-muted-foreground mt-4">
+					By continuing, you acknowledge that you understand and agree to our{" "}
+					<Link href="#" className="underline hover:text-foreground">
+						Terms & Conditions
+					</Link>{" "}
+					and{" "}
+					<Link href="#" className="underline hover:text-foreground">
+						Privacy Policy
+					</Link>
+					.
+				</p>
 			</div>
 		</div>
 	);
