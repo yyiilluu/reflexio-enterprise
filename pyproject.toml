@@ -34,6 +34,7 @@ dependencies = [
     "colorlog>=6.10.1",
     "httpx>=0.28.1",
     "pydantic[email]>=2.12.5",
+    "nltk>=3.9.3",
 ]
 
 [dependency-groups]
