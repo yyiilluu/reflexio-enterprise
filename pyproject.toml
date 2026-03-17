@@ -57,6 +57,10 @@ docs = [
     "griffe>=0.38.0",
     "mkdocstrings-python>=1.7.0",
 ]
+benchmarks = [
+    "appworld>=0.1.0; python_version < '3.14'",
+    "scipy>=1.11.0",
+]
 
 [tool.uv.workspace]
 members = ["reflexio/reflexio_commons", "reflexio/reflexio_client"]
@@ -128,6 +132,7 @@ ignore = [
 "reflexio/server/api_endpoints/**" = ["B008", "ARG001", "ARG002"]
 "reflexio/server/services/configurator/test_config_storage.py" = ["S101", "ANN"]
 "demo/**" = ["S101", "PTH", "G004", "ANN"]
+"benchmarks/**" = ["S101", "PTH", "G004", "ANN"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 20
