@@ -187,6 +187,9 @@ reflexio/model_deployment/*/model/
 demo/output/*
 !demo/output/stable/
 demo/reflexio_storage/
+benchmarks/locomo/output/*
+!benchmarks/locomo/output/.gitkeep
+benchmarks/locomo/data/locomo10.json
 
 # IDE
 .vscode/
