@@ -9,7 +9,7 @@ Steps executed in order:
   5. Report per-type accuracy metrics
 
 Usage:
-    python run_all.py \\
+    python run_benchmark.py \\
         --reflexio-api-key KEY \\
         --reflexio-url http://localhost:8081 \\
         --variant oracle \\
@@ -19,7 +19,7 @@ Usage:
         --end-idx 10
 
     # Skip steps that already completed
-    python run_all.py --variant oracle --retrieval-mode profile --skip-download --skip-ingest
+    python run_benchmark.py --variant oracle --retrieval-mode profile --skip-download --skip-ingest
 """
 
 import argparse
@@ -402,7 +402,7 @@ def main() -> None:
     # --- Step 3: Retrieve & Answer ---
     if not args.skip_retrieve:
         step_retrieve_and_answer(
-            client,
+            client,  # type: ignore[arg-type]
             args.variant,
             data,  # type: ignore[arg-type]
             args.retrieval_mode,
