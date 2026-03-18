@@ -1,38 +1,51 @@
-# /user_profiler/reflexio/server/prompt/prompt_bank
-Description: File-based versioned prompt templates for LLM operations
+# prompt_bank
+
+File-based versioned prompt templates for LLM operations.
 
 ## Main Entry Points
 
-- **Manager**: `../prompt_manager.py` - `PromptManager`
-- **Templates**: Each subdirectory is a prompt_id
+- **Manager**: `../prompt_manager.py` — `PromptManager`
+- **Templates**: Each subdirectory is a `prompt_id`
 
 ## Directory Structure
 
 ```
 prompt_bank/
-├── profile_update_main/
-│   ├── metadata.json     # Version info and variables
-│   └── 1.0.1.prompt      # Template content
-├── feedback_extraction/
-├── shadow_content_evaluation/
-└── ... (other prompts)
+├── README.md
+├── feedback_generation/
+│   ├── v1.0.0.prompt.md
+│   ├── v1.1.0.prompt.md
+│   └── v2.1.0.prompt.md      ← active: true in frontmatter
+├── query_rewrite/
+│   └── v1.0.0.prompt.md      ← active: true (only version)
+└── ...
 ```
 
-## Metadata Schema
+## File Format
 
-```json
-{
-  "prompt_id": "my_prompt",
-  "active_version": "1.0.0",
-  "description": "What this prompt does",
-  "versions": {
-    "1.0.0": {
-      "created_at": 1703123456,
-      "variables": ["var1", "var2"]
-    }
-  }
-}
+Each `.prompt.md` file is self-contained with YAML frontmatter:
+
+```markdown
+---
+active: true
+description: "What this prompt does"
+changelog: "Why this version was created"
+variables:
+  - var1
+  - var2
+---
+
+Your prompt content with {var1} and {var2} placeholders.
 ```
+
+### Frontmatter Fields
+
+| Field | Type | Required | Purpose |
+|-------|------|----------|---------|
+| `active` | bool | No | `true` on the active version. Exactly one per prompt_id |
+| `description` | string | No | What this prompt does. Include on all versions for context |
+| `changelog` | string | No | Why this version was created — what changed from the previous version |
+| `variables` | list[str] | Yes | Required template variables for validation |
 
 ## Usage
 
@@ -44,22 +57,23 @@ rendered = request_context.prompt_manager.render_prompt(
 )
 ```
 
-## Adding New Prompt
+## Adding a New Prompt
 
 1. Create directory: `mkdir prompt_bank/my_new_prompt/`
-2. Create prompt file: `1.0.0.prompt` with `{variable}` placeholders
-3. Create `metadata.json` with version info
+2. Create `v1.0.0.prompt.md` with frontmatter and `{variable}` placeholders
+3. Set `active: true` in frontmatter
 
 ## Version Naming Convention
 
-Versions follow semantic versioning: `MAJOR.MINOR.PATCH` (e.g., `1.2.3`)
+File names: `v{MAJOR}.{MINOR}.{PATCH}.prompt.md`
 
-- **First digit (MAJOR)**: Breaking changes that introduce a different set of variables
-- **Second digit (MINOR)**: Significant updates without changing variables in metadata.json
-- **Third digit (PATCH)**: Minor updates/tweaks to the prompt content
+- **MAJOR**: Breaking changes that introduce a different set of variables
+- **MINOR**: Significant updates without changing variables
+- **PATCH**: Minor tweaks to prompt content
 
 ## Key Rules
 
 - **Prompt ID** = Directory name
-- **Variables** use `{variable_name}` syntax
-- **NEVER hardcode prompts** - Always use PromptManager
+- **Variables** use `{variable_name}` syntax in prompt body
+- **Exactly one** version per prompt must have `active: true`
+- **NEVER hardcode prompts** — always use `PromptManager`

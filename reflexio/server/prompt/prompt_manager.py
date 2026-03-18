@@ -1,19 +1,75 @@
 """
-Prompt management using file system prompt bank
+Prompt management using file system prompt bank with markdown frontmatter files.
 """
 
-import json
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
-from .prompt_schema import Prompt, PromptBank
+from .prompt_schema import Prompt
 
 logger = logging.getLogger(__name__)
 
+_FRONTMATTER_RE = re.compile(r"\A---\n(.*?\n)---\n(.*)", re.DOTALL)
+
+
+def _parse_frontmatter(raw: str) -> tuple[dict[str, Any], str]:
+    """
+    Parse YAML frontmatter from a markdown file using stdlib only.
+
+    Args:
+        raw (str): Raw file content with optional ``---`` delimited frontmatter.
+
+    Returns:
+        tuple[dict[str, Any], str]: Parsed metadata dict and the body content.
+
+    Raises:
+        ValueError: If frontmatter is missing or malformed.
+    """
+    if not (m := _FRONTMATTER_RE.match(raw)):
+        raise ValueError("Missing or malformed YAML frontmatter")
+
+    meta: dict[str, Any] = {}
+    for line in m.group(1).splitlines():
+        if ":" not in line:
+            continue
+        key, _, value = line.partition(":")
+        key = key.strip()
+        value = value.strip()
+
+        if not key:
+            continue
+
+        if value.startswith("[") and value.endswith("]"):
+            # Simple list: [a, b, c]
+            meta[key] = [v.strip().strip("'\"") for v in value[1:-1].split(",") if v.strip()]
+        elif value.startswith("- "):
+            # First item of a block list on the same line — shouldn't happen in our format
+            meta[key] = [value[2:].strip()]
+        elif value.lower() in ("true", "false"):
+            meta[key] = value.lower() == "true"
+        elif value == "" or value.lower() == "null":
+            meta[key] = None
+        else:
+            meta[key] = value.strip("'\"")
+
+    # Handle block-style lists (- item per line)
+    current_key: str | None = None
+    for line in m.group(1).splitlines():
+        stripped = line.strip()
+        if ":" in line and not stripped.startswith("- "):
+            current_key = line.partition(":")[0].strip()
+        elif stripped.startswith("- ") and current_key:
+            if not isinstance(meta.get(current_key), list):
+                meta[current_key] = []
+            meta[current_key].append(stripped[2:].strip().strip("'\""))
+
+    return meta, m.group(2)
+
 
 class PromptManager:
-    """Prompt management using file system prompt bank"""
+    """Prompt management using file system prompt bank."""
 
     def __init__(
         self,
@@ -25,250 +81,172 @@ class PromptManager:
 
         Args:
             prompt_bank_path (str, optional): Path to the prompt bank directory.
-            version_override (Dict[str, str], optional): key is prompt_id, value is version. If not provided, the active version is used.
+            version_override (dict[str, str], optional): Map of prompt_id → version string to override the active version.
         """
-
         if prompt_bank_path is None:
-            # Default to prompt_bank directory relative to this file
             current_dir = Path(__file__).parent
             self.prompt_bank_path = current_dir / "prompt_bank"
         else:
             self.prompt_bank_path = Path(prompt_bank_path)
 
-        self.version_override: dict[str, str] | None = version_override
+        self.version_override = version_override
 
         if not self.prompt_bank_path.exists():
             logger.warning("Prompt bank path does not exist: %s", self.prompt_bank_path)
 
-        self.prompt_bank_cache = {}
+        self._cache: dict[str, Prompt] = {}
 
     # ==============================
     # Public methods
     # ==============================
+
     def render_prompt(self, prompt_id: str, variables: dict[str, Any]) -> str:
         """
-        Render prompt template with variables
+        Render prompt template with variables.
 
         Args:
-            prompt_id (str): ID of the prompt
-            variables (dict[str, Any]): Variables to substitute in template
+            prompt_id (str): ID of the prompt.
+            variables (dict[str, Any]): Variables to substitute in template.
 
         Returns:
-            str: Rendered prompt content
+            str: Rendered prompt content.
 
         Raises:
-            ValueError: If prompt not found or template rendering fails
+            ValueError: If prompt not found or template rendering fails.
         """
-        version = (
-            self.version_override.get(prompt_id) if self.version_override else None
-        )
+        version = self.version_override.get(prompt_id) if self.version_override else None
         prompt = self._get_prompt(prompt_id, version)
         if not prompt:
             raise ValueError(f"Prompt {prompt_id} not found")
 
-        # Check that all required prompt variables are provided (allow extra variables)
         missing_vars = set(prompt.variables) - set(variables.keys())
         if missing_vars:
-            raise ValueError(
-                f"Missing required variables {missing_vars} for prompt {prompt_id}"
-            )
+            raise ValueError(f"Missing required variables {missing_vars} for prompt {prompt_id}")
 
         try:
             return prompt.content.format(**variables)
         except KeyError as e:
-            raise ValueError(
-                f"Missing required variable {e} for prompt {prompt_id}"
-            ) from e
+            raise ValueError(f"Missing required variable {e} for prompt {prompt_id}") from e
         except Exception as e:
             raise ValueError(f"Error rendering prompt {prompt_id}: {e}") from e
 
     def list_versions(self, prompt_id: str) -> list[str]:
         """
-        List all versions of a prompt
+        List all versions of a prompt.
 
         Args:
-            prompt_id (str): ID of the prompt
+            prompt_id (str): ID of the prompt.
 
         Returns:
-            list[str]: List of version strings
+            list[str]: List of version strings.
         """
-        prompt_bank = self._get_prompt_bank(prompt_id)
-        if prompt_bank:
-            return list(prompt_bank.versions.keys())
-        return []
+        prompt_dir = self.prompt_bank_path / prompt_id
+        if not prompt_dir.is_dir():
+            return []
+        return [
+            p.name.removeprefix("v").removesuffix(".prompt.md")
+            for p in sorted(prompt_dir.glob("v*.prompt.md"))
+        ]
 
     def get_active_version(self, prompt_id: str) -> str | None:
         """
         Get the active version for a prompt (considering overrides).
 
         Args:
-            prompt_id (str): ID of the prompt
+            prompt_id (str): ID of the prompt.
 
         Returns:
-            Optional[str]: The active version string, or None if prompt not found
+            str | None: The active version string, or None if prompt not found.
         """
         if self.version_override and prompt_id in self.version_override:
             return self.version_override[prompt_id]
-        prompt_bank = self._get_prompt_bank(prompt_id)
-        return prompt_bank.active_version if prompt_bank else None
+        return self._find_active_version(prompt_id)
 
     def get_all_prompt_ids(self) -> list[str]:
         """
-        Get list of all available prompt IDs
+        Get list of all available prompt IDs.
 
         Returns:
-            list[str]: List of prompt IDs
+            list[str]: List of prompt IDs.
         """
         if not self.prompt_bank_path.exists():
             return []
-
-        prompt_ids = []
-        try:
-            prompt_ids.extend(
-                item.name
-                for item in self.prompt_bank_path.iterdir()
-                if item.is_dir() and (item / "metadata.json").exists()
-            )
-        except Exception as e:
-            logger.error("Error listing prompt directories: %s", e)
-
-        return prompt_ids
+        return [
+            item.name
+            for item in self.prompt_bank_path.iterdir()
+            if item.is_dir() and any(item.glob("v*.prompt.md"))
+        ]
 
     # ==============================
     # Private methods
     # ==============================
 
-    def _load_metadata_file(self, prompt_id: str) -> dict | None:
-        """Load metadata.json for a prompt"""
-        metadata_path = self.prompt_bank_path / prompt_id / "metadata.json"
+    def _load_prompt(self, prompt_id: str, version: str) -> Prompt | None:
+        """Load a single prompt file by prompt_id and version string."""
+        path = self.prompt_bank_path / prompt_id / f"v{version}.prompt.md"
         try:
-            with metadata_path.open(encoding="utf-8") as f:
-                return json.load(f)
+            raw = path.read_text(encoding="utf-8")
         except FileNotFoundError:
-            logger.warning(
-                "Metadata file not found for prompt %s at %s", prompt_id, metadata_path
-            )
-            return None
-        except json.JSONDecodeError as e:
-            logger.error(
-                "Invalid JSON in metadata file for prompt %s: %s", prompt_id, e
-            )
+            logger.warning("Prompt file not found: %s", path)
             return None
         except Exception as e:
-            logger.error("Error loading metadata for prompt %s: %s", prompt_id, e)
+            logger.error("Error reading prompt file %s: %s", path, e)
             return None
 
-    def _load_prompt_content(self, prompt_id: str, version: str) -> str | None:
-        """Load prompt content from versioned file"""
-        prompt_path = self.prompt_bank_path / prompt_id / f"{version}.prompt"
         try:
-            with prompt_path.open(encoding="utf-8") as f:
-                return f.read()
-        except FileNotFoundError:
-            logger.warning(
-                "Prompt file not found for %s version %s at %s",
-                prompt_id,
-                version,
-                prompt_path,
-            )
-            return None
-        except Exception as e:
-            logger.error(
-                "Error loading prompt content for %s version %s: %s",
-                prompt_id,
-                version,
-                e,
-            )
+            meta, content = _parse_frontmatter(raw)
+        except ValueError as e:
+            logger.error("Error parsing frontmatter in %s: %s", path, e)
             return None
 
-    def _build_prompt_bank(
-        self, prompt_id: str, metadata_data: dict
-    ) -> PromptBank | None:
-        """Build PromptBank from metadata and prompt files"""
-        try:
-            # Build versions with actual prompt content
-            versions = {}
-            for version_key, version_info in metadata_data.get("versions", {}).items():
-                # Load the actual prompt content
-                content = self._load_prompt_content(prompt_id, version_key)
-                if content is None:
-                    logger.warning(
-                        "Skipping version %s for prompt %s - content not found",
-                        version_key,
-                        prompt_id,
-                    )
-                    continue
+        return Prompt(
+            active=meta.get("active", False),
+            description=meta.get("description"),
+            changelog=meta.get("changelog"),
+            variables=meta.get("variables", []),
+            content=content,
+        )
 
-                # Create prompt with content and variables
-                prompt = Prompt(
-                    created_at=version_info.get("created_at", 0),
-                    content=content,
-                    variables=version_info.get("variables", []),
-                )
-
-                versions[version_key] = prompt
-
-            if not versions:
-                logger.warning("No valid versions found for prompt %s", prompt_id)
-                return None
-
-            # Create PromptBank with simplified schema (description at top level)
-            return PromptBank(
-                prompt_id=metadata_data.get("prompt_id", prompt_id),
-                active_version=metadata_data.get("active_version", "1.0.0"),
-                created_at=metadata_data.get("created_at", 0),
-                last_updated=metadata_data.get("last_updated", 0),
-                description=metadata_data.get("description", ""),
-                versions=versions,
-            )
-
-        except Exception as e:
-            logger.error("Failed to build prompt bank for %s: %s", prompt_id, e)
+    def _find_active_version(self, prompt_id: str) -> str | None:
+        """Scan .prompt.md files to find the one with active: true."""
+        prompt_dir = self.prompt_bank_path / prompt_id
+        if not prompt_dir.is_dir():
             return None
+
+        for path in prompt_dir.glob("v*.prompt.md"):
+            try:
+                # Read only enough to check frontmatter
+                raw = path.read_text(encoding="utf-8")
+                meta, _ = _parse_frontmatter(raw)
+                if meta.get("active"):
+                    return path.name.removeprefix("v").removesuffix(".prompt.md")
+            except (ValueError, OSError):
+                continue
+        return None
 
     def _get_prompt(self, prompt_id: str, version: str | None = None) -> Prompt | None:
         """
-        Get active prompt with validation
+        Get prompt, using cache for active prompts.
 
         Args:
-            prompt_id (str): ID of the prompt
-            version (str, optional): Version of the prompt to get. If not provided, the active version is used.
+            prompt_id (str): ID of the prompt.
+            version (str, optional): Specific version to load.
 
         Returns:
-            Optional[Prompt]: Validated prompt or None if not found
+            Prompt | None: The prompt, or None if not found.
         """
-        prompt_bank = self._get_prompt_bank(prompt_id)
-        if not prompt_bank:
+        if version:
+            return self._load_prompt(prompt_id, version)
+
+        if prompt_id in self._cache:
+            return self._cache[prompt_id]
+
+        active_version = self._find_active_version(prompt_id)
+        if not active_version:
+            logger.warning("No active version found for prompt %s", prompt_id)
             return None
 
-        chosen_version = version or prompt_bank.active_version
-        version_data = prompt_bank.versions.get(chosen_version)
-
-        if not version_data:
-            logger.warning(
-                "Version %s not found for prompt %s", chosen_version, prompt_id
-            )
-            return None
-
-        return version_data
-
-    def _get_prompt_bank(self, prompt_id: str) -> PromptBank | None:
-        """
-        Get complete prompt bank data with validation
-
-        Args:
-            prompt_id (str): ID of the prompt
-
-        Returns:
-            Optional[PromptBank]: Validated prompt bank or None if not found
-        """
-        if prompt_id in self.prompt_bank_cache:
-            return self.prompt_bank_cache[prompt_id]
-
-        metadata_data = self._load_metadata_file(prompt_id)
-        if not metadata_data:
-            return None
-
-        prompt_bank = self._build_prompt_bank(prompt_id, metadata_data)
-        self.prompt_bank_cache[prompt_id] = prompt_bank
-        return prompt_bank
+        prompt = self._load_prompt(prompt_id, active_version)
+        if prompt:
+            self._cache[prompt_id] = prompt
+        return prompt

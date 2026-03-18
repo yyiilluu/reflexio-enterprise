@@ -2,19 +2,10 @@ from pydantic import BaseModel
 
 
 class Prompt(BaseModel):
-    """Individual prompt version structure that matches the JSON schema"""
+    """Self-contained prompt loaded from a .prompt.md file with YAML frontmatter."""
 
-    created_at: int
-    content: str
+    active: bool = False
+    description: str | None = None
+    changelog: str | None = None
     variables: list[str]
-
-
-class PromptBank(BaseModel):
-    """Complete prompt file structure"""
-
-    prompt_id: str
-    active_version: str
-    created_at: int
-    last_updated: int
-    description: str | None
-    versions: dict[str, Prompt]
+    content: str
