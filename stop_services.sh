@@ -53,8 +53,8 @@ pkill -f "next dev.*-p ${DOCS_PORT}" && echo "Stopped docs" || echo "Docs not ru
 
 # Stop Supabase (only with --full/-f flag)
 if [ "$FULL_STOP" = true ]; then
-    if supabase status > /dev/null 2>&1; then
-        supabase stop
+    if supabase status --workdir supabase/data > /dev/null 2>&1; then
+        supabase stop --workdir supabase/data
         echo "Stopped Supabase"
     else
         echo "Supabase not running"

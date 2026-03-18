@@ -8,8 +8,8 @@ Reflexio uses **two separate Supabase databases**:
 
 | Database | Directory | Purpose | Default Location |
 |----------|-----------|---------|------------------|
-| **Main** | `supabase/` | User profiles, interactions, feedbacks, embeddings | Local (`127.0.0.1:54322`) |
-| **Login** | `supabase_login/supabase/` | Organizations, login credentials, API keys, invitation codes | Cloud (`*.supabase.co`) or Local |
+| **Main** | `supabase/data/` | User profiles, interactions, feedbacks, embeddings | Local (`127.0.0.1:54322`) |
+| **Login** | `supabase/auth/` | Organizations, login credentials, API keys, invitation codes | Cloud (`*.supabase.co`) or Local |
 
 When schema changes are needed (new tables, columns, functions, etc.), migration files are created in the respective `migrations/` directory and applied to the target database.
 
@@ -110,28 +110,28 @@ supabase db push
 
 ## Applying Login Migrations to Local Supabase
 
-The `supabase_login/` migrations are normally applied to a cloud Supabase project. To apply them to your **local** Supabase instance (e.g., for local development), run the SQL files directly via `psql`:
+The `supabase/auth/` migrations are normally applied to a cloud Supabase project. To apply them to your **local** Supabase instance (e.g., for local development), run the SQL files directly via `psql`:
 
 ```bash
 # Local Supabase DB: postgresql://postgres:postgres@127.0.0.1:54322/postgres
 
 # Apply all login migrations in order
 psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
-  -f supabase_login/supabase/migrations/20251206000001_create_organizations.sql
+  -f supabase/auth/migrations/20251206000001_create_organizations.sql
 
 psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
-  -f supabase_login/supabase/migrations/20251228052539_add_verify_and_count_col.sql
+  -f supabase/auth/migrations/20251228052539_add_verify_and_count_col.sql
 
 psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
-  -f supabase_login/supabase/migrations/20260118120000_add_is_self_managed_col.sql
+  -f supabase/auth/migrations/20260118120000_add_is_self_managed_col.sql
 
 psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
-  -f supabase_login/supabase/migrations/20260211000001_create_invitation_codes.sql
+  -f supabase/auth/migrations/20260211000001_create_invitation_codes.sql
 ```
 
 These migrations use `IF NOT EXISTS` / `ADD COLUMN` patterns, so they are safe to re-run.
 
-**Note**: These are applied directly via `psql` rather than `supabase migration up` because `supabase_login/` is a separate Supabase project with its own `config.toml`. The `supabase migration up` command only processes migrations in the `supabase/` directory linked to the local instance.
+**Note**: These are applied directly via `psql` rather than `supabase migration up` because `supabase/auth/` is a separate Supabase project with its own `config.toml`. The `supabase migration up` command only processes migrations in the `supabase/data/` directory linked to the local instance.
 
 ---
 

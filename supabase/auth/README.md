@@ -8,8 +8,8 @@ The application uses two separate Supabase databases:
 
 | Database | Purpose | Location |
 |----------|---------|----------|
-| **Local Supabase** (`supabase/`) | User profiles, interactions, feedbacks, embeddings | `127.0.0.1:54321` |
-| **Cloud Supabase** (`supabase_login/`) | Organizations, login credentials, API keys | `*.supabase.co` |
+| **Local Supabase** (`supabase/data/`) | User profiles, interactions, feedbacks, embeddings | `127.0.0.1:54321` |
+| **Cloud Supabase** (`supabase/auth/`) | Organizations, login credentials, API keys | `*.supabase.co` |
 
 ## Setup Instructions
 
@@ -49,7 +49,7 @@ LOGIN_SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...your-service-role-key
 
 ```bash
 # Navigate to this directory
-cd supabase_login
+cd supabase/auth
 
 # Initialize Supabase config (if not already done)
 supabase init

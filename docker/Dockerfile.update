@@ -45,7 +45,7 @@ COPY reflexio/data ./reflexio/data
 # If docs content changed, rebuild with Dockerfile.base instead.
 
 # Re-copy Supabase migrations
-COPY supabase/ ./supabase/
+COPY supabase/data/ ./supabase/data/
 
 # Re-copy supervisord config
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
