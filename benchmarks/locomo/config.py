@@ -12,8 +12,8 @@ CATEGORY_MAP: dict[int, str] = {
 CATEGORY_IDS: dict[str, int] = {v: k for k, v in CATEGORY_MAP.items()}
 
 # Strategies
-STRATEGIES = ["no_context", "full_context", "reflexio_profiles", "reflexio_search"]
-NON_REFLEXIO_STRATEGIES = ["no_context", "full_context"]
+STRATEGIES = ["no_context", "reflexio_profiles", "reflexio_search"]
+NON_REFLEXIO_STRATEGIES = ["no_context"]
 REFLEXIO_STRATEGIES = ["reflexio_profiles", "reflexio_search"]
 
 # Defaults

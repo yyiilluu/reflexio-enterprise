@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from pathlib import Path
 
@@ -19,6 +20,8 @@ from benchmarks.locomo.config import (
 from benchmarks.locomo.data_loader import LoCoMoSample
 from benchmarks.locomo.metrics import compute_score
 from reflexio.reflexio_client.reflexio import ReflexioClient
+
+logger = logging.getLogger(__name__)
 
 
 def _find_env_file() -> Path | None:
@@ -147,20 +150,27 @@ def evaluate(
 
     total_qa = sum(len(s.qa) for s in samples) * len(strategies)
     completed = len(all_results)
-    print(f"Evaluating {total_qa} QA pairs ({completed} already done from checkpoint)")
+    logger.info(
+        "Evaluating %d QA pairs (%d already done from checkpoint)", total_qa, completed
+    )
 
     for sample in samples:
         user_id = f"locomo-{sample.sample_id}"
         for strategy in strategies:
             ck = _checkpoint_key(sample.sample_id, strategy)
             if ck in checkpoint:
-                print(
-                    f"  Sample {sample.sample_id} / {strategy}: skipping (checkpoint)"
+                logger.debug(
+                    "Sample %d / %s: skipping (checkpoint)",
+                    sample.sample_id,
+                    strategy,
                 )
                 continue
 
-            print(
-                f"  Sample {sample.sample_id} / {strategy}: evaluating {len(sample.qa)} QAs..."
+            logger.info(
+                "Sample %d / %s: evaluating %d QAs...",
+                sample.sample_id,
+                strategy,
+                len(sample.qa),
             )
             sample_results: list[dict] = []
 
@@ -168,7 +178,6 @@ def evaluate(
                 try:
                     context = get_context(
                         strategy=strategy,
-                        sample=sample,
                         question=qa.question,
                         client=client,
                         user_id=user_id,
@@ -182,7 +191,7 @@ def evaluate(
                     )
                     score = compute_score(prediction, qa.answer, qa.category)
                 except Exception as e:
-                    print(f"    QA {qi}: ERROR — {e}")
+                    logger.error("QA %d: ERROR — %s", qi, e)
                     prediction = ""
                     score = 0.0
                     context = ""
@@ -200,8 +209,18 @@ def evaluate(
                 all_results.append(result)
                 sample_results.append(result.to_dict())
 
+                logger.debug(
+                    'sample_id=%d strategy=%s category=%s score=%.3f context_chars=%d question="%s"',
+                    sample.sample_id,
+                    strategy,
+                    CATEGORY_MAP[qa.category],
+                    score,
+                    len(context),
+                    qa.question,
+                )
+
                 if (qi + 1) % 10 == 0:
-                    print(f"    {qi + 1}/{len(sample.qa)} done")
+                    logger.debug("%d/%d done", qi + 1, len(sample.qa))
 
             # Save checkpoint after each (sample, strategy) pair
             checkpoint[ck] = sample_results
@@ -211,6 +230,12 @@ def evaluate(
                 if sample_results
                 else 0
             )
-            print(f"    avg score: {avg:.3f}")
+            logger.info(
+                "sample=%d strategy=%s avg_score=%.3f num_qa=%d",
+                sample.sample_id,
+                strategy,
+                avg,
+                len(sample_results),
+            )
 
     return all_results
