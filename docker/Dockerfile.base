@@ -105,7 +105,7 @@ COPY --from=docs-builder /app/docs/package.json ./reflexio/public_docs/package.j
 COPY --from=docs-builder /app/docs/public ./reflexio/public_docs/public
 
 # Copy Supabase migrations
-COPY supabase/ ./supabase/
+COPY supabase/data/ ./supabase/data/
 
 # Copy supervisord config
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf

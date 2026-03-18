@@ -1,12 +1,12 @@
 #!/bin/bash
-# Run all supabase_login migrations against local Supabase via psql.
+# Run all auth migrations against local Supabase via psql.
 # Uses psql directly instead of supabase CLI to avoid conflicts with
-# the main project's supabase instance on the same localhost.
+# the data DB's supabase instance on the same localhost.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MIGRATIONS_DIR="$SCRIPT_DIR/supabase/migrations"
+MIGRATIONS_DIR="$SCRIPT_DIR/migrations"
 
 # Local Supabase default connection (port 54322, password from supabase start)
 DB_HOST="${DB_HOST:-localhost}"
@@ -17,7 +17,7 @@ DB_PASSWORD="${DB_PASSWORD:-postgres}"
 
 export PGPASSWORD="$DB_PASSWORD"
 
-echo "Applying supabase_login migrations to $DB_HOST:$DB_PORT/$DB_NAME"
+echo "Applying auth migrations to $DB_HOST:$DB_PORT/$DB_NAME"
 
 # Apply each migration file in sorted order
 applied=0

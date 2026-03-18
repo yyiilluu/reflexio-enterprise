@@ -6,7 +6,7 @@
 #
 # Usage:
 #   ./local_db_reset.sh              # Full reset with all migrations
-#   ./local_db_reset.sh --login-only # Only apply supabase_login migrations
+#   ./local_db_reset.sh --login-only # Only apply auth migrations
 #   ./local_db_reset.sh --help       # Show help
 #
 # Prerequisites:
@@ -30,8 +30,8 @@ DB_NAME="${DB_NAME:-postgres}"
 DB_URL="postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME"
 
 # Directories
-MAIN_SUPABASE_DIR="$PROJECT_ROOT/supabase"
-LOGIN_SUPABASE_DIR="$PROJECT_ROOT/supabase_login/supabase"
+MAIN_SUPABASE_DIR="$PROJECT_ROOT/supabase/data"
+LOGIN_SUPABASE_DIR="$PROJECT_ROOT/supabase/auth"
 
 # Colors for output
 RED='\033[0;31m'
@@ -57,7 +57,7 @@ show_help() {
     echo "Reset local Supabase database and apply migrations from both projects."
     echo ""
     echo "Options:"
-    echo "  --login-only    Only apply supabase_login migrations (skip full reset)"
+    echo "  --login-only    Only apply auth migrations (skip full reset)"
     echo "  --help          Show this help message"
     echo ""
     echo "Environment variables:"
@@ -68,7 +68,7 @@ show_help() {
 }
 
 apply_login_migrations() {
-    print_info "Applying supabase_login migrations..."
+    print_info "Applying auth migrations..."
 
     if [ ! -d "$LOGIN_SUPABASE_DIR/migrations" ]; then
         print_error "Login migrations directory not found: $LOGIN_SUPABASE_DIR/migrations"
@@ -93,14 +93,14 @@ full_reset() {
     cd "$PROJECT_ROOT"
 
     # Check if supabase is running
-    if ! supabase status &>/dev/null; then
+    if ! supabase status --workdir supabase/data &>/dev/null; then
         print_warn "Supabase is not running. Starting supabase..."
-        supabase start
+        supabase start --workdir supabase/data
     fi
 
-    # Reset main supabase (applies supabase/ migrations)
+    # Reset main supabase (applies supabase/data/ migrations)
     print_info "Resetting main supabase database..."
-    supabase db reset --debug 2>&1 | grep -v "^DEBUG" || true
+    supabase db reset --workdir supabase/data --debug 2>&1 | grep -v "^DEBUG" || true
 
     # Apply login migrations
     apply_login_migrations

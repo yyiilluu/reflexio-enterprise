@@ -7,9 +7,9 @@ DOCS_PORT=${DOCS_PORT:-8082}
 export API_BACKEND_URL=${API_BACKEND_URL:-"http://localhost:${BACKEND_PORT}"}
 
 # Start Supabase (if not already running)
-if ! supabase status > /dev/null 2>&1; then
+if ! supabase status --workdir supabase/data > /dev/null 2>&1; then
     echo "Starting Supabase..."
-    supabase start
+    supabase start --workdir supabase/data
 else
     echo "Supabase already running"
 fi

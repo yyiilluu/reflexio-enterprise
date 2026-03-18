@@ -124,7 +124,7 @@ ls reflexio/public_docs/node_modules/.package-lock.json 2>/dev/null || (cd refle
 
 Check if Supabase is running, start if not:
 ```bash
-supabase status > /dev/null 2>&1 || supabase start
+supabase status --workdir supabase/data > /dev/null 2>&1 || supabase start --workdir supabase/data
 ```
 
 Health check:
@@ -137,7 +137,7 @@ If Supabase fails to start, check Docker Desktop is running and report to user.
 
 Also apply any pending migrations:
 ```bash
-supabase migration up
+supabase migration up --workdir supabase/data
 ```
 
 ### Step 3: Stop Existing Services (Conditional)

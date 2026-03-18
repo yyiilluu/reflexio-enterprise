@@ -10,8 +10,8 @@ Description: AI agent memory system that makes AI agents personalized and self-i
 | `reflexio/reflexio_client/` | Python SDK for interacting with Reflexio API | [README](reflexio/README.md) |
 | `reflexio/reflexio_commons/` | Shared schemas and configuration models | [README](reflexio/README.md) |
 | `reflexio/website/` | Next.js frontend - profiles, interactions, feedbacks, evaluations, skills, account, auth UI | `app/`, `components/` |
-| `supabase/` | Local Supabase - user data (profiles, interactions, feedbacks), atomic lock RPC | Migrations |
-| `supabase_login/` | Cloud Supabase - authentication (organizations, API keys) | [README](supabase_login/README.md) |
+| `supabase/data/` | Local Supabase - user data (profiles, interactions, feedbacks), atomic lock RPC | Migrations |
+| `supabase/auth/` | Cloud Supabase - authentication (organizations, API keys) | [README](supabase/auth/README.md) |
 | `demo/` | Conversation simulation demo - scenarios, simulator, and live viewer | [README](demo/readme.md) |
 | `docker/` | Docker build and deployment files | `Dockerfile.base`, `Dockerfile.update`, `docker-compose.yaml`, `supervisord.conf` |
 | `docs/` | Deployment guides | AWS ECS, Supabase migration, AWS SES email setup |
@@ -65,12 +65,12 @@ npm --prefix reflexio/public_docs install     # Install docs dependencies
 Prerequisite: [Docker Desktop](https://docs.docker.com/desktop/) must be installed and running.
 
 ```shell
-supabase start && supabase db reset  # Start and create schema
+supabase start --workdir supabase/data && supabase db reset --workdir supabase/data  # Start and create schema
 ```
 
-**Cloud Auth (supabase_login/):**
+**Cloud Auth (supabase/auth/):**
 - Separate cloud Supabase for organization credentials
-- See `supabase_login/README.md`
+- See `supabase/auth/README.md`
 
 ## Development
 

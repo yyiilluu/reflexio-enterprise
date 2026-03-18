@@ -626,7 +626,7 @@ def get_latest_migration_version() -> str | None:
 
     import reflexio
 
-    migration_dir = Path(reflexio.__file__).parent.parent / "supabase" / "migrations"
+    migration_dir = Path(reflexio.__file__).parent.parent / "supabase" / "data" / "migrations"
     migration_files = sorted(migration_dir.glob("*.sql"))
     if not migration_files:
         return None
@@ -760,7 +760,7 @@ def execute_migration(db_url: str) -> tuple[bool, str]:
     try:
         # Get migration files
         migration_dir = (
-            Path(reflexio.__file__).parent.parent / "supabase" / "migrations"
+            Path(reflexio.__file__).parent.parent / "supabase" / "data" / "migrations"
         )
         migration_files = sorted(migration_dir.glob("*.sql"))
         if not migration_files:

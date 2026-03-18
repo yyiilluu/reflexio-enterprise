@@ -95,7 +95,7 @@ Key files:
 - `database.py`: Connection setup (priority: S3 in self-host → Supabase → SQLite)
 - `db_models.py`: SQLAlchemy models (Organization, ApiToken, InvitationCode)
 - `db_operations.py`: CRUD operations with retry logic (tenacity: 3 attempts, exponential backoff), invitation code management (claim/release/create), API token management (create/list/lookup/delete/bulk-delete), organization deletion
-- `login_supabase_client.py`: Cloud Supabase client for auth (see `supabase_login/README.md`)
+- `login_supabase_client.py`: Cloud Supabase client for auth (see `supabase/auth/README.md`)
 - `s3_org_storage.py`: S3-based organization storage for self-host mode (singleton, cached in memory)
 
 **Connection Priority** (in `database.py` and `db_operations.py`):
