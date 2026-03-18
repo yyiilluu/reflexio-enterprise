@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import logging
+
 import litellm
+
+logger = logging.getLogger(__name__)
 
 ANSWER_PROMPT_TEMPLATE = """\
 Below is context from a conversation between {speaker_a} and {speaker_b}.
@@ -52,9 +56,20 @@ def generate_answer(
             question=question,
         )
 
+    logger.debug(
+        'LLM call: model=%s context_chars=%d question="%s"',
+        model,
+        len(context),
+        question,
+    )
+
     response = litellm.completion(
         model=model,
         messages=[{"role": "user", "content": prompt}],
         temperature=0.0,
     )
-    return response.choices[0].message.content.strip()
+    prediction = response.choices[0].message.content.strip()
+
+    logger.debug("LLM response: %d chars", len(prediction))
+
+    return prediction

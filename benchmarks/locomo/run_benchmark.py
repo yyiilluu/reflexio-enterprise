@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import os
 import sys
 from pathlib import Path
-
-# Force unbuffered output so progress is visible in real-time
-os.environ["PYTHONUNBUFFERED"] = "1"
 
 # Ensure repo root is on sys.path so `benchmarks.*` imports work
 _repo_root = Path(__file__).resolve().parents[2]
@@ -41,6 +39,44 @@ from benchmarks.locomo.data_loader import load_locomo
 from benchmarks.locomo.evaluate_qa import evaluate
 from benchmarks.locomo.ingest import ingest_all
 from benchmarks.locomo.report import save_report
+
+logger = logging.getLogger(__name__)
+
+
+_LOG_DIR = Path(__file__).resolve().parent / "logs"
+
+
+def _setup_logging(verbose: bool = False) -> None:
+    """
+    Configure root logger to write to both stdout and a timestamped log file.
+
+    Args:
+        verbose (bool): If True, set level to DEBUG; otherwise INFO
+    """
+    from datetime import datetime, timezone
+
+    level = logging.DEBUG if verbose else logging.INFO
+    fmt = logging.Formatter(
+        "%(asctime)s | %(levelname)-7s | %(name)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    root = logging.getLogger()
+    root.setLevel(level)
+
+    # Stdout handler
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setLevel(level)
+    stdout_handler.setFormatter(fmt)
+    root.addHandler(stdout_handler)
+
+    # File handler — one log file per run
+    _LOG_DIR.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
+    file_handler = logging.FileHandler(_LOG_DIR / f"run_{timestamp}.log")
+    file_handler.setLevel(logging.DEBUG)  # always capture full detail in file
+    file_handler.setFormatter(fmt)
+    root.addHandler(file_handler)
 
 
 def _parse_args() -> argparse.Namespace:
@@ -97,11 +133,24 @@ def _parse_args() -> argparse.Namespace:
         default=None,
         help="Specific sample IDs to evaluate (default: all)",
     )
+    parser.add_argument(
+        "--max-samples",
+        type=int,
+        default=None,
+        help="Max number of samples to use (first N; for quick testing)",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Enable DEBUG-level logging",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = _parse_args()
+    _setup_logging(verbose=args.verbose)
 
     # Resolve strategies
     strategies = list(STRATEGIES) if "all" in args.strategies else args.strategies
@@ -112,31 +161,44 @@ def main() -> None:
     # Validate: Reflexio strategies require a valid API key
     needs_reflexio = any(s not in NON_REFLEXIO_STRATEGIES for s in strategies)
     if needs_reflexio and not reflexio_api_key:
-        print(
-            "Error: Reflexio strategies require an API key.\n"
-            "  Provide --reflexio-api-key <key> or set REFLEXIO_API_KEY env var.\n"
-            "  Or run with --strategies no_context full_context to skip Reflexio."
+        logger.error(
+            "Reflexio strategies require an API key. "
+            "Provide --reflexio-api-key <key> or set REFLEXIO_API_KEY env var. "
+            "Or run with --strategies no_context to skip Reflexio."
         )
         sys.exit(1)
 
     # Load data
-    print(f"Loading data from {args.data_file}...")
+    logger.info("Loading data from %s...", args.data_file)
     samples = load_locomo(args.data_file)
-    print(f"Loaded {len(samples)} samples")
+    logger.info("Loaded %d samples", len(samples))
 
-    # Filter samples if requested
+    # Filter samples by ID if requested
     if args.samples is not None:
         samples = [s for s in samples if s.sample_id in args.samples]
-        print(f"Filtered to {len(samples)} samples: {[s.sample_id for s in samples]}")
+        logger.info(
+            "Filtered to %d samples: %s", len(samples), [s.sample_id for s in samples]
+        )
 
-    print(f"Strategies: {strategies}")
-    print(f"Model: {args.model}")
+    # Truncate to max-samples for quick testing
+    if args.max_samples is not None:
+        if args.samples is not None:
+            logger.warning(
+                "Both --samples and --max-samples specified; "
+                "truncating the filtered set to %d",
+                args.max_samples,
+            )
+        samples = samples[: args.max_samples]
+        logger.info("Using %d sample(s) after --max-samples", len(samples))
+
+    logger.info("Strategies: %s", strategies)
+    logger.info("Model: %s", args.model)
     if needs_reflexio:
-        print(f"Reflexio URL: {args.reflexio_url}")
+        logger.info("Reflexio URL: %s", args.reflexio_url)
 
     # Ingestion
     if not args.skip_ingest and needs_reflexio:
-        print("\n=== Ingestion Phase ===")
+        logger.info("=== Ingestion Phase ===")
         ingest_all(
             samples=samples,
             reflexio_url=args.reflexio_url,
@@ -144,10 +206,10 @@ def main() -> None:
             max_workers=args.ingest_workers,
         )
     elif needs_reflexio:
-        print("Skipping ingestion (--skip-ingest)")
+        logger.info("Skipping ingestion (--skip-ingest)")
 
     # Evaluation
-    print("\n=== Evaluation Phase ===")
+    logger.info("=== Evaluation Phase ===")
     results = evaluate(
         samples=samples,
         strategies=strategies,
@@ -158,7 +220,7 @@ def main() -> None:
     )
 
     # Report
-    print("\n=== Report ===")
+    logger.info("=== Report ===")
     save_report(results, args.output_dir)
 
 

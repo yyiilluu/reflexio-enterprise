@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import csv
 import json
+import logging
 from collections import defaultdict
 from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from benchmarks.locomo.config import CATEGORY_MAP
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from benchmarks.locomo.evaluate_qa import QAResult
@@ -125,7 +128,7 @@ def save_report(
     # Markdown
     md = to_markdown(aggregated)
     (output_dir / "report.md").write_text(md)
-    print("\n" + md + "\n")
+    logger.info("\n%s", md)
 
     # CSV
     csv_str = to_csv(aggregated)
@@ -135,4 +138,4 @@ def save_report(
     json_str = to_json(results, aggregated)
     (output_dir / "report.json").write_text(json_str)
 
-    print(f"Reports saved to {output_dir}/")
+    logger.info("Reports saved to %s/", output_dir)

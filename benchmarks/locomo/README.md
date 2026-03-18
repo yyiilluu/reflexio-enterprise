@@ -28,14 +28,13 @@ LoCoMo was introduced in [*"LoCoMo: Long-Context Conversation with Memory"*](htt
 
 ## What This Benchmark Does
 
-This benchmark evaluates how well Reflexio's extracted profiles and semantic search compare against raw conversation context for answering questions about long-term dialogues.
+This benchmark evaluates how well Reflexio's extracted profiles and semantic search compare against a no-context baseline for answering questions about long-term dialogues.
 
-**Four retrieval strategies** are compared:
+**Three retrieval strategies** are compared:
 
 | Strategy | Context source |
 |---|---|
 | `no_context` | Empty — tests LLM baseline |
-| `full_context` | Raw concatenation of all sessions |
 | `reflexio_profiles` | All profiles via `get_profiles(top_k=200)` |
 | `reflexio_search` | Semantic search via `search_profiles(top_k=20)` + `search_interactions(top_k=20)` |
 
@@ -67,12 +66,10 @@ flowchart TD
         E["For each QA question"] --> F{Strategy?}
 
         F -->|no_context| G["Empty context"]
-        F -->|full_context| H["Raw conversation<br/>concatenation"]
         F -->|reflexio_profiles| I["get_profiles()<br/>all extracted profiles"]
         F -->|reflexio_search| J["search_profiles() +<br/>search_interactions()<br/>semantic retrieval"]
 
         G --> K["LLM generates answer"]
-        H --> K
         I --> K
         J --> K
 
@@ -111,14 +108,18 @@ wget -O benchmarks/locomo/data/locomo10.json \
 # Full pipeline: ingest + evaluate all strategies
 uv run python benchmarks/locomo/run_benchmark.py
 
-# Baselines only (no Reflexio server needed)
+# Baseline only (no Reflexio server needed)
 uv run python benchmarks/locomo/run_benchmark.py \
-    --strategies no_context full_context
+    --strategies no_context
 
 # Reflexio strategies only, skip ingestion (data already in Reflexio)
 uv run python benchmarks/locomo/run_benchmark.py \
     --strategies reflexio_profiles reflexio_search \
     --skip-ingest
+
+# Quick test: first 2 samples with verbose logging
+uv run python benchmarks/locomo/run_benchmark.py \
+    --max-samples 2 -v
 
 # Custom model, parallel ingestion, specific samples
 uv run python benchmarks/locomo/run_benchmark.py \
@@ -135,7 +136,7 @@ uv run python benchmarks/locomo/run_benchmark.py
 | Argument | Default | Description |
 |---|---|---|
 | `--data-file` | `benchmarks/locomo/data/locomo10.json` | Path to dataset |
-| `--strategies` | all four | Strategies to evaluate (`no_context`, `full_context`, `reflexio_profiles`, `reflexio_search`, `all`) |
+| `--strategies` | all three | Strategies to evaluate (`no_context`, `reflexio_profiles`, `reflexio_search`, `all`) |
 | `--model` | `minimax/MiniMax-M2.5` | LiteLLM model for answer generation |
 | `--reflexio-url` | `http://localhost:8081` | Reflexio server URL |
 | `--reflexio-api-key` | `$REFLEXIO_API_KEY` | API key for Reflexio |
@@ -143,6 +144,8 @@ uv run python benchmarks/locomo/run_benchmark.py
 | `--ingest-workers` | 1 | Parallel ingestion threads |
 | `--output-dir` | `benchmarks/locomo/output` | Output directory |
 | `--samples` | all | Specific sample IDs to evaluate |
+| `--max-samples` | all | Max number of samples to use (first N; for quick testing) |
+| `-v` / `--verbose` | false | Enable DEBUG-level logging |
 
 ### Output
 
@@ -153,12 +156,13 @@ Results are written to the output directory:
 - **`report.json`** — Full per-question results + aggregated summary
 - **`checkpoint.json`** — Resume state (delete to re-run from scratch)
 
+Logs are saved to `benchmarks/locomo/logs/` (one file per run, always at DEBUG level regardless of `-v`).
+
 Example output (`report.md`):
 
 ```
 | Strategy          | Multi-Hop | Single-Hop | Temporal | Open-Domain | Adversarial | Overall |
 |-------------------|-----------|------------|----------|-------------|-------------|---------|
-| full_context      | 0.313     | 0.567      | 0.086    | 0.565       | 0.851       | 0.561   |
 | reflexio_search   | 0.210     | 0.420      | 0.055    | 0.380       | 0.900       | 0.445   |
 | reflexio_profiles | 0.105     | 0.210      | 0.030    | 0.190       | 0.950       | 0.320   |
 | no_context        | 0.000     | 0.000      | 0.000    | 0.002       | 1.000       | 0.237   |

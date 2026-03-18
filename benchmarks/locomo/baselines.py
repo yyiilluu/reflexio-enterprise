@@ -7,35 +7,12 @@ from typing import TYPE_CHECKING
 from benchmarks.locomo.config import DEFAULT_SEARCH_THRESHOLD, DEFAULT_TOP_K
 
 if TYPE_CHECKING:
-    from benchmarks.locomo.data_loader import LoCoMoSample
     from reflexio.reflexio_client.reflexio import ReflexioClient
 
 
 def no_context(**_kwargs: object) -> str:
     """Return empty context."""
     return ""
-
-
-def full_context(sample: LoCoMoSample, **_kwargs: object) -> str:
-    """
-    Concatenate all sessions into a single context string with date headers.
-
-    Args:
-        sample (LoCoMoSample): The conversation sample
-
-    Returns:
-        str: Full conversation text
-    """
-    parts: list[str] = []
-    for session in sample.sessions:
-        header = f"[Session {session.session_id}"
-        if session.date_time:
-            header += f" - {session.date_time}"
-        header += "]"
-        parts.append(header)
-        parts.extend(f"{turn.speaker}: {turn.text}" for turn in session.turns)
-        parts.append("")  # blank line between sessions
-    return "\n".join(parts)
 
 
 def reflexio_profiles(
@@ -108,7 +85,6 @@ def reflexio_search(
 
 def get_context(
     strategy: str,
-    sample: LoCoMoSample,
     question: str,
     client: ReflexioClient | None = None,
     user_id: str = "",
@@ -117,8 +93,7 @@ def get_context(
     Dispatch to the appropriate context retrieval strategy.
 
     Args:
-        strategy (str): One of "no_context", "full_context", "reflexio_profiles", "reflexio_search"
-        sample (LoCoMoSample): The conversation sample
+        strategy (str): One of "no_context", "reflexio_profiles", "reflexio_search"
         question (str): The QA question
         client (ReflexioClient | None): Reflexio client (required for reflexio_* strategies)
         user_id (str): User ID (required for reflexio_* strategies)
@@ -128,8 +103,6 @@ def get_context(
     """
     if strategy == "no_context":
         return no_context()
-    if strategy == "full_context":
-        return full_context(sample=sample)
     if strategy == "reflexio_profiles":
         if client is None:
             raise ValueError("ReflexioClient required for reflexio_profiles")

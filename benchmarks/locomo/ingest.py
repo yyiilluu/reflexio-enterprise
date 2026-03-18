@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -15,6 +16,8 @@ from reflexio_commons.config_schema import (
 
 from benchmarks.locomo.data_loader import LoCoMoSample
 from reflexio.reflexio_client.reflexio import InteractionData, ReflexioClient
+
+logger = logging.getLogger(__name__)
 
 MAX_RETRIES = 5
 RETRY_BASE_DELAY = 10  # seconds
@@ -79,8 +82,11 @@ def _ingest_sample(
         client (ReflexioClient): Authenticated client
     """
     user_id = f"locomo-{sample.sample_id}"
-    print(
-        f"  Ingesting sample {sample.sample_id} ({len(sample.sessions)} sessions) as user_id={user_id}"
+    logger.info(
+        "Ingesting sample %d (%d sessions) as user_id=%s",
+        sample.sample_id,
+        len(sample.sessions),
+        user_id,
     )
 
     for session in sample.sessions:
@@ -103,18 +109,24 @@ def _ingest_sample(
                     wait_for_response=True,
                 )
                 if resp and resp.success:
-                    print(
-                        f"    Session {session.session_id}: published {len(interactions)} turns"
+                    logger.debug(
+                        "Session %s: published %d turns",
+                        session.session_id,
+                        len(interactions),
                     )
                 else:
                     msg = resp.message if resp else "no response"
-                    print(f"    Session {session.session_id}: FAILED — {msg}")
+                    logger.error("Session %s: FAILED — %s", session.session_id, msg)
                 break  # Success or non-retryable failure
             except Exception as e:
                 if "429" in str(e) and attempt < MAX_RETRIES - 1:
                     delay = RETRY_BASE_DELAY * (2**attempt)
-                    print(
-                        f"    Session {session.session_id}: rate limited, retrying in {delay}s (attempt {attempt + 1}/{MAX_RETRIES})"
+                    logger.warning(
+                        "Session %s: rate limited, retrying in %ds (attempt %d/%d)",
+                        session.session_id,
+                        delay,
+                        attempt + 1,
+                        MAX_RETRIES,
                     )
                     time.sleep(delay)
                 else:
@@ -140,10 +152,10 @@ def ingest_all(
     api_key = reflexio_api_key or os.getenv("REFLEXIO_API_KEY")
     client = ReflexioClient(api_key=api_key, url_endpoint=reflexio_url)
 
-    print("Setting up Reflexio config...")
+    logger.info("Setting up Reflexio config...")
     _setup_config(client)
 
-    print(f"Ingesting {len(samples)} samples (max_workers={max_workers})...")
+    logger.info("Ingesting %d samples (max_workers=%d)...", len(samples), max_workers)
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {
             executor.submit(_ingest_sample, sample, client): sample.sample_id
@@ -153,8 +165,8 @@ def ingest_all(
             sample_id = futures[future]
             try:
                 future.result()
-                print(f"  Sample {sample_id}: done")
+                logger.info("Sample %d: done", sample_id)
             except Exception as e:
-                print(f"  Sample {sample_id}: ERROR — {e}")
+                logger.error("Sample %d: ERROR — %s", sample_id, e)
 
-    print("Ingestion complete.")
+    logger.info("Ingestion complete.")
