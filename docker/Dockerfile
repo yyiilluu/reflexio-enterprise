@@ -1,5 +1,5 @@
-# built using python:3.10
-FROM python:3.10
+# built using python:3.14
+FROM python:3.14
 
 # built using BaseDockerfile, using linux amd64
 # FROM reflexio-amd64:latest
