@@ -6,5 +6,6 @@ class Prompt(BaseModel):
 
     active: bool = False
     description: str | None = None
+    changelog: str | None = None
     variables: list[str]
     content: str

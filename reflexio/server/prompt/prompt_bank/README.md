@@ -29,6 +29,7 @@ Each `.prompt.md` file is self-contained with YAML frontmatter:
 ---
 active: true
 description: "What this prompt does"
+changelog: "Why this version was created"
 variables:
   - var1
   - var2
@@ -42,7 +43,8 @@ Your prompt content with {var1} and {var2} placeholders.
 | Field | Type | Required | Purpose |
 |-------|------|----------|---------|
 | `active` | bool | No | `true` on the active version. Exactly one per prompt_id |
-| `description` | string | No | What this prompt does (only needed on the active version) |
+| `description` | string | No | What this prompt does. Include on all versions for context |
+| `changelog` | string | No | Why this version was created — what changed from the previous version |
 | `variables` | list[str] | Yes | Required template variables for validation |
 
 ## Usage

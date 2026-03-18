@@ -202,6 +202,7 @@ class PromptManager:
         return Prompt(
             active=meta.get("active", False),
             description=meta.get("description"),
+            changelog=meta.get("changelog"),
             variables=meta.get("variables", []),
             content=content,
         )
