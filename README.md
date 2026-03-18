@@ -15,6 +15,7 @@ Description: AI agent memory system that makes AI agents personalized and self-i
 | `demo/` | Conversation simulation demo - scenarios, simulator, and live viewer | [README](demo/readme.md) |
 | `docker/` | Docker build and deployment files | `Dockerfile.base`, `Dockerfile.update`, `docker-compose.yaml`, `supervisord.conf` |
 | `docs/` | Deployment guides | AWS ECS, Supabase migration, AWS SES email setup |
+| `open_source/reflexio/` | Git submodule linking to the open-source Reflexio repository | [GitHub](https://github.com/yyiilluu/reflexio) |
 
 ## Architecture
 

@@ -217,3 +217,7 @@ docs/integrations/*
 
 # Planning artifacts
 plan.md
+
+# Supabase
+supabase/.branches/
+supabase/.temp/
