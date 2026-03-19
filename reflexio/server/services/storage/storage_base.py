@@ -26,6 +26,35 @@ from reflexio_commons.api_schema.service_schemas import (
 from reflexio import data
 
 
+def matches_status_filter(
+    item_status: Status | None,
+    status_filter: list[Status | None],
+) -> bool:
+    """Check whether an item's status matches a status filter list (Python-side filtering).
+
+    Args:
+        item_status (Status | None): The item's current status
+        status_filter (list[Status | None]): Allowed status values
+
+    Returns:
+        bool: True if the item passes the filter
+    """
+    has_none = None in status_filter
+    status_strings = [
+        s.value for s in status_filter if s is not None and hasattr(s, "value")
+    ]
+    if has_none and item_status is None:
+        return True
+    item_val = (
+        item_status.value
+        if item_status is not None and hasattr(item_status, "value")
+        else item_status
+    )
+    if item_val in status_strings:
+        return True
+    return has_none and not status_strings and item_status is None
+
+
 class BaseStorage(ABC):
     """
     Base class for storage
