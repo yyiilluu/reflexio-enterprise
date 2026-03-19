@@ -30,13 +30,12 @@ LoCoMo was introduced in [*"LoCoMo: Long-Context Conversation with Memory"*](htt
 
 This benchmark evaluates how well Reflexio's extracted profiles and semantic search compare against a no-context baseline for answering questions about long-term dialogues.
 
-**Three retrieval strategies** are compared:
+**Two retrieval strategies** are compared:
 
 | Strategy | Context source |
 |---|---|
 | `no_context` | Empty — tests LLM baseline |
-| `reflexio_profiles` | All profiles via `get_profiles(top_k=200)` |
-| `reflexio_search` | Semantic search via `search_profiles(top_k=20)` + `search_interactions(top_k=20)` |
+| `reflexio_search` | Semantic search via `search_profiles(top_k=20)` |
 
 **Modules:**
 
@@ -66,11 +65,9 @@ flowchart TD
         E["For each QA question"] --> F{Strategy?}
 
         F -->|no_context| G["Empty context"]
-        F -->|reflexio_profiles| I["get_profiles()<br/>all extracted profiles"]
-        F -->|reflexio_search| J["search_profiles() +<br/>search_interactions()<br/>semantic retrieval"]
+        F -->|reflexio_search| J["search_profiles()<br/>semantic retrieval"]
 
         G --> K["LLM generates answer"]
-        I --> K
         J --> K
 
         K --> L["Score against<br/>gold answer"]
@@ -112,9 +109,9 @@ uv run python benchmarks/locomo/run_benchmark.py
 uv run python benchmarks/locomo/run_benchmark.py \
     --strategies no_context
 
-# Reflexio strategies only, skip ingestion (data already in Reflexio)
+# Reflexio strategy only, skip ingestion (data already in Reflexio)
 uv run python benchmarks/locomo/run_benchmark.py \
-    --strategies reflexio_profiles reflexio_search \
+    --strategies reflexio_search \
     --skip-ingest
 
 # Quick test: first 2 samples with verbose logging
@@ -136,7 +133,7 @@ uv run python benchmarks/locomo/run_benchmark.py
 | Argument | Default | Description |
 |---|---|---|
 | `--data-file` | `benchmarks/locomo/data/locomo10.json` | Path to dataset |
-| `--strategies` | all three | Strategies to evaluate (`no_context`, `reflexio_profiles`, `reflexio_search`, `all`) |
+| `--strategies` | both | Strategies to evaluate (`no_context`, `reflexio_search`, `all`) |
 | `--model` | `minimax/MiniMax-M2.5` | LiteLLM model for answer generation |
 | `--reflexio-url` | `http://localhost:8081` | Reflexio server URL |
 | `--reflexio-api-key` | `$REFLEXIO_API_KEY` | API key for Reflexio |
@@ -164,6 +161,5 @@ Example output (`report.md`):
 | Strategy          | Multi-Hop | Single-Hop | Temporal | Open-Domain | Adversarial | Overall |
 |-------------------|-----------|------------|----------|-------------|-------------|---------|
 | reflexio_search   | 0.210     | 0.420      | 0.055    | 0.380       | 0.900       | 0.445   |
-| reflexio_profiles | 0.105     | 0.210      | 0.030    | 0.190       | 0.950       | 0.320   |
 | no_context        | 0.000     | 0.000      | 0.000    | 0.002       | 1.000       | 0.237   |
 ```
