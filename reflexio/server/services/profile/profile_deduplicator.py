@@ -6,12 +6,12 @@ and against existing profiles in the database using hybrid search and LLM.
 import logging
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 from reflexio_commons.api_schema.retriever_schema import SearchUserProfileRequest
 from reflexio_commons.api_schema.service_schemas import UserProfile
-from reflexio_commons.config_schema import EMBEDDING_DIMENSIONS
+from reflexio_commons.config_schema import EMBEDDING_DIMENSIONS, SearchOptions
 
 from reflexio.server.api_endpoints.request_context import RequestContext
 from reflexio.server.llm.litellm_client import LiteLLMClient
@@ -235,7 +235,7 @@ class ProfileDeduplicator(BaseDeduplicator):
                         threshold=0.4,
                     ),
                     status_filter=[None],  # Only current profiles
-                    query_embedding=embeddings[i],
+                    options=SearchOptions(query_embedding=embeddings[i]),
                 )
                 for profile in results:
                     if profile.profile_id and profile.profile_id not in seen_ids:
@@ -369,7 +369,7 @@ class ProfileDeduplicator(BaseDeduplicator):
         seen_delete_ids: set[str] = set()
         superseded_profiles: list[UserProfile] = []
 
-        now_ts = int(datetime.now(timezone.utc).timestamp())
+        now_ts = int(datetime.now(UTC).timestamp())
 
         # Process duplicate groups
         for group in dedup_output.duplicate_groups:

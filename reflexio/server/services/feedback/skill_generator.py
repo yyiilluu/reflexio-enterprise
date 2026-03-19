@@ -1,6 +1,7 @@
 import logging
 import time
 
+from reflexio_commons.api_schema.retriever_schema import SearchSkillsRequest
 from reflexio_commons.api_schema.service_schemas import (
     RawFeedback,
     Skill,
@@ -485,11 +486,13 @@ class SkillGenerator:
                 # Search for similar existing skill
                 try:
                     matches = self.storage.search_skills(  # type: ignore[reportOptionalMemberAccess]
-                        query=search_query,
-                        feedback_name=request.feedback_name,
-                        agent_version=self.agent_version,
-                        match_threshold=0.7,
-                        match_count=1,
+                        SearchSkillsRequest(
+                            query=search_query,
+                            feedback_name=request.feedback_name,
+                            agent_version=self.agent_version,
+                            threshold=0.7,
+                            top_k=1,
+                        )
                     )
                     if matches:
                         matched_skill = matches[0]

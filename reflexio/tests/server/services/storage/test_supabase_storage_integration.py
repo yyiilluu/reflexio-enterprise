@@ -2,11 +2,13 @@
 
 import contextlib
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from reflexio_commons.api_schema.retriever_schema import (
+    SearchFeedbackRequest,
     SearchInteractionRequest,
+    SearchRawFeedbackRequest,
     SearchUserProfileRequest,
 )
 from reflexio_commons.api_schema.service_schemas import (
@@ -72,7 +74,7 @@ def supabase_storage():
 @pytest.fixture
 def test_data():
     """Create test data for integration tests."""
-    current_time = int(datetime.now(timezone.utc).timestamp())
+    current_time = int(datetime.now(UTC).timestamp())
     return {
         "user_id": "test_user_123",
         "profile": UserProfile(
@@ -270,7 +272,7 @@ def test_add_user_interactions_bulk(supabase_storage):
     """
     storage = supabase_storage
     user_id = "test_bulk_user_456"
-    current_time = int(datetime.now(timezone.utc).timestamp())
+    current_time = int(datetime.now(UTC).timestamp())
     request_id = "test_bulk_request_1"
 
     # Create multiple test interactions
@@ -480,9 +482,11 @@ def test_search_raw_feedbacks_integration(
 
     # Search with similar query
     results = storage.search_raw_feedbacks(
-        query="programming and AI development feedback",
-        match_threshold=0.6,
-        match_count=5,
+        SearchRawFeedbackRequest(
+            query="programming and AI development feedback",
+            threshold=0.6,
+            top_k=5,
+        )
     )
 
     assert len(results) > 0
@@ -524,12 +528,16 @@ def test_search_raw_feedbacks_with_different_thresholds(
 
     # Search with high threshold (should return fewer results)
     high_threshold_results = storage.search_raw_feedbacks(
-        query="programming and AI development", match_threshold=0.9, match_count=10
+        SearchRawFeedbackRequest(
+            query="programming and AI development", threshold=0.9, top_k=10
+        )
     )
 
     # Search with low threshold (should return more results)
     low_threshold_results = storage.search_raw_feedbacks(
-        query="programming and AI development", match_threshold=0.3, match_count=10
+        SearchRawFeedbackRequest(
+            query="programming and AI development", threshold=0.3, top_k=10
+        )
     )
 
     # Low threshold should return at least as many results as high threshold
@@ -558,9 +566,11 @@ def test_search_raw_feedbacks_empty_results(
 
     # Search with a completely unrelated query and high threshold
     results = storage.search_raw_feedbacks(
-        query="completely unrelated topic about cooking recipes",
-        match_threshold=0.9,
-        match_count=5,
+        SearchRawFeedbackRequest(
+            query="completely unrelated topic about cooking recipes",
+            threshold=0.9,
+            top_k=5,
+        )
     )
 
     # Should return empty list or very few results with low similarity
@@ -586,9 +596,11 @@ def test_search_feedbacks_integration(supabase_storage, test_data, cleanup_after
 
     # Search with a query similar to the saved feedback content
     results = storage.search_feedbacks(
-        query="programming guidance and technical help",
-        match_threshold=0.6,
-        match_count=10,
+        SearchFeedbackRequest(
+            query="programming guidance and technical help",
+            threshold=0.6,
+            top_k=10,
+        )
     )
 
     # Verify we get results (if migration is applied)
@@ -645,12 +657,16 @@ def test_search_feedbacks_with_different_parameters(
 
     # Test with high threshold and low count
     high_threshold_results = storage.search_feedbacks(
-        query="agent programming guidance", match_threshold=0.8, match_count=3
+        SearchFeedbackRequest(
+            query="agent programming guidance", threshold=0.8, top_k=3
+        )
     )
 
     # Test with low threshold and high count
     low_threshold_results = storage.search_feedbacks(
-        query="agent programming guidance", match_threshold=0.4, match_count=20
+        SearchFeedbackRequest(
+            query="agent programming guidance", threshold=0.4, top_k=20
+        )
     )
 
     # Verify results structure
@@ -682,7 +698,9 @@ def test_search_feedbacks_default_parameters(
     storage.save_feedbacks(feedbacks)
 
     # Search with default parameters
-    results = storage.search_feedbacks(query="programming and technical assistance")
+    results = storage.search_feedbacks(
+        SearchFeedbackRequest(query="programming and technical assistance")
+    )
 
     # Verify the result structure
     assert isinstance(results, list)
@@ -875,7 +893,7 @@ def test_get_requests_with_no_interactions(supabase_storage, test_data):
 def test_add_request_with_session_id(supabase_storage):
     """Test adding a request with session_id."""
     storage = supabase_storage
-    current_time = int(datetime.now(timezone.utc).timestamp())
+    current_time = int(datetime.now(UTC).timestamp())
 
     test_request = Request(
         request_id="test_request_with_group_1",
@@ -1062,7 +1080,7 @@ def test_archived_feedbacks_excluded_from_queries(
     # Verify archived feedbacks are excluded from search_feedbacks
     # Only APPROVED feedbacks should be searchable
     search_results = storage.search_feedbacks(
-        query="programming guidance", match_threshold=0.5, match_count=10
+        SearchFeedbackRequest(query="programming guidance", threshold=0.5, top_k=10)
     )
     search_remaining_count = len(
         [
@@ -1198,7 +1216,7 @@ def test_get_operation_state_with_new_request_interaction_sources_filter(
     Python code (p_sources) and database function (p_source).
     """
     storage = supabase_storage
-    current_time = int(datetime.now(timezone.utc).timestamp())
+    current_time = int(datetime.now(UTC).timestamp())
     user_id = "test_user_sources_filter"
     service_name = "test_service_sources"
 
@@ -1342,7 +1360,7 @@ def test_get_last_k_interactions_grouped_sources_filter(supabase_storage):
     2. Filtering by sources returns only interactions from matching sources
     """
     storage = supabase_storage
-    current_time = int(datetime.now(timezone.utc).timestamp())
+    current_time = int(datetime.now(UTC).timestamp())
     user_id = "test_user_last_k_sources"
 
     # Clean up any existing test data first
@@ -1552,7 +1570,7 @@ def test_update_feedback_status(supabase_storage, cleanup_after_test):
     3. Status change is persisted correctly
     """
     storage = supabase_storage
-    int(datetime.now(timezone.utc).timestamp())
+    int(datetime.now(UTC).timestamp())
 
     # Create test feedbacks with PENDING status
     test_feedbacks = [
@@ -1625,7 +1643,7 @@ def test_raw_feedback_status_management(supabase_storage, cleanup_after_test):
     3. delete_all_raw_feedbacks_by_status removes correct records
     """
     storage = supabase_storage
-    current_time = int(datetime.now(timezone.utc).timestamp())
+    current_time = int(datetime.now(UTC).timestamp())
     feedback_name = "test_raw_fb_status"
     agent_version = "test_status_v1"
 
@@ -1695,7 +1713,7 @@ def test_delete_request_and_session_id(supabase_storage):
     2. delete_session removes all requests in a group
     """
     storage = supabase_storage
-    current_time = int(datetime.now(timezone.utc).timestamp())
+    current_time = int(datetime.now(UTC).timestamp())
     user_id = "test_delete_request_user"
     session_id = "test_delete_group"
 
@@ -1780,7 +1798,7 @@ def test_agent_success_evaluation_results(supabase_storage):
     3. delete_all_agent_success_evaluation_results clears all
     """
     storage = supabase_storage
-    int(datetime.now(timezone.utc).timestamp())
+    int(datetime.now(UTC).timestamp())
     agent_version = "test_eval_v1"
 
     # Clean up any existing test data
@@ -1926,7 +1944,7 @@ def test_profile_status_management(supabase_storage):
     3. delete_all_profiles_by_status removes correct profiles
     """
     storage = supabase_storage
-    current_time = int(datetime.now(timezone.utc).timestamp())
+    current_time = int(datetime.now(UTC).timestamp())
     user_id = "test_profile_status_user"
 
     # Clean up any existing test data
@@ -1987,7 +2005,7 @@ def test_count_operations(supabase_storage):
     2. count_raw_feedbacks returns correct count with filters
     """
     storage = supabase_storage
-    current_time = int(datetime.now(timezone.utc).timestamp())
+    current_time = int(datetime.now(UTC).timestamp())
     user_id = "test_count_user"
     feedback_name = "test_count_feedback"
 

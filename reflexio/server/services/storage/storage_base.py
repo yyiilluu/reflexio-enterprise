@@ -3,7 +3,10 @@ from pathlib import Path
 
 from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 from reflexio_commons.api_schema.retriever_schema import (
+    SearchFeedbackRequest,
     SearchInteractionRequest,
+    SearchRawFeedbackRequest,
+    SearchSkillsRequest,
     SearchUserProfileRequest,
 )
 from reflexio_commons.api_schema.service_schemas import (
@@ -22,7 +25,7 @@ from reflexio_commons.api_schema.service_schemas import (
     Status,
     UserProfile,
 )
-from reflexio_commons.config_schema import SearchMode
+from reflexio_commons.config_schema import SearchOptions
 
 from reflexio import data
 
@@ -458,7 +461,7 @@ class BaseStorage(ABC):
     def search_interaction(
         self,
         search_interaction_request: SearchInteractionRequest,
-        search_mode: SearchMode | None = None,
+        options: SearchOptions | None = None,
     ) -> list[Interaction]:
         raise NotImplementedError
 
@@ -467,8 +470,7 @@ class BaseStorage(ABC):
         self,
         search_user_profile_request: SearchUserProfileRequest,
         status_filter: list[Status | None] | None = None,
-        query_embedding: list[float] | None = None,
-        search_mode: SearchMode | None = None,
+        options: SearchOptions | None = None,
     ) -> list[UserProfile]:
         raise NotImplementedError
 
@@ -590,33 +592,15 @@ class BaseStorage(ABC):
     @abstractmethod
     def search_raw_feedbacks(
         self,
-        query: str | None = None,
-        user_id: str | None = None,
-        agent_version: str | None = None,
-        feedback_name: str | None = None,
-        start_time: int | None = None,
-        end_time: int | None = None,
-        status_filter: list[Status | None] | None = None,
-        match_threshold: float = 0.5,
-        match_count: int = 10,
-        query_embedding: list[float] | None = None,
-        search_mode: SearchMode | None = None,
+        request: SearchRawFeedbackRequest,
+        options: SearchOptions | None = None,
     ) -> list[RawFeedback]:
         """
         Search raw feedbacks with advanced filtering including semantic search.
 
         Args:
-            query (str, optional): Text query for semantic/text search
-            user_id (str, optional): Filter by user (resolved via request_id -> requests table linkage)
-            agent_version (str, optional): Filter by agent version
-            feedback_name (str, optional): Filter by feedback name
-            start_time (int, optional): Start timestamp (Unix) for created_at filter
-            end_time (int, optional): End timestamp (Unix) for created_at filter
-            status_filter (list[Optional[Status]], optional): List of status values to filter by
-            match_threshold (float): Minimum similarity threshold (0.0 to 1.0)
-            match_count (int): Maximum number of results to return
-            query_embedding (list[float], optional): Pre-computed query embedding. When provided, skips internal embedding generation.
-            search_mode (SearchMode, optional): Override the default search mode for this request
+            request (SearchRawFeedbackRequest): Search request with query, filters, and search_mode
+            options (SearchOptions, optional): Engine-level options (e.g., pre-computed embedding)
 
         Returns:
             list[RawFeedback]: List of matching raw feedback objects
@@ -626,33 +610,15 @@ class BaseStorage(ABC):
     @abstractmethod
     def search_feedbacks(
         self,
-        query: str | None = None,
-        agent_version: str | None = None,
-        feedback_name: str | None = None,
-        start_time: int | None = None,
-        end_time: int | None = None,
-        status_filter: list[Status | None] | None = None,
-        feedback_status_filter: FeedbackStatus | None = None,
-        match_threshold: float = 0.5,
-        match_count: int = 10,
-        query_embedding: list[float] | None = None,
-        search_mode: SearchMode | None = None,
+        request: SearchFeedbackRequest,
+        options: SearchOptions | None = None,
     ) -> list[Feedback]:
         """
         Search aggregated feedbacks with advanced filtering including semantic search.
 
         Args:
-            query (str, optional): Text query for semantic/text search
-            agent_version (str, optional): Filter by agent version
-            feedback_name (str, optional): Filter by feedback name
-            start_time (int, optional): Start timestamp (Unix) for created_at filter
-            end_time (int, optional): End timestamp (Unix) for created_at filter
-            status_filter (list[Optional[Status]], optional): List of Status values to filter by (CURRENT/PENDING/ARCHIVED)
-            feedback_status_filter (FeedbackStatus, optional): Filter by FeedbackStatus (PENDING/APPROVED/REJECTED)
-            match_threshold (float): Minimum similarity threshold (0.0 to 1.0)
-            match_count (int): Maximum number of results to return
-            query_embedding (list[float], optional): Pre-computed query embedding. When provided, skips internal embedding generation.
-            search_mode (SearchMode, optional): Override the default search mode for this request
+            request (SearchFeedbackRequest): Search request with query, filters, and search_mode
+            options (SearchOptions, optional): Engine-level options (e.g., pre-computed embedding)
 
         Returns:
             list[Feedback]: List of matching feedback objects
@@ -1109,27 +1075,15 @@ class BaseStorage(ABC):
     @abstractmethod
     def search_skills(
         self,
-        query: str | None = None,
-        feedback_name: str | None = None,
-        agent_version: str | None = None,
-        skill_status: SkillStatus | None = None,
-        match_threshold: float = 0.5,
-        match_count: int = 10,
-        query_embedding: list[float] | None = None,
-        search_mode: SearchMode | None = None,
+        request: SearchSkillsRequest,
+        options: SearchOptions | None = None,
     ) -> list[Skill]:
         """
         Search skills with hybrid search (vector + FTS).
 
         Args:
-            query (str, optional): Text query for semantic/text search
-            feedback_name (str, optional): Filter by feedback name
-            agent_version (str, optional): Filter by agent version
-            skill_status (SkillStatus, optional): Filter by skill status
-            match_threshold (float): Minimum similarity threshold
-            match_count (int): Maximum number of results to return
-            query_embedding (list[float], optional): Pre-computed query embedding. When provided, skips internal embedding generation.
-            search_mode (SearchMode, optional): Override the default search mode for this request
+            request (SearchSkillsRequest): Search request with query, filters, and search_mode
+            options (SearchOptions, optional): Engine-level options (e.g., pre-computed embedding)
 
         Returns:
             list[Skill]: List of matching skill objects

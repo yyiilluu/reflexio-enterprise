@@ -13,6 +13,9 @@ from concurrent.futures import TimeoutError as FuturesTimeoutError
 from reflexio_commons.api_schema.retriever_schema import (
     ConversationTurn,
     RewrittenQuery,
+    SearchFeedbackRequest,
+    SearchRawFeedbackRequest,
+    SearchSkillsRequest,
     SearchUserProfileRequest,
     UnifiedSearchRequest,
     UnifiedSearchResponse,
@@ -23,7 +26,7 @@ from reflexio_commons.api_schema.service_schemas import (
     Skill,
     UserProfile,
 )
-from reflexio_commons.config_schema import APIKeyConfig, SearchMode
+from reflexio_commons.config_schema import APIKeyConfig, SearchOptions
 
 from reflexio.server.prompt.prompt_manager import PromptManager
 from reflexio.server.services.query_rewriter import QueryRewriter
@@ -87,7 +90,6 @@ def run_unified_search(
         query=rewritten_query_text,
         top_k=top_k,
         threshold=threshold,
-        search_mode=request.search_mode,
     )
 
     if profiles is None:
@@ -177,7 +179,6 @@ def _run_phase_b(
     query: str,
     top_k: int,
     threshold: float,
-    search_mode: SearchMode | None = None,
 ) -> tuple[
     list[UserProfile] | None,
     list[Feedback] | None,
@@ -199,53 +200,55 @@ def _run_phase_b(
         tuple: (profiles, feedbacks, raw_feedbacks, skills) — all None on timeout/failure
     """
     skills_enabled = is_skill_generation_enabled(org_id)
+    options = SearchOptions(query_embedding=embedding)
+
+    fb_request = SearchFeedbackRequest(
+        query=query,
+        agent_version=request.agent_version,
+        feedback_name=request.feedback_name,
+        status_filter=[None],
+        threshold=threshold,
+        top_k=top_k,
+        search_mode=request.search_mode,
+    )
+    rf_request = SearchRawFeedbackRequest(
+        query=query,
+        user_id=request.user_id,
+        agent_version=request.agent_version,
+        feedback_name=request.feedback_name,
+        status_filter=[None],
+        threshold=threshold,
+        top_k=top_k,
+        search_mode=request.search_mode,
+    )
+    sk_request = SearchSkillsRequest(
+        query=query,
+        feedback_name=request.feedback_name,
+        agent_version=request.agent_version,
+        threshold=threshold,
+        top_k=top_k,
+        search_mode=request.search_mode,
+    )
 
     executor = ThreadPoolExecutor(max_workers=4)
     try:
         profiles_future = executor.submit(
             _search_profiles_via_storage,
             storage,
+            request,
             query,
             top_k,
             threshold,
-            request.user_id,
             embedding,
-            search_mode,
         )
         feedbacks_future = executor.submit(
-            storage.search_feedbacks,
-            query=query,
-            agent_version=request.agent_version,
-            feedback_name=request.feedback_name,
-            status_filter=[None],
-            match_threshold=threshold,
-            match_count=top_k,
-            query_embedding=embedding,
-            search_mode=search_mode,
+            storage.search_feedbacks, fb_request, options
         )
         raw_feedbacks_future = executor.submit(
-            storage.search_raw_feedbacks,
-            query=query,
-            user_id=request.user_id,
-            agent_version=request.agent_version,
-            feedback_name=request.feedback_name,
-            status_filter=[None],
-            match_threshold=threshold,
-            match_count=top_k,
-            query_embedding=embedding,
-            search_mode=search_mode,
+            storage.search_raw_feedbacks, rf_request, options
         )
         skills_future = (
-            executor.submit(
-                storage.search_skills,
-                query=query,
-                feedback_name=request.feedback_name,
-                agent_version=request.agent_version,
-                match_threshold=threshold,
-                match_count=top_k,
-                query_embedding=embedding,
-                search_mode=search_mode,
-            )
+            executor.submit(storage.search_skills, sk_request, options)
             if skills_enabled
             else None
         )
@@ -268,40 +271,40 @@ def _run_phase_b(
 
 def _search_profiles_via_storage(
     storage: BaseStorage,
+    request: UnifiedSearchRequest,
     query: str,
     top_k: int,
     threshold: float,
-    user_id: str | None,
     embedding: list[float] | None,
-    search_mode: SearchMode | None = None,
 ) -> list[UserProfile]:
     """Search profiles via storage.search_user_profile, returning [] on error or missing user_id.
 
     Args:
         storage (BaseStorage): Storage instance
+        request (UnifiedSearchRequest): The unified search request (for user_id and search_mode)
         query (str): Search query text
         top_k (int): Maximum results
         threshold (float): Minimum match threshold
-        user_id (Optional[str]): User ID filter (required for profile search)
         embedding (Optional[list[float]]): Pre-computed query embedding, or None for text-only search
-        search_mode (Optional[SearchMode]): Override the default search mode
 
     Returns:
         list[UserProfile]: Matching profiles, or [] on error/missing user_id
     """
-    if not user_id:
+    if not request.user_id:
         return []
     try:
+        profile_request = SearchUserProfileRequest(
+            user_id=request.user_id,
+            query=query,
+            top_k=top_k,
+            threshold=threshold,
+            search_mode=request.search_mode,
+        )
+        options = SearchOptions(query_embedding=embedding)
         return storage.search_user_profile(
-            SearchUserProfileRequest(
-                user_id=user_id,
-                query=query,
-                top_k=top_k,
-                threshold=threshold,
-            ),
+            profile_request,
             status_filter=[None],
-            query_embedding=embedding,
-            search_mode=search_mode,
+            options=options,
         )
     except Exception as e:
         logger.error("Profile search failed: %s", e)

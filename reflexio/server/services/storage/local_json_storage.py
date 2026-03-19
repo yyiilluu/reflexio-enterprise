@@ -7,7 +7,10 @@ from pathlib import Path
 
 from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 from reflexio_commons.api_schema.retriever_schema import (
+    SearchFeedbackRequest,
     SearchInteractionRequest,
+    SearchRawFeedbackRequest,
+    SearchSkillsRequest,
     SearchUserProfileRequest,
 )
 from reflexio_commons.api_schema.service_schemas import (
@@ -26,7 +29,7 @@ from reflexio_commons.api_schema.service_schemas import (
     Status,
     UserProfile,
 )
-from reflexio_commons.config_schema import SearchMode, StorageConfigLocal
+from reflexio_commons.config_schema import SearchOptions, StorageConfigLocal
 
 from reflexio import data
 from reflexio.server import LOCAL_STORAGE_PATH
@@ -1139,7 +1142,7 @@ class LocalJsonStorage(BaseStorage):
     def search_interaction(
         self,
         search_interaction_request: SearchInteractionRequest,
-        search_mode: SearchMode | None = None,  # noqa: ARG002
+        options: SearchOptions | None = None,  # noqa: ARG002
     ) -> list[Interaction]:
         """Search user interaction from storage
 
@@ -1183,8 +1186,7 @@ class LocalJsonStorage(BaseStorage):
         self,
         search_user_profile_request: SearchUserProfileRequest,
         status_filter: list[Status | None] | None = None,
-        query_embedding: list[float] | None = None,  # noqa: ARG002
-        search_mode: SearchMode | None = None,  # noqa: ARG002
+        options: SearchOptions | None = None,  # noqa: ARG002
     ) -> list[UserProfile]:
         """Search user profile from storage
 
@@ -1981,35 +1983,28 @@ class LocalJsonStorage(BaseStorage):
 
     def search_raw_feedbacks(
         self,
-        query: str | None = None,
-        user_id: str | None = None,
-        agent_version: str | None = None,
-        feedback_name: str | None = None,
-        start_time: int | None = None,
-        end_time: int | None = None,
-        status_filter: list[Status | None] | None = None,
-        match_threshold: float = 0.5,  # noqa: ARG002
-        match_count: int = 10,
-        query_embedding: list[float] | None = None,  # noqa: ARG002
-        search_mode: SearchMode | None = None,  # noqa: ARG002
+        request: SearchRawFeedbackRequest,
+        options: SearchOptions | None = None,  # noqa: ARG002
     ) -> list[RawFeedback]:
         """
         Search raw feedbacks with advanced filtering (local storage uses text matching, not vector search).
 
         Args:
-            query (str, optional): Text query for text search
-            user_id (str, optional): Filter by user (resolved via request_id -> requests linkage)
-            agent_version (str, optional): Filter by agent version
-            feedback_name (str, optional): Filter by feedback name
-            start_time (int, optional): Start timestamp (Unix) for created_at filter
-            end_time (int, optional): End timestamp (Unix) for created_at filter
-            status_filter (list[Optional[Status]], optional): List of status values to filter by
-            match_threshold (float): Not used in local storage
-            match_count (int): Maximum number of results to return
+            request (SearchRawFeedbackRequest): Search request with query, filters, and search_mode
+            options (SearchOptions, optional): Not used in local storage
 
         Returns:
             list[RawFeedback]: List of matching raw feedback objects
         """
+        query = request.query
+        user_id = request.user_id
+        agent_version = request.agent_version
+        feedback_name = request.feedback_name
+        start_time = int(request.start_time.timestamp()) if request.start_time else None
+        end_time = int(request.end_time.timestamp()) if request.end_time else None
+        status_filter = request.status_filter
+        match_count = request.top_k or 10
+
         all_memories = self._load()
         if "raw_feedbacks" not in all_memories:
             return []
@@ -2066,35 +2061,28 @@ class LocalJsonStorage(BaseStorage):
 
     def search_feedbacks(
         self,
-        query: str | None = None,
-        agent_version: str | None = None,
-        feedback_name: str | None = None,
-        start_time: int | None = None,
-        end_time: int | None = None,
-        status_filter: list[Status | None] | None = None,
-        feedback_status_filter: FeedbackStatus | None = None,
-        match_threshold: float = 0.5,  # noqa: ARG002
-        match_count: int = 10,
-        query_embedding: list[float] | None = None,  # noqa: ARG002
-        search_mode: SearchMode | None = None,  # noqa: ARG002
+        request: SearchFeedbackRequest,
+        options: SearchOptions | None = None,  # noqa: ARG002
     ) -> list[Feedback]:
         """
         Search feedbacks with advanced filtering (local storage uses text matching, not vector search).
 
         Args:
-            query (str, optional): Text query for text search
-            agent_version (str, optional): Filter by agent version
-            feedback_name (str, optional): Filter by feedback name
-            start_time (int, optional): Start timestamp (Unix) for created_at filter
-            end_time (int, optional): End timestamp (Unix) for created_at filter
-            status_filter (list[Optional[Status]], optional): List of Status values to filter by
-            feedback_status_filter (FeedbackStatus, optional): Filter by FeedbackStatus
-            match_threshold (float): Not used in local storage
-            match_count (int): Maximum number of results to return
+            request (SearchFeedbackRequest): Search request with query, filters, and search_mode
+            options (SearchOptions, optional): Not used in local storage
 
         Returns:
             list[Feedback]: List of matching feedback objects
         """
+        query = request.query
+        agent_version = request.agent_version
+        feedback_name = request.feedback_name
+        start_time = int(request.start_time.timestamp()) if request.start_time else None
+        end_time = int(request.end_time.timestamp()) if request.end_time else None
+        status_filter = request.status_filter
+        feedback_status_filter = request.feedback_status_filter
+        match_count = request.top_k or 10
+
         all_memories = self._load()
         if "feedbacks" not in all_memories:
             return []
@@ -2950,15 +2938,15 @@ class LocalJsonStorage(BaseStorage):
 
     def search_skills(
         self,
-        query: str | None = None,
-        feedback_name: str | None = None,
-        agent_version: str | None = None,
-        skill_status: SkillStatus | None = None,
-        match_threshold: float = 0.5,  # noqa: ARG002
-        match_count: int = 10,
-        query_embedding: list[float] | None = None,  # noqa: ARG002
-        search_mode: SearchMode | None = None,  # noqa: ARG002
+        request: SearchSkillsRequest,
+        options: SearchOptions | None = None,  # noqa: ARG002
     ) -> list[Skill]:
+        query = request.query
+        feedback_name = request.feedback_name
+        agent_version = request.agent_version
+        skill_status = request.skill_status
+        match_count = request.top_k or 10
+
         all_memories = self._load()
         if "skills" not in all_memories:
             return []
