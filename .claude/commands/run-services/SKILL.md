@@ -94,13 +94,15 @@ Run these checks before starting anything. They are idempotent and fast when dep
 
 **Python dependencies (run first — creates `.venv` if missing):**
 ```bash
-uv sync
+uv sync --frozen
 ```
+Note: Use `--frozen` to install from the existing lockfile without re-resolving. Plain `uv sync` may fail due to dependency conflicts (e.g., `appworld` in the benchmarks group pins `fastapi<0.111.0` which conflicts with the main project's `fastapi>=0.111.1`). If `--frozen` fails (e.g., no lockfile), fall back to `uv sync` and report the error.
 
 **Activate virtual environment (after `uv sync` so `.venv` exists):**
 ```bash
 source .venv/bin/activate
 ```
+This is critical — `run_services.sh` uses bare `uvicorn` which will resolve to the system Homebrew binary if the venv is not activated, causing `ModuleNotFoundError` for project dependencies.
 
 **Worktree editable packages:**
 In a git worktree, `uv sync` may resolve `reflexio_commons` and `reflexio_client` to a different worktree's path. Check and fix:
@@ -122,23 +124,25 @@ ls reflexio/public_docs/node_modules/.package-lock.json 2>/dev/null || (cd refle
 
 ### Step 2: Start Supabase
 
-Check if Supabase is running, start if not:
+First, health-check the Supabase REST endpoint directly — another project's Supabase instance may already be running on the shared ports (54321/54322), which is fine since Supabase is shared across worktrees:
+```bash
+curl --max-time 10 -s -o /dev/null -w "%{http_code}" http://127.0.0.1:54321/rest/v1/
+```
+
+If healthy (200), skip `supabase start` entirely — use the existing instance.
+
+If not healthy, try starting:
 ```bash
 supabase status --workdir supabase/data > /dev/null 2>&1 || supabase start --workdir supabase/data
 ```
 
-Health check:
-```bash
-curl --max-time 10 -s -o /dev/null -w "%{http_code}" http://127.0.0.1:54321/rest/v1/
-```
-Expected: 200
+If `supabase start` fails with "port is already allocated" for port 54322, another Supabase instance is running but unhealthy. Try `supabase stop --project-id <project_id>` (the project ID is shown in the error message) and retry. If it fails for other reasons, check Docker Desktop is running and report to user.
 
-If Supabase fails to start, check Docker Desktop is running and report to user.
-
-Also apply any pending migrations:
+Also attempt to apply any pending migrations (non-blocking):
 ```bash
-supabase migration up --workdir supabase/data
+supabase migration up --workdir supabase/data 2>&1 || echo "Migration sync skipped — this is expected when Supabase is shared across worktrees with different migration histories"
 ```
+Note: `migration up` will fail if the shared Supabase instance has migrations from a different branch. This is harmless — warn but do not treat as a failure.
 
 ### Step 3: Stop Existing Services (Conditional)
 
@@ -152,9 +156,11 @@ Wait 2 seconds for ports to fully release.
 
 ### Step 4: Start Services
 
-Run `run_services.sh` in the background with the exported port variables:
+**Important:** The venv MUST be activated before running `run_services.sh`, because the script uses bare `uvicorn` which will otherwise resolve to the system Homebrew binary.
+
+Run `run_services.sh` in the background with the activated venv and exported port variables:
 ```bash
-FRONTEND_PORT=$FRONTEND_PORT BACKEND_PORT=$BACKEND_PORT DOCS_PORT=$DOCS_PORT ./run_services.sh > /tmp/reflexio-services.log 2>&1 &
+source .venv/bin/activate && FRONTEND_PORT=$FRONTEND_PORT BACKEND_PORT=$BACKEND_PORT DOCS_PORT=$DOCS_PORT ./run_services.sh > /tmp/reflexio-services.log 2>&1 &
 ```
 
 Wait ~15 seconds for services to boot. Next.js compilation takes time on first request.
@@ -214,7 +220,18 @@ Then retry from Step 4.
 **b. "ModuleNotFoundError" / "ImportError" (Python — general)**
 A Python dependency is missing. Fix:
 ```bash
-uv sync
+uv sync --frozen
+```
+If that doesn't resolve it, install the specific missing package:
+```bash
+uv pip install --python .venv/bin/python <package-name>
+```
+Then retry from Step 4.
+
+**b1. "python-multipart" RuntimeError**
+FastAPI raises `RuntimeError: Form data requires "python-multipart"` if `python-multipart` is not installed. This can happen when `uv sync --frozen` resolves from a lockfile that doesn't include it. Fix:
+```bash
+uv pip install --python .venv/bin/python python-multipart
 ```
 Then retry from Step 4.
 
@@ -246,10 +263,15 @@ Report the error output to the user and suggest manual steps. Do not retry.
 **f. Supabase "docker not running"**
 Docker Desktop must be running for Supabase. Report to user and ask them to start Docker Desktop.
 
-**g. Supabase port conflict**
-Another Supabase instance on 54321. Fix:
+**g. Supabase port conflict ("port is already allocated")**
+Another Supabase project is running on 54321/54322. First check if it's healthy:
 ```bash
-supabase stop
+curl --max-time 10 -s -o /dev/null -w "%{http_code}" http://127.0.0.1:54321/rest/v1/
+```
+If healthy (200), just use the existing instance — Supabase is shared across worktrees.
+If not healthy, stop the conflicting project (the project ID is shown in the error message):
+```bash
+supabase stop --project-id <project_id>
 ```
 Then retry from Step 2.
 
