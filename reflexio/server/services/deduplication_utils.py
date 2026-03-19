@@ -6,7 +6,6 @@ ProfileDeduplicator and FeedbackDeduplicator.
 """
 
 import logging
-from abc import ABC
 
 from reflexio.server.api_endpoints.request_context import RequestContext
 from reflexio.server.llm.litellm_client import LiteLLMClient
@@ -47,7 +46,7 @@ def parse_item_id(item_id: str) -> tuple[str, int] | None:
 # ===============================
 
 
-class BaseDeduplicator(ABC):  # noqa: B024
+class BaseDeduplicator:
     """
     Abstract base class for deduplicators that use LLM-based semantic matching.
 

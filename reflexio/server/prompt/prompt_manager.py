@@ -4,6 +4,7 @@ Prompt management using file system prompt bank with markdown frontmatter files.
 
 import logging
 import re
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -43,7 +44,9 @@ def _parse_frontmatter(raw: str) -> tuple[dict[str, Any], str]:
 
         if value.startswith("[") and value.endswith("]"):
             # Simple list: [a, b, c]
-            meta[key] = [v.strip().strip("'\"") for v in value[1:-1].split(",") if v.strip()]
+            meta[key] = [
+                v.strip().strip("'\"") for v in value[1:-1].split(",") if v.strip()
+            ]
         elif value.startswith("- "):
             # First item of a block list on the same line — shouldn't happen in our format
             meta[key] = [value[2:].strip()]
@@ -100,7 +103,7 @@ class PromptManager:
     # Public methods
     # ==============================
 
-    def render_prompt(self, prompt_id: str, variables: dict[str, Any]) -> str:
+    def render_prompt(self, prompt_id: str, variables: Mapping[str, Any]) -> str:
         """
         Render prompt template with variables.
 
@@ -114,19 +117,25 @@ class PromptManager:
         Raises:
             ValueError: If prompt not found or template rendering fails.
         """
-        version = self.version_override.get(prompt_id) if self.version_override else None
+        version = (
+            self.version_override.get(prompt_id) if self.version_override else None
+        )
         prompt = self._get_prompt(prompt_id, version)
         if not prompt:
             raise ValueError(f"Prompt {prompt_id} not found")
 
         missing_vars = set(prompt.variables) - set(variables.keys())
         if missing_vars:
-            raise ValueError(f"Missing required variables {missing_vars} for prompt {prompt_id}")
+            raise ValueError(
+                f"Missing required variables {missing_vars} for prompt {prompt_id}"
+            )
 
         try:
             return prompt.content.format(**variables)
         except KeyError as e:
-            raise ValueError(f"Missing required variable {e} for prompt {prompt_id}") from e
+            raise ValueError(
+                f"Missing required variable {e} for prompt {prompt_id}"
+            ) from e
         except Exception as e:
             raise ValueError(f"Error rendering prompt {prompt_id}: {e}") from e
 
@@ -220,7 +229,7 @@ class PromptManager:
                 meta, _ = _parse_frontmatter(raw)
                 if meta.get("active"):
                     return path.name.removeprefix("v").removesuffix(".prompt.md")
-            except (ValueError, OSError):
+            except ValueError, OSError:
                 continue
         return None
 
