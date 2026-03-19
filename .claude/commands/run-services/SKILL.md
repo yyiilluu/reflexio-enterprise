@@ -200,29 +200,34 @@ A status of `000` means the service is not responding at all.
 
 **Only run this step if the backend health check in Step 5 returned 200.** If the backend is not healthy, skip this step entirely.
 
+**Note:** All requests to `/token` and `/api/register` require a `User-Agent` header (e.g., `-H "User-Agent: Mozilla/5.0"`) or the server will reject them with `403 Forbidden: Suspicious user agent`.
+
 **6.1** Try to log in with the test account:
 ```bash
 curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:${BACKEND_PORT}/token \
+  -H "User-Agent: Mozilla/5.0" \
   -d "username=user@reflexio_test.com&password=rflx123456"
 ```
 
 **6.2** If status is `200` → account exists. Report "Test account already exists" and continue to Step 8.
 
-**6.3** If status is not `200` → create the account:
+**6.3** If status is not `200` → create the account. First, generate an invitation code (required for registration):
+```bash
+source .venv/bin/activate && python -m reflexio.server.scripts.manage_invitation_codes generate --count 1
+```
+This outputs a code like `REFLEXIO-XXXX-XXXX`. Then register with it:
 ```bash
 curl -s -w "\n%{http_code}" -X POST http://localhost:${BACKEND_PORT}/api/register \
-  -d "username=user@reflexio_test.com&password=rflx123456"
+  -H "User-Agent: Mozilla/5.0" \
+  -d "username=user@reflexio_test.com&password=rflx123456&invitation_code=REFLEXIO-XXXX-XXXX"
 ```
 
-**6.4** After registration, the account is unverified. Mark it verified via Supabase DB:
-```bash
-PGPASSWORD=postgres psql -h localhost -p 54322 -U postgres -d postgres -c \
-  "UPDATE organizations SET is_verified = true WHERE email = 'user@reflexio_test.com';"
-```
+**6.4** Registration with a valid invitation code auto-verifies the account. No additional DB update is needed.
 
-**6.5** Verify the account works by logging in again:
+**6.5** Verify the account works by logging in:
 ```bash
 curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:${BACKEND_PORT}/token \
+  -H "User-Agent: Mozilla/5.0" \
   -d "username=user@reflexio_test.com&password=rflx123456"
 ```
 If `200` → report "Test account created: user@reflexio_test.com / rflx123456".
