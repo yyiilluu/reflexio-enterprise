@@ -839,7 +839,7 @@ export default function InteractionsPage() {
 									<MessageSquare className="h-5 w-5 text-white" />
 								</div>
 								<div>
-									<CardTitle className="text-lg font-semibold text-slate-800">Overview</CardTitle>
+									<CardTitle className="text-lg font-semibold text-slate-800">Interaction Overview</CardTitle>
 									<CardDescription className="text-xs mt-0.5 text-slate-500">
 										{totalGroups} session{totalGroups !== 1 ? "s" : ""} loaded
 									</CardDescription>

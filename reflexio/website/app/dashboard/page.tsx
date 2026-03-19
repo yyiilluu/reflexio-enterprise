@@ -340,7 +340,7 @@ export default function Dashboard() {
 	const stats = dashboardData
 		? [
 				{
-					title: "User Interactions",
+					title: "Interactions",
 					value: dashboardData.current_period.total_interactions.toLocaleString(),
 					description: "Total interactions recorded",
 					icon: MessageSquare,
@@ -354,7 +354,7 @@ export default function Dashboard() {
 				{
 					title: "User Profiles",
 					value: dashboardData.current_period.total_profiles.toLocaleString(),
-					description: "Active user profiles",
+					description: "Total user profiles",
 					icon: Users,
 					href: "/profiles",
 					trend: calculateTrend(
@@ -364,7 +364,7 @@ export default function Dashboard() {
 					...statConfigs[1],
 				},
 				{
-					title: "Feedbacks Extracted",
+					title: "Feedbacks",
 					value: dashboardData.current_period.total_feedbacks.toLocaleString(),
 					description: "Total feedbacks collected",
 					icon: ThumbsUp,
@@ -376,9 +376,9 @@ export default function Dashboard() {
 					...statConfigs[2],
 				},
 				{
-					title: "Success Rate",
+					title: "Agent Success Rate",
 					value: `${dashboardData.current_period.success_rate.toFixed(1)}%`,
-					description: "Agent success rate",
+					description: "Agent evaluation success rate",
 					icon: CheckCircle,
 					href: "/evaluations",
 					trend: calculateTrend(
@@ -485,8 +485,8 @@ export default function Dashboard() {
 				{/* Interactive Charts Grid */}
 				<div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
 					<ChartCard
-						title="User Interactions"
-						description="Track user interactions over time"
+						title="Interactions"
+						description="Track interactions over time"
 						data={
 							dashboardData
 								? groupTimeSeriesData(
@@ -505,8 +505,8 @@ export default function Dashboard() {
 					/>
 
 					<ChartCard
-						title="Profiles Learnt"
-						description="Number of user profiles extracted"
+						title="User Profiles"
+						description="Track user profiles over time"
 						data={
 							dashboardData
 								? groupTimeSeriesData(
@@ -525,8 +525,8 @@ export default function Dashboard() {
 					/>
 
 					<ChartCard
-						title="Feedbacks Extracted"
-						description="Total feedbacks collected from interactions"
+						title="Feedbacks"
+						description="Track feedbacks collected over time"
 						data={
 							dashboardData
 								? groupTimeSeriesData(
@@ -546,7 +546,7 @@ export default function Dashboard() {
 
 					<ChartCard
 						title="Agent Success Rate"
-						description="Agent evaluation success percentage"
+						description="Track agent success rate over time"
 						data={
 							dashboardData
 								? groupTimeSeriesData(
