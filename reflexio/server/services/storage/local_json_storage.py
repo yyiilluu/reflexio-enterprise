@@ -26,7 +26,7 @@ from reflexio_commons.api_schema.service_schemas import (
     Status,
     UserProfile,
 )
-from reflexio_commons.config_schema import StorageConfigLocal
+from reflexio_commons.config_schema import SearchMode, StorageConfigLocal
 
 from reflexio import data
 from reflexio.server import LOCAL_STORAGE_PATH
@@ -1137,7 +1137,9 @@ class LocalJsonStorage(BaseStorage):
     # ==============================
 
     def search_interaction(
-        self, search_interaction_request: SearchInteractionRequest
+        self,
+        search_interaction_request: SearchInteractionRequest,
+        search_mode: SearchMode | None = None,  # noqa: ARG002
     ) -> list[Interaction]:
         """Search user interaction from storage
 
@@ -1182,6 +1184,7 @@ class LocalJsonStorage(BaseStorage):
         search_user_profile_request: SearchUserProfileRequest,
         status_filter: list[Status | None] | None = None,
         query_embedding: list[float] | None = None,  # noqa: ARG002
+        search_mode: SearchMode | None = None,  # noqa: ARG002
     ) -> list[UserProfile]:
         """Search user profile from storage
 
@@ -1988,6 +1991,7 @@ class LocalJsonStorage(BaseStorage):
         match_threshold: float = 0.5,  # noqa: ARG002
         match_count: int = 10,
         query_embedding: list[float] | None = None,  # noqa: ARG002
+        search_mode: SearchMode | None = None,  # noqa: ARG002
     ) -> list[RawFeedback]:
         """
         Search raw feedbacks with advanced filtering (local storage uses text matching, not vector search).
@@ -2072,6 +2076,7 @@ class LocalJsonStorage(BaseStorage):
         match_threshold: float = 0.5,  # noqa: ARG002
         match_count: int = 10,
         query_embedding: list[float] | None = None,  # noqa: ARG002
+        search_mode: SearchMode | None = None,  # noqa: ARG002
     ) -> list[Feedback]:
         """
         Search feedbacks with advanced filtering (local storage uses text matching, not vector search).
@@ -2952,6 +2957,7 @@ class LocalJsonStorage(BaseStorage):
         match_threshold: float = 0.5,  # noqa: ARG002
         match_count: int = 10,
         query_embedding: list[float] | None = None,  # noqa: ARG002
+        search_mode: SearchMode | None = None,  # noqa: ARG002
     ) -> list[Skill]:
         all_memories = self._load()
         if "skills" not in all_memories:

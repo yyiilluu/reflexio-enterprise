@@ -11,7 +11,7 @@ These tests verify that:
 """
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from reflexio_commons.api_schema.retriever_schema import (
@@ -94,7 +94,7 @@ def hybrid_test_data():
     - Unique keywords that are easy to find with FTS
     - Semantic content that is easy to find with vector search
     """
-    current_time = int(datetime.now(timezone.utc).timestamp())
+    current_time = int(datetime.now(UTC).timestamp())
     unique_keyword = f"xyzzy_quantum_flux_{current_time}"  # Unique keyword for FTS
 
     return {
@@ -723,6 +723,117 @@ def test_search_mode_affects_results(
     assert len(results_fts) > 0, "FTS mode should find profile with exact keyword"
     # Note: Vector mode might not find it if the keyword isn't semantically close
     # Hybrid should find it via FTS component
+
+
+@skip_in_precommit
+def test_per_request_search_mode_override(supabase_storage_hybrid, hybrid_test_data):
+    """Test that per-request search_mode overrides the storage default."""
+    storage = supabase_storage_hybrid
+    data = hybrid_test_data
+    user_id = data["user_id"]
+    unique_keyword = data["unique_keyword"]
+
+    # Storage is set to hybrid mode
+    assert storage.search_mode == SearchMode.HYBRID
+
+    # Create a profile with the unique keyword
+    profile = UserProfile(
+        profile_id=f"per_req_mode_{unique_keyword}",
+        user_id=user_id,
+        profile_content=f"User mentioned {unique_keyword} in their conversation",
+        last_modified_timestamp=int(datetime.now(UTC).timestamp()),
+        generated_from_request_id="req_mode_test",
+        profile_time_to_live="infinity",
+        expiration_timestamp=NEVER_EXPIRES_TIMESTAMP,
+        source="mode_test",
+    )
+    storage.add_user_profile(user_id, [profile])
+
+    search_request = SearchUserProfileRequest(
+        user_id=user_id,
+        query=unique_keyword,
+        threshold=0.01,
+        top_k=10,
+    )
+
+    # Override search mode to FTS at request level
+    results_fts = storage.search_user_profile(
+        search_request, search_mode=SearchMode.FTS
+    )
+    assert len(results_fts) > 0, "FTS override should find keyword match"
+
+    # Override to vector-only — keyword-only content may not match semantically
+    results_vector = storage.search_user_profile(
+        search_request, search_mode=SearchMode.VECTOR
+    )
+    # Vector results may or may not find it, just verify it doesn't crash
+    assert isinstance(results_vector, list)
+
+
+@skip_in_precommit
+def test_weighted_rrf_parameters_accepted(supabase_storage_hybrid, hybrid_test_data):
+    """Test that the SQL functions accept vector_weight and fts_weight without errors."""
+    storage = supabase_storage_hybrid
+    data = hybrid_test_data
+    user_id = data["user_id"]
+    unique_keyword = data["unique_keyword"]
+
+    # Create a profile
+    profile = UserProfile(
+        profile_id=f"weighted_rrf_{unique_keyword}",
+        user_id=user_id,
+        profile_content=f"Testing weighted RRF with {unique_keyword}",
+        last_modified_timestamp=int(datetime.now(UTC).timestamp()),
+        generated_from_request_id="req_weight_test",
+        profile_time_to_live="infinity",
+        expiration_timestamp=NEVER_EXPIRES_TIMESTAMP,
+        source="weight_test",
+    )
+    storage.add_user_profile(user_id, [profile])
+
+    # Override weights to bias toward FTS
+    original_vector_weight = storage.vector_weight
+    original_fts_weight = storage.fts_weight
+    try:
+        storage.vector_weight = 0.3
+        storage.fts_weight = 0.7
+
+        search_request = SearchUserProfileRequest(
+            user_id=user_id,
+            query=unique_keyword,
+            threshold=0.01,
+            top_k=10,
+        )
+        results = storage.search_user_profile(search_request)
+        assert isinstance(results, list), "Weighted search should return a list"
+    finally:
+        storage.vector_weight = original_vector_weight
+        storage.fts_weight = original_fts_weight
+
+
+@skip_in_precommit
+def test_per_request_search_mode_feedbacks(supabase_storage_hybrid, hybrid_test_data):
+    """Test per-request search_mode override for feedback search."""
+    storage = supabase_storage_hybrid
+    unique_keyword = hybrid_test_data["unique_keyword"]
+
+    # Search feedbacks with FTS override
+    results_fts = storage.search_feedbacks(
+        query=unique_keyword,
+        match_threshold=0.01,
+        match_count=5,
+        search_mode=SearchMode.FTS,
+    )
+    assert isinstance(results_fts, list)
+
+    # Search feedbacks with vector override
+    results_vector = storage.search_feedbacks(
+        query=unique_keyword,
+        match_threshold=0.01,
+        match_count=5,
+        search_mode=SearchMode.VECTOR,
+    )
+    assert isinstance(results_vector, list)
 
 
 if __name__ == "__main__":
