@@ -2,7 +2,7 @@ import json
 import logging
 import threading
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
@@ -31,38 +31,12 @@ from reflexio_commons.config_schema import StorageConfigLocal
 from reflexio import data
 from reflexio.server import LOCAL_STORAGE_PATH
 from reflexio.server.services.storage.error import StorageError
-from reflexio.server.services.storage.storage_base import BaseStorage
+from reflexio.server.services.storage.storage_base import (
+    BaseStorage,
+    matches_status_filter,
+)
 
 logger = logging.getLogger(__name__)
-
-
-def _matches_status_filter(
-    item_status: Status | None,
-    status_filter: list[Status | None],
-) -> bool:
-    """Check whether an item's status matches a status filter list (Python-side filtering).
-
-    Args:
-        item_status (Status | None): The item's current status
-        status_filter (list[Status | None]): Allowed status values
-
-    Returns:
-        bool: True if the item passes the filter
-    """
-    has_none = None in status_filter
-    status_strings = [
-        s.value for s in status_filter if s is not None and hasattr(s, "value")
-    ]
-    if has_none and item_status is None:
-        return True
-    item_val = (
-        item_status.value
-        if item_status is not None and hasattr(item_status, "value")
-        else item_status
-    )
-    if item_val in status_strings:
-        return True
-    return has_none and not status_strings and item_status is None
 
 
 class LocalJsonStorage(BaseStorage):
@@ -141,7 +115,7 @@ class LocalJsonStorage(BaseStorage):
 
     def _current_timestamp(self) -> str:
         """Return a timezone-aware ISO timestamp for updated_at."""
-        return datetime.now(timezone.utc).isoformat()
+        return datetime.now(UTC).isoformat()
 
     # ==============================
     # CRUD methods
@@ -586,7 +560,7 @@ class LocalJsonStorage(BaseStorage):
                         # Update the profile status and last modified timestamp
                         profile_obj.status = new_status
                         profile_obj.last_modified_timestamp = int(
-                            datetime.now(timezone.utc).timestamp()
+                            datetime.now(UTC).timestamp()
                         )
                         all_memories[user_id]["profiles"][i] = (
                             profile_obj.model_dump_json()
@@ -2075,7 +2049,7 @@ class LocalJsonStorage(BaseStorage):
                 continue
 
             # Filter by status
-            if status_filter is not None and not _matches_status_filter(
+            if status_filter is not None and not matches_status_filter(
                 rf.status, status_filter
             ):
                 continue
@@ -2155,7 +2129,7 @@ class LocalJsonStorage(BaseStorage):
                     continue
 
             # Filter by status
-            if status_filter is not None and not _matches_status_filter(
+            if status_filter is not None and not matches_status_filter(
                 f.status, status_filter
             ):
                 continue
@@ -2238,7 +2212,7 @@ class LocalJsonStorage(BaseStorage):
             dict: Dictionary containing current_period, previous_period, and raw time_series data
         """
         all_memories = self._load()
-        current_time = int(datetime.now(timezone.utc).timestamp())
+        current_time = int(datetime.now(UTC).timestamp())
 
         # Calculate time boundaries
         seconds_in_period = days_back * 24 * 60 * 60
@@ -2399,7 +2373,7 @@ class LocalJsonStorage(BaseStorage):
         Returns:
             int: Bucket timestamp (start of day/week/month)
         """
-        dt = datetime.fromtimestamp(timestamp, tz=timezone.utc)
+        dt = datetime.fromtimestamp(timestamp, tz=UTC)
 
         if granularity == "daily":
             bucket_dt = dt.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -2875,7 +2849,7 @@ class LocalJsonStorage(BaseStorage):
             dict with keys: current_count, pending_count, archived_count, expiring_soon_count
         """
         all_memories = self._load()
-        current_timestamp = int(datetime.now(timezone.utc).timestamp())
+        current_timestamp = int(datetime.now(UTC).timestamp())
         expiring_soon_timestamp = current_timestamp + (7 * 24 * 60 * 60)  # 7 days
 
         stats = {

@@ -5,7 +5,7 @@ Storage class that uses Supabase as vector db for storing data
 import functools
 import logging
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
@@ -45,7 +45,10 @@ from reflexio_commons.config_schema import (
 from reflexio import data
 from reflexio.server.llm.litellm_client import LiteLLMClient, LiteLLMConfig
 from reflexio.server.services.storage.error import StorageError
-from reflexio.server.services.storage.storage_base import BaseStorage
+from reflexio.server.services.storage.storage_base import (
+    BaseStorage,
+    matches_status_filter,
+)
 from reflexio.server.services.storage.supabase_storage_utils import (
     agent_success_evaluation_result_to_data,
     execute_migration,
@@ -112,7 +115,7 @@ def _timestamp_to_iso(ts: int) -> str:
     Returns:
         str: ISO format datetime string
     """
-    return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
+    return datetime.fromtimestamp(ts, tz=UTC).isoformat()
 
 
 def _build_status_or_condition(status_list: list[Status | None]) -> str | None:
@@ -173,30 +176,6 @@ def _apply_status_filter_to_query(
         query = query.in_("status", status_strings)
 
     return query
-
-
-def _matches_status_filter(
-    item_status: Status | None,
-    status_filter: list[Status | None],
-) -> bool:
-    """Check whether an item's status matches a status filter list (Python-side filtering).
-
-    Args:
-        item_status (Status | None): The item's current status
-        status_filter (list[Status | None]): Allowed status values
-
-    Returns:
-        bool: True if the item passes the filter
-    """
-    has_none = None in status_filter
-    status_strings = [
-        s.value for s in status_filter if s is not None and hasattr(s, "value")
-    ]
-    if has_none and item_status is None:
-        return True
-    if item_status is not None and item_status.value in status_strings:
-        return True
-    return has_none and not status_strings and item_status is None
 
 
 def _parse_rpc_row_to_request(row: dict[str, Any]) -> Request:
@@ -367,7 +346,7 @@ class SupabaseStorage(BaseStorage):
 
     def _current_timestamp(self) -> str:
         """Return a timezone-aware ISO timestamp for updated_at."""
-        return datetime.now(timezone.utc).isoformat()
+        return datetime.now(UTC).isoformat()
 
     # ==============================
     # CRUD methods
@@ -475,7 +454,7 @@ class SupabaseStorage(BaseStorage):
         if status_filter is None:
             status_filter = [None]  # Default to current profiles (status=None)
 
-        current_timestamp = int(datetime.now(timezone.utc).timestamp())
+        current_timestamp = int(datetime.now(UTC).timestamp())
         query = (
             self.client.table("profiles")
             .select(_PROFILE_COLUMNS)
@@ -596,7 +575,7 @@ class SupabaseStorage(BaseStorage):
     def update_user_profile_by_id(
         self, user_id: str, profile_id: str, new_profile: UserProfile
     ) -> None:
-        current_timestamp = int(datetime.now(timezone.utc).timestamp())
+        current_timestamp = int(datetime.now(UTC).timestamp())
         response = (
             self.client.table("profiles")
             .select("profile_id")
@@ -706,7 +685,7 @@ class SupabaseStorage(BaseStorage):
         query = self.client.table("profiles").update(
             {
                 "status": new_status.value if new_status else None,
-                "last_modified_timestamp": int(datetime.now(timezone.utc).timestamp()),
+                "last_modified_timestamp": int(datetime.now(UTC).timestamp()),
             }
         )
 
@@ -989,11 +968,11 @@ class SupabaseStorage(BaseStorage):
             query = query.eq("session_id", session_id)
         if start_time:
             start_time_iso = datetime.fromtimestamp(
-                start_time, tz=timezone.utc
+                start_time, tz=UTC
             ).isoformat()
             query = query.gte("created_at", start_time_iso)
         if end_time:
-            end_time_iso = datetime.fromtimestamp(end_time, tz=timezone.utc).isoformat()
+            end_time_iso = datetime.fromtimestamp(end_time, tz=UTC).isoformat()
             query = query.lte("created_at", end_time_iso)
 
         # Apply pagination: limit and offset on filtered requests.
@@ -1085,12 +1064,12 @@ class SupabaseStorage(BaseStorage):
                 query = query.eq("user_id", user_id)
             if start_time:
                 start_time_iso = datetime.fromtimestamp(
-                    start_time, tz=timezone.utc
+                    start_time, tz=UTC
                 ).isoformat()
                 query = query.gte("created_at", start_time_iso)
             if end_time:
                 end_time_iso = datetime.fromtimestamp(
-                    end_time, tz=timezone.utc
+                    end_time, tz=UTC
                 ).isoformat()
                 query = query.lte("created_at", end_time_iso)
             if source:
@@ -1229,7 +1208,7 @@ class SupabaseStorage(BaseStorage):
         if status_filter is None:
             status_filter = [None]  # Default to current profiles (status=None)
 
-        current_timestamp = int(datetime.now(timezone.utc).timestamp())
+        current_timestamp = int(datetime.now(UTC).timestamp())
         # Perform hybrid search (vector + FTS)
         if not search_user_profile_request.query:
             return []
@@ -1389,7 +1368,7 @@ class SupabaseStorage(BaseStorage):
                     continue
                 if end_time and rf.created_at > end_time:
                     continue
-                if status_filter is not None and not _matches_status_filter(
+                if status_filter is not None and not matches_status_filter(
                     rf.status, status_filter
                 ):
                     continue
@@ -1537,7 +1516,7 @@ class SupabaseStorage(BaseStorage):
                     and f.feedback_status != feedback_status_filter.value
                 ):
                     continue
-                if status_filter is not None and not _matches_status_filter(
+                if status_filter is not None and not matches_status_filter(
                     f.status, status_filter
                 ):
                     continue
@@ -1701,11 +1680,11 @@ class SupabaseStorage(BaseStorage):
         # Add time range filters if specified
         if start_time is not None:
             start_time_iso = datetime.fromtimestamp(
-                start_time, tz=timezone.utc
+                start_time, tz=UTC
             ).isoformat()
             query = query.gte("created_at", start_time_iso)
         if end_time is not None:
-            end_time_iso = datetime.fromtimestamp(end_time, tz=timezone.utc).isoformat()
+            end_time_iso = datetime.fromtimestamp(end_time, tz=UTC).isoformat()
             query = query.lte("created_at", end_time_iso)
 
         # Add status filter if specified
@@ -2284,7 +2263,7 @@ class SupabaseStorage(BaseStorage):
             int: Unix timestamp
         """
         if not datetime_str:
-            return int(datetime.now(timezone.utc).timestamp())
+            return int(datetime.now(UTC).timestamp())
 
         try:
             # Normalize fractional seconds to 6 digits for consistent parsing
@@ -2323,12 +2302,12 @@ class SupabaseStorage(BaseStorage):
 
                 # If all parsing attempts fail, log warning and return current timestamp
                 logger.warning("Could not parse datetime string: %s", datetime_str)
-                return int(datetime.now(timezone.utc).timestamp())
+                return int(datetime.now(UTC).timestamp())
             except Exception as e:
                 logger.warning(
                     "Error parsing datetime string '%s': %s", datetime_str, str(e)
                 )
-                return int(datetime.now(timezone.utc).timestamp())
+                return int(datetime.now(UTC).timestamp())
 
     # ==============================
     # Agent Success Evaluation methods
@@ -2526,7 +2505,7 @@ class SupabaseStorage(BaseStorage):
         Returns:
             dict: Dictionary containing current_period, previous_period, and raw time_series data
         """
-        current_time = int(datetime.now(timezone.utc).timestamp())
+        current_time = int(datetime.now(UTC).timestamp())
         seconds_in_period = days_back * 24 * 60 * 60
         current_period_start = current_time - seconds_in_period
         previous_period_start = current_period_start - seconds_in_period
@@ -2713,7 +2692,7 @@ class SupabaseStorage(BaseStorage):
             timedelta,
         )  # Keep local import for infrequently used function
 
-        dt = datetime.fromtimestamp(timestamp, tz=timezone.utc)
+        dt = datetime.fromtimestamp(timestamp, tz=UTC)
 
         if granularity == "daily":
             bucket_dt = dt.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -2863,7 +2842,7 @@ class SupabaseStorage(BaseStorage):
         timestamp_iso = None
         if last_processed_timestamp is not None:
             timestamp_iso = datetime.fromtimestamp(
-                last_processed_timestamp, tz=timezone.utc
+                last_processed_timestamp, tz=UTC
             ).isoformat()
 
         # Query 2: Call RPC function for JOIN and filtering in database
@@ -3074,7 +3053,7 @@ class SupabaseStorage(BaseStorage):
         Returns:
             dict with keys: current_count, pending_count, archived_count, expiring_soon_count
         """
-        current_timestamp = int(datetime.now(timezone.utc).timestamp())
+        current_timestamp = int(datetime.now(UTC).timestamp())
         expiring_soon_timestamp = current_timestamp + (7 * 24 * 60 * 60)  # 7 days
 
         # Get all profiles that are not expired

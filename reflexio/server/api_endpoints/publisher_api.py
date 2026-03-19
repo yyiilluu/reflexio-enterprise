@@ -2,8 +2,6 @@
 Create, edit, delete user interaction and user profile
 """
 
-import logging
-
 from reflexio_commons.api_schema.retriever_schema import (
     UpdateFeedbackStatusRequest,
     UpdateFeedbackStatusResponse,
@@ -43,8 +41,6 @@ from reflexio.server.api_endpoints.precondition_checks import (
     validate_publish_user_interaction_request,
 )
 from reflexio.server.cache.reflexio_cache import get_reflexio
-
-logger = logging.getLogger(__name__)
 
 # ==============================
 # Create user interaction and profile
@@ -123,11 +119,7 @@ def delete_user_profile(
         return DeleteUserProfileResponse(success=False, message=message)
 
     reflexio = get_reflexio(org_id=org_id)
-    try:
-        return reflexio.delete_profile(request)
-    except Exception as e:
-        logger.error("Failed to delete user profile: %s", e)
-        return DeleteUserProfileResponse(success=False, message=str(e))
+    return reflexio.delete_profile(request)
 
 
 def delete_user_interaction(
@@ -143,11 +135,7 @@ def delete_user_interaction(
         DeleteUserInteractionResponse: Response containing success status and message
     """
     reflexio = get_reflexio(org_id=org_id)
-    try:
-        return reflexio.delete_interaction(request)
-    except Exception as e:
-        logger.error("Failed to delete user interaction: %s", e)
-        return DeleteUserInteractionResponse(success=False, message=str(e))
+    return reflexio.delete_interaction(request)
 
 
 def delete_request(org_id: str, request: DeleteRequestRequest) -> DeleteRequestResponse:
@@ -161,11 +149,7 @@ def delete_request(org_id: str, request: DeleteRequestRequest) -> DeleteRequestR
         DeleteRequestResponse: Response containing success status and message
     """
     reflexio = get_reflexio(org_id=org_id)
-    try:
-        return reflexio.delete_request(request)
-    except Exception as e:
-        logger.error("Failed to delete request: %s", e)
-        return DeleteRequestResponse(success=False, message=str(e))
+    return reflexio.delete_request(request)
 
 
 def delete_session(org_id: str, request: DeleteSessionRequest) -> DeleteSessionResponse:
@@ -179,11 +163,7 @@ def delete_session(org_id: str, request: DeleteSessionRequest) -> DeleteSessionR
         DeleteSessionResponse: Response containing success status, message, and deleted count
     """
     reflexio = get_reflexio(org_id=org_id)
-    try:
-        return reflexio.delete_session(request)
-    except Exception as e:
-        logger.error("Failed to delete session: %s", e)
-        return DeleteSessionResponse(success=False, message=str(e))
+    return reflexio.delete_session(request)
 
 
 def delete_feedback(
@@ -199,11 +179,7 @@ def delete_feedback(
         DeleteFeedbackResponse: Response containing success status and message
     """
     reflexio = get_reflexio(org_id=org_id)
-    try:
-        return reflexio.delete_feedback(request)
-    except Exception as e:
-        logger.error("Failed to delete feedback: %s", e)
-        return DeleteFeedbackResponse(success=False, message=str(e))
+    return reflexio.delete_feedback(request)
 
 
 def delete_raw_feedback(
@@ -219,11 +195,7 @@ def delete_raw_feedback(
         DeleteRawFeedbackResponse: Response containing success status and message
     """
     reflexio = get_reflexio(org_id=org_id)
-    try:
-        return reflexio.delete_raw_feedback(request)
-    except Exception as e:
-        logger.error("Failed to delete raw feedback: %s", e)
-        return DeleteRawFeedbackResponse(success=False, message=str(e))
+    return reflexio.delete_raw_feedback(request)
 
 
 def delete_all_interactions_bulk(org_id: str) -> BulkDeleteResponse:
@@ -236,11 +208,7 @@ def delete_all_interactions_bulk(org_id: str) -> BulkDeleteResponse:
         BulkDeleteResponse: Response containing success status and deleted count
     """
     reflexio = get_reflexio(org_id=org_id)
-    try:
-        return reflexio.delete_all_interactions_bulk()
-    except Exception as e:
-        logger.error("Failed to delete all interactions: %s", e)
-        return BulkDeleteResponse(success=False, message=str(e))
+    return reflexio.delete_all_interactions_bulk()
 
 
 def delete_all_profiles_bulk(org_id: str) -> BulkDeleteResponse:
@@ -253,11 +221,7 @@ def delete_all_profiles_bulk(org_id: str) -> BulkDeleteResponse:
         BulkDeleteResponse: Response containing success status and deleted count
     """
     reflexio = get_reflexio(org_id=org_id)
-    try:
-        return reflexio.delete_all_profiles_bulk()
-    except Exception as e:
-        logger.error("Failed to delete all profiles: %s", e)
-        return BulkDeleteResponse(success=False, message=str(e))
+    return reflexio.delete_all_profiles_bulk()
 
 
 def delete_all_feedbacks_bulk(org_id: str) -> BulkDeleteResponse:
@@ -270,11 +234,7 @@ def delete_all_feedbacks_bulk(org_id: str) -> BulkDeleteResponse:
         BulkDeleteResponse: Response containing success status and deleted count
     """
     reflexio = get_reflexio(org_id=org_id)
-    try:
-        return reflexio.delete_all_feedbacks_bulk()
-    except Exception as e:
-        logger.error("Failed to delete all feedbacks: %s", e)
-        return BulkDeleteResponse(success=False, message=str(e))
+    return reflexio.delete_all_feedbacks_bulk()
 
 
 def delete_requests_by_ids(
@@ -290,11 +250,7 @@ def delete_requests_by_ids(
         BulkDeleteResponse: Response containing success status and deleted count
     """
     reflexio = get_reflexio(org_id=org_id)
-    try:
-        return reflexio.delete_requests_by_ids(request)
-    except Exception as e:
-        logger.error("Failed to delete requests by IDs: %s", e)
-        return BulkDeleteResponse(success=False, message=str(e))
+    return reflexio.delete_requests_by_ids(request)
 
 
 def delete_profiles_by_ids(
@@ -310,11 +266,7 @@ def delete_profiles_by_ids(
         BulkDeleteResponse: Response containing success status and deleted count
     """
     reflexio = get_reflexio(org_id=org_id)
-    try:
-        return reflexio.delete_profiles_by_ids(request)
-    except Exception as e:
-        logger.error("Failed to delete profiles by IDs: %s", e)
-        return BulkDeleteResponse(success=False, message=str(e))
+    return reflexio.delete_profiles_by_ids(request)
 
 
 def delete_feedbacks_by_ids_bulk(
@@ -330,11 +282,7 @@ def delete_feedbacks_by_ids_bulk(
         BulkDeleteResponse: Response containing success status and deleted count
     """
     reflexio = get_reflexio(org_id=org_id)
-    try:
-        return reflexio.delete_feedbacks_by_ids_bulk(request)
-    except Exception as e:
-        logger.error("Failed to delete feedbacks by IDs: %s", e)
-        return BulkDeleteResponse(success=False, message=str(e))
+    return reflexio.delete_feedbacks_by_ids_bulk(request)
 
 
 def delete_raw_feedbacks_by_ids_bulk(
@@ -350,11 +298,7 @@ def delete_raw_feedbacks_by_ids_bulk(
         BulkDeleteResponse: Response containing success status and deleted count
     """
     reflexio = get_reflexio(org_id=org_id)
-    try:
-        return reflexio.delete_raw_feedbacks_by_ids_bulk(request)
-    except Exception as e:
-        logger.error("Failed to delete raw feedbacks by IDs: %s", e)
-        return BulkDeleteResponse(success=False, message=str(e))
+    return reflexio.delete_raw_feedbacks_by_ids_bulk(request)
 
 
 # ==============================
@@ -375,11 +319,7 @@ def run_feedback_aggregation(
         RunFeedbackAggregationResponse: Response containing success status and message
     """
     reflexio = get_reflexio(org_id=org_id)
-    try:
-        reflexio.run_feedback_aggregation(request.agent_version, request.feedback_name)
-    except Exception as e:
-        logger.error("Failed to run feedback aggregation: %s", e)
-        return RunFeedbackAggregationResponse(success=False, message=str(e))
+    reflexio.run_feedback_aggregation(request.agent_version, request.feedback_name)
     return RunFeedbackAggregationResponse(success=True)
 
 
@@ -401,13 +341,9 @@ def run_skill_generation(
         RunSkillGenerationResponse: Response containing success status and counts
     """
     reflexio = get_reflexio(org_id=org_id)
-    try:
-        result = reflexio.run_skill_generation(
-            request.agent_version, request.feedback_name
-        )
-    except Exception as e:
-        logger.error("Failed to run skill generation: %s", e)
-        return RunSkillGenerationResponse(success=False, message=str(e))
+    result = reflexio.run_skill_generation(
+        request.agent_version, request.feedback_name
+    )
     return RunSkillGenerationResponse(
         success=True,
         skills_generated=result.get("skills_generated", 0),
@@ -433,8 +369,4 @@ def update_feedback_status(
         UpdateFeedbackStatusResponse: Response containing success status and message
     """
     reflexio = get_reflexio(org_id=org_id)
-    try:
-        return reflexio.update_feedback_status(request)
-    except Exception as e:
-        logger.error("Failed to update feedback status: %s", e)
-        return UpdateFeedbackStatusResponse(success=False, msg=str(e))
+    return reflexio.update_feedback_status(request)

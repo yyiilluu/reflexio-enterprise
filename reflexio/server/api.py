@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+from collections.abc import Iterable
 from typing import Annotated, Any
 
 from fastapi import (
@@ -177,6 +178,14 @@ from reflexio.server.site_var.feature_flags import (
 
 logger = logging.getLogger(__name__)
 
+
+def _strip_embeddings(*collections: Iterable) -> None:
+    """Remove embedding vectors from response objects before sending to client."""
+    for collection in collections:
+        for item in collection:
+            item.embedding = []
+
+
 # Bot protection configuration
 REQUEST_TIMEOUT_SECONDS = 60
 SYNC_REQUEST_TIMEOUT_SECONDS = (
@@ -268,7 +277,7 @@ class TimeoutMiddleware(BaseHTTPMiddleware):
 
         try:
             return await asyncio.wait_for(call_next(request), timeout=timeout)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return JSONResponse(
                 status_code=status.HTTP_504_GATEWAY_TIMEOUT,
                 content={"detail": "Request timeout"},
@@ -1204,9 +1213,7 @@ def search_raw_feedbacks_endpoint(
         SearchRawFeedbackResponse: Response containing matching raw feedbacks
     """
     response = retriever_api.search_raw_feedbacks(org_id=org_id, request=payload)
-    # Filter out embedding fields
-    for raw_feedback in response.raw_feedbacks:
-        raw_feedback.embedding = []
+    _strip_embeddings(response.raw_feedbacks)
     return response
 
 
@@ -1235,9 +1242,7 @@ def search_feedbacks_endpoint(
         SearchFeedbackResponse: Response containing matching feedbacks
     """
     response = retriever_api.search_feedbacks(org_id=org_id, request=payload)
-    # Filter out embedding fields
-    for feedback in response.feedbacks:
-        feedback.embedding = []
+    _strip_embeddings(response.feedbacks)
     return response
 
 
@@ -1268,13 +1273,7 @@ def unified_search_endpoint(
         UnifiedSearchResponse: Combined search results
     """
     response = retriever_api.unified_search(org_id=org_id, request=payload)
-    # Filter out embedding fields
-    for profile in response.profiles:
-        profile.embedding = []
-    for feedback in response.feedbacks:
-        feedback.embedding = []
-    for raw_feedback in response.raw_feedbacks:
-        raw_feedback.embedding = []
+    _strip_embeddings(response.profiles, response.feedbacks, response.raw_feedbacks)
     return response
 
 
@@ -1492,10 +1491,7 @@ def get_all_interactions(
     # Get all interactions using Reflexio's get_all_interactions method
     response = reflexio.get_all_interactions(limit=limit)
 
-    # Filter out embedding fields from interactions
-    for interaction in response.interactions:
-        interaction.embedding = []
-
+    _strip_embeddings(response.interactions)
     return response
 
 
@@ -1567,10 +1563,7 @@ def get_all_profiles(
     # Get all profiles using Reflexio's get_all_profiles method
     response = reflexio.get_all_profiles(limit=limit, status_filter=status_filter_list)  # type: ignore[reportArgumentType]
 
-    # Filter out embedding fields from profiles
-    for profile in response.user_profiles:
-        profile.embedding = []
-
+    _strip_embeddings(response.user_profiles)
     return response
 
 
@@ -1800,10 +1793,7 @@ def get_raw_feedbacks(
     # Get raw feedbacks using Reflexio's get_raw_feedbacks method
     response = reflexio.get_raw_feedbacks(request)
 
-    # Filter out embedding fields from raw_feedbacks
-    for raw_feedback in response.raw_feedbacks:
-        raw_feedback.embedding = []
-
+    _strip_embeddings(response.raw_feedbacks)
     return response
 
 
@@ -1831,10 +1821,7 @@ def get_feedbacks(
     # Get feedbacks using Reflexio's get_feedbacks method
     response = reflexio.get_feedbacks(request)
 
-    # Filter out embedding fields from feedbacks
-    for feedback in response.feedbacks:
-        feedback.embedding = []
-
+    _strip_embeddings(response.feedbacks)
     return response
 
 

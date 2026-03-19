@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import functools
 import logging
-from typing import TYPE_CHECKING
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, TypeVar
 
 if TYPE_CHECKING:
     from reflexio.server.services.query_rewriter import QueryRewriter
+
+from datetime import UTC
 
 from reflexio_commons.api_schema.retriever_schema import (
     DashboardStats,
@@ -121,6 +125,31 @@ logger = logging.getLogger(__name__)
 STORAGE_NOT_CONFIGURED_MSG = (
     "Storage not configured. Please configure storage in settings first."
 )
+
+_T = TypeVar("_T")
+
+
+def _require_storage(response_type: type[_T], *, msg_field: str = "message") -> Callable[..., Callable[..., _T]]:
+    """Decorator that guards a Reflexio method with storage-configured check and error handling.
+
+    Args:
+        response_type: The Pydantic response model to return on failure
+        msg_field: Name of the message field on the response ('message' or 'msg')
+    """
+
+    def decorator(method: Callable[..., _T]) -> Callable[..., _T]:
+        @functools.wraps(method)
+        def wrapper(self: Reflexio, *args: Any, **kwargs: Any) -> _T:
+            if not self._is_storage_configured():
+                return response_type(success=False, **{msg_field: STORAGE_NOT_CONFIGURED_MSG})  # type: ignore[call-arg]
+            try:
+                return method(self, *args, **kwargs)
+            except Exception as e:
+                return response_type(success=False, **{msg_field: str(e)})  # type: ignore[call-arg]
+
+        return wrapper
+
+    return decorator  # type: ignore[return-value]
 
 
 class Reflexio:
@@ -336,6 +365,7 @@ class Reflexio:
             success=True, change_logs=change_logs
         )
 
+    @_require_storage(DeleteUserProfileResponse)
     def delete_profile(
         self,
         request: DeleteUserProfileRequest | dict,
@@ -348,18 +378,12 @@ class Reflexio:
         Returns:
             DeleteUserProfileResponse: Response containing success status and message
         """
-        if not self._is_storage_configured():
-            return DeleteUserProfileResponse(
-                success=False, message=STORAGE_NOT_CONFIGURED_MSG
-            )
         if isinstance(request, dict):
             request = DeleteUserProfileRequest(**request)
-        try:
-            self._get_storage().delete_user_profile(request)
-            return DeleteUserProfileResponse(success=True)
-        except Exception as e:
-            return DeleteUserProfileResponse(success=False, message=str(e))
+        self._get_storage().delete_user_profile(request)
+        return DeleteUserProfileResponse(success=True)
 
+    @_require_storage(DeleteUserInteractionResponse)
     def delete_interaction(
         self,
         request: DeleteUserInteractionRequest | dict,
@@ -372,18 +396,12 @@ class Reflexio:
         Returns:
             DeleteUserInteractionResponse: Response containing success status and message
         """
-        if not self._is_storage_configured():
-            return DeleteUserInteractionResponse(
-                success=False, message=STORAGE_NOT_CONFIGURED_MSG
-            )
         if isinstance(request, dict):
             request = DeleteUserInteractionRequest(**request)
-        try:
-            self._get_storage().delete_user_interaction(request)
-            return DeleteUserInteractionResponse(success=True)
-        except Exception as e:
-            return DeleteUserInteractionResponse(success=False, message=str(e))
+        self._get_storage().delete_user_interaction(request)
+        return DeleteUserInteractionResponse(success=True)
 
+    @_require_storage(DeleteRequestResponse)
     def delete_request(
         self,
         request: DeleteRequestRequest | dict,
@@ -396,18 +414,12 @@ class Reflexio:
         Returns:
             DeleteRequestResponse: Response containing success status and message
         """
-        if not self._is_storage_configured():
-            return DeleteRequestResponse(
-                success=False, message=STORAGE_NOT_CONFIGURED_MSG
-            )
         if isinstance(request, dict):
             request = DeleteRequestRequest(**request)
-        try:
-            self._get_storage().delete_request(request.request_id)
-            return DeleteRequestResponse(success=True)
-        except Exception as e:
-            return DeleteRequestResponse(success=False, message=str(e))
+        self._get_storage().delete_request(request.request_id)
+        return DeleteRequestResponse(success=True)
 
+    @_require_storage(DeleteSessionResponse)
     def delete_session(
         self,
         request: DeleteSessionRequest | dict,
@@ -420,20 +432,14 @@ class Reflexio:
         Returns:
             DeleteSessionResponse: Response containing success status, message, and deleted count
         """
-        if not self._is_storage_configured():
-            return DeleteSessionResponse(
-                success=False, message=STORAGE_NOT_CONFIGURED_MSG
-            )
         if isinstance(request, dict):
             request = DeleteSessionRequest(**request)
-        try:
-            deleted_count = self._get_storage().delete_session(request.session_id)
-            return DeleteSessionResponse(
-                success=True, deleted_requests_count=deleted_count
-            )
-        except Exception as e:
-            return DeleteSessionResponse(success=False, message=str(e))
+        deleted_count = self._get_storage().delete_session(request.session_id)
+        return DeleteSessionResponse(
+            success=True, deleted_requests_count=deleted_count
+        )
 
+    @_require_storage(DeleteFeedbackResponse)
     def delete_feedback(
         self,
         request: DeleteFeedbackRequest | dict,
@@ -446,18 +452,12 @@ class Reflexio:
         Returns:
             DeleteFeedbackResponse: Response containing success status and message
         """
-        if not self._is_storage_configured():
-            return DeleteFeedbackResponse(
-                success=False, message=STORAGE_NOT_CONFIGURED_MSG
-            )
         if isinstance(request, dict):
             request = DeleteFeedbackRequest(**request)
-        try:
-            self._get_storage().delete_feedback(request.feedback_id)
-            return DeleteFeedbackResponse(success=True)
-        except Exception as e:
-            return DeleteFeedbackResponse(success=False, message=str(e))
+        self._get_storage().delete_feedback(request.feedback_id)
+        return DeleteFeedbackResponse(success=True)
 
+    @_require_storage(DeleteRawFeedbackResponse)
     def delete_raw_feedback(
         self,
         request: DeleteRawFeedbackRequest | dict,
@@ -470,67 +470,43 @@ class Reflexio:
         Returns:
             DeleteRawFeedbackResponse: Response containing success status and message
         """
-        if not self._is_storage_configured():
-            return DeleteRawFeedbackResponse(
-                success=False, message=STORAGE_NOT_CONFIGURED_MSG
-            )
         if isinstance(request, dict):
             request = DeleteRawFeedbackRequest(**request)
-        try:
-            self._get_storage().delete_raw_feedback(request.raw_feedback_id)
-            return DeleteRawFeedbackResponse(success=True)
-        except Exception as e:
-            return DeleteRawFeedbackResponse(success=False, message=str(e))
+        self._get_storage().delete_raw_feedback(request.raw_feedback_id)
+        return DeleteRawFeedbackResponse(success=True)
 
+    @_require_storage(BulkDeleteResponse)
     def delete_all_interactions_bulk(self) -> BulkDeleteResponse:
         """Delete all requests and their associated interactions.
 
         Returns:
             BulkDeleteResponse: Response containing success status and deleted count
         """
-        if not self._is_storage_configured():
-            return BulkDeleteResponse(
-                success=False, message=STORAGE_NOT_CONFIGURED_MSG
-            )
-        try:
-            self._get_storage().delete_all_requests()
-            return BulkDeleteResponse(success=True)
-        except Exception as e:
-            return BulkDeleteResponse(success=False, message=str(e))
+        self._get_storage().delete_all_requests()
+        return BulkDeleteResponse(success=True)
 
+    @_require_storage(BulkDeleteResponse)
     def delete_all_profiles_bulk(self) -> BulkDeleteResponse:
         """Delete all profiles.
 
         Returns:
             BulkDeleteResponse: Response containing success status and deleted count
         """
-        if not self._is_storage_configured():
-            return BulkDeleteResponse(
-                success=False, message=STORAGE_NOT_CONFIGURED_MSG
-            )
-        try:
-            self._get_storage().delete_all_profiles()
-            return BulkDeleteResponse(success=True)
-        except Exception as e:
-            return BulkDeleteResponse(success=False, message=str(e))
+        self._get_storage().delete_all_profiles()
+        return BulkDeleteResponse(success=True)
 
+    @_require_storage(BulkDeleteResponse)
     def delete_all_feedbacks_bulk(self) -> BulkDeleteResponse:
         """Delete all feedbacks (both raw and aggregated).
 
         Returns:
             BulkDeleteResponse: Response containing success status and deleted count
         """
-        if not self._is_storage_configured():
-            return BulkDeleteResponse(
-                success=False, message=STORAGE_NOT_CONFIGURED_MSG
-            )
-        try:
-            self._get_storage().delete_all_feedbacks()
-            self._get_storage().delete_all_raw_feedbacks()
-            return BulkDeleteResponse(success=True)
-        except Exception as e:
-            return BulkDeleteResponse(success=False, message=str(e))
+        self._get_storage().delete_all_feedbacks()
+        self._get_storage().delete_all_raw_feedbacks()
+        return BulkDeleteResponse(success=True)
 
+    @_require_storage(BulkDeleteResponse)
     def delete_requests_by_ids(
         self,
         request: DeleteRequestsByIdsRequest | dict,
@@ -543,18 +519,12 @@ class Reflexio:
         Returns:
             BulkDeleteResponse: Response containing success status and deleted count
         """
-        if not self._is_storage_configured():
-            return BulkDeleteResponse(
-                success=False, message=STORAGE_NOT_CONFIGURED_MSG
-            )
         if isinstance(request, dict):
             request = DeleteRequestsByIdsRequest(**request)
-        try:
-            deleted = self._get_storage().delete_requests_by_ids(request.request_ids)
-            return BulkDeleteResponse(success=True, deleted_count=deleted)
-        except Exception as e:
-            return BulkDeleteResponse(success=False, message=str(e))
+        deleted = self._get_storage().delete_requests_by_ids(request.request_ids)
+        return BulkDeleteResponse(success=True, deleted_count=deleted)
 
+    @_require_storage(BulkDeleteResponse)
     def delete_profiles_by_ids(
         self,
         request: DeleteProfilesByIdsRequest | dict,
@@ -567,18 +537,12 @@ class Reflexio:
         Returns:
             BulkDeleteResponse: Response containing success status and deleted count
         """
-        if not self._is_storage_configured():
-            return BulkDeleteResponse(
-                success=False, message=STORAGE_NOT_CONFIGURED_MSG
-            )
         if isinstance(request, dict):
             request = DeleteProfilesByIdsRequest(**request)
-        try:
-            deleted = self._get_storage().delete_profiles_by_ids(request.profile_ids)
-            return BulkDeleteResponse(success=True, deleted_count=deleted)
-        except Exception as e:
-            return BulkDeleteResponse(success=False, message=str(e))
+        deleted = self._get_storage().delete_profiles_by_ids(request.profile_ids)
+        return BulkDeleteResponse(success=True, deleted_count=deleted)
 
+    @_require_storage(BulkDeleteResponse)
     def delete_feedbacks_by_ids_bulk(
         self,
         request: DeleteFeedbacksByIdsRequest | dict,
@@ -591,20 +555,14 @@ class Reflexio:
         Returns:
             BulkDeleteResponse: Response containing success status and deleted count
         """
-        if not self._is_storage_configured():
-            return BulkDeleteResponse(
-                success=False, message=STORAGE_NOT_CONFIGURED_MSG
-            )
         if isinstance(request, dict):
             request = DeleteFeedbacksByIdsRequest(**request)
-        try:
-            self._get_storage().delete_feedbacks_by_ids(request.feedback_ids)
-            return BulkDeleteResponse(
-                success=True, deleted_count=len(request.feedback_ids)
-            )
-        except Exception as e:
-            return BulkDeleteResponse(success=False, message=str(e))
+        self._get_storage().delete_feedbacks_by_ids(request.feedback_ids)
+        return BulkDeleteResponse(
+            success=True, deleted_count=len(request.feedback_ids)
+        )
 
+    @_require_storage(BulkDeleteResponse)
     def delete_raw_feedbacks_by_ids_bulk(
         self,
         request: DeleteRawFeedbacksByIdsRequest | dict,
@@ -617,19 +575,12 @@ class Reflexio:
         Returns:
             BulkDeleteResponse: Response containing success status and deleted count
         """
-        if not self._is_storage_configured():
-            return BulkDeleteResponse(
-                success=False, message=STORAGE_NOT_CONFIGURED_MSG
-            )
         if isinstance(request, dict):
             request = DeleteRawFeedbacksByIdsRequest(**request)
-        try:
-            deleted = self._get_storage().delete_raw_feedbacks_by_ids(
-                request.raw_feedback_ids
-            )
-            return BulkDeleteResponse(success=True, deleted_count=deleted)
-        except Exception as e:
-            return BulkDeleteResponse(success=False, message=str(e))
+        deleted = self._get_storage().delete_raw_feedbacks_by_ids(
+            request.raw_feedback_ids
+        )
+        return BulkDeleteResponse(success=True, deleted_count=deleted)
 
     def get_interactions(
         self,
@@ -1377,6 +1328,7 @@ class Reflexio:
         except Exception as e:
             return GetRequestsResponse(success=False, sessions=[], msg=str(e))
 
+    @_require_storage(UpdateFeedbackStatusResponse, msg_field="msg")
     def update_feedback_status(
         self,
         request: UpdateFeedbackStatusRequest | dict,
@@ -1389,24 +1341,34 @@ class Reflexio:
         Returns:
             UpdateFeedbackStatusResponse: Response containing success status and message
         """
-        if not self._is_storage_configured():
-            return UpdateFeedbackStatusResponse(
-                success=False, msg=STORAGE_NOT_CONFIGURED_MSG
-            )
         if isinstance(request, dict):
             request = UpdateFeedbackStatusRequest(**request)
+        self._get_storage().update_feedback_status(
+            feedback_id=request.feedback_id,
+            feedback_status=request.feedback_status,
+        )
+        return UpdateFeedbackStatusResponse(success=True)
 
-        try:
-            self._get_storage().update_feedback_status(
-                feedback_id=request.feedback_id,
-                feedback_status=request.feedback_status,
-            )
-            return UpdateFeedbackStatusResponse(success=True)
-        except ValueError as e:
-            return UpdateFeedbackStatusResponse(success=False, msg=str(e))
-        except Exception as e:
-            return UpdateFeedbackStatusResponse(success=False, msg=str(e))
+    def _run_generation_service(
+        self,
+        request: Any,
+        request_type: type,
+        service_cls: type,
+        output_pending: bool,
+        run_method: str,
+    ) -> Any:
+        """Shared logic for rerun and manual generation endpoints."""
+        if isinstance(request, dict):
+            request = request_type(**request)
+        service = service_cls(
+            llm_client=self.llm_client,
+            request_context=self.request_context,
+            allow_manual_trigger=True,
+            output_pending_status=output_pending,
+        )
+        return getattr(service, run_method)(request)
 
+    @_require_storage(RerunProfileGenerationResponse, msg_field="msg")
     def rerun_profile_generation(
         self,
         request: RerunProfileGenerationRequest | dict,
@@ -1420,34 +1382,17 @@ class Reflexio:
         Returns:
             RerunProfileGenerationResponse: Response containing success status, message, and count of profiles generated
         """
-        if not self._is_storage_configured():
-            return RerunProfileGenerationResponse(
-                success=False, msg=STORAGE_NOT_CONFIGURED_MSG
-            )
-        # Convert dict to request object if needed
-        if isinstance(request, dict):
-            request = RerunProfileGenerationRequest(**request)
-
-        # Create service with shared LLM client
-        service = ProfileGenerationService(
-            llm_client=self.llm_client,
-            request_context=self.request_context,
-            allow_manual_trigger=True,  # Allow manual_trigger extractors
-            output_pending_status=True,  # Output PENDING status
+        return self._run_generation_service(
+            request, RerunProfileGenerationRequest, ProfileGenerationService,
+            output_pending=True, run_method="run_rerun",
         )
 
-        # Delegate to service
-        return service.run_rerun(request)  # type: ignore[reportArgumentType]
-
+    @_require_storage(ManualProfileGenerationResponse, msg_field="msg")
     def manual_profile_generation(
         self,
         request: ManualProfileGenerationRequest | dict,
     ) -> ManualProfileGenerationResponse:
         """Manually trigger profile generation with window-sized interactions and CURRENT output.
-
-        This behaves like regular generation (uses extraction_window_size from config,
-        outputs CURRENT profiles) but only runs profile extraction (not feedback or
-        agent success evaluation).
 
         Args:
             request (Union[ManualProfileGenerationRequest, dict]): The request containing
@@ -1458,25 +1403,12 @@ class Reflexio:
             ManualProfileGenerationResponse: Response containing success status, message,
                 and count of profiles generated
         """
-        if not self._is_storage_configured():
-            return ManualProfileGenerationResponse(
-                success=False, msg=STORAGE_NOT_CONFIGURED_MSG
-            )
-        # Convert dict to request object if needed
-        if isinstance(request, dict):
-            request = ManualProfileGenerationRequest(**request)
-
-        # Create service with shared LLM client
-        service = ProfileGenerationService(
-            llm_client=self.llm_client,
-            request_context=self.request_context,
-            allow_manual_trigger=True,  # Allow manual_trigger extractors
-            output_pending_status=False,  # Output CURRENT status (not PENDING)
+        return self._run_generation_service(
+            request, ManualProfileGenerationRequest, ProfileGenerationService,
+            output_pending=False, run_method="run_manual_regular",
         )
 
-        # Delegate to service
-        return service.run_manual_regular(request)
-
+    @_require_storage(RerunFeedbackGenerationResponse, msg_field="msg")
     def rerun_feedback_generation(
         self,
         request: RerunFeedbackGenerationRequest | dict,
@@ -1490,39 +1422,17 @@ class Reflexio:
         Returns:
             RerunFeedbackGenerationResponse: Response containing success status, message, and count of feedbacks generated
         """
-        if not self._is_storage_configured():
-            return RerunFeedbackGenerationResponse(
-                success=False, msg=STORAGE_NOT_CONFIGURED_MSG
-            )
-        # Convert dict to request object if needed
-        if isinstance(request, dict):
-            request = RerunFeedbackGenerationRequest(**request)
-
-        # Create service with shared LLM client
-        service = FeedbackGenerationService(
-            llm_client=self.llm_client,
-            request_context=self.request_context,
-            allow_manual_trigger=True,
-            output_pending_status=True,
+        return self._run_generation_service(
+            request, RerunFeedbackGenerationRequest, FeedbackGenerationService,
+            output_pending=True, run_method="run_rerun",
         )
 
-        # Delegate to service
-        return service.run_rerun(request)  # type: ignore[reportArgumentType]
-
+    @_require_storage(ManualFeedbackGenerationResponse, msg_field="msg")
     def manual_feedback_generation(
         self,
         request: ManualFeedbackGenerationRequest | dict,
     ) -> ManualFeedbackGenerationResponse:
         """Manually trigger feedback generation with window-sized interactions and CURRENT output.
-
-        This is the feedback equivalent of manual_profile_generation(). It triggers feedback
-        extraction using only the most recent window-sized interactions (from extraction_window_size
-        config) and outputs feedbacks with CURRENT status (not PENDING like rerun).
-
-        Use this when you want to:
-        - Force regeneration of feedbacks without waiting for automatic triggers
-        - Test feedback extraction with current interactions
-        - Generate feedbacks immediately without going through the PENDING → upgrade flow
 
         Args:
             request (Union[ManualFeedbackGenerationRequest, dict]): The generation request containing:
@@ -1533,24 +1443,10 @@ class Reflexio:
         Returns:
             ManualFeedbackGenerationResponse: Response containing success status, message, and count of feedbacks generated
         """
-        if not self._is_storage_configured():
-            return ManualFeedbackGenerationResponse(
-                success=False, msg=STORAGE_NOT_CONFIGURED_MSG
-            )
-        # Convert dict to request object if needed
-        if isinstance(request, dict):
-            request = ManualFeedbackGenerationRequest(**request)
-
-        # Create service with shared LLM client
-        service = FeedbackGenerationService(
-            llm_client=self.llm_client,
-            request_context=self.request_context,
-            allow_manual_trigger=True,
-            output_pending_status=False,  # CURRENT output
+        return self._run_generation_service(
+            request, ManualFeedbackGenerationRequest, FeedbackGenerationService,
+            output_pending=False, run_method="run_manual_regular",
         )
-
-        # Delegate to service
-        return service.run_manual_regular(request)
 
     def upgrade_all_profiles(
         self,
@@ -1689,7 +1585,7 @@ class Reflexio:
             # Auto-recover stale IN_PROGRESS operations so the frontend
             # doesn't show "in progress" forever after a crash/restart
             if operation_state.get("status") == OperationStatus.IN_PROGRESS.value:
-                from datetime import datetime, timezone
+                from datetime import datetime
 
                 from reflexio.server.services.operation_state_utils import (
                     BATCH_STALE_PROGRESS_SECONDS,
@@ -1697,7 +1593,7 @@ class Reflexio:
 
                 started_at = operation_state.get("started_at")
                 if started_at is not None:
-                    current_time = int(datetime.now(timezone.utc).timestamp())
+                    current_time = int(datetime.now(UTC).timestamp())
                     elapsed = current_time - started_at
                     if elapsed > BATCH_STALE_PROGRESS_SECONDS:
                         logger.warning(
