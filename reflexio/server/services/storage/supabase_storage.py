@@ -388,7 +388,7 @@ class SupabaseStorage(BaseStorage):
             logger.error("Supabase Storage failed to migrate: no valid Supabase DB URL")
             return False
         supabase_migrate_folder = str(
-            Path(data.__file__).parent.parent.parent / "supabase" / "data" / "migrations"
+            Path(data.__file__).parent.parent.parent / "supabase" / "data" / "supabase" / "migrations"
         )
         logger.info(
             "Supabase Storage for org %s try to migrate from %s",
