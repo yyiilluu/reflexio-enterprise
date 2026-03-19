@@ -4,6 +4,7 @@ import os
 from collections.abc import Callable
 
 import pytest
+from reflexio_commons.api_schema.retriever_schema import SearchSkillsRequest
 from reflexio_commons.api_schema.service_schemas import (
     Skill,
     SkillStatus,
@@ -286,13 +287,17 @@ def test_skill_search(
     )
 
     # Search for pricing-related skills
-    pricing_results = storage.search_skills(query="pricing costs money")
+    pricing_results = storage.search_skills(
+        SearchSkillsRequest(query="pricing costs money")
+    )
     assert len(pricing_results) > 0
     # The pricing skill should rank higher
     assert any("Pricing" in s.skill_name for s in pricing_results)
 
     # Search for error-related skills
-    error_results = storage.search_skills(query="technical error troubleshoot")
+    error_results = storage.search_skills(
+        SearchSkillsRequest(query="technical error troubleshoot")
+    )
     assert len(error_results) > 0
     assert any("Error" in s.skill_name for s in error_results)
 
@@ -393,8 +398,10 @@ def test_search_skills_via_lib(
     )
 
     results = reflexio_instance_skill.search_skills(
-        query="customer complaint handling",
-        feedback_name="test_feedback",
+        SearchSkillsRequest(
+            query="customer complaint handling",
+            feedback_name="test_feedback",
+        )
     )
     assert len(results) > 0
 

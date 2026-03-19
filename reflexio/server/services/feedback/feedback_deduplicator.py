@@ -5,11 +5,12 @@ and hybrid search against existing feedbacks in the database.
 
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
+from reflexio_commons.api_schema.retriever_schema import SearchRawFeedbackRequest
 from reflexio_commons.api_schema.service_schemas import RawFeedback
-from reflexio_commons.config_schema import EMBEDDING_DIMENSIONS
+from reflexio_commons.config_schema import EMBEDDING_DIMENSIONS, SearchOptions
 
 from reflexio.server.api_endpoints.request_context import RequestContext
 from reflexio.server.llm.litellm_client import LiteLLMClient
@@ -186,13 +187,15 @@ class FeedbackDeduplicator(BaseDeduplicator):
         for i, query_text in enumerate(query_texts):
             try:
                 results = storage.search_raw_feedbacks(  # type: ignore[reportOptionalMemberAccess]
-                    query=query_text,
-                    query_embedding=embeddings[i],
-                    user_id=user_id,
-                    agent_version=agent_version,
-                    status_filter=[None],  # Only current feedbacks
-                    match_threshold=0.4,
-                    match_count=5,
+                    SearchRawFeedbackRequest(
+                        query=query_text,
+                        user_id=user_id,
+                        agent_version=agent_version,
+                        status_filter=[None],
+                        threshold=0.4,
+                        top_k=5,
+                    ),
+                    SearchOptions(query_embedding=embeddings[i]),
                 )
                 for fb in results:
                     if fb.raw_feedback_id and fb.raw_feedback_id not in seen_ids:
@@ -364,7 +367,7 @@ class FeedbackDeduplicator(BaseDeduplicator):
         existing_ids_to_delete: list[int] = []
         seen_delete_ids: set[int] = set()
 
-        now_ts = int(datetime.now(timezone.utc).timestamp())
+        now_ts = int(datetime.now(UTC).timestamp())
 
         # Process duplicate groups
         for group in dedup_output.duplicate_groups:

@@ -6,7 +6,9 @@ from unittest.mock import Mock, call, patch
 import pytest
 from reflexio_commons.api_schema.retriever_schema import (
     Interaction,
+    SearchFeedbackRequest,
     SearchInteractionRequest,
+    SearchRawFeedbackRequest,
     SearchUserProfileRequest,
 )
 from reflexio_commons.api_schema.service_schemas import (
@@ -530,7 +532,9 @@ def test_search_feedbacks(
     mock_supabase_client.rpc().execute.return_value.data = [feedback_dict]
 
     results = storage.search_feedbacks(
-        query="agent performance feedback", match_threshold=0.8, match_count=5
+        SearchFeedbackRequest(
+            query="agent performance feedback", threshold=0.8, top_k=5
+        )
     )
 
     assert len(results) == 1
@@ -567,7 +571,9 @@ def test_search_raw_feedbacks(
     mock_supabase_client.rpc().execute.return_value.data = [raw_feedback_dict]
 
     results = storage.search_raw_feedbacks(
-        query="helpful agent response", match_threshold=0.7, match_count=10
+        SearchRawFeedbackRequest(
+            query="helpful agent response", threshold=0.7, top_k=10
+        )
     )
 
     assert len(results) == 1
@@ -607,7 +613,7 @@ def test_search_feedbacks_with_default_parameters(
     # Mock the response from Supabase
     mock_supabase_client.rpc().execute.return_value.data = [feedback_dict]
 
-    results = storage.search_feedbacks(query="agent feedback")
+    results = storage.search_feedbacks(SearchFeedbackRequest(query="agent feedback"))
 
     assert len(results) == 1
 
@@ -637,7 +643,9 @@ def test_search_raw_feedbacks_with_default_parameters(
     # Mock the response from Supabase
     mock_supabase_client.rpc().execute.return_value.data = [raw_feedback_dict]
 
-    results = storage.search_raw_feedbacks(query="helpful feedback")
+    results = storage.search_raw_feedbacks(
+        SearchRawFeedbackRequest(query="helpful feedback")
+    )
 
     assert len(results) == 1
 
@@ -668,7 +676,9 @@ def test_search_feedbacks_empty_results(
     mock_supabase_client.rpc().execute.return_value.data = []
 
     results = storage.search_feedbacks(
-        query="completely unrelated query", match_threshold=0.9, match_count=5
+        SearchFeedbackRequest(
+            query="completely unrelated query", threshold=0.9, top_k=5
+        )
     )
 
     assert len(results) == 0
@@ -701,7 +711,9 @@ def test_search_raw_feedbacks_empty_results(
     mock_supabase_client.rpc().execute.return_value.data = []
 
     results = storage.search_raw_feedbacks(
-        query="completely unrelated query", match_threshold=0.95, match_count=3
+        SearchRawFeedbackRequest(
+            query="completely unrelated query", threshold=0.95, top_k=3
+        )
     )
 
     assert len(results) == 0
@@ -750,7 +762,7 @@ def test_search_feedbacks_multiple_results(
     ]
 
     results = storage.search_feedbacks(
-        query="agent feedback analysis", match_threshold=0.7, match_count=5
+        SearchFeedbackRequest(query="agent feedback analysis", threshold=0.7, top_k=5)
     )
 
     assert len(results) == 2
@@ -806,7 +818,9 @@ def test_search_raw_feedbacks_multiple_results(
     ]
 
     results = storage.search_raw_feedbacks(
-        query="agent performance feedback", match_threshold=0.6, match_count=10
+        SearchRawFeedbackRequest(
+            query="agent performance feedback", threshold=0.6, top_k=10
+        )
     )
 
     assert len(results) == 2

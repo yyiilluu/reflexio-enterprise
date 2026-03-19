@@ -11,7 +11,10 @@ from typing import Any, cast
 
 from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 from reflexio_commons.api_schema.retriever_schema import (
+    SearchFeedbackRequest,
     SearchInteractionRequest,
+    SearchRawFeedbackRequest,
+    SearchSkillsRequest,
     SearchUserProfileRequest,
 )
 from reflexio_commons.api_schema.service_schemas import (
@@ -39,6 +42,7 @@ from reflexio_commons.config_schema import (
     APIKeyConfig,
     LLMConfig,
     SearchMode,
+    SearchOptions,
     StorageConfigSupabase,
 )
 
@@ -975,9 +979,7 @@ class SupabaseStorage(BaseStorage):
         if session_id:
             query = query.eq("session_id", session_id)
         if start_time:
-            start_time_iso = datetime.fromtimestamp(
-                start_time, tz=UTC
-            ).isoformat()
+            start_time_iso = datetime.fromtimestamp(start_time, tz=UTC).isoformat()
             query = query.gte("created_at", start_time_iso)
         if end_time:
             end_time_iso = datetime.fromtimestamp(end_time, tz=UTC).isoformat()
@@ -1071,14 +1073,10 @@ class SupabaseStorage(BaseStorage):
             if user_id:
                 query = query.eq("user_id", user_id)
             if start_time:
-                start_time_iso = datetime.fromtimestamp(
-                    start_time, tz=UTC
-                ).isoformat()
+                start_time_iso = datetime.fromtimestamp(start_time, tz=UTC).isoformat()
                 query = query.gte("created_at", start_time_iso)
             if end_time:
-                end_time_iso = datetime.fromtimestamp(
-                    end_time, tz=UTC
-                ).isoformat()
+                end_time_iso = datetime.fromtimestamp(end_time, tz=UTC).isoformat()
                 query = query.lte("created_at", end_time_iso)
             if source:
                 query = query.eq("source", source)
@@ -1175,13 +1173,13 @@ class SupabaseStorage(BaseStorage):
     def search_interaction(
         self,
         search_interaction_request: SearchInteractionRequest,
-        search_mode: SearchMode | None = None,
+        options: SearchOptions | None = None,  # noqa: ARG002
     ) -> list[Interaction]:
         # Perform hybrid search (vector + FTS)
         if not search_interaction_request.query:
             return []
 
-        effective_mode = search_mode or self.search_mode
+        effective_mode = search_interaction_request.search_mode or self.search_mode
         query_text = search_interaction_request.query
         response = self.client.rpc(
             "hybrid_match_interactions",
@@ -1216,8 +1214,7 @@ class SupabaseStorage(BaseStorage):
         self,
         search_user_profile_request: SearchUserProfileRequest,
         status_filter: list[Status | None] | None = None,
-        query_embedding: list[float] | None = None,
-        search_mode: SearchMode | None = None,
+        options: SearchOptions | None = None,
     ) -> list[UserProfile]:
         if status_filter is None:
             status_filter = [None]  # Default to current profiles (status=None)
@@ -1227,8 +1224,9 @@ class SupabaseStorage(BaseStorage):
         if not search_user_profile_request.query:
             return []
 
-        effective_mode = search_mode or self.search_mode
+        effective_mode = search_user_profile_request.search_mode or self.search_mode
         query_text = search_user_profile_request.query
+        query_embedding = options.query_embedding if options else None
         response = self.client.rpc(
             "hybrid_match_profiles",
             {
@@ -1307,40 +1305,33 @@ class SupabaseStorage(BaseStorage):
     @handle_exceptions
     def search_raw_feedbacks(  # noqa: C901
         self,
-        query: str | None = None,
-        user_id: str | None = None,
-        agent_version: str | None = None,
-        feedback_name: str | None = None,
-        start_time: int | None = None,
-        end_time: int | None = None,
-        status_filter: list[Status | None] | None = None,
-        match_threshold: float = 0.5,
-        match_count: int = 10,
-        query_embedding: list[float] | None = None,
-        search_mode: SearchMode | None = None,
+        request: SearchRawFeedbackRequest,
+        options: SearchOptions | None = None,
     ) -> list[RawFeedback]:
         """
         Search raw feedbacks with advanced filtering including semantic search.
 
         Args:
-            query (str, optional): Text query for semantic/text search
-            user_id (str, optional): Filter by user (resolved via request_id -> requests table linkage)
-            agent_version (str, optional): Filter by agent version
-            feedback_name (str, optional): Filter by feedback name
-            start_time (int, optional): Start timestamp (Unix) for created_at filter
-            end_time (int, optional): End timestamp (Unix) for created_at filter
-            status_filter (list[Optional[Status]], optional): List of status values to filter by
-            match_threshold (float): Minimum similarity threshold (0.0 to 1.0)
-            match_count (int): Maximum number of results to return
-            query_embedding (list[float], optional): Pre-computed query embedding. When provided, skips internal embedding generation.
+            request (SearchRawFeedbackRequest): Search request with query, filters, and search_mode
+            options (SearchOptions, optional): Engine-level options (e.g., pre-computed embedding)
 
         Returns:
             list[RawFeedback]: List of matching raw feedback objects
         """
+        query = request.query
+        user_id = request.user_id
+        agent_version = request.agent_version
+        feedback_name = request.feedback_name
+        start_time = int(request.start_time.timestamp()) if request.start_time else None
+        end_time = int(request.end_time.timestamp()) if request.end_time else None
+        status_filter = request.status_filter
+        match_threshold = request.threshold or 0.5
+        match_count = request.top_k or 10
+        query_embedding = options.query_embedding if options else None
 
         # If query is provided, use hybrid search first (filters applied in Python)
         if query:
-            effective_mode = search_mode or self.search_mode
+            effective_mode = request.search_mode or self.search_mode
             response = self.client.rpc(
                 "hybrid_match_raw_feedbacks",
                 {
@@ -1458,39 +1449,33 @@ class SupabaseStorage(BaseStorage):
     @handle_exceptions
     def search_feedbacks(  # noqa: C901
         self,
-        query: str | None = None,
-        agent_version: str | None = None,
-        feedback_name: str | None = None,
-        start_time: int | None = None,
-        end_time: int | None = None,
-        status_filter: list[Status | None] | None = None,
-        feedback_status_filter: FeedbackStatus | None = None,
-        match_threshold: float = 0.5,
-        match_count: int = 10,
-        query_embedding: list[float] | None = None,
-        search_mode: SearchMode | None = None,
+        request: SearchFeedbackRequest,
+        options: SearchOptions | None = None,
     ) -> list[Feedback]:
         """
         Search aggregated feedbacks with advanced filtering including semantic search.
 
         Args:
-            query (str, optional): Text query for semantic/text search
-            agent_version (str, optional): Filter by agent version
-            feedback_name (str, optional): Filter by feedback name
-            start_time (int, optional): Start timestamp (Unix) for created_at filter
-            end_time (int, optional): End timestamp (Unix) for created_at filter
-            status_filter (list[Optional[Status]], optional): List of Status values to filter by
-            feedback_status_filter (FeedbackStatus, optional): Filter by FeedbackStatus (PENDING/APPROVED/REJECTED)
-            match_threshold (float): Minimum similarity threshold (0.0 to 1.0)
-            match_count (int): Maximum number of results to return
+            request (SearchFeedbackRequest): Search request with query, filters, and search_mode
+            options (SearchOptions, optional): Engine-level options (e.g., pre-computed embedding)
 
         Returns:
             list[Feedback]: List of matching feedback objects
         """
+        query = request.query
+        agent_version = request.agent_version
+        feedback_name = request.feedback_name
+        start_time = int(request.start_time.timestamp()) if request.start_time else None
+        end_time = int(request.end_time.timestamp()) if request.end_time else None
+        status_filter = request.status_filter
+        feedback_status_filter = request.feedback_status_filter
+        match_threshold = request.threshold or 0.5
+        match_count = request.top_k or 10
+        query_embedding = options.query_embedding if options else None
 
         # If query is provided, use hybrid search first (filters applied in Python)
         if query:
-            effective_mode = search_mode or self.search_mode
+            effective_mode = request.search_mode or self.search_mode
             response = self.client.rpc(
                 "hybrid_match_feedbacks",
                 {
@@ -1704,9 +1689,7 @@ class SupabaseStorage(BaseStorage):
 
         # Add time range filters if specified
         if start_time is not None:
-            start_time_iso = datetime.fromtimestamp(
-                start_time, tz=UTC
-            ).isoformat()
+            start_time_iso = datetime.fromtimestamp(start_time, tz=UTC).isoformat()
             query = query.gte("created_at", start_time_iso)
         if end_time is not None:
             end_time_iso = datetime.fromtimestamp(end_time, tz=UTC).isoformat()
@@ -3189,31 +3172,29 @@ class SupabaseStorage(BaseStorage):
     @handle_exceptions
     def search_skills(
         self,
-        query: str | None = None,
-        feedback_name: str | None = None,
-        agent_version: str | None = None,
-        skill_status: SkillStatus | None = None,
-        match_threshold: float = 0.5,
-        match_count: int = 10,
-        query_embedding: list[float] | None = None,
-        search_mode: SearchMode | None = None,
+        request: SearchSkillsRequest,
+        options: SearchOptions | None = None,
     ) -> list[Skill]:
         """
         Search skills with hybrid search (vector + FTS).
 
         Args:
-            query (str, optional): Text query for semantic/text search
-            feedback_name (str, optional): Filter by feedback name
-            agent_version (str, optional): Filter by agent version
-            skill_status (SkillStatus, optional): Filter by skill status
-            match_threshold (float): Minimum similarity threshold
-            match_count (int): Maximum number of results to return
+            request (SearchSkillsRequest): Search request with query, filters, and search_mode
+            options (SearchOptions, optional): Engine-level options (e.g., pre-computed embedding)
 
         Returns:
             list[Skill]: List of matching skill objects
         """
+        query = request.query
+        feedback_name = request.feedback_name
+        agent_version = request.agent_version
+        skill_status = request.skill_status
+        match_threshold = request.threshold or 0.5
+        match_count = request.top_k or 10
+        query_embedding = options.query_embedding if options else None
+
         if query:
-            effective_mode = search_mode or self.search_mode
+            effective_mode = request.search_mode or self.search_mode
             response = self.client.rpc(
                 "hybrid_match_skills",
                 {

@@ -15,7 +15,9 @@ from datetime import UTC, datetime
 
 import pytest
 from reflexio_commons.api_schema.retriever_schema import (
+    SearchFeedbackRequest,
     SearchInteractionRequest,
+    SearchRawFeedbackRequest,
     SearchUserProfileRequest,
 )
 from reflexio_commons.api_schema.service_schemas import (
@@ -467,9 +469,11 @@ def test_hybrid_search_raw_feedbacks_keyword_match(
 
     # Search using the exact unique keyword
     results = storage.search_raw_feedbacks(
-        query=unique_keyword,
-        match_threshold=0.1,
-        match_count=10,
+        SearchRawFeedbackRequest(
+            query=unique_keyword,
+            threshold=0.1,
+            top_k=10,
+        )
     )
 
     assert len(results) > 0, f"Should find raw feedback with keyword '{unique_keyword}'"
@@ -491,9 +495,11 @@ def test_hybrid_search_raw_feedbacks_semantic_match(
 
     # Search using semantically related query
     results = storage.search_raw_feedbacks(
-        query="AI explanations and deep learning tutorials",
-        match_threshold=0.3,  # Lower threshold for semantic similarity
-        match_count=10,
+        SearchRawFeedbackRequest(
+            query="AI explanations and deep learning tutorials",
+            threshold=0.3,  # Lower threshold for semantic similarity
+            top_k=10,
+        )
     )
 
     assert len(results) > 0, "Should find semantically similar raw feedback"
@@ -515,9 +521,11 @@ def test_vector_only_search_raw_feedbacks(
 
     # Search with semantic query
     results = storage.search_raw_feedbacks(
-        query="AI and neural network explanations",
-        match_threshold=0.3,  # Lower threshold for semantic similarity
-        match_count=10,
+        SearchRawFeedbackRequest(
+            query="AI and neural network explanations",
+            threshold=0.3,  # Lower threshold for semantic similarity
+            top_k=10,
+        )
     )
 
     assert len(results) > 0, (
@@ -539,9 +547,11 @@ def test_fts_only_search_raw_feedbacks(
 
     # Search with exact keyword
     results = storage.search_raw_feedbacks(
-        query=unique_keyword,
-        match_threshold=0.1,
-        match_count=10,
+        SearchRawFeedbackRequest(
+            query=unique_keyword,
+            threshold=0.1,
+            top_k=10,
+        )
     )
 
     assert len(results) > 0, "FTS search should find raw feedbacks with exact keywords"
@@ -566,9 +576,11 @@ def test_hybrid_search_feedbacks_keyword_match(
 
     # Search using the exact unique keyword
     results = storage.search_feedbacks(
-        query=unique_keyword,
-        match_threshold=0.1,
-        match_count=10,
+        SearchFeedbackRequest(
+            query=unique_keyword,
+            threshold=0.1,
+            top_k=10,
+        )
     )
 
     assert len(results) > 0, f"Should find feedback with keyword '{unique_keyword}'"
@@ -590,9 +602,11 @@ def test_hybrid_search_feedbacks_semantic_match(
 
     # Search using semantically related query
     results = storage.search_feedbacks(
-        query="language models and text understanding capabilities",
-        match_threshold=0.3,  # Lower threshold for semantic similarity
-        match_count=10,
+        SearchFeedbackRequest(
+            query="language models and text understanding capabilities",
+            threshold=0.3,  # Lower threshold for semantic similarity
+            top_k=10,
+        )
     )
 
     assert len(results) > 0, "Should find semantically similar feedback"
@@ -616,9 +630,11 @@ def test_vector_only_search_feedbacks(
 
     # Search with semantic query
     results = storage.search_feedbacks(
-        query="NLP and language understanding",
-        match_threshold=0.3,  # Lower threshold for semantic similarity
-        match_count=10,
+        SearchFeedbackRequest(
+            query="NLP and language understanding",
+            threshold=0.3,  # Lower threshold for semantic similarity
+            top_k=10,
+        )
     )
 
     assert len(results) > 0, "Vector search should find semantically similar feedbacks"
@@ -638,9 +654,11 @@ def test_fts_only_search_feedbacks(
 
     # Search with exact keyword
     results = storage.search_feedbacks(
-        query=unique_keyword,
-        match_threshold=0.1,
-        match_count=10,
+        SearchFeedbackRequest(
+            query=unique_keyword,
+            threshold=0.1,
+            top_k=10,
+        )
     )
 
     assert len(results) > 0, "FTS search should find feedbacks with exact keywords"
@@ -749,23 +767,26 @@ def test_per_request_search_mode_override(supabase_storage_hybrid, hybrid_test_d
     )
     storage.add_user_profile(user_id, [profile])
 
-    search_request = SearchUserProfileRequest(
+    # Override search mode to FTS at request level
+    fts_request = SearchUserProfileRequest(
         user_id=user_id,
         query=unique_keyword,
         threshold=0.01,
         top_k=10,
+        search_mode=SearchMode.FTS,
     )
-
-    # Override search mode to FTS at request level
-    results_fts = storage.search_user_profile(
-        search_request, search_mode=SearchMode.FTS
-    )
+    results_fts = storage.search_user_profile(fts_request)
     assert len(results_fts) > 0, "FTS override should find keyword match"
 
     # Override to vector-only — keyword-only content may not match semantically
-    results_vector = storage.search_user_profile(
-        search_request, search_mode=SearchMode.VECTOR
+    vector_request = SearchUserProfileRequest(
+        user_id=user_id,
+        query=unique_keyword,
+        threshold=0.01,
+        top_k=10,
+        search_mode=SearchMode.VECTOR,
     )
+    results_vector = storage.search_user_profile(vector_request)
     # Vector results may or may not find it, just verify it doesn't crash
     assert isinstance(results_vector, list)
 
@@ -819,19 +840,23 @@ def test_per_request_search_mode_feedbacks(supabase_storage_hybrid, hybrid_test_
 
     # Search feedbacks with FTS override
     results_fts = storage.search_feedbacks(
-        query=unique_keyword,
-        match_threshold=0.01,
-        match_count=5,
-        search_mode=SearchMode.FTS,
+        SearchFeedbackRequest(
+            query=unique_keyword,
+            threshold=0.01,
+            top_k=5,
+            search_mode=SearchMode.FTS,
+        )
     )
     assert isinstance(results_fts, list)
 
     # Search feedbacks with vector override
     results_vector = storage.search_feedbacks(
-        query=unique_keyword,
-        match_threshold=0.01,
-        match_count=5,
-        search_mode=SearchMode.VECTOR,
+        SearchFeedbackRequest(
+            query=unique_keyword,
+            threshold=0.01,
+            top_k=5,
+            search_mode=SearchMode.VECTOR,
+        )
     )
     assert isinstance(results_vector, list)
 

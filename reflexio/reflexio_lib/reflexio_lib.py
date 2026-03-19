@@ -35,6 +35,7 @@ from reflexio_commons.api_schema.retriever_schema import (
     SearchInteractionResponse,
     SearchRawFeedbackRequest,
     SearchRawFeedbackResponse,
+    SearchSkillsRequest,
     SearchUserProfileRequest,
     SearchUserProfileResponse,
     Session,
@@ -99,7 +100,7 @@ from reflexio_commons.api_schema.service_schemas import (
     UpgradeRawFeedbacksRequest,
     UpgradeRawFeedbacksResponse,
 )
-from reflexio_commons.config_schema import Config, SearchMode
+from reflexio_commons.config_schema import Config
 
 from reflexio.server.api_endpoints.request_context import RequestContext
 from reflexio.server.llm.litellm_client import LiteLLMClient, LiteLLMConfig
@@ -129,7 +130,9 @@ STORAGE_NOT_CONFIGURED_MSG = (
 _T = TypeVar("_T")
 
 
-def _require_storage(response_type: type[_T], *, msg_field: str = "message") -> Callable[..., Callable[..., _T]]:
+def _require_storage(
+    response_type: type[_T], *, msg_field: str = "message"
+) -> Callable[..., Callable[..., _T]]:
     """Decorator that guards a Reflexio method with storage-configured check and error handling.
 
     Args:
@@ -141,7 +144,9 @@ def _require_storage(response_type: type[_T], *, msg_field: str = "message") -> 
         @functools.wraps(method)
         def wrapper(self: Reflexio, *args: Any, **kwargs: Any) -> _T:
             if not self._is_storage_configured():
-                return response_type(success=False, **{msg_field: STORAGE_NOT_CONFIGURED_MSG})  # type: ignore[call-arg]
+                return response_type(
+                    success=False, **{msg_field: STORAGE_NOT_CONFIGURED_MSG}
+                )  # type: ignore[call-arg]
             try:
                 return method(self, *args, **kwargs)
             except Exception as e:
@@ -298,9 +303,7 @@ class Reflexio:
             )
         if isinstance(request, dict):
             request = SearchInteractionRequest(**request)
-        interactions = self._get_storage().search_interaction(
-            request, search_mode=request.search_mode
-        )
+        interactions = self._get_storage().search_interaction(request)
         return SearchInteractionResponse(success=True, interactions=interactions)
 
     def search_profiles(
@@ -331,7 +334,7 @@ class Reflexio:
         if rewritten:
             request = request.model_copy(update={"query": rewritten})
         profiles = self._get_storage().search_user_profile(
-            request, status_filter=status_filter, search_mode=request.search_mode
+            request, status_filter=status_filter
         )
         return SearchUserProfileResponse(success=True, user_profiles=profiles)
 
@@ -437,9 +440,7 @@ class Reflexio:
         if isinstance(request, dict):
             request = DeleteSessionRequest(**request)
         deleted_count = self._get_storage().delete_session(request.session_id)
-        return DeleteSessionResponse(
-            success=True, deleted_requests_count=deleted_count
-        )
+        return DeleteSessionResponse(success=True, deleted_requests_count=deleted_count)
 
     @_require_storage(DeleteFeedbackResponse)
     def delete_feedback(
@@ -560,9 +561,7 @@ class Reflexio:
         if isinstance(request, dict):
             request = DeleteFeedbacksByIdsRequest(**request)
         self._get_storage().delete_feedbacks_by_ids(request.feedback_ids)
-        return BulkDeleteResponse(
-            success=True, deleted_count=len(request.feedback_ids)
-        )
+        return BulkDeleteResponse(success=True, deleted_count=len(request.feedback_ids))
 
     @_require_storage(BulkDeleteResponse)
     def delete_raw_feedbacks_by_ids_bulk(
@@ -874,29 +873,14 @@ class Reflexio:
             skill_status=skill_status,
         )
 
-    def search_skills(
-        self,
-        query: str | None = None,
-        feedback_name: str | None = None,
-        agent_version: str | None = None,
-        skill_status: SkillStatus | None = None,
-        threshold: float = 0.5,
-        count: int = 10,
-        search_mode: SearchMode | None = None,
-    ) -> list[Skill]:
+    def search_skills(self, request: SearchSkillsRequest) -> list[Skill]:
         """Search skills with hybrid search."""
         if not self._is_storage_configured():
             raise ValueError(STORAGE_NOT_CONFIGURED_MSG)
-        rewritten = self._rewrite_query(query)
-        return self._get_storage().search_skills(
-            query=rewritten or query,
-            feedback_name=feedback_name,
-            agent_version=agent_version,
-            skill_status=skill_status,
-            match_threshold=threshold,
-            match_count=count,
-            search_mode=search_mode,
-        )
+        rewritten = self._rewrite_query(request.query)
+        if rewritten:
+            request = request.model_copy(update={"query": rewritten})
+        return self._get_storage().search_skills(request)
 
     def update_skill_status(self, skill_id: int, skill_status: SkillStatus) -> None:
         """Update skill status."""
@@ -1168,26 +1152,12 @@ class Reflexio:
             request = SearchRawFeedbackRequest(**request)
 
         try:
-            query = (
-                self._rewrite_query(request.query, enabled=bool(request.query_rewrite))
-                or request.query
+            rewritten = self._rewrite_query(
+                request.query, enabled=bool(request.query_rewrite)
             )
-            raw_feedbacks = self._get_storage().search_raw_feedbacks(
-                query=query,
-                user_id=request.user_id,
-                agent_version=request.agent_version,
-                feedback_name=request.feedback_name,
-                start_time=(
-                    int(request.start_time.timestamp()) if request.start_time else None
-                ),
-                end_time=(
-                    int(request.end_time.timestamp()) if request.end_time else None
-                ),
-                status_filter=request.status_filter,
-                match_threshold=request.threshold or 0.5,
-                match_count=request.top_k or 10,
-                search_mode=request.search_mode,
-            )
+            if rewritten:
+                request = request.model_copy(update={"query": rewritten})
+            raw_feedbacks = self._get_storage().search_raw_feedbacks(request)
             return SearchRawFeedbackResponse(success=True, raw_feedbacks=raw_feedbacks)
         except Exception as e:
             return SearchRawFeedbackResponse(
@@ -1214,26 +1184,12 @@ class Reflexio:
             request = SearchFeedbackRequest(**request)
 
         try:
-            query = (
-                self._rewrite_query(request.query, enabled=bool(request.query_rewrite))
-                or request.query
+            rewritten = self._rewrite_query(
+                request.query, enabled=bool(request.query_rewrite)
             )
-            feedbacks = self._get_storage().search_feedbacks(
-                query=query,
-                agent_version=request.agent_version,
-                feedback_name=request.feedback_name,
-                start_time=(
-                    int(request.start_time.timestamp()) if request.start_time else None
-                ),
-                end_time=(
-                    int(request.end_time.timestamp()) if request.end_time else None
-                ),
-                status_filter=request.status_filter,
-                feedback_status_filter=request.feedback_status_filter,
-                match_threshold=request.threshold or 0.5,
-                match_count=request.top_k or 10,
-                search_mode=request.search_mode,
-            )
+            if rewritten:
+                request = request.model_copy(update={"query": rewritten})
+            feedbacks = self._get_storage().search_feedbacks(request)
             return SearchFeedbackResponse(success=True, feedbacks=feedbacks)
         except Exception as e:
             return SearchFeedbackResponse(success=False, feedbacks=[], msg=str(e))
@@ -1389,8 +1345,11 @@ class Reflexio:
             RerunProfileGenerationResponse: Response containing success status, message, and count of profiles generated
         """
         return self._run_generation_service(
-            request, RerunProfileGenerationRequest, ProfileGenerationService,
-            output_pending=True, run_method="run_rerun",
+            request,
+            RerunProfileGenerationRequest,
+            ProfileGenerationService,
+            output_pending=True,
+            run_method="run_rerun",
         )
 
     @_require_storage(ManualProfileGenerationResponse, msg_field="msg")
@@ -1410,8 +1369,11 @@ class Reflexio:
                 and count of profiles generated
         """
         return self._run_generation_service(
-            request, ManualProfileGenerationRequest, ProfileGenerationService,
-            output_pending=False, run_method="run_manual_regular",
+            request,
+            ManualProfileGenerationRequest,
+            ProfileGenerationService,
+            output_pending=False,
+            run_method="run_manual_regular",
         )
 
     @_require_storage(RerunFeedbackGenerationResponse, msg_field="msg")
@@ -1429,8 +1391,11 @@ class Reflexio:
             RerunFeedbackGenerationResponse: Response containing success status, message, and count of feedbacks generated
         """
         return self._run_generation_service(
-            request, RerunFeedbackGenerationRequest, FeedbackGenerationService,
-            output_pending=True, run_method="run_rerun",
+            request,
+            RerunFeedbackGenerationRequest,
+            FeedbackGenerationService,
+            output_pending=True,
+            run_method="run_rerun",
         )
 
     @_require_storage(ManualFeedbackGenerationResponse, msg_field="msg")
@@ -1450,8 +1415,11 @@ class Reflexio:
             ManualFeedbackGenerationResponse: Response containing success status, message, and count of feedbacks generated
         """
         return self._run_generation_service(
-            request, ManualFeedbackGenerationRequest, FeedbackGenerationService,
-            output_pending=False, run_method="run_manual_regular",
+            request,
+            ManualFeedbackGenerationRequest,
+            FeedbackGenerationService,
+            output_pending=False,
+            run_method="run_manual_regular",
         )
 
     def upgrade_all_profiles(

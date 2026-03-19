@@ -1651,15 +1651,7 @@ def search_skills(
     org_id: str = Depends(require_skill_generation),
 ) -> SearchSkillsResponse:
     reflexio = get_reflexio(org_id)
-    skills = reflexio.search_skills(
-        query=payload.query,
-        feedback_name=payload.feedback_name,
-        agent_version=payload.agent_version,
-        skill_status=payload.skill_status,
-        threshold=payload.threshold or 0.5,
-        count=payload.top_k or 10,
-        search_mode=payload.search_mode,
-    )
+    skills = reflexio.search_skills(payload)
     return SearchSkillsResponse(success=True, skills=skills)
 
 
