@@ -22,19 +22,9 @@ Run these checks before anything else:
 
 ### Step 2: Commit Uncommitted Changes
 
-Run `git status` to check for uncommitted changes. If there are uncommitted changes, commit them **directly** — do NOT delegate to another skill or tell the user to commit first.
+Run `git status` to check for uncommitted changes. If there are uncommitted changes, run the `/commit` skill to commit them. This ensures all code quality checks (ruff, pyright, biome, tsc) and precommit hooks are applied consistently.
 
-1. **Stage changes** — run `git add <files>` for relevant modified/untracked files. Do not stage `.env` or gitignored files.
-2. **Lint and format** — if Python files are staged, run:
-   ```bash
-   ruff check --fix <files> && ruff format <files>
-   ```
-   Re-stage any modified files.
-3. **Commit** — write a conventional commit message based on the staged diff:
-   ```bash
-   git commit -m "<type>: <description>"
-   ```
-   If precommit hooks modify files, re-stage with `git add -u` and retry (up to 3 times).
+If there are no uncommitted changes, skip to Step 3.
 
 ### Step 3: Ensure Feature Branch
 
