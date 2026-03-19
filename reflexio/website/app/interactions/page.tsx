@@ -532,7 +532,8 @@ export default function InteractionsPage() {
 	const [userId, setUserId] = useState<string>("");
 	const [sessionFilter, setSessionFilter] = useState<string>("");
 	const [sourceFilter, setSourceFilter] = useState<string>("all");
-	const [topK, setTopK] = useState<number>(30);
+	const DEFAULT_TOP_K = 30;
+	const [topK, setTopK] = useState<number>(DEFAULT_TOP_K);
 
 	// Delete state
 	const [requestToDelete, setRequestToDelete] = useState<Request | null>(null);
@@ -790,7 +791,8 @@ export default function InteractionsPage() {
 		return filtered;
 	}, [sessions, sessionFilter, sourceFilter]);
 
-	const hasActiveFilters = sessionFilter.trim() !== "" || sourceFilter !== "all";
+	const hasActiveFilters =
+		sessionFilter.trim() !== "" || sourceFilter !== "all" || topK !== DEFAULT_TOP_K;
 
 	// Calculate statistics from all sessions
 	const allRequests = useMemo(() => {
@@ -993,7 +995,7 @@ export default function InteractionsPage() {
 								</div>
 
 								{/* Active filters indicator */}
-								{(userId || sessionFilter || sourceFilter !== "all") && (
+								{(userId || sessionFilter || sourceFilter !== "all" || topK !== DEFAULT_TOP_K) && (
 									<div className="flex items-center gap-2 flex-wrap pt-2 border-t border-slate-100">
 										<span className="text-sm font-medium text-slate-500">Active:</span>
 										{userId && (
@@ -1014,6 +1016,11 @@ export default function InteractionsPage() {
 												Source: {sourceFilter}
 											</Badge>
 										)}
+										{topK !== DEFAULT_TOP_K && (
+											<Badge className="text-xs bg-indigo-100 text-indigo-700 hover:bg-indigo-100">
+												Max Results: {topK}
+											</Badge>
+										)}
 										<Button
 											variant="ghost"
 											size="sm"
@@ -1022,6 +1029,7 @@ export default function InteractionsPage() {
 												setUserId("");
 												setSessionFilter("");
 												setSourceFilter("all");
+												setTopK(DEFAULT_TOP_K);
 											}}
 										>
 											<XCircle className="h-3 w-3 mr-1" />
@@ -1046,11 +1054,12 @@ export default function InteractionsPage() {
 						<div>
 							<h2 className="text-lg font-semibold text-slate-800">Session Results</h2>
 							<p className="text-xs mt-1 text-slate-500">
-								Showing {filteredSessions.length} session{filteredSessions.length !== 1 ? "s" : ""} with {totalRequests} request{totalRequests !== 1 ? "s" : ""}
+								Showing {filteredSessions.length} session{filteredSessions.length !== 1 ? "s" : ""}{" "}
+								with {totalRequests} request{totalRequests !== 1 ? "s" : ""}
 							</p>
 						</div>
 						<div className="flex gap-2">
-							{hasActiveFilters && filteredSessions.length < sessions.length && filteredSessions.length > 0 && (
+							{(hasActiveFilters || hasMore) && filteredSessions.length > 0 && (
 								<Button
 									variant="outline"
 									size="sm"
@@ -1248,16 +1257,25 @@ export default function InteractionsPage() {
 					bulkDeleteType === "all" ? (
 						<>
 							<div className="flex justify-between">
-								<span className="text-muted-foreground">Total Sessions:</span>
-								<span className="font-semibold">{sessions.length}</span>
+								<span className="text-muted-foreground">Loaded Sessions:</span>
+								<span className="font-semibold">
+									{sessions.length}
+									{hasMore ? "+" : ""}
+								</span>
 							</div>
 							<div className="flex justify-between">
 								<span className="text-muted-foreground">Total Requests:</span>
-								<span className="font-semibold">{totalRequests}</span>
+								<span className="font-semibold">
+									{totalRequests}
+									{hasMore ? "+" : ""}
+								</span>
 							</div>
 							<div className="flex justify-between">
 								<span className="text-muted-foreground">Total Interactions:</span>
-								<span className="font-semibold">{totalInteractions}</span>
+								<span className="font-semibold">
+									{totalInteractions}
+									{hasMore ? "+" : ""}
+								</span>
 							</div>
 						</>
 					) : (
@@ -1268,7 +1286,9 @@ export default function InteractionsPage() {
 							</div>
 							<div className="flex justify-between">
 								<span className="text-muted-foreground">Requests to Delete:</span>
-								<span className="font-semibold">{filteredSessions.flatMap((g) => g.requests).length}</span>
+								<span className="font-semibold">
+									{filteredSessions.flatMap((g) => g.requests).length}
+								</span>
 							</div>
 							{sessionFilter && (
 								<div className="flex justify-between">

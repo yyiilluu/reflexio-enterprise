@@ -469,7 +469,8 @@ export default function ProfilesPage() {
 
 	// API-related state
 	const [userId, setUserId] = useState<string>("");
-	const [topK, setTopK] = useState<number>(100);
+	const DEFAULT_TOP_K = 100;
+	const [topK, setTopK] = useState<number>(DEFAULT_TOP_K);
 	const [loading, setLoading] = useState<boolean>(false);
 	const [error, setError] = useState<string>("");
 
@@ -724,8 +725,18 @@ export default function ProfilesPage() {
 		userId,
 	]); // Only depend on shouldPollStatus
 
-	// Calculate statistics
-	const totalProfiles = profiles.length;
+	// Calculate true total from statistics (not limited by topK)
+	const totalProfilesInSystem = useMemo(() => {
+		if (!profileStatistics) return profiles.length;
+		switch (activeStatusTab) {
+			case "current":
+				return profileStatistics.current_count;
+			case "pending":
+				return profileStatistics.pending_count;
+			case "archived":
+				return profileStatistics.archived_count;
+		}
+	}, [profileStatistics, activeStatusTab, profiles.length]);
 	const _activeProfiles = profiles.filter((p) => !isExpired(p.expiration_timestamp)).length;
 	const _expiringSoonCount = profiles.filter((p) => isExpiringSoon(p.expiration_timestamp)).length;
 	const _recentProfiles = profiles.filter((p) => {
@@ -765,7 +776,11 @@ export default function ProfilesPage() {
 	}, [profiles, searchQuery, selectedUser, selectedSource, selectedTTL]);
 
 	const hasActiveFilters =
-		searchQuery !== "" || selectedUser !== "all" || selectedSource !== "all" || selectedTTL !== "all";
+		searchQuery !== "" ||
+		selectedUser !== "all" ||
+		selectedSource !== "all" ||
+		selectedTTL !== "all" ||
+		topK !== DEFAULT_TOP_K;
 
 	const startEdit = (profile: UserProfile) => {
 		setEditingProfileId(profile.profile_id);
@@ -1541,7 +1556,8 @@ export default function ProfilesPage() {
 									searchQuery ||
 									selectedUser !== "all" ||
 									selectedSource !== "all" ||
-									selectedTTL !== "all") && (
+									selectedTTL !== "all" ||
+									topK !== DEFAULT_TOP_K) && (
 									<div className="flex items-center gap-2 flex-wrap pt-2 border-t border-slate-100">
 										<span className="text-sm font-medium text-slate-500">Active:</span>
 										{userId && (
@@ -1570,6 +1586,11 @@ export default function ProfilesPage() {
 												TTL: {formatTTL(selectedTTL as ProfileTimeToLive)}
 											</Badge>
 										)}
+										{topK !== DEFAULT_TOP_K && (
+											<Badge className="text-xs bg-indigo-100 text-indigo-700 hover:bg-indigo-100">
+												Max Results: {topK}
+											</Badge>
+										)}
 										<Button
 											variant="ghost"
 											size="sm"
@@ -1580,6 +1601,7 @@ export default function ProfilesPage() {
 												setSelectedUser("all");
 												setSelectedSource("all");
 												setSelectedTTL("all");
+												setTopK(DEFAULT_TOP_K);
 											}}
 										>
 											<XCircle className="h-3 w-3 mr-1" />
@@ -1605,11 +1627,11 @@ export default function ProfilesPage() {
 							<div>
 								<h2 className="text-lg font-semibold text-slate-800">Profile Results</h2>
 								<p className="text-xs mt-1 text-slate-500">
-									Showing {filteredProfiles.length} of {totalProfiles} profiles
+									Showing {filteredProfiles.length} of {totalProfilesInSystem} profiles
 								</p>
 							</div>
 							<div className="flex gap-2">
-								{hasActiveFilters && filteredProfiles.length < totalProfiles && filteredProfiles.length > 0 && (
+								{filteredProfiles.length < totalProfilesInSystem && filteredProfiles.length > 0 && (
 									<Button
 										variant="outline"
 										size="sm"
@@ -1624,7 +1646,7 @@ export default function ProfilesPage() {
 									variant="outline"
 									size="sm"
 									onClick={() => setBulkDeleteType("all")}
-									disabled={totalProfiles === 0}
+									disabled={totalProfilesInSystem === 0}
 									className="border-red-300 text-red-600 hover:bg-red-50"
 								>
 									<Trash2 className="h-4 w-4 mr-2" />
@@ -1835,7 +1857,7 @@ export default function ProfilesPage() {
 					bulkDeleteType === "all" ? (
 						<div className="flex justify-between">
 							<span className="text-muted-foreground">Total Profiles:</span>
-							<span className="font-semibold">{totalProfiles}</span>
+							<span className="font-semibold">{totalProfilesInSystem}</span>
 						</div>
 					) : (
 						<>
