@@ -73,14 +73,19 @@ from reflexio_commons.api_schema.service_schemas import (
     AddFeedbackResponse,
     AddRawFeedbackRequest,
     AddRawFeedbackResponse,
+    BulkDeleteResponse,
     CancelOperationRequest,
     CancelOperationResponse,
     DeleteFeedbackRequest,
     DeleteFeedbackResponse,
+    DeleteFeedbacksByIdsRequest,
+    DeleteProfilesByIdsRequest,
     DeleteRawFeedbackRequest,
     DeleteRawFeedbackResponse,
+    DeleteRawFeedbacksByIdsRequest,
     DeleteRequestRequest,
     DeleteRequestResponse,
+    DeleteRequestsByIdsRequest,
     DeleteSessionRequest,
     DeleteSessionResponse,
     DeleteSkillRequest,
@@ -1366,6 +1371,89 @@ def delete_raw_feedback(
     org_id: str = Depends(get_org_id_for_self_host),
 ) -> DeleteRawFeedbackResponse:
     return publisher_api.delete_raw_feedback(org_id=org_id, request=request)
+
+
+@app.delete(
+    "/api/delete_all_interactions",
+    response_model=BulkDeleteResponse,
+    response_model_exclude_none=True,
+)
+def delete_all_interactions(
+    org_id: str = Depends(get_org_id_for_self_host),
+) -> BulkDeleteResponse:
+    return publisher_api.delete_all_interactions_bulk(org_id=org_id)
+
+
+@app.delete(
+    "/api/delete_all_profiles",
+    response_model=BulkDeleteResponse,
+    response_model_exclude_none=True,
+)
+def delete_all_profiles(
+    org_id: str = Depends(get_org_id_for_self_host),
+) -> BulkDeleteResponse:
+    return publisher_api.delete_all_profiles_bulk(org_id=org_id)
+
+
+@app.delete(
+    "/api/delete_all_feedbacks",
+    response_model=BulkDeleteResponse,
+    response_model_exclude_none=True,
+)
+def delete_all_feedbacks(
+    org_id: str = Depends(get_org_id_for_self_host),
+) -> BulkDeleteResponse:
+    return publisher_api.delete_all_feedbacks_bulk(org_id=org_id)
+
+
+@app.delete(
+    "/api/delete_requests_by_ids",
+    response_model=BulkDeleteResponse,
+    response_model_exclude_none=True,
+)
+def delete_requests_by_ids(
+    request: DeleteRequestsByIdsRequest,
+    org_id: str = Depends(get_org_id_for_self_host),
+) -> BulkDeleteResponse:
+    return publisher_api.delete_requests_by_ids(org_id=org_id, request=request)
+
+
+@app.delete(
+    "/api/delete_profiles_by_ids",
+    response_model=BulkDeleteResponse,
+    response_model_exclude_none=True,
+)
+def delete_profiles_by_ids(
+    request: DeleteProfilesByIdsRequest,
+    org_id: str = Depends(get_org_id_for_self_host),
+) -> BulkDeleteResponse:
+    return publisher_api.delete_profiles_by_ids(org_id=org_id, request=request)
+
+
+@app.delete(
+    "/api/delete_feedbacks_by_ids",
+    response_model=BulkDeleteResponse,
+    response_model_exclude_none=True,
+)
+def delete_feedbacks_by_ids(
+    request: DeleteFeedbacksByIdsRequest,
+    org_id: str = Depends(get_org_id_for_self_host),
+) -> BulkDeleteResponse:
+    return publisher_api.delete_feedbacks_by_ids_bulk(org_id=org_id, request=request)
+
+
+@app.delete(
+    "/api/delete_raw_feedbacks_by_ids",
+    response_model=BulkDeleteResponse,
+    response_model_exclude_none=True,
+)
+def delete_raw_feedbacks_by_ids(
+    request: DeleteRawFeedbacksByIdsRequest,
+    org_id: str = Depends(get_org_id_for_self_host),
+) -> BulkDeleteResponse:
+    return publisher_api.delete_raw_feedbacks_by_ids_bulk(
+        org_id=org_id, request=request
+    )
 
 
 @app.post(

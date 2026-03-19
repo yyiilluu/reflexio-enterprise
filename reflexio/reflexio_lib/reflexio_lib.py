@@ -46,14 +46,19 @@ from reflexio_commons.api_schema.service_schemas import (
     AddFeedbackResponse,
     AddRawFeedbackRequest,
     AddRawFeedbackResponse,
+    BulkDeleteResponse,
     CancelOperationRequest,
     CancelOperationResponse,
     DeleteFeedbackRequest,
     DeleteFeedbackResponse,
+    DeleteFeedbacksByIdsRequest,
+    DeleteProfilesByIdsRequest,
     DeleteRawFeedbackRequest,
     DeleteRawFeedbackResponse,
+    DeleteRawFeedbacksByIdsRequest,
     DeleteRequestRequest,
     DeleteRequestResponse,
+    DeleteRequestsByIdsRequest,
     DeleteSessionRequest,
     DeleteSessionResponse,
     DeleteUserInteractionRequest,
@@ -476,6 +481,155 @@ class Reflexio:
             return DeleteRawFeedbackResponse(success=True)
         except Exception as e:
             return DeleteRawFeedbackResponse(success=False, message=str(e))
+
+    def delete_all_interactions_bulk(self) -> BulkDeleteResponse:
+        """Delete all requests and their associated interactions.
+
+        Returns:
+            BulkDeleteResponse: Response containing success status and deleted count
+        """
+        if not self._is_storage_configured():
+            return BulkDeleteResponse(
+                success=False, message=STORAGE_NOT_CONFIGURED_MSG
+            )
+        try:
+            self._get_storage().delete_all_requests()
+            return BulkDeleteResponse(success=True)
+        except Exception as e:
+            return BulkDeleteResponse(success=False, message=str(e))
+
+    def delete_all_profiles_bulk(self) -> BulkDeleteResponse:
+        """Delete all profiles.
+
+        Returns:
+            BulkDeleteResponse: Response containing success status and deleted count
+        """
+        if not self._is_storage_configured():
+            return BulkDeleteResponse(
+                success=False, message=STORAGE_NOT_CONFIGURED_MSG
+            )
+        try:
+            self._get_storage().delete_all_profiles()
+            return BulkDeleteResponse(success=True)
+        except Exception as e:
+            return BulkDeleteResponse(success=False, message=str(e))
+
+    def delete_all_feedbacks_bulk(self) -> BulkDeleteResponse:
+        """Delete all feedbacks (both raw and aggregated).
+
+        Returns:
+            BulkDeleteResponse: Response containing success status and deleted count
+        """
+        if not self._is_storage_configured():
+            return BulkDeleteResponse(
+                success=False, message=STORAGE_NOT_CONFIGURED_MSG
+            )
+        try:
+            self._get_storage().delete_all_feedbacks()
+            self._get_storage().delete_all_raw_feedbacks()
+            return BulkDeleteResponse(success=True)
+        except Exception as e:
+            return BulkDeleteResponse(success=False, message=str(e))
+
+    def delete_requests_by_ids(
+        self,
+        request: DeleteRequestsByIdsRequest | dict,
+    ) -> BulkDeleteResponse:
+        """Delete requests by their IDs.
+
+        Args:
+            request (DeleteRequestsByIdsRequest): The delete request containing request_ids
+
+        Returns:
+            BulkDeleteResponse: Response containing success status and deleted count
+        """
+        if not self._is_storage_configured():
+            return BulkDeleteResponse(
+                success=False, message=STORAGE_NOT_CONFIGURED_MSG
+            )
+        if isinstance(request, dict):
+            request = DeleteRequestsByIdsRequest(**request)
+        try:
+            deleted = self._get_storage().delete_requests_by_ids(request.request_ids)
+            return BulkDeleteResponse(success=True, deleted_count=deleted)
+        except Exception as e:
+            return BulkDeleteResponse(success=False, message=str(e))
+
+    def delete_profiles_by_ids(
+        self,
+        request: DeleteProfilesByIdsRequest | dict,
+    ) -> BulkDeleteResponse:
+        """Delete profiles by their IDs.
+
+        Args:
+            request (DeleteProfilesByIdsRequest): The delete request containing profile_ids
+
+        Returns:
+            BulkDeleteResponse: Response containing success status and deleted count
+        """
+        if not self._is_storage_configured():
+            return BulkDeleteResponse(
+                success=False, message=STORAGE_NOT_CONFIGURED_MSG
+            )
+        if isinstance(request, dict):
+            request = DeleteProfilesByIdsRequest(**request)
+        try:
+            deleted = self._get_storage().delete_profiles_by_ids(request.profile_ids)
+            return BulkDeleteResponse(success=True, deleted_count=deleted)
+        except Exception as e:
+            return BulkDeleteResponse(success=False, message=str(e))
+
+    def delete_feedbacks_by_ids_bulk(
+        self,
+        request: DeleteFeedbacksByIdsRequest | dict,
+    ) -> BulkDeleteResponse:
+        """Delete aggregated feedbacks by their IDs.
+
+        Args:
+            request (DeleteFeedbacksByIdsRequest): The delete request containing feedback_ids
+
+        Returns:
+            BulkDeleteResponse: Response containing success status and deleted count
+        """
+        if not self._is_storage_configured():
+            return BulkDeleteResponse(
+                success=False, message=STORAGE_NOT_CONFIGURED_MSG
+            )
+        if isinstance(request, dict):
+            request = DeleteFeedbacksByIdsRequest(**request)
+        try:
+            self._get_storage().delete_feedbacks_by_ids(request.feedback_ids)
+            return BulkDeleteResponse(
+                success=True, deleted_count=len(request.feedback_ids)
+            )
+        except Exception as e:
+            return BulkDeleteResponse(success=False, message=str(e))
+
+    def delete_raw_feedbacks_by_ids_bulk(
+        self,
+        request: DeleteRawFeedbacksByIdsRequest | dict,
+    ) -> BulkDeleteResponse:
+        """Delete raw feedbacks by their IDs.
+
+        Args:
+            request (DeleteRawFeedbacksByIdsRequest): The delete request containing raw_feedback_ids
+
+        Returns:
+            BulkDeleteResponse: Response containing success status and deleted count
+        """
+        if not self._is_storage_configured():
+            return BulkDeleteResponse(
+                success=False, message=STORAGE_NOT_CONFIGURED_MSG
+            )
+        if isinstance(request, dict):
+            request = DeleteRawFeedbacksByIdsRequest(**request)
+        try:
+            deleted = self._get_storage().delete_raw_feedbacks_by_ids(
+                request.raw_feedback_ids
+            )
+            return BulkDeleteResponse(success=True, deleted_count=deleted)
+        except Exception as e:
+            return BulkDeleteResponse(success=False, message=str(e))
 
     def get_interactions(
         self,

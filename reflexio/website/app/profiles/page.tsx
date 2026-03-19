@@ -39,7 +39,9 @@ import { Label } from "@/components/ui/label";
 import {
 	type UserProfile as ApiUserProfile,
 	cancelOperation,
+	deleteAllProfiles,
 	deleteProfile,
+	deleteProfilesByIds,
 	downgradeAllProfiles,
 	getAllProfiles,
 	getOperationStatus,
@@ -475,6 +477,10 @@ export default function ProfilesPage() {
 	const [profileToDelete, setProfileToDelete] = useState<UserProfile | null>(null);
 	const [deleting, setDeleting] = useState<boolean>(false);
 
+	// Bulk delete state
+	const [bulkDeleteType, setBulkDeleteType] = useState<"all" | "filtered" | null>(null);
+	const [bulkDeleting, setBulkDeleting] = useState<boolean>(false);
+
 	// Status tab and statistics state
 	const [activeStatusTab, setActiveStatusTab] = useState<"current" | "archived" | "pending">(
 		"current",
@@ -758,6 +764,9 @@ export default function ProfilesPage() {
 		});
 	}, [profiles, searchQuery, selectedUser, selectedSource, selectedTTL]);
 
+	const hasActiveFilters =
+		searchQuery !== "" || selectedUser !== "all" || selectedSource !== "all" || selectedTTL !== "all";
+
 	const startEdit = (profile: UserProfile) => {
 		setEditingProfileId(profile.profile_id);
 		setEditedProfile({ ...profile });
@@ -843,6 +852,40 @@ export default function ProfilesPage() {
 
 	const _cancelDelete = () => {
 		setProfileToDelete(null);
+	};
+
+	const confirmBulkDelete = async () => {
+		setBulkDeleting(true);
+		setError("");
+
+		try {
+			if (bulkDeleteType === "all") {
+				const response = await deleteAllProfiles();
+				if (response.success) {
+					await fetchProfiles(userId, topK, activeStatusTab);
+					await fetchProfileStatistics();
+					setBulkDeleteType(null);
+				} else {
+					setError(response.message || "Failed to delete all profiles");
+				}
+			} else if (bulkDeleteType === "filtered") {
+				const profileIds = filteredProfiles.map((p) => p.profile_id);
+				if (profileIds.length > 0) {
+					const response = await deleteProfilesByIds(profileIds);
+					if (response.success) {
+						await fetchProfiles(userId, topK, activeStatusTab);
+						await fetchProfileStatistics();
+						setBulkDeleteType(null);
+					} else {
+						setError(response.message || "Failed to delete filtered profiles");
+					}
+				}
+			}
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "An error occurred during bulk delete");
+		} finally {
+			setBulkDeleting(false);
+		}
 	};
 
 	// Refresh statistics after upgrade/downgrade
@@ -1558,11 +1601,36 @@ export default function ProfilesPage() {
 
 					{/* Results */}
 					<div>
-						<div className="mb-4">
-							<h2 className="text-lg font-semibold text-slate-800">Profile Results</h2>
-							<p className="text-xs mt-1 text-slate-500">
-								Showing {filteredProfiles.length} of {totalProfiles} profiles
-							</p>
+						<div className="mb-4 flex items-center justify-between">
+							<div>
+								<h2 className="text-lg font-semibold text-slate-800">Profile Results</h2>
+								<p className="text-xs mt-1 text-slate-500">
+									Showing {filteredProfiles.length} of {totalProfiles} profiles
+								</p>
+							</div>
+							<div className="flex gap-2">
+								{hasActiveFilters && filteredProfiles.length < totalProfiles && filteredProfiles.length > 0 && (
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={() => setBulkDeleteType("filtered")}
+										className="border-amber-300 text-amber-700 hover:bg-amber-50"
+									>
+										<Trash2 className="h-4 w-4 mr-2" />
+										Delete Filtered ({filteredProfiles.length})
+									</Button>
+								)}
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => setBulkDeleteType("all")}
+									disabled={totalProfiles === 0}
+									className="border-red-300 text-red-600 hover:bg-red-50"
+								>
+									<Trash2 className="h-4 w-4 mr-2" />
+									Delete All
+								</Button>
+							</div>
 						</div>
 						{loading ? (
 							<div className="text-center py-12">
@@ -1749,6 +1817,51 @@ export default function ProfilesPage() {
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
+
+			{/* Bulk Delete Confirmation Dialog */}
+			<DeleteConfirmDialog
+				open={!!bulkDeleteType}
+				onOpenChange={(open) => {
+					if (!open) setBulkDeleteType(null);
+				}}
+				onConfirm={confirmBulkDelete}
+				title={bulkDeleteType === "all" ? "Delete All Profiles" : "Delete Filtered Profiles"}
+				description={
+					bulkDeleteType === "all"
+						? "Are you sure you want to delete ALL profiles? This will permanently remove every profile in the system."
+						: `Are you sure you want to delete ${filteredProfiles.length} filtered profile(s)?`
+				}
+				itemDetails={
+					bulkDeleteType === "all" ? (
+						<div className="flex justify-between">
+							<span className="text-muted-foreground">Total Profiles:</span>
+							<span className="font-semibold">{totalProfiles}</span>
+						</div>
+					) : (
+						<>
+							<div className="flex justify-between">
+								<span className="text-muted-foreground">Profiles to Delete:</span>
+								<span className="font-semibold">{filteredProfiles.length}</span>
+							</div>
+							{searchQuery && (
+								<div className="flex justify-between">
+									<span className="text-muted-foreground">Search:</span>
+									<span className="font-mono text-xs">{searchQuery}</span>
+								</div>
+							)}
+							{selectedUser !== "all" && (
+								<div className="flex justify-between">
+									<span className="text-muted-foreground">User:</span>
+									<span className="font-mono text-xs">{selectedUser}</span>
+								</div>
+							)}
+						</>
+					)
+				}
+				loading={bulkDeleting}
+				confirmButtonText={bulkDeleteType === "all" ? "Delete All" : "Delete Filtered"}
+				requireTypedConfirmation={bulkDeleteType === "all"}
+			/>
 
 			{/* Delete Confirmation Dialog */}
 			<DeleteConfirmDialog

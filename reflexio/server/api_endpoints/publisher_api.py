@@ -13,12 +13,17 @@ from reflexio_commons.api_schema.service_schemas import (
     AddFeedbackResponse,
     AddRawFeedbackRequest,
     AddRawFeedbackResponse,
+    BulkDeleteResponse,
     DeleteFeedbackRequest,
     DeleteFeedbackResponse,
+    DeleteFeedbacksByIdsRequest,
+    DeleteProfilesByIdsRequest,
     DeleteRawFeedbackRequest,
     DeleteRawFeedbackResponse,
+    DeleteRawFeedbacksByIdsRequest,
     DeleteRequestRequest,
     DeleteRequestResponse,
+    DeleteRequestsByIdsRequest,
     DeleteSessionRequest,
     DeleteSessionResponse,
     DeleteUserInteractionRequest,
@@ -219,6 +224,137 @@ def delete_raw_feedback(
     except Exception as e:
         logger.error("Failed to delete raw feedback: %s", e)
         return DeleteRawFeedbackResponse(success=False, message=str(e))
+
+
+def delete_all_interactions_bulk(org_id: str) -> BulkDeleteResponse:
+    """Delete all requests and their associated interactions.
+
+    Args:
+        org_id (str): Organization ID
+
+    Returns:
+        BulkDeleteResponse: Response containing success status and deleted count
+    """
+    reflexio = get_reflexio(org_id=org_id)
+    try:
+        return reflexio.delete_all_interactions_bulk()
+    except Exception as e:
+        logger.error("Failed to delete all interactions: %s", e)
+        return BulkDeleteResponse(success=False, message=str(e))
+
+
+def delete_all_profiles_bulk(org_id: str) -> BulkDeleteResponse:
+    """Delete all profiles.
+
+    Args:
+        org_id (str): Organization ID
+
+    Returns:
+        BulkDeleteResponse: Response containing success status and deleted count
+    """
+    reflexio = get_reflexio(org_id=org_id)
+    try:
+        return reflexio.delete_all_profiles_bulk()
+    except Exception as e:
+        logger.error("Failed to delete all profiles: %s", e)
+        return BulkDeleteResponse(success=False, message=str(e))
+
+
+def delete_all_feedbacks_bulk(org_id: str) -> BulkDeleteResponse:
+    """Delete all feedbacks (both raw and aggregated).
+
+    Args:
+        org_id (str): Organization ID
+
+    Returns:
+        BulkDeleteResponse: Response containing success status and deleted count
+    """
+    reflexio = get_reflexio(org_id=org_id)
+    try:
+        return reflexio.delete_all_feedbacks_bulk()
+    except Exception as e:
+        logger.error("Failed to delete all feedbacks: %s", e)
+        return BulkDeleteResponse(success=False, message=str(e))
+
+
+def delete_requests_by_ids(
+    org_id: str, request: DeleteRequestsByIdsRequest
+) -> BulkDeleteResponse:
+    """Delete requests by their IDs.
+
+    Args:
+        org_id (str): Organization ID
+        request (DeleteRequestsByIdsRequest): The delete request
+
+    Returns:
+        BulkDeleteResponse: Response containing success status and deleted count
+    """
+    reflexio = get_reflexio(org_id=org_id)
+    try:
+        return reflexio.delete_requests_by_ids(request)
+    except Exception as e:
+        logger.error("Failed to delete requests by IDs: %s", e)
+        return BulkDeleteResponse(success=False, message=str(e))
+
+
+def delete_profiles_by_ids(
+    org_id: str, request: DeleteProfilesByIdsRequest
+) -> BulkDeleteResponse:
+    """Delete profiles by their IDs.
+
+    Args:
+        org_id (str): Organization ID
+        request (DeleteProfilesByIdsRequest): The delete request
+
+    Returns:
+        BulkDeleteResponse: Response containing success status and deleted count
+    """
+    reflexio = get_reflexio(org_id=org_id)
+    try:
+        return reflexio.delete_profiles_by_ids(request)
+    except Exception as e:
+        logger.error("Failed to delete profiles by IDs: %s", e)
+        return BulkDeleteResponse(success=False, message=str(e))
+
+
+def delete_feedbacks_by_ids_bulk(
+    org_id: str, request: DeleteFeedbacksByIdsRequest
+) -> BulkDeleteResponse:
+    """Delete aggregated feedbacks by their IDs.
+
+    Args:
+        org_id (str): Organization ID
+        request (DeleteFeedbacksByIdsRequest): The delete request
+
+    Returns:
+        BulkDeleteResponse: Response containing success status and deleted count
+    """
+    reflexio = get_reflexio(org_id=org_id)
+    try:
+        return reflexio.delete_feedbacks_by_ids_bulk(request)
+    except Exception as e:
+        logger.error("Failed to delete feedbacks by IDs: %s", e)
+        return BulkDeleteResponse(success=False, message=str(e))
+
+
+def delete_raw_feedbacks_by_ids_bulk(
+    org_id: str, request: DeleteRawFeedbacksByIdsRequest
+) -> BulkDeleteResponse:
+    """Delete raw feedbacks by their IDs.
+
+    Args:
+        org_id (str): Organization ID
+        request (DeleteRawFeedbacksByIdsRequest): The delete request
+
+    Returns:
+        BulkDeleteResponse: Response containing success status and deleted count
+    """
+    reflexio = get_reflexio(org_id=org_id)
+    try:
+        return reflexio.delete_raw_feedbacks_by_ids_bulk(request)
+    except Exception as e:
+        logger.error("Failed to delete raw feedbacks by IDs: %s", e)
+        return BulkDeleteResponse(success=False, message=str(e))
 
 
 # ==============================

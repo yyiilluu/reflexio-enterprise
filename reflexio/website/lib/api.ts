@@ -994,6 +994,143 @@ export async function deleteRawFeedback(
 	}
 }
 
+// Bulk delete types
+export interface BulkDeleteResponse {
+	success: boolean;
+	deleted_count: number;
+	message: string;
+}
+
+export async function deleteAllInteractions(): Promise<BulkDeleteResponse> {
+	try {
+		const response = await fetch(`${API_BASE_URL}/api/delete_all_interactions`, {
+			method: "DELETE",
+			headers: getHeaders(),
+		});
+
+		if (!response.ok) {
+			throw new Error(`API request failed with status ${response.status}`);
+		}
+
+		return await response.json();
+	} catch (error) {
+		console.error("Error deleting all interactions:", error);
+		throw error;
+	}
+}
+
+export async function deleteAllProfiles(): Promise<BulkDeleteResponse> {
+	try {
+		const response = await fetch(`${API_BASE_URL}/api/delete_all_profiles`, {
+			method: "DELETE",
+			headers: getHeaders(),
+		});
+
+		if (!response.ok) {
+			throw new Error(`API request failed with status ${response.status}`);
+		}
+
+		return await response.json();
+	} catch (error) {
+		console.error("Error deleting all profiles:", error);
+		throw error;
+	}
+}
+
+export async function deleteAllFeedbacks(): Promise<BulkDeleteResponse> {
+	try {
+		const response = await fetch(`${API_BASE_URL}/api/delete_all_feedbacks`, {
+			method: "DELETE",
+			headers: getHeaders(),
+		});
+
+		if (!response.ok) {
+			throw new Error(`API request failed with status ${response.status}`);
+		}
+
+		return await response.json();
+	} catch (error) {
+		console.error("Error deleting all feedbacks:", error);
+		throw error;
+	}
+}
+
+export async function deleteRequestsByIds(request_ids: string[]): Promise<BulkDeleteResponse> {
+	try {
+		const response = await fetch(`${API_BASE_URL}/api/delete_requests_by_ids`, {
+			method: "DELETE",
+			headers: getHeaders(),
+			body: JSON.stringify({ request_ids }),
+		});
+
+		if (!response.ok) {
+			throw new Error(`API request failed with status ${response.status}`);
+		}
+
+		return await response.json();
+	} catch (error) {
+		console.error("Error deleting requests by IDs:", error);
+		throw error;
+	}
+}
+
+export async function deleteProfilesByIds(profile_ids: string[]): Promise<BulkDeleteResponse> {
+	try {
+		const response = await fetch(`${API_BASE_URL}/api/delete_profiles_by_ids`, {
+			method: "DELETE",
+			headers: getHeaders(),
+			body: JSON.stringify({ profile_ids }),
+		});
+
+		if (!response.ok) {
+			throw new Error(`API request failed with status ${response.status}`);
+		}
+
+		return await response.json();
+	} catch (error) {
+		console.error("Error deleting profiles by IDs:", error);
+		throw error;
+	}
+}
+
+export async function deleteFeedbacksByIds(feedback_ids: number[]): Promise<BulkDeleteResponse> {
+	try {
+		const response = await fetch(`${API_BASE_URL}/api/delete_feedbacks_by_ids`, {
+			method: "DELETE",
+			headers: getHeaders(),
+			body: JSON.stringify({ feedback_ids }),
+		});
+
+		if (!response.ok) {
+			throw new Error(`API request failed with status ${response.status}`);
+		}
+
+		return await response.json();
+	} catch (error) {
+		console.error("Error deleting feedbacks by IDs:", error);
+		throw error;
+	}
+}
+
+export async function deleteRawFeedbacksByIds(raw_feedback_ids: number[]): Promise<BulkDeleteResponse> {
+	try {
+		const response = await fetch(`${API_BASE_URL}/api/delete_raw_feedbacks_by_ids`, {
+			method: "DELETE",
+			headers: getHeaders(),
+			body: JSON.stringify({ raw_feedback_ids }),
+		});
+
+		if (!response.ok) {
+			throw new Error(`API request failed with status ${response.status}`);
+		}
+
+		return await response.json();
+	} catch (error) {
+		console.error("Error deleting raw feedbacks by IDs:", error);
+		throw error;
+	}
+}
+
 // Operation status types
 export type OperationStatus = "in_progress" | "completed" | "failed" | "cancelled";
 

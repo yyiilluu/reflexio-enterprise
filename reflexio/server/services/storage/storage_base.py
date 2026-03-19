@@ -268,6 +268,30 @@ class BaseStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def delete_requests_by_ids(self, request_ids: list[str]) -> int:
+        """Delete requests and their associated interactions by request IDs.
+
+        Args:
+            request_ids (list[str]): List of request IDs to delete
+
+        Returns:
+            int: Number of requests deleted
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def delete_profiles_by_ids(self, profile_ids: list[str]) -> int:
+        """Delete profiles by their IDs.
+
+        Args:
+            profile_ids (list[str]): List of profile IDs to delete
+
+        Returns:
+            int: Number of profiles deleted
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def get_sessions(
         self,
         user_id: str | None = None,
