@@ -12,9 +12,9 @@ CATEGORY_MAP: dict[int, str] = {
 CATEGORY_IDS: dict[str, int] = {v: k for k, v in CATEGORY_MAP.items()}
 
 # Strategies
-STRATEGIES = ["no_context", "reflexio_search"]
+STRATEGIES = ["no_context", "reflexio"]
 NON_REFLEXIO_STRATEGIES = ["no_context"]
-REFLEXIO_STRATEGIES = ["reflexio_search"]
+REFLEXIO_STRATEGIES = ["reflexio"]
 
 # Defaults
 DEFAULT_MODEL = "minimax/MiniMax-M2.5"

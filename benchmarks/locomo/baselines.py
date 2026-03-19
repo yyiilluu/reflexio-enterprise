@@ -15,7 +15,7 @@ def no_context(**_kwargs: object) -> str:
     return ""
 
 
-def reflexio_search(
+def reflexio(
     client: ReflexioClient,
     user_id: str,
     question: str,
@@ -56,7 +56,7 @@ def get_context(
     Dispatch to the appropriate context retrieval strategy.
 
     Args:
-        strategy (str): One of "no_context", "reflexio_search"
+        strategy (str): One of "no_context", "reflexio"
         question (str): The QA question
         client (ReflexioClient | None): Reflexio client (required for reflexio_* strategies)
         user_id (str): User ID (required for reflexio_* strategies)
@@ -66,8 +66,8 @@ def get_context(
     """
     if strategy == "no_context":
         return no_context()
-    if strategy == "reflexio_search":
+    if strategy == "reflexio":
         if client is None:
-            raise ValueError("ReflexioClient required for reflexio_search")
-        return reflexio_search(client=client, user_id=user_id, question=question)
+            raise ValueError("ReflexioClient required for reflexio")
+        return reflexio(client=client, user_id=user_id, question=question)
     raise ValueError(f"Unknown strategy: {strategy}")
