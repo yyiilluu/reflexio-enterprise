@@ -2,6 +2,7 @@ import json
 import logging
 import threading
 import time
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -127,7 +128,7 @@ class LocalJsonStorage(BaseStorage):
     def get_all_profiles(
         self,
         limit: int = 100,
-        status_filter: list[Status | None] | None = None,
+        status_filter: Sequence[Status | None] | None = None,
     ) -> list[UserProfile]:
         if status_filter is None:
             status_filter = [None]  # Default to current profiles (status=None)
@@ -190,7 +191,7 @@ class LocalJsonStorage(BaseStorage):
     def get_user_profile(
         self,
         user_id: str,
-        status_filter: list[Status | None] | None = None,
+        status_filter: Sequence[Status | None] | None = None,
     ) -> list[UserProfile]:
         if status_filter is None:
             status_filter = [None]  # Default to current profiles (status=None)
@@ -516,7 +517,7 @@ class LocalJsonStorage(BaseStorage):
         self,
         old_status: Status | None,
         new_status: Status | None,
-        user_ids: list[str] | None = None,
+        user_ids: Sequence[str] | None = None,
     ) -> int:
         """
         Update all profiles with old_status to new_status atomically.
@@ -802,7 +803,7 @@ class LocalJsonStorage(BaseStorage):
 
             self._save(all_memories)
 
-    def delete_requests_by_ids(self, request_ids: list[str]) -> int:
+    def delete_requests_by_ids(self, request_ids: Sequence[str]) -> int:
         """Delete requests and their associated interactions by request IDs."""
         if not request_ids:
             return 0
@@ -835,7 +836,7 @@ class LocalJsonStorage(BaseStorage):
             self._save(all_memories)
             return deleted
 
-    def delete_profiles_by_ids(self, profile_ids: list[str]) -> int:
+    def delete_profiles_by_ids(self, profile_ids: Sequence[str]) -> int:
         """Delete profiles by their IDs."""
         if not profile_ids:
             return 0
@@ -1185,7 +1186,7 @@ class LocalJsonStorage(BaseStorage):
     def search_user_profile(
         self,
         search_user_profile_request: SearchUserProfileRequest,
-        status_filter: list[Status | None] | None = None,
+        status_filter: Sequence[Status | None] | None = None,
         options: SearchOptions | None = None,  # noqa: ARG002
     ) -> list[UserProfile]:
         """Search user profile from storage
@@ -1267,7 +1268,7 @@ class LocalJsonStorage(BaseStorage):
         user_id: str | None = None,
         feedback_name: str | None = None,
         agent_version: str | None = None,
-        status_filter: list[Status | None] | None = None,
+        status_filter: Sequence[Status | None] | None = None,
         start_time: int | None = None,
         end_time: int | None = None,
         include_embedding: bool = False,  # noqa: ARG002
@@ -1326,7 +1327,7 @@ class LocalJsonStorage(BaseStorage):
         feedback_name: str | None = None,
         min_raw_feedback_id: int | None = None,
         agent_version: str | None = None,
-        status_filter: list[Status | None] | None = None,
+        status_filter: Sequence[Status | None] | None = None,
     ) -> int:
         """
         Count raw feedbacks in storage efficiently.
@@ -1551,7 +1552,7 @@ class LocalJsonStorage(BaseStorage):
         self,
         limit: int = 100,
         feedback_name: str | None = None,
-        status_filter: list[Status | None] | None = None,
+        status_filter: Sequence[Status | None] | None = None,
         feedback_status_filter: list[FeedbackStatus] | None = None,
     ) -> list[Feedback]:
         """
@@ -1775,7 +1776,7 @@ class LocalJsonStorage(BaseStorage):
         all_memories["feedbacks"] = updated_feedbacks
         self._save(all_memories)
 
-    def delete_feedbacks_by_ids(self, feedback_ids: list[int]) -> None:
+    def delete_feedbacks_by_ids(self, feedback_ids: Sequence[int]) -> None:
         """
         Permanently delete feedbacks by their IDs.
         No-op if feedback_ids is empty.
@@ -1922,7 +1923,7 @@ class LocalJsonStorage(BaseStorage):
         logger.info("Deleted %s raw feedbacks with status %s", deleted_count, status)
         return deleted_count
 
-    def delete_raw_feedbacks_by_ids(self, raw_feedback_ids: list[int]) -> int:
+    def delete_raw_feedbacks_by_ids(self, raw_feedback_ids: Sequence[int]) -> int:
         """Delete raw feedbacks by their IDs. No-op for local storage."""
         logger.warning(
             "delete_raw_feedbacks_by_ids is not supported in local storage, skipping deletion of %d feedbacks",

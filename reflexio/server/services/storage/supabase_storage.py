@@ -4,7 +4,7 @@ Storage class that uses Supabase as vector db for storing data
 
 import functools
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
@@ -146,7 +146,7 @@ def _build_status_or_condition(status_list: list[Status | None]) -> str | None:
 
 def _apply_status_filter_to_query(
     query: Any,
-    status_filter: list[Status | None],
+    status_filter: Sequence[Status | None],
 ) -> Any:
     """Apply status filter conditions to a Supabase query builder.
 
@@ -411,7 +411,7 @@ class SupabaseStorage(BaseStorage):
     def get_all_profiles(
         self,
         limit: int = 100,
-        status_filter: list[Status | None] | None = None,
+        status_filter: Sequence[Status | None] | None = None,
     ) -> list[UserProfile]:
         if status_filter is None:
             status_filter = [None]  # Default to current profiles (status=None)
@@ -461,7 +461,7 @@ class SupabaseStorage(BaseStorage):
     def get_user_profile(
         self,
         user_id: str,
-        status_filter: list[Status | None] | None = None,
+        status_filter: Sequence[Status | None] | None = None,
     ) -> list[UserProfile]:
         if status_filter is None:
             status_filter = [None]  # Default to current profiles (status=None)
@@ -679,7 +679,7 @@ class SupabaseStorage(BaseStorage):
         self,
         old_status: Status | None,
         new_status: Status | None,
-        user_ids: list[str] | None = None,
+        user_ids: Sequence[str] | None = None,
     ) -> int:
         """
         Update all profiles with old_status to new_status atomically.
@@ -877,7 +877,7 @@ class SupabaseStorage(BaseStorage):
         ).execute()
 
     @handle_exceptions
-    def delete_requests_by_ids(self, request_ids: list[str]) -> int:
+    def delete_requests_by_ids(self, request_ids: Sequence[str]) -> int:
         """Delete requests and their associated interactions by request IDs."""
         if not request_ids:
             return 0
@@ -895,7 +895,7 @@ class SupabaseStorage(BaseStorage):
         return len(response.data)
 
     @handle_exceptions
-    def delete_profiles_by_ids(self, profile_ids: list[str]) -> int:
+    def delete_profiles_by_ids(self, profile_ids: Sequence[str]) -> int:
         """Delete profiles by their IDs."""
         if not profile_ids:
             return 0
@@ -1213,7 +1213,7 @@ class SupabaseStorage(BaseStorage):
     def search_user_profile(
         self,
         search_user_profile_request: SearchUserProfileRequest,
-        status_filter: list[Status | None] | None = None,
+        status_filter: Sequence[Status | None] | None = None,
         options: SearchOptions | None = None,
     ) -> list[UserProfile]:
         if status_filter is None:
@@ -1640,7 +1640,7 @@ class SupabaseStorage(BaseStorage):
         user_id: str | None = None,
         feedback_name: str | None = None,
         agent_version: str | None = None,
-        status_filter: list[Status | None] | None = None,
+        status_filter: Sequence[Status | None] | None = None,
         start_time: int | None = None,
         end_time: int | None = None,
         include_embedding: bool = False,
@@ -1732,7 +1732,7 @@ class SupabaseStorage(BaseStorage):
         feedback_name: str | None = None,
         min_raw_feedback_id: int | None = None,
         agent_version: str | None = None,
-        status_filter: list[Status | None] | None = None,
+        status_filter: Sequence[Status | None] | None = None,
     ) -> int:
         """
         Count raw feedbacks in storage efficiently using SQL COUNT.
@@ -1816,7 +1816,7 @@ class SupabaseStorage(BaseStorage):
         self,
         limit: int = 100,
         feedback_name: str | None = None,
-        status_filter: list[Status | None] | None = None,
+        status_filter: Sequence[Status | None] | None = None,
         feedback_status_filter: list[FeedbackStatus] | None = None,
     ) -> list[Feedback]:
         """
@@ -2093,7 +2093,7 @@ class SupabaseStorage(BaseStorage):
         ).eq("status", "archived").execute()
 
     @handle_exceptions
-    def delete_feedbacks_by_ids(self, feedback_ids: list[int]) -> None:
+    def delete_feedbacks_by_ids(self, feedback_ids: Sequence[int]) -> None:
         """
         Permanently delete feedbacks by their IDs.
         No-op if feedback_ids is empty.
@@ -2197,7 +2197,7 @@ class SupabaseStorage(BaseStorage):
         return deleted_count
 
     @handle_exceptions
-    def delete_raw_feedbacks_by_ids(self, raw_feedback_ids: list[int]) -> int:
+    def delete_raw_feedbacks_by_ids(self, raw_feedback_ids: Sequence[int]) -> int:
         """
         Delete raw feedbacks by their IDs.
 
