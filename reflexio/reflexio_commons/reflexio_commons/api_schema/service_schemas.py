@@ -346,6 +346,28 @@ class DeleteRawFeedbackResponse(BaseModel):
     message: str = ""
 
 
+class BulkDeleteResponse(BaseModel):
+    success: bool
+    deleted_count: int = 0
+    message: str = ""
+
+
+class DeleteRequestsByIdsRequest(BaseModel):
+    request_ids: list[str] = Field(min_length=1)
+
+
+class DeleteProfilesByIdsRequest(BaseModel):
+    profile_ids: list[str] = Field(min_length=1)
+
+
+class DeleteFeedbacksByIdsRequest(BaseModel):
+    feedback_ids: list[int] = Field(min_length=1)
+
+
+class DeleteRawFeedbacksByIdsRequest(BaseModel):
+    raw_feedback_ids: list[int] = Field(min_length=1)
+
+
 # user provided interaction data from the request
 class InteractionData(BaseModel):
     created_at: int = Field(

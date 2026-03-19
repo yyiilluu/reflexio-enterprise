@@ -123,6 +123,45 @@ gh pr create --title "the pr title" --base $BASE_BRANCH --body-file /tmp/pr_body
 - Any `Co-Authored-By` trailer
 - Any "Generated with Claude Code" footer
 
+### Step 7.5: Frontend UI Verification (when applicable)
+
+If the PR includes frontend changes (`*.tsx`, `*.jsx` files under `reflexio/website/`), run automated UI verification using agent-browser:
+
+1. **Detect frontend changes** — check if any files in the branch diff match `reflexio/website/**/*.{tsx,jsx}`:
+   ```bash
+   git diff $BASE_BRANCH...HEAD --name-only -- 'reflexio/website/**/*.tsx' 'reflexio/website/**/*.jsx'
+   ```
+   If no frontend files changed, skip this step.
+
+2. **Ensure services are running** — check if the frontend is accessible:
+   ```bash
+   curl -sf http://localhost:${FRONTEND_PORT:-8080}/ > /dev/null 2>&1
+   ```
+   If not running, start services using the `/run-services` skill.
+
+3. **Identify affected pages** — map changed files to routes:
+   - `app/interactions/page.tsx` → `/interactions`
+   - `app/profiles/page.tsx` → `/profiles`
+   - `app/feedbacks/page.tsx` → `/feedbacks`
+   - Other `app/**/page.tsx` → derive route from path
+
+4. **Verify each affected page** — for each route:
+   ```bash
+   agent-browser open http://localhost:${FRONTEND_PORT:-8080}<route>
+   agent-browser wait --load networkidle
+   agent-browser snapshot -i
+   agent-browser screenshot
+   ```
+   - Verify the page loads without errors (no error boundaries, no blank screens)
+   - Verify key interactive elements are present in the snapshot
+   - If the Test Plan section mentions specific UI behaviors for this page, verify them:
+     - Change filter inputs and verify badges/indicators appear
+     - Click buttons and verify dialogs open
+     - Click cancel/close and verify no side effects
+   - **Do NOT perform destructive actions** (delete, submit forms that modify data)
+
+5. **Attach screenshots** — note the screenshot paths in the PR report so the user can add them to the PR.
+
 ### Step 8: Report
 
 - Return the PR URL so the user can review it

@@ -1,4 +1,5 @@
 import { AlertCircle, Loader2, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -8,6 +9,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 interface DeleteConfirmDialogProps {
 	open: boolean;
@@ -18,6 +20,7 @@ interface DeleteConfirmDialogProps {
 	itemDetails?: React.ReactNode;
 	loading?: boolean;
 	confirmButtonText?: string;
+	requireTypedConfirmation?: boolean;
 }
 
 export function DeleteConfirmDialog({
@@ -29,7 +32,18 @@ export function DeleteConfirmDialog({
 	itemDetails,
 	loading = false,
 	confirmButtonText = "Delete",
+	requireTypedConfirmation = false,
 }: DeleteConfirmDialogProps) {
+	const [typedConfirmation, setTypedConfirmation] = useState("");
+
+	useEffect(() => {
+		if (!open) {
+			setTypedConfirmation("");
+		}
+	}, [open]);
+
+	const isConfirmDisabled = loading || (requireTypedConfirmation && typedConfirmation !== "DELETE");
+
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="sm:max-w-[500px]">
@@ -56,6 +70,21 @@ export function DeleteConfirmDialog({
 					<p className="text-sm text-red-600">This action cannot be undone.</p>
 				</div>
 
+				{requireTypedConfirmation && (
+					<div className="space-y-2">
+						<p className="text-sm text-slate-600">
+							Type <span className="font-mono font-semibold text-red-600">DELETE</span> to confirm:
+						</p>
+						<Input
+							value={typedConfirmation}
+							onChange={(e) => setTypedConfirmation(e.target.value)}
+							placeholder="Type DELETE to confirm"
+							className="font-mono"
+							autoFocus
+						/>
+					</div>
+				)}
+
 				<DialogFooter className="gap-2 sm:gap-0">
 					<Button
 						variant="outline"
@@ -67,7 +96,7 @@ export function DeleteConfirmDialog({
 					</Button>
 					<Button
 						onClick={onConfirm}
-						disabled={loading}
+						disabled={isConfirmDisabled}
 						className="bg-red-500 hover:bg-red-600 text-white border-0"
 					>
 						{loading ? (

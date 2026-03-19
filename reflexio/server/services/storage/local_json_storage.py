@@ -825,6 +825,62 @@ class LocalJsonStorage(BaseStorage):
 
             self._save(all_memories)
 
+    def delete_requests_by_ids(self, request_ids: list[str]) -> int:
+        """Delete requests and their associated interactions by request IDs."""
+        if not request_ids:
+            return 0
+        request_id_set = set(request_ids)
+        with self._lock:
+            all_memories = self._load()
+
+            # Delete interactions for these requests
+            for user_id in list(all_memories.keys()):
+                if user_id != "requests" and "interactions" in all_memories[user_id]:
+                    all_memories[user_id]["interactions"] = [
+                        interaction_json
+                        for interaction_json in all_memories[user_id]["interactions"]
+                        if Interaction.model_validate_json(interaction_json).request_id
+                        not in request_id_set
+                    ]
+
+            # Delete the requests
+            deleted = 0
+            if "requests" in all_memories:
+                original_count = len(all_memories["requests"])
+                all_memories["requests"] = [
+                    request_json
+                    for request_json in all_memories["requests"]
+                    if Request.model_validate_json(request_json).request_id
+                    not in request_id_set
+                ]
+                deleted = original_count - len(all_memories["requests"])
+
+            self._save(all_memories)
+            return deleted
+
+    def delete_profiles_by_ids(self, profile_ids: list[str]) -> int:
+        """Delete profiles by their IDs."""
+        if not profile_ids:
+            return 0
+        profile_id_set = set(profile_ids)
+        with self._lock:
+            all_memories = self._load()
+            deleted = 0
+
+            for user_id in list(all_memories.keys()):
+                if user_id != "requests" and "profiles" in all_memories[user_id]:
+                    original_count = len(all_memories[user_id]["profiles"])
+                    all_memories[user_id]["profiles"] = [
+                        profile_json
+                        for profile_json in all_memories[user_id]["profiles"]
+                        if UserProfile.model_validate_json(profile_json).profile_id
+                        not in profile_id_set
+                    ]
+                    deleted += original_count - len(all_memories[user_id]["profiles"])
+
+            self._save(all_memories)
+            return deleted
+
     def get_requests_by_session(self, user_id: str, session_id: str) -> list[Request]:
         """
         Get all requests for a specific session.

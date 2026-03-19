@@ -886,6 +886,37 @@ class SupabaseStorage(BaseStorage):
         ).execute()
 
     @handle_exceptions
+    def delete_requests_by_ids(self, request_ids: list[str]) -> int:
+        """Delete requests and their associated interactions by request IDs."""
+        if not request_ids:
+            return 0
+        # First delete all interactions for these requests
+        self.client.table("interactions").delete().in_(
+            "request_id", request_ids
+        ).execute()
+        # Then delete the requests
+        response = (
+            self.client.table("requests")
+            .delete()
+            .in_("request_id", request_ids)
+            .execute()
+        )
+        return len(response.data)
+
+    @handle_exceptions
+    def delete_profiles_by_ids(self, profile_ids: list[str]) -> int:
+        """Delete profiles by their IDs."""
+        if not profile_ids:
+            return 0
+        response = (
+            self.client.table("user_profiles")
+            .delete()
+            .in_("profile_id", profile_ids)
+            .execute()
+        )
+        return len(response.data)
+
+    @handle_exceptions
     def get_requests_by_session(self, user_id: str, session_id: str) -> list[Request]:
         """
         Get all requests for a specific session.

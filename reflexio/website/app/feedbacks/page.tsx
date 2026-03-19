@@ -39,8 +39,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
 	cancelOperation,
+	deleteAllFeedbacks,
 	deleteFeedback,
+	deleteFeedbacksByIds,
 	deleteRawFeedback,
+	deleteRawFeedbacksByIds,
 	downgradeAllRawFeedbacks,
 	type Feedback,
 	type FeedbackStatus,
@@ -538,6 +541,10 @@ export default function FeedbacksPage() {
 	const [feedbackToDelete, setFeedbackToDelete] = useState<Feedback | null>(null);
 	const [deletingFeedback, setDeletingFeedback] = useState<boolean>(false);
 
+	// Bulk delete state
+	const [bulkDeleteType, setBulkDeleteType] = useState<"all" | "filtered" | null>(null);
+	const [bulkDeleting, setBulkDeleting] = useState<boolean>(false);
+
 	// Upgrade/Downgrade state
 	const [upgrading, setUpgrading] = useState<boolean>(false);
 	const [downgrading, setDowngrading] = useState<boolean>(false);
@@ -765,6 +772,12 @@ export default function FeedbacksPage() {
 		});
 	}, [feedbacks, searchQuery, selectedAgent, selectedFeedbackName, selectedStatus]);
 
+	const hasActiveFilters =
+		searchQuery !== "" ||
+		selectedAgent !== "all" ||
+		selectedFeedbackName !== "all" ||
+		selectedStatus !== "all";
+
 	// Calculate statistics
 	const totalRaw = rawFeedbacks.length;
 	const totalAggregated = feedbacks.length;
@@ -844,6 +857,51 @@ export default function FeedbacksPage() {
 			setError("Failed to load feedbacks. Please try again.");
 		} finally {
 			setIsLoading(false);
+		}
+	};
+
+	const confirmBulkDelete = async () => {
+		setBulkDeleting(true);
+		setError(null);
+
+		try {
+			if (bulkDeleteType === "all") {
+				const response = await deleteAllFeedbacks();
+				if (response.success) {
+					await handleRefresh();
+					setBulkDeleteType(null);
+				} else {
+					setError(response.message || "Failed to delete all feedbacks");
+				}
+			} else if (bulkDeleteType === "filtered") {
+				if (isRawTab) {
+					const rawIds = filteredRawFeedbacks.map((f) => f.raw_feedback_id);
+					if (rawIds.length > 0) {
+						const response = await deleteRawFeedbacksByIds(rawIds);
+						if (response.success) {
+							await handleRefresh();
+							setBulkDeleteType(null);
+						} else {
+							setError(response.message || "Failed to delete filtered raw feedbacks");
+						}
+					}
+				} else {
+					const feedbackIds = filteredFeedbacks.map((f) => f.feedback_id);
+					if (feedbackIds.length > 0) {
+						const response = await deleteFeedbacksByIds(feedbackIds);
+						if (response.success) {
+							await handleRefresh();
+							setBulkDeleteType(null);
+						} else {
+							setError(response.message || "Failed to delete filtered feedbacks");
+						}
+					}
+				}
+			}
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "An error occurred during bulk delete");
+		} finally {
+			setBulkDeleting(false);
 		}
 	};
 
@@ -1779,6 +1837,38 @@ export default function FeedbacksPage() {
 										</p>
 									</div>
 									<div className="flex gap-2">
+										{hasActiveFilters &&
+											(isRawTab
+												? filteredRawFeedbacks.length <
+													rawFeedbackCounts[activeTab as "current" | "pending" | "archived"]
+												: filteredFeedbacks.length < totalAggregated) &&
+											(isRawTab
+												? filteredRawFeedbacks.length > 0
+												: filteredFeedbacks.length > 0) && (
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={() => setBulkDeleteType("filtered")}
+													className="border-amber-300 text-amber-700 hover:bg-amber-50"
+												>
+													<Trash2 className="h-4 w-4 mr-2" />
+													Delete Filtered (
+													{isRawTab ? filteredRawFeedbacks.length : filteredFeedbacks.length})
+												</Button>
+											)}
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={() => setBulkDeleteType("all")}
+											disabled={
+												(isRawTab ? rawFeedbacks.length === 0 : feedbacks.length === 0) &&
+												rawFeedbacks.length === 0
+											}
+											className="border-red-300 text-red-600 hover:bg-red-50"
+										>
+											<Trash2 className="h-4 w-4 mr-2" />
+											Delete All
+										</Button>
 										<Button
 											variant="outline"
 											size="sm"
@@ -2297,6 +2387,65 @@ export default function FeedbacksPage() {
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
+
+			{/* Bulk Delete Confirmation Dialog */}
+			<DeleteConfirmDialog
+				open={!!bulkDeleteType}
+				onOpenChange={(open) => {
+					if (!open) setBulkDeleteType(null);
+				}}
+				onConfirm={confirmBulkDelete}
+				title={bulkDeleteType === "all" ? "Delete All Feedbacks" : "Delete Filtered Feedbacks"}
+				description={
+					bulkDeleteType === "all"
+						? "Are you sure you want to delete ALL feedbacks? This will permanently remove all raw feedbacks and aggregated feedbacks."
+						: `Are you sure you want to delete ${isRawTab ? filteredRawFeedbacks.length : filteredFeedbacks.length} filtered ${isRawTab ? "raw" : "aggregated"} feedback(s)?`
+				}
+				itemDetails={
+					bulkDeleteType === "all" ? (
+						<>
+							<div className="flex justify-between">
+								<span className="text-muted-foreground">Total Aggregated:</span>
+								<span className="font-semibold">{totalAggregated}</span>
+							</div>
+							<div className="flex justify-between">
+								<span className="text-muted-foreground">Total Raw (Current):</span>
+								<span className="font-semibold">{rawFeedbackCounts.current}</span>
+							</div>
+							<div className="flex justify-between">
+								<span className="text-muted-foreground">Total Raw (Pending):</span>
+								<span className="font-semibold">{rawFeedbackCounts.pending}</span>
+							</div>
+							<div className="flex justify-between">
+								<span className="text-muted-foreground">Total Raw (Archived):</span>
+								<span className="font-semibold">{rawFeedbackCounts.archived}</span>
+							</div>
+						</>
+					) : (
+						<>
+							<div className="flex justify-between">
+								<span className="text-muted-foreground">Feedbacks to Delete:</span>
+								<span className="font-semibold">
+									{isRawTab ? filteredRawFeedbacks.length : filteredFeedbacks.length}
+								</span>
+							</div>
+							<div className="flex justify-between">
+								<span className="text-muted-foreground">Type:</span>
+								<span>{isRawTab ? `${activeTab} raw` : "aggregated"}</span>
+							</div>
+							{searchQuery && (
+								<div className="flex justify-between">
+									<span className="text-muted-foreground">Search:</span>
+									<span className="font-mono text-xs">{searchQuery}</span>
+								</div>
+							)}
+						</>
+					)
+				}
+				loading={bulkDeleting}
+				confirmButtonText={bulkDeleteType === "all" ? "Delete All" : "Delete Filtered"}
+				requireTypedConfirmation={bulkDeleteType === "all"}
+			/>
 
 			{/* Delete Confirmation Dialog for Raw Feedbacks */}
 			<DeleteConfirmDialog
