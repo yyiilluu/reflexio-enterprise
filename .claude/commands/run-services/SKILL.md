@@ -16,7 +16,8 @@ This command automates the full startup workflow:
 3. Stops any existing services (only if needed)
 4. Starts all services via `run_services.sh`
 5. Health-checks each service (including Supabase)
-6. Diagnoses and fixes failures, then retries (up to 2 retries)
+6. Ensures test account exists (after backend is healthy)
+7. Diagnoses and fixes failures, then retries (up to 2 retries)
 
 ## Port Configuration
 
@@ -195,7 +196,44 @@ Expected: 200 or 3xx (redirect is OK)
 
 A status of `000` means the service is not responding at all.
 
-### Step 6: On Failure — Diagnose and Fix
+### Step 6: Ensure Test Account
+
+**Only run this step if the backend health check in Step 5 returned 200.** If the backend is not healthy, skip this step entirely.
+
+**Note:** All requests to `/token` and `/api/register` require a `User-Agent` header (e.g., `-H "User-Agent: Mozilla/5.0"`) or the server will reject them with `403 Forbidden: Suspicious user agent`.
+
+**6.1** Try to log in with the test account:
+```bash
+curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:${BACKEND_PORT}/token \
+  -H "User-Agent: Mozilla/5.0" \
+  -d "username=user@reflexio_test.com&password=rflx123456"
+```
+
+**6.2** If status is `200` → account exists. Report "Test account already exists" and continue to Step 8.
+
+**6.3** If status is not `200` → create the account. First, generate an invitation code (required for registration):
+```bash
+source .venv/bin/activate && python -m reflexio.server.scripts.manage_invitation_codes generate --count 1
+```
+This outputs a code like `REFLEXIO-XXXX-XXXX`. Then register with it:
+```bash
+curl -s -w "\n%{http_code}" -X POST http://localhost:${BACKEND_PORT}/api/register \
+  -H "User-Agent: Mozilla/5.0" \
+  -d "username=user@reflexio_test.com&password=rflx123456&invitation_code=REFLEXIO-XXXX-XXXX"
+```
+
+**6.4** Registration with a valid invitation code auto-verifies the account. No additional DB update is needed.
+
+**6.5** Verify the account works by logging in:
+```bash
+curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:${BACKEND_PORT}/token \
+  -H "User-Agent: Mozilla/5.0" \
+  -d "username=user@reflexio_test.com&password=rflx123456"
+```
+If `200` → report "Test account created: user@reflexio_test.com / rflx123456".
+If not `200` → warn "Test account creation failed — manual setup may be needed" but do not treat as a service failure.
+
+### Step 7: On Failure — Diagnose and Fix
 
 If any health check fails, read the log for error details:
 ```bash
@@ -281,7 +319,7 @@ Then retry from Step 2.
 - Each retry starts from Step 4 (stop, start, health check)
 - If all retries exhausted, report final status with error details
 
-### Step 7: Report Final Status
+### Step 8: Report Final Status
 
 Report a summary table:
 
@@ -293,6 +331,7 @@ Backend    | 8091  | Running
 Frontend   | 8090  | Running
 Docs       | 8092  | Running
 
+Test account: user@reflexio_test.com / rflx123456 — Ready
 Port group: offset +10 (8090/8091/8092) — default ports occupied by another worktree
 ```
 
