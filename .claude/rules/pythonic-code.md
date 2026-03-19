@@ -61,3 +61,30 @@ paths:
 - Keep cyclomatic complexity under 10; refactor complex branches into helper functions or dispatch tables
 - Max 3 levels of indentation per function; refactor deeper nesting with early returns, guard clauses, or helper functions
 - Use guard clauses (early `return`/`raise`/`continue`) to handle edge cases upfront and keep the happy path at the left margin
+
+## 9. Duck Typing & Type Design
+
+### Interfaces: Protocol vs ABC
+- Prefer `typing.Protocol` when the **consumer** defines the interface — enables structural subtyping without inheritance and decouples modules
+- Use ABCs when the **provider** owns the contract — shared implementation (template methods), runtime instantiation guards, or `register()` for virtual subclasses
+- Use Generic Protocols (`class Processor(Protocol[T]):`) for type-safe pipelines and data processors
+
+### Signatures: Accept Broad, Return Narrow
+- Accept the broadest useful type in parameters: `Iterable[T]`, `Mapping[K, V]`, `Collection[T]` — not `list[T]` when you only need iteration
+- Return concrete types (`list`, `dict`, specific models) so callers get full type information
+
+### Polymorphism
+- Avoid `isinstance()` type dispatching in business logic — let duck typing and Protocols handle polymorphism
+- Use `isinstance()` only at system boundaries (user input, external APIs) or with `collections.abc` for "goose typing"
+
+### Dunder Methods
+- Return `NotImplemented` (not `raise NotImplementedError`) from binary dunder methods (`__eq__`, `__add__`, etc.) to let Python try the reflected operation
+
+### Callable Interfaces
+- Use callback Protocols (classes with `__call__`) for complex callable signatures instead of `Callable[..., Any]` — improves readability and allows docstrings
+
+### Runtime Checking
+- Use `@runtime_checkable` sparingly — it only validates name existence, not type signatures; for complex validation, prefer explicit structural tests in your test suite
+
+### Domain Safety
+- Use `typing.NewType` for primitive types that represent distinct domain concepts (e.g., `UserId = NewType("UserId", int)`) to prevent logic errors that duck typing alone might overlook
