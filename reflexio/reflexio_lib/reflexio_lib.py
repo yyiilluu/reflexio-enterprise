@@ -99,7 +99,7 @@ from reflexio_commons.api_schema.service_schemas import (
     UpgradeRawFeedbacksRequest,
     UpgradeRawFeedbacksResponse,
 )
-from reflexio_commons.config_schema import Config
+from reflexio_commons.config_schema import Config, SearchMode
 
 from reflexio.server.api_endpoints.request_context import RequestContext
 from reflexio.server.llm.litellm_client import LiteLLMClient, LiteLLMConfig
@@ -298,7 +298,9 @@ class Reflexio:
             )
         if isinstance(request, dict):
             request = SearchInteractionRequest(**request)
-        interactions = self._get_storage().search_interaction(request)
+        interactions = self._get_storage().search_interaction(
+            request, search_mode=request.search_mode
+        )
         return SearchInteractionResponse(success=True, interactions=interactions)
 
     def search_profiles(
@@ -329,7 +331,7 @@ class Reflexio:
         if rewritten:
             request = request.model_copy(update={"query": rewritten})
         profiles = self._get_storage().search_user_profile(
-            request, status_filter=status_filter
+            request, status_filter=status_filter, search_mode=request.search_mode
         )
         return SearchUserProfileResponse(success=True, user_profiles=profiles)
 
@@ -880,6 +882,7 @@ class Reflexio:
         skill_status: SkillStatus | None = None,
         threshold: float = 0.5,
         count: int = 10,
+        search_mode: SearchMode | None = None,
     ) -> list[Skill]:
         """Search skills with hybrid search."""
         if not self._is_storage_configured():
@@ -892,6 +895,7 @@ class Reflexio:
             skill_status=skill_status,
             match_threshold=threshold,
             match_count=count,
+            search_mode=search_mode,
         )
 
     def update_skill_status(self, skill_id: int, skill_status: SkillStatus) -> None:
@@ -1182,6 +1186,7 @@ class Reflexio:
                 status_filter=request.status_filter,
                 match_threshold=request.threshold or 0.5,
                 match_count=request.top_k or 10,
+                search_mode=request.search_mode,
             )
             return SearchRawFeedbackResponse(success=True, raw_feedbacks=raw_feedbacks)
         except Exception as e:
@@ -1227,6 +1232,7 @@ class Reflexio:
                 feedback_status_filter=request.feedback_status_filter,
                 match_threshold=request.threshold or 0.5,
                 match_count=request.top_k or 10,
+                search_mode=request.search_mode,
             )
             return SearchFeedbackResponse(success=True, feedbacks=feedbacks)
         except Exception as e:

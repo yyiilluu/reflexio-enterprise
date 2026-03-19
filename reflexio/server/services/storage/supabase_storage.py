@@ -308,13 +308,17 @@ class SupabaseStorage(BaseStorage):
             logger.exception(err_msg)
             raise StorageError(err_msg) from e
 
-        # Get site var for supabase settings (including search_mode)
+        # Get site var for supabase settings (including search_mode, weights)
         self.supabase_settings = SiteVarManager().get_site_var("supabase_settings")
         if isinstance(self.supabase_settings, dict):
             search_mode_str = self.supabase_settings.get("search_mode", "hybrid")
             self.search_mode = SearchMode(search_mode_str)
+            self.vector_weight = float(self.supabase_settings.get("vector_weight", 1.0))
+            self.fts_weight = float(self.supabase_settings.get("fts_weight", 1.0))
         else:
             self.search_mode = SearchMode.HYBRID
+            self.vector_weight = 1.0
+            self.fts_weight = 1.0
 
         # Get site var as fallback for model settings
         self.model_setting = SiteVarManager().get_site_var("llm_model_setting")
@@ -367,7 +371,11 @@ class SupabaseStorage(BaseStorage):
             logger.error("Supabase Storage failed to migrate: no valid Supabase DB URL")
             return False
         supabase_migrate_folder = str(
-            Path(data.__file__).parent.parent.parent / "supabase" / "data" / "supabase" / "migrations"
+            Path(data.__file__).parent.parent.parent
+            / "supabase"
+            / "data"
+            / "supabase"
+            / "migrations"
         )
         logger.info(
             "Supabase Storage for org %s try to migrate from %s",
@@ -1165,12 +1173,15 @@ class SupabaseStorage(BaseStorage):
 
     @handle_exceptions
     def search_interaction(
-        self, search_interaction_request: SearchInteractionRequest
+        self,
+        search_interaction_request: SearchInteractionRequest,
+        search_mode: SearchMode | None = None,
     ) -> list[Interaction]:
         # Perform hybrid search (vector + FTS)
         if not search_interaction_request.query:
             return []
 
+        effective_mode = search_mode or self.search_mode
         query_text = search_interaction_request.query
         response = self.client.rpc(
             "hybrid_match_interactions",
@@ -1179,8 +1190,10 @@ class SupabaseStorage(BaseStorage):
                 "p_query_text": query_text,
                 "p_match_threshold": 0.1,
                 "p_match_count": search_interaction_request.most_recent_k or 10,
-                "p_search_mode": self.search_mode.value,
+                "p_search_mode": effective_mode.value,
                 "p_rrf_k": 60,
+                "p_vector_weight": self.vector_weight,
+                "p_fts_weight": self.fts_weight,
             },
         ).execute()
 
@@ -1204,6 +1217,7 @@ class SupabaseStorage(BaseStorage):
         search_user_profile_request: SearchUserProfileRequest,
         status_filter: list[Status | None] | None = None,
         query_embedding: list[float] | None = None,
+        search_mode: SearchMode | None = None,
     ) -> list[UserProfile]:
         if status_filter is None:
             status_filter = [None]  # Default to current profiles (status=None)
@@ -1213,6 +1227,7 @@ class SupabaseStorage(BaseStorage):
         if not search_user_profile_request.query:
             return []
 
+        effective_mode = search_mode or self.search_mode
         query_text = search_user_profile_request.query
         response = self.client.rpc(
             "hybrid_match_profiles",
@@ -1223,9 +1238,11 @@ class SupabaseStorage(BaseStorage):
                 "p_match_count": search_user_profile_request.top_k or 10,
                 "p_current_epoch": current_timestamp,
                 "p_filter_user_id": search_user_profile_request.user_id,
-                "p_search_mode": self.search_mode.value,
+                "p_search_mode": effective_mode.value,
                 "p_rrf_k": 60,
                 "p_filter_extractor_name": search_user_profile_request.extractor_name,
+                "p_vector_weight": self.vector_weight,
+                "p_fts_weight": self.fts_weight,
             },
         ).execute()
 
@@ -1300,6 +1317,7 @@ class SupabaseStorage(BaseStorage):
         match_threshold: float = 0.5,
         match_count: int = 10,
         query_embedding: list[float] | None = None,
+        search_mode: SearchMode | None = None,
     ) -> list[RawFeedback]:
         """
         Search raw feedbacks with advanced filtering including semantic search.
@@ -1322,6 +1340,7 @@ class SupabaseStorage(BaseStorage):
 
         # If query is provided, use hybrid search first (filters applied in Python)
         if query:
+            effective_mode = search_mode or self.search_mode
             response = self.client.rpc(
                 "hybrid_match_raw_feedbacks",
                 {
@@ -1331,8 +1350,10 @@ class SupabaseStorage(BaseStorage):
                     "p_match_count": match_count
                     * 10,  # Get more results to allow for filtering
                     "p_filter_user_id": user_id,
-                    "p_search_mode": self.search_mode.value,
+                    "p_search_mode": effective_mode.value,
                     "p_rrf_k": 60,
+                    "p_vector_weight": self.vector_weight,
+                    "p_fts_weight": self.fts_weight,
                 },
             ).execute()
             data = cast(list[dict[str, Any]], response.data)
@@ -1447,6 +1468,7 @@ class SupabaseStorage(BaseStorage):
         match_threshold: float = 0.5,
         match_count: int = 10,
         query_embedding: list[float] | None = None,
+        search_mode: SearchMode | None = None,
     ) -> list[Feedback]:
         """
         Search aggregated feedbacks with advanced filtering including semantic search.
@@ -1468,6 +1490,7 @@ class SupabaseStorage(BaseStorage):
 
         # If query is provided, use hybrid search first (filters applied in Python)
         if query:
+            effective_mode = search_mode or self.search_mode
             response = self.client.rpc(
                 "hybrid_match_feedbacks",
                 {
@@ -1476,8 +1499,10 @@ class SupabaseStorage(BaseStorage):
                     "p_match_threshold": match_threshold,
                     "p_match_count": match_count
                     * 10,  # Get more results to allow for filtering
-                    "p_search_mode": self.search_mode.value,
+                    "p_search_mode": effective_mode.value,
                     "p_rrf_k": 60,
+                    "p_vector_weight": self.vector_weight,
+                    "p_fts_weight": self.fts_weight,
                 },
             ).execute()
             data = cast(list[dict[str, Any]], response.data)
@@ -3171,6 +3196,7 @@ class SupabaseStorage(BaseStorage):
         match_threshold: float = 0.5,
         match_count: int = 10,
         query_embedding: list[float] | None = None,
+        search_mode: SearchMode | None = None,
     ) -> list[Skill]:
         """
         Search skills with hybrid search (vector + FTS).
@@ -3187,6 +3213,7 @@ class SupabaseStorage(BaseStorage):
             list[Skill]: List of matching skill objects
         """
         if query:
+            effective_mode = search_mode or self.search_mode
             response = self.client.rpc(
                 "hybrid_match_skills",
                 {
@@ -3195,8 +3222,10 @@ class SupabaseStorage(BaseStorage):
                     "p_match_threshold": match_threshold,
                     "p_match_count": match_count * 10,
                     "p_org_id": self.org_id,
-                    "p_search_mode": self.search_mode.value,
+                    "p_search_mode": effective_mode.value,
                     "p_rrf_k": 60,
+                    "p_vector_weight": self.vector_weight,
+                    "p_fts_weight": self.fts_weight,
                 },
             ).execute()
 

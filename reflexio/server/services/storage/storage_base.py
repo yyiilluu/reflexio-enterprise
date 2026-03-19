@@ -22,6 +22,7 @@ from reflexio_commons.api_schema.service_schemas import (
     Status,
     UserProfile,
 )
+from reflexio_commons.config_schema import SearchMode
 
 from reflexio import data
 
@@ -455,7 +456,9 @@ class BaseStorage(ABC):
 
     @abstractmethod
     def search_interaction(
-        self, search_interaction_request: SearchInteractionRequest
+        self,
+        search_interaction_request: SearchInteractionRequest,
+        search_mode: SearchMode | None = None,
     ) -> list[Interaction]:
         raise NotImplementedError
 
@@ -465,6 +468,7 @@ class BaseStorage(ABC):
         search_user_profile_request: SearchUserProfileRequest,
         status_filter: list[Status | None] | None = None,
         query_embedding: list[float] | None = None,
+        search_mode: SearchMode | None = None,
     ) -> list[UserProfile]:
         raise NotImplementedError
 
@@ -596,6 +600,7 @@ class BaseStorage(ABC):
         match_threshold: float = 0.5,
         match_count: int = 10,
         query_embedding: list[float] | None = None,
+        search_mode: SearchMode | None = None,
     ) -> list[RawFeedback]:
         """
         Search raw feedbacks with advanced filtering including semantic search.
@@ -611,6 +616,7 @@ class BaseStorage(ABC):
             match_threshold (float): Minimum similarity threshold (0.0 to 1.0)
             match_count (int): Maximum number of results to return
             query_embedding (list[float], optional): Pre-computed query embedding. When provided, skips internal embedding generation.
+            search_mode (SearchMode, optional): Override the default search mode for this request
 
         Returns:
             list[RawFeedback]: List of matching raw feedback objects
@@ -630,6 +636,7 @@ class BaseStorage(ABC):
         match_threshold: float = 0.5,
         match_count: int = 10,
         query_embedding: list[float] | None = None,
+        search_mode: SearchMode | None = None,
     ) -> list[Feedback]:
         """
         Search aggregated feedbacks with advanced filtering including semantic search.
@@ -645,6 +652,7 @@ class BaseStorage(ABC):
             match_threshold (float): Minimum similarity threshold (0.0 to 1.0)
             match_count (int): Maximum number of results to return
             query_embedding (list[float], optional): Pre-computed query embedding. When provided, skips internal embedding generation.
+            search_mode (SearchMode, optional): Override the default search mode for this request
 
         Returns:
             list[Feedback]: List of matching feedback objects
@@ -1108,6 +1116,7 @@ class BaseStorage(ABC):
         match_threshold: float = 0.5,
         match_count: int = 10,
         query_embedding: list[float] | None = None,
+        search_mode: SearchMode | None = None,
     ) -> list[Skill]:
         """
         Search skills with hybrid search (vector + FTS).
@@ -1120,6 +1129,7 @@ class BaseStorage(ABC):
             match_threshold (float): Minimum similarity threshold
             match_count (int): Maximum number of results to return
             query_embedding (list[float], optional): Pre-computed query embedding. When provided, skips internal embedding generation.
+            search_mode (SearchMode, optional): Override the default search mode for this request
 
         Returns:
             list[Skill]: List of matching skill objects

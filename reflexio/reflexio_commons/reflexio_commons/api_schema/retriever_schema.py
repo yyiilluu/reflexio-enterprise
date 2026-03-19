@@ -19,6 +19,7 @@ from reflexio_commons.api_schema.validators import (
     NonEmptyStr,
     TimeRangeValidatorMixin,
 )
+from reflexio_commons.config_schema import SearchMode
 
 
 class SearchInteractionRequest(BaseModel):
@@ -29,6 +30,7 @@ class SearchInteractionRequest(BaseModel):
     end_time: datetime | None = None
     top_k: int | None = Field(default=None, gt=0)
     most_recent_k: int | None = Field(default=None, gt=0)
+    search_mode: SearchMode | None = None
 
     @model_validator(mode="after")
     def check_time_range(self) -> Self:
@@ -49,6 +51,7 @@ class SearchUserProfileRequest(BaseModel):
     extractor_name: str | None = None
     threshold: float | None = Field(default=0.5, ge=0.0, le=1.0)
     query_rewrite: bool | None = False
+    search_mode: SearchMode | None = None
 
     @model_validator(mode="after")
     def check_time_range(self) -> Self:
@@ -172,6 +175,7 @@ class SearchRawFeedbackRequest(BaseModel):
     top_k: int | None = Field(default=10, gt=0)
     threshold: float | None = Field(default=0.5, ge=0.0, le=1.0)
     query_rewrite: bool | None = False
+    search_mode: SearchMode | None = None
 
     @model_validator(mode="after")
     def check_time_range(self) -> Self:
@@ -219,6 +223,7 @@ class SearchFeedbackRequest(BaseModel):
     top_k: int | None = Field(default=10, gt=0)
     threshold: float | None = Field(default=0.5, ge=0.0, le=1.0)
     query_rewrite: bool | None = False
+    search_mode: SearchMode | None = None
 
     @model_validator(mode="after")
     def check_time_range(self) -> Self:
@@ -365,6 +370,7 @@ class SearchSkillsRequest(BaseModel):
     skill_status: SkillStatus | None = None
     threshold: float | None = Field(default=0.5, ge=0.0, le=1.0)
     top_k: int | None = Field(default=10, gt=0)
+    search_mode: SearchMode | None = None
 
 
 class SearchSkillsResponse(BaseModel):
@@ -426,6 +432,7 @@ class UnifiedSearchRequest(BaseModel):
     user_id: str | None = None
     conversation_history: list[ConversationTurn] | None = None
     query_rewrite: bool | None = False
+    search_mode: SearchMode | None = None
 
 
 class UnifiedSearchResponse(BaseModel):

@@ -23,7 +23,7 @@ from reflexio_commons.api_schema.service_schemas import (
     Skill,
     UserProfile,
 )
-from reflexio_commons.config_schema import APIKeyConfig
+from reflexio_commons.config_schema import APIKeyConfig, SearchMode
 
 from reflexio.server.prompt.prompt_manager import PromptManager
 from reflexio.server.services.query_rewriter import QueryRewriter
@@ -87,6 +87,7 @@ def run_unified_search(
         query=rewritten_query_text,
         top_k=top_k,
         threshold=threshold,
+        search_mode=request.search_mode,
     )
 
     if profiles is None:
@@ -176,6 +177,7 @@ def _run_phase_b(
     query: str,
     top_k: int,
     threshold: float,
+    search_mode: SearchMode | None = None,
 ) -> tuple[
     list[UserProfile] | None,
     list[Feedback] | None,
@@ -208,6 +210,7 @@ def _run_phase_b(
             threshold,
             request.user_id,
             embedding,
+            search_mode,
         )
         feedbacks_future = executor.submit(
             storage.search_feedbacks,
@@ -218,6 +221,7 @@ def _run_phase_b(
             match_threshold=threshold,
             match_count=top_k,
             query_embedding=embedding,
+            search_mode=search_mode,
         )
         raw_feedbacks_future = executor.submit(
             storage.search_raw_feedbacks,
@@ -229,6 +233,7 @@ def _run_phase_b(
             match_threshold=threshold,
             match_count=top_k,
             query_embedding=embedding,
+            search_mode=search_mode,
         )
         skills_future = (
             executor.submit(
@@ -239,6 +244,7 @@ def _run_phase_b(
                 match_threshold=threshold,
                 match_count=top_k,
                 query_embedding=embedding,
+                search_mode=search_mode,
             )
             if skills_enabled
             else None
@@ -267,6 +273,7 @@ def _search_profiles_via_storage(
     threshold: float,
     user_id: str | None,
     embedding: list[float] | None,
+    search_mode: SearchMode | None = None,
 ) -> list[UserProfile]:
     """Search profiles via storage.search_user_profile, returning [] on error or missing user_id.
 
@@ -277,6 +284,7 @@ def _search_profiles_via_storage(
         threshold (float): Minimum match threshold
         user_id (Optional[str]): User ID filter (required for profile search)
         embedding (Optional[list[float]]): Pre-computed query embedding, or None for text-only search
+        search_mode (Optional[SearchMode]): Override the default search mode
 
     Returns:
         list[UserProfile]: Matching profiles, or [] on error/missing user_id
@@ -293,6 +301,7 @@ def _search_profiles_via_storage(
             ),
             status_filter=[None],
             query_embedding=embedding,
+            search_mode=search_mode,
         )
     except Exception as e:
         logger.error("Profile search failed: %s", e)

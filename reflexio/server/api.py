@@ -1658,6 +1658,7 @@ def search_skills(
         skill_status=payload.skill_status,
         threshold=payload.threshold or 0.5,
         count=payload.top_k or 10,
+        search_mode=payload.search_mode,
     )
     return SearchSkillsResponse(success=True, skills=skills)
 
