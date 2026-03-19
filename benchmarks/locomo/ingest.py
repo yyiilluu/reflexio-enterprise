@@ -10,6 +10,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from reflexio_commons.config_schema import (
+    AgentFeedbackConfig,
     ProfileExtractorConfig,
     StorageConfigLocal,
 )
@@ -48,13 +49,26 @@ PROFILE_EXTRACTOR_CONFIG = ProfileExtractorConfig(
     extraction_window_stride_override=1,
 )
 
+FEEDBACK_EXTRACTOR_CONFIG = AgentFeedbackConfig(
+    feedback_name="locomo_feedback",
+    feedback_definition_prompt=(
+        "Extract actionable observations about the conversation: patterns in behavior, "
+        "recurring topics, notable changes in preferences or circumstances, "
+        "and any factual details that could help answer future questions."
+    ),
+    extraction_window_size_override=50,
+    extraction_window_stride_override=1,
+)
 
-def _setup_config(client: ReflexioClient) -> None:
+
+def _setup_config(client: ReflexioClient, *, enable_feedbacks: bool = False) -> None:
     """
-    Configure the Reflexio server with the LoCoMo profile extractor.
+    Configure the Reflexio server with the LoCoMo profile extractor
+    and optionally the feedback extractor.
 
     Args:
         client (ReflexioClient): Authenticated client
+        enable_feedbacks (bool): If True, also configure feedback extraction
     """
     config = client.get_config()
 
@@ -63,8 +77,10 @@ def _setup_config(client: ReflexioClient) -> None:
     config.storage_config = StorageConfigLocal(dir_path=storage_dir)
 
     config.profile_extractor_configs = [PROFILE_EXTRACTOR_CONFIG]
-    # Clear feedback configs — not needed for this benchmark
-    config.agent_feedback_configs = []
+    if enable_feedbacks:
+        config.agent_feedback_configs = [FEEDBACK_EXTRACTOR_CONFIG]
+    else:
+        config.agent_feedback_configs = []
     resp = client.set_config(config)
     if not resp.get("success"):
         raise RuntimeError(f"Failed to set Reflexio config: {resp.get('msg')}")
@@ -138,6 +154,7 @@ def ingest_all(
     reflexio_url: str,
     reflexio_api_key: str | None = None,
     max_workers: int = 1,
+    enable_feedbacks: bool = False,
 ) -> None:
     """
     Ingest all LoCoMo samples into Reflexio. Different samples are ingested
@@ -148,12 +165,13 @@ def ingest_all(
         reflexio_url (str): Reflexio server URL
         reflexio_api_key (str | None): API key (falls back to env)
         max_workers (int): Max parallel ingestion threads
+        enable_feedbacks (bool): If True, enable feedback extraction alongside profiles
     """
     api_key = reflexio_api_key or os.getenv("REFLEXIO_API_KEY")
     client = ReflexioClient(api_key=api_key, url_endpoint=reflexio_url)
 
     logger.info("Setting up Reflexio config...")
-    _setup_config(client)
+    _setup_config(client, enable_feedbacks=enable_feedbacks)
 
     logger.info("Ingesting %d samples (max_workers=%d)...", len(samples), max_workers)
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
