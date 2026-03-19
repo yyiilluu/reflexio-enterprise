@@ -9,6 +9,7 @@ import {
 	TrendingUp,
 	Users,
 } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import {
 	CartesianGrid,
@@ -343,6 +344,7 @@ export default function Dashboard() {
 					value: dashboardData.current_period.total_interactions.toLocaleString(),
 					description: "Total interactions recorded",
 					icon: MessageSquare,
+					href: "/interactions",
 					trend: calculateTrend(
 						dashboardData.current_period.total_interactions,
 						dashboardData.previous_period.total_interactions,
@@ -354,6 +356,7 @@ export default function Dashboard() {
 					value: dashboardData.current_period.total_profiles.toLocaleString(),
 					description: "Active user profiles",
 					icon: Users,
+					href: "/profiles",
 					trend: calculateTrend(
 						dashboardData.current_period.total_profiles,
 						dashboardData.previous_period.total_profiles,
@@ -365,6 +368,7 @@ export default function Dashboard() {
 					value: dashboardData.current_period.total_feedbacks.toLocaleString(),
 					description: "Total feedbacks collected",
 					icon: ThumbsUp,
+					href: "/feedbacks",
 					trend: calculateTrend(
 						dashboardData.current_period.total_feedbacks,
 						dashboardData.previous_period.total_feedbacks,
@@ -376,6 +380,7 @@ export default function Dashboard() {
 					value: `${dashboardData.current_period.success_rate.toFixed(1)}%`,
 					description: "Agent success rate",
 					icon: CheckCircle,
+					href: "/evaluations",
 					trend: calculateTrend(
 						dashboardData.current_period.success_rate,
 						dashboardData.previous_period.success_rate,
@@ -433,10 +438,10 @@ export default function Dashboard() {
 							))
 						: stats.map((stat) => {
 								const Icon = stat.icon;
-								return (
+								const card = (
 									<Card
 										key={stat.title}
-										className={`border bg-gradient-to-br ${stat.bgGradient} ${stat.borderColor} hover:shadow-lg transition-all duration-300 hover:-translate-y-1`}
+										className={`border bg-gradient-to-br ${stat.bgGradient} ${stat.borderColor} hover:shadow-lg transition-all duration-300 hover:-translate-y-1${stat.href ? " cursor-pointer" : ""}`}
 									>
 										<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 											<CardTitle className="text-sm font-semibold text-slate-600">
@@ -466,6 +471,13 @@ export default function Dashboard() {
 											</div>
 										</CardContent>
 									</Card>
+								);
+								return stat.href ? (
+									<Link key={stat.title} href={stat.href}>
+										{card}
+									</Link>
+								) : (
+									card
 								);
 							})}
 				</div>
