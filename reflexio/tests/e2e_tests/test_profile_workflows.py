@@ -1,6 +1,5 @@
 """End-to-end tests for profile workflows including rerun functionality."""
 
-import os
 import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
@@ -92,22 +91,13 @@ def test_search_profiles_end_to_end(
     user_id = "test_user_789"
 
     # First publish interactions to generate profiles
-    # Use mock LLM to reliably generate profiles (real LLM non-deterministically returns none)
-    original_mock = os.environ.get("MOCK_LLM_RESPONSE")
-    os.environ["MOCK_LLM_RESPONSE"] = "true"
-    try:
-        reflexio_instance_profile_only.publish_interaction(
-            {
-                "user_id": user_id,
-                "interaction_data_list": sample_interaction_requests,
-                "source": "test_conversation",
-            }
-        )
-    finally:
-        if original_mock is None:
-            os.environ.pop("MOCK_LLM_RESPONSE", None)
-        else:
-            os.environ["MOCK_LLM_RESPONSE"] = original_mock
+    reflexio_instance_profile_only.publish_interaction(
+        {
+            "user_id": user_id,
+            "interaction_data_list": sample_interaction_requests,
+            "source": "test_conversation",
+        }
+    )
 
     # Verify profiles were generated and stored using get_profiles
     get_profiles_response = reflexio_instance_profile_only.get_profiles(
@@ -158,22 +148,13 @@ def test_get_profiles_end_to_end(
     user_id = "test_user_profiles"
 
     # First publish interactions to generate profiles (request_id will be auto-generated)
-    # Use mock LLM to reliably generate profiles (real LLM non-deterministically returns none)
-    original_mock = os.environ.get("MOCK_LLM_RESPONSE")
-    os.environ["MOCK_LLM_RESPONSE"] = "true"
-    try:
-        reflexio_instance_profile_only.publish_interaction(
-            {
-                "user_id": user_id,
-                "interaction_data_list": sample_interaction_requests,
-                "source": "test_conversation",
-            }
-        )
-    finally:
-        if original_mock is None:
-            os.environ.pop("MOCK_LLM_RESPONSE", None)
-        else:
-            os.environ["MOCK_LLM_RESPONSE"] = original_mock
+    reflexio_instance_profile_only.publish_interaction(
+        {
+            "user_id": user_id,
+            "interaction_data_list": sample_interaction_requests,
+            "source": "test_conversation",
+        }
+    )
 
     # Verify profiles were generated and stored
     stored_profiles = (
@@ -208,23 +189,14 @@ def test_delete_profile_end_to_end(
     user_id = "test_user_delete_profile"
 
     # First publish interactions to generate profiles
-    # Use mock LLM to reliably generate profiles (real LLM non-deterministically returns none)
-    original_mock = os.environ.get("MOCK_LLM_RESPONSE")
-    os.environ["MOCK_LLM_RESPONSE"] = "true"
-    try:
-        response = reflexio_instance_profile_only.publish_interaction(
-            {
-                "user_id": user_id,
-                "interaction_data_list": sample_interaction_requests,
-                "source": "test_conversation",
-            }
-        )
-        assert response.success is True
-    finally:
-        if original_mock is None:
-            os.environ.pop("MOCK_LLM_RESPONSE", None)
-        else:
-            os.environ["MOCK_LLM_RESPONSE"] = original_mock
+    response = reflexio_instance_profile_only.publish_interaction(
+        {
+            "user_id": user_id,
+            "interaction_data_list": sample_interaction_requests,
+            "source": "test_conversation",
+        }
+    )
+    assert response.success is True
 
     # Verify profiles were generated and stored
     initial_profiles = (
@@ -311,98 +283,85 @@ def test_rerun_profile_generation_end_to_end(
     """
     user_id = "test_user_rerun"
 
-    # Use mock LLM for deterministic profile generation (test focuses on rerun logic)
-    original_mock = os.environ.get("MOCK_LLM_RESPONSE")
-    os.environ["MOCK_LLM_RESPONSE"] = "true"
-    try:
-        # Step 1: Publish interactions to generate initial profiles
-        response = reflexio_instance_profile_only.publish_interaction(
-            {
-                "user_id": user_id,
-                "interaction_data_list": sample_interaction_requests,
-                "source": "test_conversation",
-            }
-        )
-        assert response.success is True
+    # Step 1: Publish interactions to generate initial profiles
+    response = reflexio_instance_profile_only.publish_interaction(
+        {
+            "user_id": user_id,
+            "interaction_data_list": sample_interaction_requests,
+            "source": "test_conversation",
+        }
+    )
+    assert response.success is True
 
-        # Verify profiles were generated with status=None (current)
-        current_profiles = (
-            reflexio_instance_profile_only.request_context.storage.get_user_profile(
-                user_id, status_filter=[None]
-            )
+    # Verify profiles were generated with status=None (current)
+    current_profiles = (
+        reflexio_instance_profile_only.request_context.storage.get_user_profile(
+            user_id, status_filter=[None]
         )
-        assert len(current_profiles) > 0, "Should have current profiles"
-        for profile in current_profiles:
-            assert profile.status is None, "Initial profiles should have status=None"
+    )
+    assert len(current_profiles) > 0, "Should have current profiles"
+    for profile in current_profiles:
+        assert profile.status is None, "Initial profiles should have status=None"
 
-        initial_profile_count = len(current_profiles)
+    initial_profile_count = len(current_profiles)
 
-        # Step 2: Rerun profile generation
-        rerun_request = RerunProfileGenerationRequest(
-            user_id=user_id,
-        )
+    # Step 2: Rerun profile generation
+    rerun_request = RerunProfileGenerationRequest(
+        user_id=user_id,
+    )
 
-        rerun_response = reflexio_instance_profile_only.rerun_profile_generation(
-            rerun_request
-        )
-        assert rerun_response.success is True, (
-            f"Rerun should succeed: {rerun_response.msg}"
-        )
-        assert rerun_response.profiles_generated > 0, (
-            "Rerun should generate at least one profile"
-        )
+    rerun_response = reflexio_instance_profile_only.rerun_profile_generation(
+        rerun_request
+    )
+    assert rerun_response.success is True, f"Rerun should succeed: {rerun_response.msg}"
+    assert rerun_response.profiles_generated > 0, (
+        "Rerun should generate at least one profile"
+    )
 
-        # Step 3: Verify pending profiles were created
-        pending_profiles = (
-            reflexio_instance_profile_only.request_context.storage.get_user_profile(
-                user_id, status_filter=[Status.PENDING]
-            )
+    # Step 3: Verify pending profiles were created
+    pending_profiles = (
+        reflexio_instance_profile_only.request_context.storage.get_user_profile(
+            user_id, status_filter=[Status.PENDING]
         )
-        assert len(pending_profiles) > 0, "Should have pending profiles after rerun"
-        for profile in pending_profiles:
-            assert profile.status == Status.PENDING, (
-                "Rerun profiles should have status=Status.PENDING"
-            )
-
-        # Step 4: Verify current profiles still exist unchanged
-        current_profiles_after = (
-            reflexio_instance_profile_only.request_context.storage.get_user_profile(
-                user_id, status_filter=[None]
-            )
-        )
-        assert len(current_profiles_after) == initial_profile_count, (
-            "Current profiles should remain unchanged"
+    )
+    assert len(pending_profiles) > 0, "Should have pending profiles after rerun"
+    for profile in pending_profiles:
+        assert profile.status == Status.PENDING, (
+            "Rerun profiles should have status=Status.PENDING"
         )
 
-        # Step 5: Verify get_profiles returns only current profiles by default
-        default_response = reflexio_instance_profile_only.get_profiles(
-            {"user_id": user_id}
+    # Step 4: Verify current profiles still exist unchanged
+    current_profiles_after = (
+        reflexio_instance_profile_only.request_context.storage.get_user_profile(
+            user_id, status_filter=[None]
         )
-        assert default_response.success is True
-        assert len(default_response.user_profiles) == initial_profile_count
-        assert all(p.status is None for p in default_response.user_profiles)
+    )
+    assert len(current_profiles_after) == initial_profile_count, (
+        "Current profiles should remain unchanged"
+    )
 
-        # Step 6: Verify get_profiles can retrieve pending profiles
-        pending_response = reflexio_instance_profile_only.get_profiles(
-            {"user_id": user_id}, status_filter=[Status.PENDING]
-        )
-        assert pending_response.success is True
-        assert len(pending_response.user_profiles) > 0
-        assert all(p.status == Status.PENDING for p in pending_response.user_profiles)
+    # Step 5: Verify get_profiles returns only current profiles by default
+    default_response = reflexio_instance_profile_only.get_profiles({"user_id": user_id})
+    assert default_response.success is True
+    assert len(default_response.user_profiles) == initial_profile_count
+    assert all(p.status is None for p in default_response.user_profiles)
 
-        # Step 7: Verify get_profiles can retrieve both current and pending
-        all_response = reflexio_instance_profile_only.get_profiles(
-            {"user_id": user_id}, status_filter=[None, Status.PENDING]
-        )
-        assert all_response.success is True
-        assert len(all_response.user_profiles) >= initial_profile_count + len(
-            pending_profiles
-        )
-    finally:
-        if original_mock is None:
-            os.environ.pop("MOCK_LLM_RESPONSE", None)
-        else:
-            os.environ["MOCK_LLM_RESPONSE"] = original_mock
+    # Step 6: Verify get_profiles can retrieve pending profiles
+    pending_response = reflexio_instance_profile_only.get_profiles(
+        {"user_id": user_id}, status_filter=[Status.PENDING]
+    )
+    assert pending_response.success is True
+    assert len(pending_response.user_profiles) > 0
+    assert all(p.status == Status.PENDING for p in pending_response.user_profiles)
+
+    # Step 7: Verify get_profiles can retrieve both current and pending
+    all_response = reflexio_instance_profile_only.get_profiles(
+        {"user_id": user_id}, status_filter=[None, Status.PENDING]
+    )
+    assert all_response.success is True
+    assert len(all_response.user_profiles) >= initial_profile_count + len(
+        pending_profiles
+    )
 
 
 @skip_in_precommit

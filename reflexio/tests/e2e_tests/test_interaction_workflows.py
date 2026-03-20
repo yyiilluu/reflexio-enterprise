@@ -1,6 +1,5 @@
 """End-to-end tests for interaction workflows."""
 
-import os
 from collections.abc import Callable
 
 from reflexio_commons.api_schema.retriever_schema import (
@@ -32,24 +31,15 @@ def test_publish_interaction_end_to_end(
     session_id = "test_session_interaction_e2e"
 
     # Publish interactions (request_id will be auto-generated)
-    # Use mock LLM to reliably generate profiles (real LLM non-deterministically returns none)
-    original_mock = os.environ.get("MOCK_LLM_RESPONSE")
-    os.environ["MOCK_LLM_RESPONSE"] = "true"
-    try:
-        response = reflexio_instance.publish_interaction(
-            {
-                "user_id": user_id,
-                "interaction_data_list": sample_interaction_requests,
-                "source": "test_conversation",
-                "agent_version": agent_version,
-                "session_id": session_id,
-            }
-        )
-    finally:
-        if original_mock is None:
-            os.environ.pop("MOCK_LLM_RESPONSE", None)
-        else:
-            os.environ["MOCK_LLM_RESPONSE"] = original_mock
+    response = reflexio_instance.publish_interaction(
+        {
+            "user_id": user_id,
+            "interaction_data_list": sample_interaction_requests,
+            "source": "test_conversation",
+            "agent_version": agent_version,
+            "session_id": session_id,
+        }
+    )
 
     # Verify successful publication
     assert response.success is True

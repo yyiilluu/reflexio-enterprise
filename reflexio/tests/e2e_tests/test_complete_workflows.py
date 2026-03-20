@@ -1,6 +1,5 @@
 """End-to-end tests for complete workflows and error handling."""
 
-import os
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
@@ -50,24 +49,15 @@ def test_complete_workflow_end_to_end(
     )
 
     # Step 1: Publish interactions (request_id will be auto-generated)
-    # Use mock LLM to reliably generate profiles (real LLM non-deterministically returns none)
-    original_mock = os.environ.get("MOCK_LLM_RESPONSE")
-    os.environ["MOCK_LLM_RESPONSE"] = "true"
-    try:
-        publish_response = reflexio_instance.publish_interaction(
-            {
-                "user_id": user_id,
-                "interaction_data_list": sample_interaction_requests,
-                "source": "test_conversation",
-                "agent_version": "test_agent_complete",
-            }
-        )
-        assert publish_response.success is True
-    finally:
-        if original_mock is None:
-            os.environ.pop("MOCK_LLM_RESPONSE", None)
-        else:
-            os.environ["MOCK_LLM_RESPONSE"] = original_mock
+    publish_response = reflexio_instance.publish_interaction(
+        {
+            "user_id": user_id,
+            "interaction_data_list": sample_interaction_requests,
+            "source": "test_conversation",
+            "agent_version": "test_agent_complete",
+        }
+    )
+    assert publish_response.success is True
 
     # Get the auto-generated request_id from stored interactions for THIS user
     user_interactions = reflexio_instance.request_context.storage.get_user_interaction(
@@ -358,44 +348,27 @@ def test_profile_upgrade_downgrade_workflow(
     """Test profile upgrade and downgrade workflow."""
     user_id = "test_user_upgrade"
 
-    # Publish initial interactions with mock LLM to reliably generate profiles
-    original_mock = os.environ.get("MOCK_LLM_RESPONSE")
-    os.environ["MOCK_LLM_RESPONSE"] = "true"
-    try:
-        publish_response = reflexio_instance.publish_interaction(
-            {
-                "user_id": user_id,
-                "interaction_data_list": sample_interaction_requests[:3],
-                "source": "test_source",
-                "agent_version": "v1",
-            }
-        )
-        assert publish_response.success is True
-    finally:
-        if original_mock is None:
-            os.environ.pop("MOCK_LLM_RESPONSE", None)
-        else:
-            os.environ["MOCK_LLM_RESPONSE"] = original_mock
+    # Publish initial interactions
+    publish_response = reflexio_instance.publish_interaction(
+        {
+            "user_id": user_id,
+            "interaction_data_list": sample_interaction_requests[:3],
+            "source": "test_source",
+            "agent_version": "v1",
+        }
+    )
+    assert publish_response.success is True
 
     # Check initial profile statistics
     initial_stats = reflexio_instance.get_profile_statistics()
     assert initial_stats.success is True
     assert initial_stats.current_count >= 0
 
-    # Use mock LLM for rerun to get deterministic profile generation
-    original_mock = os.environ.get("MOCK_LLM_RESPONSE")
-    os.environ["MOCK_LLM_RESPONSE"] = "true"
-    try:
-        # Rerun profile generation to create PENDING profiles
-        rerun_response = reflexio_instance.rerun_profile_generation(
-            RerunProfileGenerationRequest(user_id=user_id)
-        )
-        assert rerun_response.success is True
-    finally:
-        if original_mock is None:
-            os.environ.pop("MOCK_LLM_RESPONSE", None)
-        else:
-            os.environ["MOCK_LLM_RESPONSE"] = original_mock
+    # Rerun profile generation to create PENDING profiles
+    rerun_response = reflexio_instance.rerun_profile_generation(
+        RerunProfileGenerationRequest(user_id=user_id)
+    )
+    assert rerun_response.success is True
 
     # Check that PENDING profiles were created
     stats_after_rerun = reflexio_instance.get_profile_statistics()
@@ -688,25 +661,16 @@ def test_full_workflow_with_all_features(
     session_id = "test_session_full_workflow"
 
     # Step 1: Publish interactions (all configs are enabled in reflexio_instance)
-    # Use mock LLM to reliably generate profiles (real LLM non-deterministically returns none)
-    original_mock = os.environ.get("MOCK_LLM_RESPONSE")
-    os.environ["MOCK_LLM_RESPONSE"] = "true"
-    try:
-        publish_response = reflexio_instance.publish_interaction(
-            {
-                "user_id": user_id,
-                "interaction_data_list": sample_interaction_requests,
-                "source": "test_full_workflow",
-                "agent_version": agent_version,
-                "session_id": session_id,
-            }
-        )
-        assert publish_response.success is True
-    finally:
-        if original_mock is None:
-            os.environ.pop("MOCK_LLM_RESPONSE", None)
-        else:
-            os.environ["MOCK_LLM_RESPONSE"] = original_mock
+    publish_response = reflexio_instance.publish_interaction(
+        {
+            "user_id": user_id,
+            "interaction_data_list": sample_interaction_requests,
+            "source": "test_full_workflow",
+            "agent_version": agent_version,
+            "session_id": session_id,
+        }
+    )
+    assert publish_response.success is True
 
     # Get auto-generated request_id
     stored_interactions = (
