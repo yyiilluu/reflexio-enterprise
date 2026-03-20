@@ -74,7 +74,7 @@ def reflexio_instance(
 Conversation between sales agent and user, extract any information from the interaction if contains any information listed under definition
 """,
                 profile_content_definition_prompt="""
-name, age, intent of the conversations
+name, company, intent of the conversations
 """,
                 metadata_definition_prompt="""
 choice of ['basic_info', 'conversation_intent']
@@ -129,7 +129,7 @@ def reflexio_instance_profile_only(
 Conversation between sales agent and user, extract any information from the interaction if contains any information listed under definition
 """,
                 profile_content_definition_prompt="""
-name, age, intent of the conversations
+name, company, intent of the conversations
 """,
                 metadata_definition_prompt="""
 choice of ['basic_info', 'conversation_intent']
@@ -214,7 +214,7 @@ def sample_interaction_requests() -> list[InteractionData]:
             interacted_image_url="",
         ),
         InteractionData(
-            content="Yes, I remember! The system has been working great for us. But i think you have being annoying me with your constant reach out.",
+            content="Yes, I remember! The system has been working great for us. But you need to stop calling me every week — I already told you last time that I prefer quarterly check-ins only. Also, please just get straight to the point instead of starting with small talk.",
             role="Customer",
             user_action=UserActionType.NONE,
             user_action_description="",
