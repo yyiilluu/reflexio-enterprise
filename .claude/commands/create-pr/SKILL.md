@@ -61,7 +61,7 @@ If the push is rejected (e.g., diverged history after rebase), use `git push --f
    - `git diff $BASE_BRANCH...HEAD --stat` — files changed summary
    - `git diff $BASE_BRANCH...HEAD` — full diff
 2. **Check PR size** — if >500 lines changed, warn the user but continue.
-3. **Draft title** — under 70 characters, conventional prefix (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`).
+3. **Draft title** — under 70 characters, conventional prefix (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`). The title should describe the PR's overall goal, not enumerate commits. Omit intermediate steps (reverts, temporary scaffolding, cleanup of earlier commits in the same branch).
 4. **Draft body** using this template:
 
 ```
@@ -80,6 +80,7 @@ If the push is rejected (e.g., diverged history after rebase), use `git push --f
 
 Guidelines:
 - Explain *why*, not just *what*
+- Distinguish primary changes from intermediate steps. Intermediate commits (reverts of earlier mistakes, temporary scaffolding, cleanup) should be folded into the section they support, not given their own top-level section. The Summary bullets should reflect the PR's purpose, not mirror the commit list.
 - For WIP PRs, use the `--draft` flag instead of `[WIP]` prefix
 - Include Mermaid diagrams when they clarify workflows or architecture
 - Do NOT include any "Generated with Claude Code" footer or bot attribution

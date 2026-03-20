@@ -79,12 +79,14 @@ Re-read the full updated description (from Phase A) alongside the complete branc
 3. **Check for outdated items** — remove references to code/behavior that no longer exists in the branch
 4. **Check for missing coverage** — if any significant changes from the full diff are not mentioned, add them
 5. **Light coherence pass** — make minor wording adjustments so the description reads naturally as a whole, but do NOT restructure or rephrase content that is already accurate
+6. **Check for over-promotion of intermediate steps** — Intermediate commits (reverts, temporary scaffolding, cleanup of earlier commits in the same PR) should not appear in the title or as standalone sections in the body. Fold them into the relevant primary change they support. The title and Summary should reflect the PR's overall purpose, not list every commit.
 
 #### Title
 
 - Under 70 characters
 - Use conventional prefix: `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`
 - Review the existing PR title (from Step 1). If it still accurately reflects the full scope of changes, **keep it unchanged**. Only update if the scope has materially changed or the title is misleading.
+- The title should describe the PR's overall goal, not enumerate individual commits. Intermediate steps (reverts, temporary changes, cleanup) should not appear in the title.
 
 #### Body template reference
 

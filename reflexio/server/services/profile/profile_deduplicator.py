@@ -6,11 +6,12 @@ and against existing profiles in the database using hybrid search and LLM.
 import logging
 import os
 import uuid
+from collections.abc import Sequence
 from datetime import UTC, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 from reflexio_commons.api_schema.retriever_schema import SearchUserProfileRequest
-from reflexio_commons.api_schema.service_schemas import UserProfile
+from reflexio_commons.api_schema.service_schemas import Status, UserProfile
 from reflexio_commons.config_schema import EMBEDDING_DIMENSIONS, SearchOptions
 
 from reflexio.server.api_endpoints.request_context import RequestContext
@@ -186,6 +187,7 @@ class ProfileDeduplicator(BaseDeduplicator):
         self,
         new_profiles: list[UserProfile],
         user_id: str,
+        status_filter: Sequence[Status | None] | None = None,
     ) -> list[UserProfile]:
         """
         Retrieve existing profiles from the database using hybrid search.
@@ -234,7 +236,9 @@ class ProfileDeduplicator(BaseDeduplicator):
                         top_k=10,
                         threshold=0.4,
                     ),
-                    status_filter=[None],  # Only current profiles
+                    status_filter=status_filter
+                    if status_filter is not None
+                    else [None],
                     options=SearchOptions(query_embedding=embeddings[i]),
                 )
                 for profile in results:
@@ -257,6 +261,7 @@ class ProfileDeduplicator(BaseDeduplicator):
         new_profiles: list[UserProfile],
         user_id: str,
         request_id: str,
+        existing_status_filter: Sequence[Status | None] | None = None,
     ) -> tuple[list[UserProfile], list[str], list[UserProfile]]:
         """
         Deduplicate profiles across extractors and against existing profiles in DB.
@@ -278,7 +283,9 @@ class ProfileDeduplicator(BaseDeduplicator):
             return [], [], []
 
         # Retrieve existing profiles via hybrid search
-        existing_profiles = self._retrieve_existing_profiles(new_profiles, user_id)
+        existing_profiles = self._retrieve_existing_profiles(
+            new_profiles, user_id, status_filter=existing_status_filter
+        )
 
         # Format for prompt
         new_text, existing_text = self._format_new_and_existing_for_prompt(
