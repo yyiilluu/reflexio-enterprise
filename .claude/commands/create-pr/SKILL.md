@@ -18,7 +18,7 @@ Create well-structured, reviewer-friendly pull requests following best practices
 Run these checks before anything else:
 
 1. **Verify GitHub CLI authentication** — run `gh api user --jq '.login'` to confirm the CLI is authenticated. If this fails, tell the user to run `gh auth login` first and stop.
-2. **Determine the base branch** — default to `main`. If the user specifies a different base, use that. Capture as `$BASE_BRANCH`.
+2. **Determine the base branch** — ALWAYS use `main` as the base branch unless the user explicitly specifies a different base. Do NOT infer the base branch from the current branch's upstream, the repository default, or any other source. Capture as `$BASE_BRANCH`.
 
 ### Step 2: Commit Uncommitted Changes
 
@@ -152,10 +152,14 @@ If the PR includes frontend changes (`*.tsx`, `*.jsx` files under `reflexio/webs
 
 5. **Attach screenshots** — note the screenshot paths in the PR report so the user can add them to the PR.
 
-### Step 8: Report
+### Step 8: Verify and Report
 
-- Return the PR URL so the user can review it
-- If `gh pr create` fails, diagnose the error and retry with fixes
+1. **Verify base branch** — run `gh pr view --json baseRefName --jq '.baseRefName'` to confirm the PR targets `$BASE_BRANCH` (should be `main` unless user specified otherwise). If it targets the wrong branch, fix it immediately:
+   ```bash
+   gh pr edit --base main
+   ```
+2. **Return the PR URL** so the user can review it
+3. If `gh pr create` fails, diagnose the error and retry with fixes
 
 ---
 
