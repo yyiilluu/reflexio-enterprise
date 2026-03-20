@@ -1,3 +1,5 @@
 """Reflexio library package."""
 
-__all__ = ["reflexio_lib"]
+from reflexio.reflexio_lib.reflexio_lib import Reflexio
+
+__all__ = ["Reflexio"]
