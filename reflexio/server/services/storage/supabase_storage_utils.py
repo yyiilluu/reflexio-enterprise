@@ -881,7 +881,12 @@ def get_organization_config(client: Client, org_id: str) -> str | None:
     if not response.data:
         return None
 
-    return response.data[0].get("configuration_json")
+    row = response.data[0]
+    if not isinstance(row, dict):
+        return None
+
+    value = row.get("configuration_json")
+    return str(value) if value is not None else None
 
 
 def set_organization_config(client: Client, org_id: str, config_json: str) -> bool:
