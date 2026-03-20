@@ -3,7 +3,9 @@ from __future__ import annotations
 import functools
 import logging
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any
+
+from pydantic import BaseModel
 
 if TYPE_CHECKING:
     from reflexio.server.services.query_rewriter import QueryRewriter
@@ -22,12 +24,10 @@ STORAGE_NOT_CONFIGURED_MSG = (
     "Storage not configured. Please configure storage in settings first."
 )
 
-_T = TypeVar("_T")
 
-
-def _require_storage(
-    response_type: type[_T], *, msg_field: str = "message"
-) -> Callable[..., Callable[..., _T]]:
+def _require_storage[T: BaseModel](
+    response_type: type[T], *, msg_field: str = "message"
+) -> Callable[..., Callable[..., T]]:
     """Decorator that guards a Reflexio method with storage-configured check and error handling.
 
     Args:
@@ -35,21 +35,23 @@ def _require_storage(
         msg_field: Name of the message field on the response ('message' or 'msg')
     """
 
-    def decorator(method: Callable[..., _T]) -> Callable[..., _T]:
+    def decorator(method: Callable[..., T]) -> Callable[..., T]:
         @functools.wraps(method)
-        def wrapper(self: Reflexio, *args: Any, **kwargs: Any) -> _T:
+        def wrapper(self: Reflexio, *args: Any, **kwargs: Any) -> T:
             if not self._is_storage_configured():
-                return response_type(
-                    success=False, **{msg_field: STORAGE_NOT_CONFIGURED_MSG}
-                )  # type: ignore[call-arg]
+                return response_type.model_validate(
+                    {"success": False, msg_field: STORAGE_NOT_CONFIGURED_MSG}
+                )
             try:
                 return method(self, *args, **kwargs)
             except Exception as e:
-                return response_type(success=False, **{msg_field: str(e)})  # type: ignore[call-arg]
+                return response_type.model_validate(
+                    {"success": False, msg_field: str(e)}
+                )
 
         return wrapper
 
-    return decorator  # type: ignore[return-value]
+    return decorator
 
 
 class ReflexioBase:

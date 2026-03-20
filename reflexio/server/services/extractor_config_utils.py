@@ -3,14 +3,11 @@ Utility functions for filtering extractor configurations.
 """
 
 import logging
-from typing import TypeVar
 
 logger = logging.getLogger(__name__)
 
-TExtractorConfig = TypeVar("TExtractorConfig")
 
-
-def get_extractor_name(config: TExtractorConfig) -> str:
+def get_extractor_name(config: object) -> str:
     """
     Get the display name for an extractor config.
 
@@ -29,7 +26,7 @@ def get_extractor_name(config: TExtractorConfig) -> str:
     )
 
 
-def filter_extractor_configs(
+def filter_extractor_configs[TExtractorConfig](
     extractor_configs: list[TExtractorConfig],
     source: str | None = None,
     allow_manual_trigger: bool = False,
