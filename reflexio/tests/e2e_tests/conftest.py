@@ -66,6 +66,7 @@ def reflexio_instance(
     config = Config(
         storage_config=supabase_storage_config,
         agent_context_prompt="this is a sales agent",
+        extraction_window_stride=1,
         profile_extractor_configs=[
             ProfileExtractorConfig(
                 extractor_name="test_profile_extractor",
@@ -120,6 +121,7 @@ def reflexio_instance_profile_only(
     config = Config(
         storage_config=supabase_storage_config,
         agent_context_prompt="this is a sales agent",
+        extraction_window_stride=1,
         profile_extractor_configs=[
             ProfileExtractorConfig(
                 extractor_name="test_profile_extractor",
@@ -147,6 +149,7 @@ def reflexio_instance_feedback_only(
     config = Config(
         storage_config=supabase_storage_config,
         agent_context_prompt="this is a sales agent",
+        extraction_window_stride=1,
         agent_feedback_configs=[
             AgentFeedbackConfig(
                 feedback_name="test_feedback",
@@ -174,6 +177,7 @@ def reflexio_instance_agent_success_only(
     config = Config(
         storage_config=supabase_storage_config,
         agent_context_prompt="this is a sales agent",
+        extraction_window_stride=1,
         agent_success_configs=[
             AgentSuccessConfig(
                 evaluation_name="test_agent_success",
@@ -307,6 +311,7 @@ def reflexio_instance_feedback_source_filtering(
     config = Config(
         storage_config=supabase_storage_config,
         agent_context_prompt="this is a sales agent",
+        extraction_window_stride=1,
         agent_feedback_configs=[
             # Feedback config only enabled for "api" source
             AgentFeedbackConfig(
@@ -360,6 +365,7 @@ def reflexio_instance_manual_profile(
         storage_config=supabase_storage_config,
         agent_context_prompt="this is a sales agent",
         extraction_window_size=10,  # Required for manual generation
+        extraction_window_stride=1,
         profile_extractor_configs=[
             ProfileExtractorConfig(
                 extractor_name="manual_trigger_extractor",
@@ -402,6 +408,7 @@ def reflexio_instance_manual_feedback(
         storage_config=supabase_storage_config,
         agent_context_prompt="this is a sales agent",
         extraction_window_size=10,  # Required for manual generation
+        extraction_window_stride=1,
         agent_feedback_configs=[
             AgentFeedbackConfig(
                 feedback_name="manual_trigger_feedback",
@@ -440,6 +447,7 @@ def reflexio_instance_multiple_profile_extractors(
         storage_config=supabase_storage_config,
         agent_context_prompt="this is a sales agent",
         extraction_window_size=20,
+        extraction_window_stride=1,
         profile_extractor_configs=[
             ProfileExtractorConfig(
                 extractor_name="extractor_basic_info",
@@ -490,6 +498,7 @@ def reflexio_instance_multiple_feedback_extractors(
         storage_config=supabase_storage_config,
         agent_context_prompt="this is a sales agent",
         extraction_window_size=20,
+        extraction_window_stride=1,
         agent_feedback_configs=[
             AgentFeedbackConfig(
                 feedback_name="api_only_feedback",

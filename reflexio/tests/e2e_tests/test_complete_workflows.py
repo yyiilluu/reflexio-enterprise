@@ -1,7 +1,8 @@
 """End-to-end tests for complete workflows and error handling."""
 
+import os
 from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from reflexio_commons.api_schema.retriever_schema import (
     GetDashboardStatsRequest,
@@ -22,6 +23,7 @@ from reflexio_commons.api_schema.service_schemas import (
     Status,
 )
 
+import reflexio.server.services.agent_success_evaluation.group_evaluation_runner as _runner_mod
 from reflexio.reflexio_lib.reflexio_lib import Reflexio
 from reflexio.server.services.agent_success_evaluation.group_evaluation_runner import (
     run_group_evaluation,
@@ -48,15 +50,24 @@ def test_complete_workflow_end_to_end(
     )
 
     # Step 1: Publish interactions (request_id will be auto-generated)
-    publish_response = reflexio_instance.publish_interaction(
-        {
-            "user_id": user_id,
-            "interaction_data_list": sample_interaction_requests,
-            "source": "test_conversation",
-            "agent_version": "test_agent_complete",
-        }
-    )
-    assert publish_response.success is True
+    # Use mock LLM to reliably generate profiles (real LLM non-deterministically returns none)
+    original_mock = os.environ.get("MOCK_LLM_RESPONSE")
+    os.environ["MOCK_LLM_RESPONSE"] = "true"
+    try:
+        publish_response = reflexio_instance.publish_interaction(
+            {
+                "user_id": user_id,
+                "interaction_data_list": sample_interaction_requests,
+                "source": "test_conversation",
+                "agent_version": "test_agent_complete",
+            }
+        )
+        assert publish_response.success is True
+    finally:
+        if original_mock is None:
+            os.environ.pop("MOCK_LLM_RESPONSE", None)
+        else:
+            os.environ["MOCK_LLM_RESPONSE"] = original_mock
 
     # Get the auto-generated request_id from stored interactions for THIS user
     user_interactions = reflexio_instance.request_context.storage.get_user_interaction(
@@ -347,27 +358,44 @@ def test_profile_upgrade_downgrade_workflow(
     """Test profile upgrade and downgrade workflow."""
     user_id = "test_user_upgrade"
 
-    # Publish initial interactions
-    publish_response = reflexio_instance.publish_interaction(
-        {
-            "user_id": user_id,
-            "interaction_data_list": sample_interaction_requests[:3],
-            "source": "test_source",
-            "agent_version": "v1",
-        }
-    )
-    assert publish_response.success is True
+    # Publish initial interactions with mock LLM to reliably generate profiles
+    original_mock = os.environ.get("MOCK_LLM_RESPONSE")
+    os.environ["MOCK_LLM_RESPONSE"] = "true"
+    try:
+        publish_response = reflexio_instance.publish_interaction(
+            {
+                "user_id": user_id,
+                "interaction_data_list": sample_interaction_requests[:3],
+                "source": "test_source",
+                "agent_version": "v1",
+            }
+        )
+        assert publish_response.success is True
+    finally:
+        if original_mock is None:
+            os.environ.pop("MOCK_LLM_RESPONSE", None)
+        else:
+            os.environ["MOCK_LLM_RESPONSE"] = original_mock
 
     # Check initial profile statistics
     initial_stats = reflexio_instance.get_profile_statistics()
     assert initial_stats.success is True
     assert initial_stats.current_count >= 0
 
-    # Rerun profile generation to create PENDING profiles
-    rerun_response = reflexio_instance.rerun_profile_generation(
-        RerunProfileGenerationRequest(user_id=user_id)
-    )
-    assert rerun_response.success is True
+    # Use mock LLM for rerun to get deterministic profile generation
+    original_mock = os.environ.get("MOCK_LLM_RESPONSE")
+    os.environ["MOCK_LLM_RESPONSE"] = "true"
+    try:
+        # Rerun profile generation to create PENDING profiles
+        rerun_response = reflexio_instance.rerun_profile_generation(
+            RerunProfileGenerationRequest(user_id=user_id)
+        )
+        assert rerun_response.success is True
+    finally:
+        if original_mock is None:
+            os.environ.pop("MOCK_LLM_RESPONSE", None)
+        else:
+            os.environ["MOCK_LLM_RESPONSE"] = original_mock
 
     # Check that PENDING profiles were created
     stats_after_rerun = reflexio_instance.get_profile_statistics()
@@ -437,7 +465,7 @@ def test_time_filtering_and_pagination(
     assert publish_response.success is True
 
     # Test get_interactions with time filters
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     one_hour_ago = now - timedelta(hours=1)
     one_hour_later = now + timedelta(hours=1)
 
@@ -571,7 +599,7 @@ def test_rerun_profile_generation_with_filters(
     assert operation_status.operation_status.service_name == "profile_generation"
 
     # Test rerun with time filters
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     one_hour_ago = now - timedelta(hours=1)
     rerun_time_filtered = reflexio_instance.rerun_profile_generation(
         RerunProfileGenerationRequest(user_id=user_id, start_time=one_hour_ago)
@@ -660,16 +688,25 @@ def test_full_workflow_with_all_features(
     session_id = "test_session_full_workflow"
 
     # Step 1: Publish interactions (all configs are enabled in reflexio_instance)
-    publish_response = reflexio_instance.publish_interaction(
-        {
-            "user_id": user_id,
-            "interaction_data_list": sample_interaction_requests,
-            "source": "test_full_workflow",
-            "agent_version": agent_version,
-            "session_id": session_id,
-        }
-    )
-    assert publish_response.success is True
+    # Use mock LLM to reliably generate profiles (real LLM non-deterministically returns none)
+    original_mock = os.environ.get("MOCK_LLM_RESPONSE")
+    os.environ["MOCK_LLM_RESPONSE"] = "true"
+    try:
+        publish_response = reflexio_instance.publish_interaction(
+            {
+                "user_id": user_id,
+                "interaction_data_list": sample_interaction_requests,
+                "source": "test_full_workflow",
+                "agent_version": agent_version,
+                "session_id": session_id,
+            }
+        )
+        assert publish_response.success is True
+    finally:
+        if original_mock is None:
+            os.environ.pop("MOCK_LLM_RESPONSE", None)
+        else:
+            os.environ["MOCK_LLM_RESPONSE"] = original_mock
 
     # Get auto-generated request_id
     stored_interactions = (
@@ -693,15 +730,20 @@ def test_full_workflow_with_all_features(
     assert raw_feedbacks[0].agent_version == agent_version
 
     # Step 4: Trigger and verify agent success evaluations
-    run_group_evaluation(
-        org_id=reflexio_instance.org_id,
-        user_id=user_id,
-        session_id=session_id,
-        agent_version=agent_version,
-        source="test_full_workflow",
-        request_context=reflexio_instance.request_context,
-        llm_client=reflexio_instance.llm_client,
-    )
+    original_delay = _runner_mod._EFFECTIVE_DELAY_SECONDS
+    _runner_mod._EFFECTIVE_DELAY_SECONDS = 0
+    try:
+        run_group_evaluation(
+            org_id=reflexio_instance.org_id,
+            user_id=user_id,
+            session_id=session_id,
+            agent_version=agent_version,
+            source="test_full_workflow",
+            request_context=reflexio_instance.request_context,
+            llm_client=reflexio_instance.llm_client,
+        )
+    finally:
+        _runner_mod._EFFECTIVE_DELAY_SECONDS = original_delay
     agent_success_results = (
         reflexio_instance.request_context.storage.get_agent_success_evaluation_results(
             agent_version=agent_version
@@ -804,15 +846,20 @@ def test_rerun_operations_consistency(
     assert publish_response.success is True
 
     # Trigger group evaluation synchronously (normally delayed)
-    run_group_evaluation(
-        org_id=reflexio_instance.org_id,
-        user_id=user_id,
-        session_id=session_id,
-        agent_version=agent_version,
-        source="test_rerun_source",
-        request_context=reflexio_instance.request_context,
-        llm_client=reflexio_instance.llm_client,
-    )
+    original_delay = _runner_mod._EFFECTIVE_DELAY_SECONDS
+    _runner_mod._EFFECTIVE_DELAY_SECONDS = 0
+    try:
+        run_group_evaluation(
+            org_id=reflexio_instance.org_id,
+            user_id=user_id,
+            session_id=session_id,
+            agent_version=agent_version,
+            source="test_rerun_source",
+            request_context=reflexio_instance.request_context,
+            llm_client=reflexio_instance.llm_client,
+        )
+    finally:
+        _runner_mod._EFFECTIVE_DELAY_SECONDS = original_delay
 
     # Record initial state
     initial_interactions = (

@@ -1,5 +1,6 @@
 """End-to-end tests for interaction workflows."""
 
+import os
 from collections.abc import Callable
 
 from reflexio_commons.api_schema.retriever_schema import (
@@ -11,6 +12,7 @@ from reflexio_commons.api_schema.service_schemas import (
     InteractionData,
 )
 
+import reflexio.server.services.agent_success_evaluation.group_evaluation_runner as _runner_mod
 from reflexio.reflexio_lib.reflexio_lib import Reflexio
 from reflexio.server.services.agent_success_evaluation.group_evaluation_runner import (
     run_group_evaluation,
@@ -30,15 +32,24 @@ def test_publish_interaction_end_to_end(
     session_id = "test_session_interaction_e2e"
 
     # Publish interactions (request_id will be auto-generated)
-    response = reflexio_instance.publish_interaction(
-        {
-            "user_id": user_id,
-            "interaction_data_list": sample_interaction_requests,
-            "source": "test_conversation",
-            "agent_version": agent_version,
-            "session_id": session_id,
-        }
-    )
+    # Use mock LLM to reliably generate profiles (real LLM non-deterministically returns none)
+    original_mock = os.environ.get("MOCK_LLM_RESPONSE")
+    os.environ["MOCK_LLM_RESPONSE"] = "true"
+    try:
+        response = reflexio_instance.publish_interaction(
+            {
+                "user_id": user_id,
+                "interaction_data_list": sample_interaction_requests,
+                "source": "test_conversation",
+                "agent_version": agent_version,
+                "session_id": session_id,
+            }
+        )
+    finally:
+        if original_mock is None:
+            os.environ.pop("MOCK_LLM_RESPONSE", None)
+        else:
+            os.environ["MOCK_LLM_RESPONSE"] = original_mock
 
     # Verify successful publication
     assert response.success is True
@@ -86,15 +97,21 @@ def test_publish_interaction_end_to_end(
     assert len(raw_feedbacks) > 0 and raw_feedbacks[0].feedback_content.strip() != ""
 
     # Trigger and verify agent success evaluation results
-    run_group_evaluation(
-        org_id=reflexio_instance.org_id,
-        user_id=user_id,
-        session_id=session_id,
-        agent_version=agent_version,
-        source="test_conversation",
-        request_context=reflexio_instance.request_context,
-        llm_client=reflexio_instance.llm_client,
-    )
+    # Temporarily bypass session completion delay for e2e tests
+    original_delay = _runner_mod._EFFECTIVE_DELAY_SECONDS
+    _runner_mod._EFFECTIVE_DELAY_SECONDS = 0
+    try:
+        run_group_evaluation(
+            org_id=reflexio_instance.org_id,
+            user_id=user_id,
+            session_id=session_id,
+            agent_version=agent_version,
+            source="test_conversation",
+            request_context=reflexio_instance.request_context,
+            llm_client=reflexio_instance.llm_client,
+        )
+    finally:
+        _runner_mod._EFFECTIVE_DELAY_SECONDS = original_delay
     agent_success_results = (
         reflexio_instance.request_context.storage.get_agent_success_evaluation_results(
             agent_version=agent_version
