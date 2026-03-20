@@ -51,6 +51,7 @@ dev = [
     "ruff>=0.15.0",
     "pyright>=1.1.400",
     "pandas>=3.0.1",
+    "pytest-cov>=6.0",
 ]
 docs = [
     "mkdocs>=1.5.3",
@@ -82,9 +83,40 @@ packages = ["reflexio"]
 # Parallel test execution with pytest-xdist
 # -n auto: Use all available CPU cores
 # --dist loadfile: Group tests by file (reduces fixture overhead, safer for in-file dependencies)
-addopts = "-n auto --dist loadfile"
+addopts = "-n auto --dist loadfile --cov --cov-report=term-missing --cov-report=html"
 testpaths = ["reflexio/tests"]
 asyncio_default_fixture_loop_scope = "function"
+
+[tool.coverage.run]
+# Measure branch coverage — ensures both if/else paths are tested, not just lines
+branch = true
+source = ["reflexio"]
+omit = [
+    "**/__init__.py",
+    "reflexio/tests/*",
+    "reflexio/website/*",
+    "reflexio/data/*",
+    "reflexio/scripts/*",
+    "reflexio/public_docs/*",
+    "reflexio/reflexio_commons/tests/*",
+    "reflexio/reflexio_client/tests/*",
+    "*/conftest.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+skip_empty = true
+fail_under = 0
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "@overload",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
 
 [tool.ruff]
 target-version = "py314"
