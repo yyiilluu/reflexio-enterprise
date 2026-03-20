@@ -1,14 +1,12 @@
 """Tests for SupabaseStorage implementation."""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import Mock, call, patch
 
 import pytest
 from reflexio_commons.api_schema.retriever_schema import (
     Interaction,
-    SearchFeedbackRequest,
     SearchInteractionRequest,
-    SearchRawFeedbackRequest,
     SearchUserProfileRequest,
 )
 from reflexio_commons.api_schema.service_schemas import (
@@ -69,7 +67,7 @@ def user_profile_data():
             profile_id="profile_id_1",
             user_id="1@123",
             profile_content="I like sushi",
-            last_modified_timestamp=int(datetime.now(UTC).timestamp()),
+            last_modified_timestamp=int(datetime.now(timezone.utc).timestamp()),
             generated_from_request_id="request_id_1",
             profile_time_to_live=ProfileTimeToLive.INFINITY,
             expiration_timestamp=NEVER_EXPIRES_TIMESTAMP,
@@ -79,7 +77,7 @@ def user_profile_data():
             profile_id="profile_id_2",
             user_id="1@123",
             profile_content="I like pizza",
-            last_modified_timestamp=int(datetime.now(UTC).timestamp()),
+            last_modified_timestamp=int(datetime.now(timezone.utc).timestamp()),
             generated_from_request_id="request_id_2",
             profile_time_to_live=ProfileTimeToLive.INFINITY,
             expiration_timestamp=int(datetime(1999, 1, 1).timestamp()),
@@ -90,7 +88,7 @@ def user_profile_data():
             user_id="1@123",
             request_id="request_id_1",
             content="I like sushi",
-            created_at=int(datetime.now(UTC).timestamp()),
+            created_at=int(datetime.now(timezone.utc).timestamp()),
             user_action=UserActionType.CLICK,
             user_action_description="I clicked on the sushi image",
             interacted_image_url="https://example.com/sushi.jpg",
@@ -100,7 +98,7 @@ def user_profile_data():
 
 @pytest.fixture
 def profile_change_log_data():
-    current_time = int(datetime.now(UTC).timestamp())
+    current_time = int(datetime.now(timezone.utc).timestamp())
     return {
         "id": 1,
         "user_id": "1@123",
@@ -124,7 +122,7 @@ def profile_change_log_data():
 
 @pytest.fixture
 def feedback_data():
-    current_time = int(datetime.now(UTC).timestamp())
+    current_time = int(datetime.now(timezone.utc).timestamp())
     return {
         "raw_feedback": RawFeedback(
             raw_feedback_id=1,
@@ -421,7 +419,7 @@ def test_update_user_profile_by_id(
         profile_id=original_profile.profile_id,
         user_id=user_id,
         profile_content="I like ramen",
-        last_modified_timestamp=int(datetime.now(UTC).timestamp()),
+        last_modified_timestamp=int(datetime.now(timezone.utc).timestamp()),
         generated_from_request_id="request_id_2",
         profile_time_to_live=ProfileTimeToLive.INFINITY,
         expiration_timestamp=NEVER_EXPIRES_TIMESTAMP,
@@ -532,9 +530,7 @@ def test_search_feedbacks(
     mock_supabase_client.rpc().execute.return_value.data = [feedback_dict]
 
     results = storage.search_feedbacks(
-        SearchFeedbackRequest(
-            query="agent performance feedback", threshold=0.8, top_k=5
-        )
+        query="agent performance feedback", match_threshold=0.8, match_count=5
     )
 
     assert len(results) == 1
@@ -554,8 +550,6 @@ def test_search_feedbacks(
             "p_match_count": 50,  # 5 * 10 for filtering overhead
             "p_search_mode": "hybrid",
             "p_rrf_k": 60,
-            "p_vector_weight": 1.0,
-            "p_fts_weight": 1.0,
         },
     )
 
@@ -571,9 +565,7 @@ def test_search_raw_feedbacks(
     mock_supabase_client.rpc().execute.return_value.data = [raw_feedback_dict]
 
     results = storage.search_raw_feedbacks(
-        SearchRawFeedbackRequest(
-            query="helpful agent response", threshold=0.7, top_k=10
-        )
+        query="helpful agent response", match_threshold=0.7, match_count=10
     )
 
     assert len(results) == 1
@@ -597,8 +589,6 @@ def test_search_raw_feedbacks(
             "p_filter_user_id": None,
             "p_search_mode": "hybrid",
             "p_rrf_k": 60,
-            "p_vector_weight": 1.0,
-            "p_fts_weight": 1.0,
         },
     )
 
@@ -613,7 +603,7 @@ def test_search_feedbacks_with_default_parameters(
     # Mock the response from Supabase
     mock_supabase_client.rpc().execute.return_value.data = [feedback_dict]
 
-    results = storage.search_feedbacks(SearchFeedbackRequest(query="agent feedback"))
+    results = storage.search_feedbacks(query="agent feedback")
 
     assert len(results) == 1
 
@@ -627,8 +617,6 @@ def test_search_feedbacks_with_default_parameters(
             "p_match_count": 100,  # Get more results for filtering
             "p_search_mode": "hybrid",
             "p_rrf_k": 60,
-            "p_vector_weight": 1.0,
-            "p_fts_weight": 1.0,
         },
     )
 
@@ -643,9 +631,7 @@ def test_search_raw_feedbacks_with_default_parameters(
     # Mock the response from Supabase
     mock_supabase_client.rpc().execute.return_value.data = [raw_feedback_dict]
 
-    results = storage.search_raw_feedbacks(
-        SearchRawFeedbackRequest(query="helpful feedback")
-    )
+    results = storage.search_raw_feedbacks(query="helpful feedback")
 
     assert len(results) == 1
 
@@ -660,8 +646,6 @@ def test_search_raw_feedbacks_with_default_parameters(
             "p_filter_user_id": None,
             "p_search_mode": "hybrid",
             "p_rrf_k": 60,
-            "p_vector_weight": 1.0,
-            "p_fts_weight": 1.0,
         },
     )
 
@@ -676,9 +660,7 @@ def test_search_feedbacks_empty_results(
     mock_supabase_client.rpc().execute.return_value.data = []
 
     results = storage.search_feedbacks(
-        SearchFeedbackRequest(
-            query="completely unrelated query", threshold=0.9, top_k=5
-        )
+        query="completely unrelated query", match_threshold=0.9, match_count=5
     )
 
     assert len(results) == 0
@@ -695,8 +677,6 @@ def test_search_feedbacks_empty_results(
             "p_match_count": 50,  # 5 * 10 for filtering overhead
             "p_search_mode": "hybrid",
             "p_rrf_k": 60,
-            "p_vector_weight": 1.0,
-            "p_fts_weight": 1.0,
         },
     )
 
@@ -711,9 +691,7 @@ def test_search_raw_feedbacks_empty_results(
     mock_supabase_client.rpc().execute.return_value.data = []
 
     results = storage.search_raw_feedbacks(
-        SearchRawFeedbackRequest(
-            query="completely unrelated query", threshold=0.95, top_k=3
-        )
+        query="completely unrelated query", match_threshold=0.95, match_count=3
     )
 
     assert len(results) == 0
@@ -731,8 +709,6 @@ def test_search_raw_feedbacks_empty_results(
             "p_filter_user_id": None,
             "p_search_mode": "hybrid",
             "p_rrf_k": 60,
-            "p_vector_weight": 1.0,
-            "p_fts_weight": 1.0,
         },
     )
 
@@ -762,7 +738,7 @@ def test_search_feedbacks_multiple_results(
     ]
 
     results = storage.search_feedbacks(
-        SearchFeedbackRequest(query="agent feedback analysis", threshold=0.7, top_k=5)
+        query="agent feedback analysis", match_threshold=0.7, match_count=5
     )
 
     assert len(results) == 2
@@ -788,8 +764,6 @@ def test_search_feedbacks_multiple_results(
             "p_match_count": 50,  # 5 * 10 for filtering overhead
             "p_search_mode": "hybrid",
             "p_rrf_k": 60,
-            "p_vector_weight": 1.0,
-            "p_fts_weight": 1.0,
         },
     )
 
@@ -818,9 +792,7 @@ def test_search_raw_feedbacks_multiple_results(
     ]
 
     results = storage.search_raw_feedbacks(
-        SearchRawFeedbackRequest(
-            query="agent performance feedback", threshold=0.6, top_k=10
-        )
+        query="agent performance feedback", match_threshold=0.6, match_count=10
     )
 
     assert len(results) == 2
@@ -851,8 +823,6 @@ def test_search_raw_feedbacks_multiple_results(
             "p_filter_user_id": None,
             "p_search_mode": "hybrid",
             "p_rrf_k": 60,
-            "p_vector_weight": 1.0,
-            "p_fts_weight": 1.0,
         },
     )
 
@@ -1022,7 +992,7 @@ def test_get_feedbacks_default_returns_approved_only(
 ):
     """Test that get_feedbacks defaults to returning all feedback statuses (no filter)."""
     storage = supabase_storage
-    current_time = int(datetime.now(UTC).timestamp())
+    current_time = int(datetime.now(timezone.utc).timestamp())
 
     approved_feedback = {
         "feedback_id": 1,
@@ -1117,7 +1087,7 @@ class TestParseDatetimeToTimestamp:
         result = storage._parse_datetime_to_timestamp("")
         assert isinstance(result, int)
         # Should return current timestamp
-        current_time = int(datetime.now(UTC).timestamp())
+        current_time = int(datetime.now(timezone.utc).timestamp())
         assert abs(result - current_time) < 2  # Within 2 seconds
 
     def test_parse_datetime_none_value(self, supabase_storage):
@@ -1125,7 +1095,7 @@ class TestParseDatetimeToTimestamp:
         storage = supabase_storage
         result = storage._parse_datetime_to_timestamp(None)
         assert isinstance(result, int)
-        current_time = int(datetime.now(UTC).timestamp())
+        current_time = int(datetime.now(timezone.utc).timestamp())
         assert abs(result - current_time) < 2
 
     def test_parse_datetime_with_7_digit_fractional_seconds(self, supabase_storage):
@@ -1140,7 +1110,7 @@ class TestParseDatetimeToTimestamp:
 def test_get_requests_grouped_by_session_id(supabase_storage, mock_supabase_client):
     """Test get_requests returns results grouped by session_id."""
     storage = supabase_storage
-    current_time = int(datetime.now(UTC).timestamp())
+    current_time = int(datetime.now(timezone.utc).timestamp())
 
     # Mock response for getting requests with interactions
     mock_supabase_client.table().select().order().eq().limit().execute.return_value.data = [
@@ -1208,7 +1178,7 @@ def test_get_rerun_user_ids_applies_filters(supabase_storage, mock_supabase_clie
     query.gte.return_value = query
     query.lte.return_value = query
 
-    now = int(datetime.now(UTC).timestamp())
+    now = int(datetime.now(timezone.utc).timestamp())
     start_time = now - 3600
     end_time = now
 
@@ -1232,12 +1202,14 @@ def test_get_rerun_user_ids_applies_filters(supabase_storage, mock_supabase_clie
     assert (
         call(
             "created_at",
-            datetime.fromtimestamp(start_time, tz=UTC).isoformat(),
+            datetime.fromtimestamp(start_time, tz=timezone.utc).isoformat(),
         )
         in query.gte.call_args_list
     )
     assert (
-        call("created_at", datetime.fromtimestamp(end_time, tz=UTC).isoformat())
+        call(
+            "created_at", datetime.fromtimestamp(end_time, tz=timezone.utc).isoformat()
+        )
         in query.lte.call_args_list
     )
 

@@ -174,8 +174,7 @@ cython_debug/
 local_storage/
 tmp/
 sql_app.db
-/data/
-notebooks/data/
+data/
 reflexio/data
 !reflexio/data/__init__.py
 experiments/

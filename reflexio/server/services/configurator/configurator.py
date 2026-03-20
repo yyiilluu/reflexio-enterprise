@@ -1,8 +1,6 @@
 import hashlib
 import logging
 import os
-from collections.abc import Callable
-from typing import Any
 
 from pydantic import BaseModel
 from reflexio_commons.config_schema import (
@@ -194,17 +192,17 @@ class SimpleConfigurator:
             return False
         return self.get_config().storage_config_test != StorageConfigTest.FAILED
 
-    _STORAGE_READINESS_CHECKS: dict[type[StorageConfig], Callable[[Any], bool]] = {
-        StorageConfigLocal: lambda c: bool(c.dir_path),
-        StorageConfigSupabase: lambda c: bool(c.key and c.url and c.db_url),
-    }
-
     def is_storage_config_ready_to_test(self, storage_config: StorageConfig) -> bool:
         """
         Checks whether the given storage configuration has been fully filled in and ready for test connection
         """
-        check = self._STORAGE_READINESS_CHECKS.get(type(storage_config))
-        return check(storage_config) if check else False
+        if isinstance(storage_config, StorageConfigLocal):
+            return bool(storage_config.dir_path)
+        if isinstance(storage_config, StorageConfigSupabase):
+            return bool(
+                storage_config.key and storage_config.url and storage_config.db_url
+            )
+        return False
 
     def test_and_init_storage_config(
         self, storage_config: StorageConfig

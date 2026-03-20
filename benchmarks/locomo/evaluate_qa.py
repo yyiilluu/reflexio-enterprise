@@ -18,12 +18,7 @@ from benchmarks.locomo.config import (
     REFLEXIO_STRATEGIES,
 )
 from benchmarks.locomo.data_loader import LoCoMoSample
-from benchmarks.locomo.metrics import (
-    adversarial_accuracy,
-    compute_score,
-    llm_judge_score,
-    retrieval_recall,
-)
+from benchmarks.locomo.metrics import compute_score
 from reflexio.reflexio_client.reflexio import ReflexioClient
 
 logger = logging.getLogger(__name__)
@@ -56,8 +51,6 @@ class QAResult:
         prediction: str,
         score: float,
         context_length: int,
-        judge_score: float | None = None,
-        retrieval_recall_score: float | None = None,
     ):
         self.sample_id = sample_id
         self.question = question
@@ -68,11 +61,9 @@ class QAResult:
         self.prediction = prediction
         self.score = score
         self.context_length = context_length
-        self.judge_score = judge_score
-        self.retrieval_recall_score = retrieval_recall_score
 
     def to_dict(self) -> dict:
-        d = {
+        return {
             "sample_id": self.sample_id,
             "question": self.question,
             "gold_answer": self.gold_answer,
@@ -83,18 +74,6 @@ class QAResult:
             "score": self.score,
             "context_length": self.context_length,
         }
-        if self.judge_score is not None:
-            d["judge_score"] = self.judge_score
-        if self.retrieval_recall_score is not None:
-            d["retrieval_recall"] = self.retrieval_recall_score
-        return d
-
-
-def _build_dia_id_map(sample: LoCoMoSample) -> dict[str, str]:
-    """Build mapping from dia_id to turn text for retrieval recall."""
-    return {
-        turn.dia_id: turn.text for session in sample.sessions for turn in session.turns
-    }
 
 
 def _load_checkpoint(output_dir: Path) -> dict[str, list[dict]]:
@@ -124,8 +103,6 @@ def evaluate(
     reflexio_url: str = DEFAULT_REFLEXIO_URL,
     reflexio_api_key: str | None = None,
     output_dir: str | Path = "benchmarks/locomo/output",
-    judge_model: str | None = "gpt-4o-mini",
-    skip_judge: bool = False,
 ) -> list[QAResult]:
     """
     Run QA evaluation across all samples and strategies.
@@ -137,8 +114,6 @@ def evaluate(
         reflexio_url (str): Reflexio server URL
         reflexio_api_key (str | None): API key
         output_dir (str | Path): Directory for checkpoints and results
-        judge_model (str | None): LiteLLM model for LLM-as-Judge (default: gpt-4o-mini)
-        skip_judge (bool): If True, skip LLM judge evaluation
 
     Returns:
         list[QAResult]: All evaluation results
@@ -148,9 +123,9 @@ def evaluate(
 
     # Set up Reflexio client if needed
     client: ReflexioClient | None = None
-    api_key = reflexio_api_key or os.getenv("REFLEXIO_API_KEY") or ""
     needs_reflexio = any(s in REFLEXIO_STRATEGIES for s in strategies)
     if needs_reflexio:
+        api_key = reflexio_api_key or os.getenv("REFLEXIO_API_KEY")
         client = ReflexioClient(api_key=api_key, url_endpoint=reflexio_url)
 
     # Load checkpoint
@@ -169,8 +144,6 @@ def evaluate(
                 prediction=r["prediction"],
                 score=r["score"],
                 context_length=r["context_length"],
-                judge_score=r.get("judge_score"),
-                retrieval_recall_score=r.get("retrieval_recall"),
             )
             for r in result_list
         )
@@ -183,7 +156,6 @@ def evaluate(
 
     for sample in samples:
         user_id = f"locomo-{sample.sample_id}"
-        dia_id_map = _build_dia_id_map(sample)
         for strategy in strategies:
             ck = _checkpoint_key(sample.sample_id, strategy)
             if ck in checkpoint:
@@ -209,11 +181,6 @@ def evaluate(
                         question=qa.question,
                         client=client,
                         user_id=user_id,
-                        reflexio_url=reflexio_url,
-                        reflexio_api_key=api_key,
-                        sessions=sample.sessions,
-                        speaker_a=sample.speaker_a,
-                        speaker_b=sample.speaker_b,
                     )
                     prediction = generate_answer(
                         question=qa.question,
@@ -223,34 +190,10 @@ def evaluate(
                         model=model,
                     )
                     score = compute_score(prediction, qa.answer, qa.category)
-
-                    # LLM judge: skip for adversarial; use phrase-matching
-                    judge_score_val: float | None = None
-                    if not skip_judge and judge_model:
-                        if qa.category == 5:
-                            judge_score_val = adversarial_accuracy(prediction)
-                        else:
-                            judge_score_val = llm_judge_score(
-                                question=qa.question,
-                                gold_answer=qa.answer,
-                                prediction=prediction,
-                                model=judge_model,
-                            )
-
-                    # Retrieval recall: measure evidence coverage
-                    rr_score: float | None = None
-                    if qa.evidence and context.strip():
-                        evidence_texts = [
-                            dia_id_map[eid] for eid in qa.evidence if eid in dia_id_map
-                        ]
-                        if evidence_texts:
-                            rr_score = retrieval_recall(evidence_texts, context)
                 except Exception as e:
                     logger.error("QA %d: ERROR — %s", qi, e)
                     prediction = ""
                     score = 0.0
-                    judge_score_val = None
-                    rr_score = None
                     context = ""
 
                 result = QAResult(
@@ -262,8 +205,6 @@ def evaluate(
                     prediction=prediction,
                     score=score,
                     context_length=len(context),
-                    judge_score=judge_score_val,
-                    retrieval_recall_score=rr_score,
                 )
                 all_results.append(result)
                 sample_results.append(result.to_dict())

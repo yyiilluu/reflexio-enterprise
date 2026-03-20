@@ -1,9 +1,10 @@
 import enum
-from datetime import UTC, datetime
-from typing import Literal, Self
+from datetime import datetime, timezone
+from typing import Literal
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field, field_validator, model_validator
+from typing_extensions import Self
 
 from reflexio_commons.api_schema.validators import (
     EmbeddingVector,
@@ -100,27 +101,13 @@ class ToolUsed(BaseModel):
     tool_input: dict = Field(default_factory=dict)  # dict of param name -> value
 
 
-def _validate_image_url(v: str) -> str:
-    """SSRF prevention: if URL is provided, must be safe http(s) or data URI."""
-    if not v:
-        return v
-    parsed = urlparse(v)
-    if parsed.scheme not in ("http", "https", "data"):
-        raise ValueError(
-            f"Image URL scheme must be http, https, or data — got '{parsed.scheme}'"
-        )
-    if parsed.scheme in ("http", "https"):
-        _check_safe_url(v)
-    return v
-
-
 # information about the user interaction sent by the client
 class Interaction(BaseModel):
     interaction_id: int = 0  # 0 = placeholder for DB auto-increment
     user_id: str
     request_id: str
     created_at: int = Field(
-        default_factory=lambda: int(datetime.now(UTC).timestamp())
+        default_factory=lambda: int(datetime.now(timezone.utc).timestamp())
     )
     role: str = "User"
     content: str = ""
@@ -135,14 +122,24 @@ class Interaction(BaseModel):
     @field_validator("interacted_image_url", mode="after")
     @classmethod
     def validate_image_url(cls, v: str) -> str:
-        return _validate_image_url(v)
+        """SSRF prevention: if URL is provided, must be safe http(s) or data URI."""
+        if not v:
+            return v  # empty string is allowed (no image)
+        parsed = urlparse(v)
+        if parsed.scheme not in ("http", "https", "data"):
+            raise ValueError(
+                f"Image URL scheme must be http, https, or data — got '{parsed.scheme}'"
+            )
+        if parsed.scheme in ("http", "https"):
+            _check_safe_url(v)
+        return v
 
 
 class Request(BaseModel):
     request_id: str
     user_id: str
     created_at: int = Field(
-        default_factory=lambda: int(datetime.now(UTC).timestamp())
+        default_factory=lambda: int(datetime.now(timezone.utc).timestamp())
     )
     source: str = ""
     agent_version: str = ""
@@ -175,7 +172,7 @@ class RawFeedback(BaseModel):
     request_id: str
     feedback_name: str = ""
     created_at: int = Field(
-        default_factory=lambda: int(datetime.now(UTC).timestamp())
+        default_factory=lambda: int(datetime.now(timezone.utc).timestamp())
     )
     feedback_content: str = ""
 
@@ -203,7 +200,7 @@ class ProfileChangeLog(BaseModel):
     user_id: str
     request_id: str
     created_at: int = Field(
-        default_factory=lambda: int(datetime.now(UTC).timestamp())
+        default_factory=lambda: int(datetime.now(timezone.utc).timestamp())
     )
     added_profiles: list[UserProfile]
     removed_profiles: list[UserProfile]
@@ -215,7 +212,7 @@ class Feedback(BaseModel):
     feedback_name: str = ""
     agent_version: str
     created_at: int = Field(
-        default_factory=lambda: int(datetime.now(UTC).timestamp())
+        default_factory=lambda: int(datetime.now(timezone.utc).timestamp())
     )
     feedback_content: str
 
@@ -249,10 +246,10 @@ class Skill(BaseModel):
     skill_status: SkillStatus = SkillStatus.DRAFT
     embedding: EmbeddingVector = Field(default_factory=list, exclude=True)
     created_at: int = Field(
-        default_factory=lambda: int(datetime.now(UTC).timestamp())
+        default_factory=lambda: int(datetime.now(timezone.utc).timestamp())
     )
     updated_at: int = Field(
-        default_factory=lambda: int(datetime.now(UTC).timestamp())
+        default_factory=lambda: int(datetime.now(timezone.utc).timestamp())
     )
 
 
@@ -265,7 +262,7 @@ class AgentSuccessEvaluationResult(BaseModel):
     failure_reason: str | None = None
     evaluation_name: str | None = None
     created_at: int = Field(
-        default_factory=lambda: int(datetime.now(UTC).timestamp())
+        default_factory=lambda: int(datetime.now(timezone.utc).timestamp())
     )
     regular_vs_shadow: RegularVsShadow | None = None
     number_of_correction_per_session: int = 0
@@ -349,32 +346,10 @@ class DeleteRawFeedbackResponse(BaseModel):
     message: str = ""
 
 
-class BulkDeleteResponse(BaseModel):
-    success: bool
-    deleted_count: int = 0
-    message: str = ""
-
-
-class DeleteRequestsByIdsRequest(BaseModel):
-    request_ids: list[str] = Field(min_length=1)
-
-
-class DeleteProfilesByIdsRequest(BaseModel):
-    profile_ids: list[str] = Field(min_length=1)
-
-
-class DeleteFeedbacksByIdsRequest(BaseModel):
-    feedback_ids: list[int] = Field(min_length=1)
-
-
-class DeleteRawFeedbacksByIdsRequest(BaseModel):
-    raw_feedback_ids: list[int] = Field(min_length=1)
-
-
 # user provided interaction data from the request
 class InteractionData(BaseModel):
     created_at: int = Field(
-        default_factory=lambda: int(datetime.now(UTC).timestamp())
+        default_factory=lambda: int(datetime.now(timezone.utc).timestamp())
     )
     role: str = "User"
     content: str = ""
@@ -388,7 +363,17 @@ class InteractionData(BaseModel):
     @field_validator("interacted_image_url", mode="after")
     @classmethod
     def validate_image_url(cls, v: str) -> str:
-        return _validate_image_url(v)
+        """SSRF prevention: if URL is provided, must be safe http(s) or data URI."""
+        if not v:
+            return v  # empty string is allowed (no image)
+        parsed = urlparse(v)
+        if parsed.scheme not in ("http", "https", "data"):
+            raise ValueError(
+                f"Image URL scheme must be http, https, or data — got '{parsed.scheme}'"
+            )
+        if parsed.scheme in ("http", "https"):
+            _check_safe_url(v)
+        return v
 
 
 # publish user interaction request
@@ -482,7 +467,7 @@ class FeedbackAggregationChangeLog(BaseModel):
 
     id: int = 0
     created_at: int = Field(
-        default_factory=lambda: int(datetime.now(UTC).timestamp())
+        default_factory=lambda: int(datetime.now(timezone.utc).timestamp())
     )
     feedback_name: str
     agent_version: str

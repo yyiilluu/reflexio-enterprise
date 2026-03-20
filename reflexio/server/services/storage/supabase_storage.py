@@ -4,17 +4,14 @@ Storage class that uses Supabase as vector db for storing data
 
 import functools
 import logging
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
 from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 from reflexio_commons.api_schema.retriever_schema import (
-    SearchFeedbackRequest,
     SearchInteractionRequest,
-    SearchRawFeedbackRequest,
-    SearchSkillsRequest,
     SearchUserProfileRequest,
 )
 from reflexio_commons.api_schema.service_schemas import (
@@ -42,17 +39,13 @@ from reflexio_commons.config_schema import (
     APIKeyConfig,
     LLMConfig,
     SearchMode,
-    SearchOptions,
     StorageConfigSupabase,
 )
 
 from reflexio import data
 from reflexio.server.llm.litellm_client import LiteLLMClient, LiteLLMConfig
 from reflexio.server.services.storage.error import StorageError
-from reflexio.server.services.storage.storage_base import (
-    BaseStorage,
-    matches_status_filter,
-)
+from reflexio.server.services.storage.storage_base import BaseStorage
 from reflexio.server.services.storage.supabase_storage_utils import (
     agent_success_evaluation_result_to_data,
     execute_migration,
@@ -76,6 +69,12 @@ from reflexio.server.site_var.site_var_manager import SiteVarManager
 from supabase import Client, create_client
 
 logger = logging.getLogger(__name__)
+
+
+def _rows(data: Any) -> list[dict[str, Any]]:
+    """Narrow supabase response.data to the list-of-dicts it always is for table queries."""
+    return cast(list[dict[str, Any]], data)
+
 
 # Explicit column lists to avoid fetching embedding vectors (512-dim float, ~2KB each as JSON).
 # IMPORTANT: When adding a new column to any table, update the corresponding constant here.
@@ -146,7 +145,7 @@ def _build_status_or_condition(status_list: list[Status | None]) -> str | None:
 
 def _apply_status_filter_to_query(
     query: Any,
-    status_filter: Sequence[Status | None],
+    status_filter: list[Status | None],
 ) -> Any:
     """Apply status filter conditions to a Supabase query builder.
 
@@ -180,6 +179,30 @@ def _apply_status_filter_to_query(
         query = query.in_("status", status_strings)
 
     return query
+
+
+def _matches_status_filter(
+    item_status: Status | None,
+    status_filter: list[Status | None],
+) -> bool:
+    """Check whether an item's status matches a status filter list (Python-side filtering).
+
+    Args:
+        item_status (Status | None): The item's current status
+        status_filter (list[Status | None]): Allowed status values
+
+    Returns:
+        bool: True if the item passes the filter
+    """
+    has_none = None in status_filter
+    status_strings = [
+        s.value for s in status_filter if s is not None and hasattr(s, "value")
+    ]
+    if has_none and item_status is None:
+        return True
+    if item_status is not None and item_status.value in status_strings:
+        return True
+    return has_none and not status_strings and item_status is None
 
 
 def _parse_rpc_row_to_request(row: dict[str, Any]) -> Request:
@@ -312,17 +335,13 @@ class SupabaseStorage(BaseStorage):
             logger.exception(err_msg)
             raise StorageError(err_msg) from e
 
-        # Get site var for supabase settings (including search_mode, weights)
+        # Get site var for supabase settings (including search_mode)
         self.supabase_settings = SiteVarManager().get_site_var("supabase_settings")
         if isinstance(self.supabase_settings, dict):
             search_mode_str = self.supabase_settings.get("search_mode", "hybrid")
             self.search_mode = SearchMode(search_mode_str)
-            self.vector_weight = float(self.supabase_settings.get("vector_weight", 1.0))
-            self.fts_weight = float(self.supabase_settings.get("fts_weight", 1.0))
         else:
             self.search_mode = SearchMode.HYBRID
-            self.vector_weight = 1.0
-            self.fts_weight = 1.0
 
         # Get site var as fallback for model settings
         self.model_setting = SiteVarManager().get_site_var("llm_model_setting")
@@ -375,11 +394,7 @@ class SupabaseStorage(BaseStorage):
             logger.error("Supabase Storage failed to migrate: no valid Supabase DB URL")
             return False
         supabase_migrate_folder = str(
-            Path(data.__file__).parent.parent.parent
-            / "supabase"
-            / "data"
-            / "supabase"
-            / "migrations"
+            Path(data.__file__).parent.parent.parent / "supabase" / "data" / "migrations"
         )
         logger.info(
             "Supabase Storage for org %s try to migrate from %s",
@@ -411,7 +426,7 @@ class SupabaseStorage(BaseStorage):
     def get_all_profiles(
         self,
         limit: int = 100,
-        status_filter: Sequence[Status | None] | None = None,
+        status_filter: list[Status | None] | None = None,
     ) -> list[UserProfile]:
         if status_filter is None:
             status_filter = [None]  # Default to current profiles (status=None)
@@ -444,7 +459,7 @@ class SupabaseStorage(BaseStorage):
         response = (
             query.order("last_modified_timestamp", desc=True).limit(limit).execute()
         )
-        return response_list_to_user_profiles(response.data)
+        return response_list_to_user_profiles(_rows(response.data))
 
     @handle_exceptions
     def get_all_interactions(self, limit: int = 100) -> list[Interaction]:
@@ -455,13 +470,13 @@ class SupabaseStorage(BaseStorage):
             .limit(limit)
             .execute()
         )
-        return response_list_to_interactions(response.data)
+        return response_list_to_interactions(_rows(response.data))
 
     @handle_exceptions
     def get_user_profile(
         self,
         user_id: str,
-        status_filter: Sequence[Status | None] | None = None,
+        status_filter: list[Status | None] | None = None,
     ) -> list[UserProfile]:
         if status_filter is None:
             status_filter = [None]  # Default to current profiles (status=None)
@@ -497,7 +512,7 @@ class SupabaseStorage(BaseStorage):
             query = query.in_("status", status_strings)
 
         response = query.execute()
-        return response_list_to_user_profiles(response.data)
+        return response_list_to_user_profiles(_rows(response.data))
 
     @handle_exceptions
     def get_user_interaction(self, user_id: str) -> list[Interaction]:
@@ -507,7 +522,7 @@ class SupabaseStorage(BaseStorage):
             .eq("user_id", user_id)
             .execute()
         )
-        return response_list_to_interactions(response.data)
+        return response_list_to_interactions(_rows(response.data))
 
     @handle_exceptions
     def add_user_profile(self, user_id: str, user_profiles: list[UserProfile]) -> None:  # noqa: ARG002
@@ -597,7 +612,7 @@ class SupabaseStorage(BaseStorage):
             .execute()
         )
 
-        if not response.data:
+        if not _rows(response.data):
             logger.warning("User profile not found for user id: %s", user_id)
             return
 
@@ -665,10 +680,10 @@ class SupabaseStorage(BaseStorage):
             .limit(count)
             .execute()
         )
-        if not result.data:
+        if not _rows(result.data):
             return 0
 
-        ids_to_delete = [row["interaction_id"] for row in result.data]
+        ids_to_delete = [row["interaction_id"] for row in _rows(result.data)]
         self.client.table("interactions").delete().in_(
             "interaction_id", ids_to_delete
         ).execute()
@@ -679,7 +694,7 @@ class SupabaseStorage(BaseStorage):
         self,
         old_status: Status | None,
         new_status: Status | None,
-        user_ids: Sequence[str] | None = None,
+        user_ids: list[str] | None = None,
     ) -> int:
         """
         Update all profiles with old_status to new_status atomically.
@@ -718,7 +733,7 @@ class SupabaseStorage(BaseStorage):
         response = query.execute()
 
         # Count the number of rows updated
-        updated_count = len(response.data) if response.data else 0
+        updated_count = len(_rows(response.data)) if response.data else 0
         logger.info(
             "Updated %s profiles from %s to %s",
             updated_count,
@@ -745,7 +760,7 @@ class SupabaseStorage(BaseStorage):
         response = query.execute()
 
         # Count the number of rows deleted
-        deleted_count = len(response.data) if response.data else 0
+        deleted_count = len(_rows(response.data)) if response.data else 0
         logger.info("Deleted %s profiles with status %s", deleted_count, status)
         return deleted_count
 
@@ -774,7 +789,7 @@ class SupabaseStorage(BaseStorage):
         response = query.execute()
 
         # Extract unique user_ids
-        return list({row["user_id"] for row in response.data}) if response.data else []
+        return list({row["user_id"] for row in _rows(response.data)}) if response.data else []
 
     # ==============================
     # Request methods
@@ -808,10 +823,10 @@ class SupabaseStorage(BaseStorage):
             .execute()
         )
 
-        if not response.data:
+        if not _rows(response.data):
             return None
 
-        return response_to_request(response.data[0])
+        return response_to_request(_rows(response.data)[0])
 
     @handle_exceptions
     def delete_request(self, request_id: str) -> None:
@@ -847,10 +862,10 @@ class SupabaseStorage(BaseStorage):
             .execute()
         )
 
-        if not response.data:
+        if not _rows(response.data):
             return 0
 
-        request_ids = [r["request_id"] for r in response.data]
+        request_ids = [r["request_id"] for r in _rows(response.data)]
         request_count = len(request_ids)
 
         # Delete all interactions for all requests in this session
@@ -877,37 +892,6 @@ class SupabaseStorage(BaseStorage):
         ).execute()
 
     @handle_exceptions
-    def delete_requests_by_ids(self, request_ids: Sequence[str]) -> int:
-        """Delete requests and their associated interactions by request IDs."""
-        if not request_ids:
-            return 0
-        # First delete all interactions for these requests
-        self.client.table("interactions").delete().in_(
-            "request_id", request_ids
-        ).execute()
-        # Then delete the requests
-        response = (
-            self.client.table("requests")
-            .delete()
-            .in_("request_id", request_ids)
-            .execute()
-        )
-        return len(response.data)
-
-    @handle_exceptions
-    def delete_profiles_by_ids(self, profile_ids: Sequence[str]) -> int:
-        """Delete profiles by their IDs."""
-        if not profile_ids:
-            return 0
-        response = (
-            self.client.table("user_profiles")
-            .delete()
-            .in_("profile_id", profile_ids)
-            .execute()
-        )
-        return len(response.data)
-
-    @handle_exceptions
     def get_requests_by_session(self, user_id: str, session_id: str) -> list[Request]:
         """
         Get all requests for a specific session.
@@ -927,10 +911,10 @@ class SupabaseStorage(BaseStorage):
             .execute()
         )
 
-        if not response.data:
+        if not _rows(response.data):
             return []
 
-        return [response_to_request(item) for item in response.data]
+        return [response_to_request(item) for item in _rows(response.data)]
 
     @handle_exceptions
     def get_sessions(
@@ -979,7 +963,9 @@ class SupabaseStorage(BaseStorage):
         if session_id:
             query = query.eq("session_id", session_id)
         if start_time:
-            start_time_iso = datetime.fromtimestamp(start_time, tz=UTC).isoformat()
+            start_time_iso = datetime.fromtimestamp(
+                start_time, tz=UTC
+            ).isoformat()
             query = query.gte("created_at", start_time_iso)
         if end_time:
             end_time_iso = datetime.fromtimestamp(end_time, tz=UTC).isoformat()
@@ -993,12 +979,12 @@ class SupabaseStorage(BaseStorage):
 
         response = query.execute()
 
-        if not response.data:
+        if not _rows(response.data):
             return {}
 
         # Parse and group the results
         grouped_results = {}
-        for item in response.data:
+        for item in _rows(response.data):
             # Parse request
             req = response_to_request(item)
 
@@ -1073,10 +1059,14 @@ class SupabaseStorage(BaseStorage):
             if user_id:
                 query = query.eq("user_id", user_id)
             if start_time:
-                start_time_iso = datetime.fromtimestamp(start_time, tz=UTC).isoformat()
+                start_time_iso = datetime.fromtimestamp(
+                    start_time, tz=UTC
+                ).isoformat()
                 query = query.gte("created_at", start_time_iso)
             if end_time:
-                end_time_iso = datetime.fromtimestamp(end_time, tz=UTC).isoformat()
+                end_time_iso = datetime.fromtimestamp(
+                    end_time, tz=UTC
+                ).isoformat()
                 query = query.lte("created_at", end_time_iso)
             if source:
                 query = query.eq("source", source)
@@ -1084,7 +1074,7 @@ class SupabaseStorage(BaseStorage):
                 query = query.eq("agent_version", agent_version)
 
             response = query.execute()
-            rows = response.data or []
+            rows = _rows(response.data) if response.data else []
 
             if not rows:
                 break
@@ -1118,7 +1108,7 @@ class SupabaseStorage(BaseStorage):
             .limit(limit)
             .execute()
         )
-        return response_list_to_profile_change_logs(response.data)
+        return response_list_to_profile_change_logs(_rows(response.data))
 
     @handle_exceptions
     def delete_profile_change_log_for_user(self, user_id: str) -> None:
@@ -1157,7 +1147,7 @@ class SupabaseStorage(BaseStorage):
             .limit(limit)
             .execute()
         )
-        return response_list_to_feedback_aggregation_change_logs(response.data)
+        return response_list_to_feedback_aggregation_change_logs(_rows(response.data))
 
     @handle_exceptions
     def delete_all_feedback_aggregation_change_logs(self) -> None:
@@ -1171,15 +1161,12 @@ class SupabaseStorage(BaseStorage):
 
     @handle_exceptions
     def search_interaction(
-        self,
-        search_interaction_request: SearchInteractionRequest,
-        options: SearchOptions | None = None,  # noqa: ARG002
+        self, search_interaction_request: SearchInteractionRequest
     ) -> list[Interaction]:
         # Perform hybrid search (vector + FTS)
         if not search_interaction_request.query:
             return []
 
-        effective_mode = search_interaction_request.search_mode or self.search_mode
         query_text = search_interaction_request.query
         response = self.client.rpc(
             "hybrid_match_interactions",
@@ -1188,14 +1175,12 @@ class SupabaseStorage(BaseStorage):
                 "p_query_text": query_text,
                 "p_match_threshold": 0.1,
                 "p_match_count": search_interaction_request.most_recent_k or 10,
-                "p_search_mode": effective_mode.value,
+                "p_search_mode": self.search_mode.value,
                 "p_rrf_k": 60,
-                "p_vector_weight": self.vector_weight,
-                "p_fts_weight": self.fts_weight,
             },
         ).execute()
 
-        data = cast(list[dict[str, Any]], response.data)
+        data = _rows(response.data)
         interactions = response_list_to_interactions(data)
 
         if search_interaction_request.most_recent_k:
@@ -1213,8 +1198,8 @@ class SupabaseStorage(BaseStorage):
     def search_user_profile(
         self,
         search_user_profile_request: SearchUserProfileRequest,
-        status_filter: Sequence[Status | None] | None = None,
-        options: SearchOptions | None = None,
+        status_filter: list[Status | None] | None = None,
+        query_embedding: list[float] | None = None,
     ) -> list[UserProfile]:
         if status_filter is None:
             status_filter = [None]  # Default to current profiles (status=None)
@@ -1224,9 +1209,7 @@ class SupabaseStorage(BaseStorage):
         if not search_user_profile_request.query:
             return []
 
-        effective_mode = search_user_profile_request.search_mode or self.search_mode
         query_text = search_user_profile_request.query
-        query_embedding = options.query_embedding if options else None
         response = self.client.rpc(
             "hybrid_match_profiles",
             {
@@ -1236,15 +1219,13 @@ class SupabaseStorage(BaseStorage):
                 "p_match_count": search_user_profile_request.top_k or 10,
                 "p_current_epoch": current_timestamp,
                 "p_filter_user_id": search_user_profile_request.user_id,
-                "p_search_mode": effective_mode.value,
+                "p_search_mode": self.search_mode.value,
                 "p_rrf_k": 60,
                 "p_filter_extractor_name": search_user_profile_request.extractor_name,
-                "p_vector_weight": self.vector_weight,
-                "p_fts_weight": self.fts_weight,
             },
         ).execute()
 
-        data = cast(list[dict[str, Any]], response.data)
+        data = _rows(response.data)
         profiles = response_list_to_user_profiles(data)
         filtered_profiles = []
         for profile in profiles:
@@ -1305,33 +1286,38 @@ class SupabaseStorage(BaseStorage):
     @handle_exceptions
     def search_raw_feedbacks(  # noqa: C901
         self,
-        request: SearchRawFeedbackRequest,
-        options: SearchOptions | None = None,
+        query: str | None = None,
+        user_id: str | None = None,
+        agent_version: str | None = None,
+        feedback_name: str | None = None,
+        start_time: int | None = None,
+        end_time: int | None = None,
+        status_filter: list[Status | None] | None = None,
+        match_threshold: float = 0.5,
+        match_count: int = 10,
+        query_embedding: list[float] | None = None,
     ) -> list[RawFeedback]:
         """
         Search raw feedbacks with advanced filtering including semantic search.
 
         Args:
-            request (SearchRawFeedbackRequest): Search request with query, filters, and search_mode
-            options (SearchOptions, optional): Engine-level options (e.g., pre-computed embedding)
+            query (str, optional): Text query for semantic/text search
+            user_id (str, optional): Filter by user (resolved via request_id -> requests table linkage)
+            agent_version (str, optional): Filter by agent version
+            feedback_name (str, optional): Filter by feedback name
+            start_time (int, optional): Start timestamp (Unix) for created_at filter
+            end_time (int, optional): End timestamp (Unix) for created_at filter
+            status_filter (list[Optional[Status]], optional): List of status values to filter by
+            match_threshold (float): Minimum similarity threshold (0.0 to 1.0)
+            match_count (int): Maximum number of results to return
+            query_embedding (list[float], optional): Pre-computed query embedding. When provided, skips internal embedding generation.
 
         Returns:
             list[RawFeedback]: List of matching raw feedback objects
         """
-        query = request.query
-        user_id = request.user_id
-        agent_version = request.agent_version
-        feedback_name = request.feedback_name
-        start_time = int(request.start_time.timestamp()) if request.start_time else None
-        end_time = int(request.end_time.timestamp()) if request.end_time else None
-        status_filter = request.status_filter
-        match_threshold = request.threshold or 0.5
-        match_count = request.top_k or 10
-        query_embedding = options.query_embedding if options else None
 
         # If query is provided, use hybrid search first (filters applied in Python)
         if query:
-            effective_mode = request.search_mode or self.search_mode
             response = self.client.rpc(
                 "hybrid_match_raw_feedbacks",
                 {
@@ -1341,13 +1327,11 @@ class SupabaseStorage(BaseStorage):
                     "p_match_count": match_count
                     * 10,  # Get more results to allow for filtering
                     "p_filter_user_id": user_id,
-                    "p_search_mode": effective_mode.value,
+                    "p_search_mode": self.search_mode.value,
                     "p_rrf_k": 60,
-                    "p_vector_weight": self.vector_weight,
-                    "p_fts_weight": self.fts_weight,
                 },
             ).execute()
-            data = cast(list[dict[str, Any]], response.data)
+            data = _rows(response.data)
             raw_feedbacks = [
                 RawFeedback(
                     raw_feedback_id=item["raw_feedback_id"],
@@ -1380,7 +1364,7 @@ class SupabaseStorage(BaseStorage):
                     continue
                 if end_time and rf.created_at > end_time:
                     continue
-                if status_filter is not None and not matches_status_filter(
+                if status_filter is not None and not _matches_status_filter(
                     rf.status, status_filter
                 ):
                     continue
@@ -1397,7 +1381,7 @@ class SupabaseStorage(BaseStorage):
                 .eq("user_id", user_id)
                 .execute()
             )
-            request_ids_for_user = [r["request_id"] for r in requests_response.data]
+            request_ids_for_user = [r["request_id"] for r in _rows(requests_response.data)]
             if not request_ids_for_user:
                 return []
 
@@ -1443,39 +1427,43 @@ class SupabaseStorage(BaseStorage):
                 source_interaction_ids=item.get("source_interaction_ids") or [],
                 embedding=[],
             )
-            for item in response.data
+            for item in _rows(response.data)
         ]
 
     @handle_exceptions
     def search_feedbacks(  # noqa: C901
         self,
-        request: SearchFeedbackRequest,
-        options: SearchOptions | None = None,
+        query: str | None = None,
+        agent_version: str | None = None,
+        feedback_name: str | None = None,
+        start_time: int | None = None,
+        end_time: int | None = None,
+        status_filter: list[Status | None] | None = None,
+        feedback_status_filter: FeedbackStatus | None = None,
+        match_threshold: float = 0.5,
+        match_count: int = 10,
+        query_embedding: list[float] | None = None,
     ) -> list[Feedback]:
         """
         Search aggregated feedbacks with advanced filtering including semantic search.
 
         Args:
-            request (SearchFeedbackRequest): Search request with query, filters, and search_mode
-            options (SearchOptions, optional): Engine-level options (e.g., pre-computed embedding)
+            query (str, optional): Text query for semantic/text search
+            agent_version (str, optional): Filter by agent version
+            feedback_name (str, optional): Filter by feedback name
+            start_time (int, optional): Start timestamp (Unix) for created_at filter
+            end_time (int, optional): End timestamp (Unix) for created_at filter
+            status_filter (list[Optional[Status]], optional): List of Status values to filter by
+            feedback_status_filter (FeedbackStatus, optional): Filter by FeedbackStatus (PENDING/APPROVED/REJECTED)
+            match_threshold (float): Minimum similarity threshold (0.0 to 1.0)
+            match_count (int): Maximum number of results to return
 
         Returns:
             list[Feedback]: List of matching feedback objects
         """
-        query = request.query
-        agent_version = request.agent_version
-        feedback_name = request.feedback_name
-        start_time = int(request.start_time.timestamp()) if request.start_time else None
-        end_time = int(request.end_time.timestamp()) if request.end_time else None
-        status_filter = request.status_filter
-        feedback_status_filter = request.feedback_status_filter
-        match_threshold = request.threshold or 0.5
-        match_count = request.top_k or 10
-        query_embedding = options.query_embedding if options else None
 
         # If query is provided, use hybrid search first (filters applied in Python)
         if query:
-            effective_mode = request.search_mode or self.search_mode
             response = self.client.rpc(
                 "hybrid_match_feedbacks",
                 {
@@ -1484,13 +1472,11 @@ class SupabaseStorage(BaseStorage):
                     "p_match_threshold": match_threshold,
                     "p_match_count": match_count
                     * 10,  # Get more results to allow for filtering
-                    "p_search_mode": effective_mode.value,
+                    "p_search_mode": self.search_mode.value,
                     "p_rrf_k": 60,
-                    "p_vector_weight": self.vector_weight,
-                    "p_fts_weight": self.fts_weight,
                 },
             ).execute()
-            data = cast(list[dict[str, Any]], response.data)
+            data = _rows(response.data)
             feedbacks = [
                 Feedback(
                     feedback_id=item["feedback_id"],
@@ -1526,7 +1512,7 @@ class SupabaseStorage(BaseStorage):
                     and f.feedback_status != feedback_status_filter.value
                 ):
                     continue
-                if status_filter is not None and not matches_status_filter(
+                if status_filter is not None and not _matches_status_filter(
                     f.status, status_filter
                 ):
                     continue
@@ -1574,7 +1560,7 @@ class SupabaseStorage(BaseStorage):
                 embedding=[],
                 status=Status(item["status"]) if item.get("status") else None,
             )
-            for item in response.data
+            for item in _rows(response.data)
         ]
 
     # ==============================
@@ -1628,7 +1614,7 @@ class SupabaseStorage(BaseStorage):
                 .execute()
             )
             if response.data and isinstance(response.data, list):
-                row = cast(dict[str, Any], response.data[0])
+                row = _rows(response.data)[0]
                 feedback.feedback_id = row.get("feedback_id", feedback.feedback_id)
             saved_feedbacks.append(feedback)
         return saved_feedbacks
@@ -1640,7 +1626,7 @@ class SupabaseStorage(BaseStorage):
         user_id: str | None = None,
         feedback_name: str | None = None,
         agent_version: str | None = None,
-        status_filter: Sequence[Status | None] | None = None,
+        status_filter: list[Status | None] | None = None,
         start_time: int | None = None,
         end_time: int | None = None,
         include_embedding: bool = False,
@@ -1689,7 +1675,9 @@ class SupabaseStorage(BaseStorage):
 
         # Add time range filters if specified
         if start_time is not None:
-            start_time_iso = datetime.fromtimestamp(start_time, tz=UTC).isoformat()
+            start_time_iso = datetime.fromtimestamp(
+                start_time, tz=UTC
+            ).isoformat()
             query = query.gte("created_at", start_time_iso)
         if end_time is not None:
             end_time_iso = datetime.fromtimestamp(end_time, tz=UTC).isoformat()
@@ -1722,7 +1710,7 @@ class SupabaseStorage(BaseStorage):
                     else []
                 ),
             )
-            for item in response.data
+            for item in _rows(response.data)
         ]
 
     @handle_exceptions
@@ -1732,7 +1720,7 @@ class SupabaseStorage(BaseStorage):
         feedback_name: str | None = None,
         min_raw_feedback_id: int | None = None,
         agent_version: str | None = None,
-        status_filter: Sequence[Status | None] | None = None,
+        status_filter: list[Status | None] | None = None,
     ) -> int:
         """
         Count raw feedbacks in storage efficiently using SQL COUNT.
@@ -1796,10 +1784,10 @@ class SupabaseStorage(BaseStorage):
             .execute()
         )
 
-        if not requests_response.data:
+        if not _rows(requests_response.data):
             return 0
 
-        request_ids = [r["request_id"] for r in requests_response.data]
+        request_ids = [r["request_id"] for r in _rows(requests_response.data)]
 
         # Count raw_feedbacks with those request_ids
         count_response = (
@@ -1816,7 +1804,7 @@ class SupabaseStorage(BaseStorage):
         self,
         limit: int = 100,
         feedback_name: str | None = None,
-        status_filter: Sequence[Status | None] | None = None,
+        status_filter: list[Status | None] | None = None,
         feedback_status_filter: list[FeedbackStatus] | None = None,
     ) -> list[Feedback]:
         """
@@ -1884,7 +1872,7 @@ class SupabaseStorage(BaseStorage):
                 embedding=[],
                 status=item.get("status"),
             )
-            for item in response.data
+            for item in _rows(response.data)
         ]
 
     @handle_exceptions
@@ -1981,7 +1969,7 @@ class SupabaseStorage(BaseStorage):
             .execute()
         )
 
-        if not response.data:
+        if not _rows(response.data):
             raise ValueError(f"Feedback with ID {feedback_id} not found")
 
         # Update the feedback status
@@ -2093,7 +2081,7 @@ class SupabaseStorage(BaseStorage):
         ).eq("status", "archived").execute()
 
     @handle_exceptions
-    def delete_feedbacks_by_ids(self, feedback_ids: Sequence[int]) -> None:
+    def delete_feedbacks_by_ids(self, feedback_ids: list[int]) -> None:
         """
         Permanently delete feedbacks by their IDs.
         No-op if feedback_ids is empty.
@@ -2152,7 +2140,7 @@ class SupabaseStorage(BaseStorage):
         response = query.execute()
 
         # Count the number of rows updated
-        updated_count = len(response.data) if response.data else 0
+        updated_count = len(_rows(response.data)) if response.data else 0
         logger.info(
             "Updated %s raw feedbacks from %s to %s",
             updated_count,
@@ -2192,12 +2180,12 @@ class SupabaseStorage(BaseStorage):
         response = query.execute()
 
         # Count the number of rows deleted
-        deleted_count = len(response.data) if response.data else 0
+        deleted_count = len(_rows(response.data)) if response.data else 0
         logger.info("Deleted %s raw feedbacks with status %s", deleted_count, status)
         return deleted_count
 
     @handle_exceptions
-    def delete_raw_feedbacks_by_ids(self, raw_feedback_ids: Sequence[int]) -> int:
+    def delete_raw_feedbacks_by_ids(self, raw_feedback_ids: list[int]) -> int:
         """
         Delete raw feedbacks by their IDs.
 
@@ -2215,7 +2203,7 @@ class SupabaseStorage(BaseStorage):
             .in_("raw_feedback_id", raw_feedback_ids)
             .execute()
         )
-        return len(response.data)
+        return len(_rows(response.data))
 
     @handle_exceptions
     def has_raw_feedbacks_with_status(
@@ -2393,7 +2381,7 @@ class SupabaseStorage(BaseStorage):
                 is_escalated=item.get("is_escalated", False) or False,
                 embedding=[],
             )
-            for item in response.data
+            for item in _rows(response.data)
         ]
 
     @handle_exceptions
@@ -2492,14 +2480,15 @@ class SupabaseStorage(BaseStorage):
             list[dict[str, Any]]: Raw data rows from the query
         """
         select_cols = f"{time_col}, {extra_cols}" if extra_cols else time_col
-        return (
+        return _rows(
             self.client.table(table)
             .select(select_cols)
             .gte(time_col, start)
             .lte(time_col, end)
             .order(time_col)
             .execute()
-        ).data
+            .data
+        )
 
     @handle_exceptions
     def get_dashboard_stats(self, days_back: int = 30) -> dict:
@@ -2584,20 +2573,22 @@ class SupabaseStorage(BaseStorage):
         }
 
         # Evaluation success rates
-        eval_current_data = (
+        eval_current_data = _rows(
             self.client.table("agent_success_evaluation_result")
             .select("is_success")
             .gte("created_at", current_period_start_iso)
             .lte("created_at", current_time_iso)
             .execute()
-        ).data
-        eval_previous_data = (
+            .data
+        )
+        eval_previous_data = _rows(
             self.client.table("agent_success_evaluation_result")
             .select("is_success")
             .gte("created_at", previous_period_start_iso)
             .lt("created_at", current_period_start_iso)
             .execute()
-        ).data
+            .data
+        )
 
         current_stats["success_rate"] = _calculate_success_rate(eval_current_data)
         previous_stats["success_rate"] = _calculate_success_rate(eval_previous_data)
@@ -2772,11 +2763,11 @@ class SupabaseStorage(BaseStorage):
             .execute()
         )
 
-        if response.data:
+        if _rows(response.data):
             return {
-                "service_name": response.data[0]["service_name"],
-                "operation_state": response.data[0]["operation_state"],
-                "updated_at": response.data[0]["updated_at"],
+                "service_name": _rows(response.data)[0]["service_name"],
+                "operation_state": _rows(response.data)[0]["operation_state"],
+                "updated_at": _rows(response.data)[0]["updated_at"],
             }
         return None
 
@@ -2811,7 +2802,7 @@ class SupabaseStorage(BaseStorage):
         ).execute()
 
         if response.data and isinstance(response.data, dict):
-            return response.data
+            return cast(dict[str, Any], response.data)
         return {"acquired": False, "state": {}}
 
     @handle_exceptions
@@ -2867,7 +2858,7 @@ class SupabaseStorage(BaseStorage):
         # Group results by request_id
         requests_map: dict[str, Request] = {}
         interactions_by_request: dict[str, list[Interaction]] = {}
-        data = cast(list[dict[str, Any]], response.data)
+        data = _rows(response.data)
 
         for row in data:
             req_id = row["request_id"]
@@ -2953,7 +2944,7 @@ class SupabaseStorage(BaseStorage):
         flat_interactions: list[Interaction] = []
         requests_map: dict[str, Request] = {}
         interactions_by_request: dict[str, list[Interaction]] = {}
-        data = cast(list[dict[str, Any]], response.data)
+        data = _rows(response.data)
 
         for row in data:
             req_id = row["request_id"]
@@ -3021,7 +3012,7 @@ class SupabaseStorage(BaseStorage):
             .select(_OPERATION_STATE_COLUMNS)
             .execute()
         )
-        data = cast(list[dict[str, Any]], response.data)
+        data = _rows(response.data)
         return [
             {
                 "service_name": item["service_name"],
@@ -3080,7 +3071,7 @@ class SupabaseStorage(BaseStorage):
         }
 
         # Count profiles by status
-        for profile_data in response.data:
+        for profile_data in _rows(response.data):
             status = profile_data.get("status")
             expiration_timestamp = profile_data.get("expiration_timestamp")
 
@@ -3167,34 +3158,34 @@ class SupabaseStorage(BaseStorage):
             db_query = db_query.eq("skill_status", skill_status.value)
 
         response = db_query.execute()
-        return [response_to_skill(item) for item in response.data]
+        return [response_to_skill(item) for item in _rows(response.data)]
 
     @handle_exceptions
     def search_skills(
         self,
-        request: SearchSkillsRequest,
-        options: SearchOptions | None = None,
+        query: str | None = None,
+        feedback_name: str | None = None,
+        agent_version: str | None = None,
+        skill_status: SkillStatus | None = None,
+        match_threshold: float = 0.5,
+        match_count: int = 10,
+        query_embedding: list[float] | None = None,
     ) -> list[Skill]:
         """
         Search skills with hybrid search (vector + FTS).
 
         Args:
-            request (SearchSkillsRequest): Search request with query, filters, and search_mode
-            options (SearchOptions, optional): Engine-level options (e.g., pre-computed embedding)
+            query (str, optional): Text query for semantic/text search
+            feedback_name (str, optional): Filter by feedback name
+            agent_version (str, optional): Filter by agent version
+            skill_status (SkillStatus, optional): Filter by skill status
+            match_threshold (float): Minimum similarity threshold
+            match_count (int): Maximum number of results to return
 
         Returns:
             list[Skill]: List of matching skill objects
         """
-        query = request.query
-        feedback_name = request.feedback_name
-        agent_version = request.agent_version
-        skill_status = request.skill_status
-        match_threshold = request.threshold or 0.5
-        match_count = request.top_k or 10
-        query_embedding = options.query_embedding if options else None
-
         if query:
-            effective_mode = request.search_mode or self.search_mode
             response = self.client.rpc(
                 "hybrid_match_skills",
                 {
@@ -3203,14 +3194,12 @@ class SupabaseStorage(BaseStorage):
                     "p_match_threshold": match_threshold,
                     "p_match_count": match_count * 10,
                     "p_org_id": self.org_id,
-                    "p_search_mode": effective_mode.value,
+                    "p_search_mode": self.search_mode.value,
                     "p_rrf_k": 60,
-                    "p_vector_weight": self.vector_weight,
-                    "p_fts_weight": self.fts_weight,
                 },
             ).execute()
 
-            data = cast(list[dict[str, Any]], response.data)
+            data = _rows(response.data)
             skills = [response_to_skill(item) for item in data]
 
             # Apply Python-level filters
@@ -3286,4 +3275,4 @@ class SupabaseStorage(BaseStorage):
             .order("created_at", desc=False)
             .execute()
         )
-        return [response_to_interaction(item) for item in response.data]
+        return [response_to_interaction(item) for item in _rows(response.data)]

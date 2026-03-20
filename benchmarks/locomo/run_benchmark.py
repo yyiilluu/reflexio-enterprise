@@ -30,7 +30,6 @@ def _find_env_file() -> Path | None:
 load_dotenv(dotenv_path=_find_env_file())
 
 from benchmarks.locomo.config import (
-    DEFAULT_JUDGE_MODEL,
     DEFAULT_MODEL,
     DEFAULT_REFLEXIO_URL,
     NON_REFLEXIO_STRATEGIES,
@@ -141,22 +140,6 @@ def _parse_args() -> argparse.Namespace:
         help="Max number of samples to use (first N; for quick testing)",
     )
     parser.add_argument(
-        "--runs",
-        type=int,
-        default=1,
-        help="Number of evaluation runs for statistical averaging (default: 1)",
-    )
-    parser.add_argument(
-        "--judge-model",
-        default=DEFAULT_JUDGE_MODEL,
-        help=f"LiteLLM model for LLM-as-Judge scoring (default: {DEFAULT_JUDGE_MODEL})",
-    )
-    parser.add_argument(
-        "--skip-judge",
-        action="store_true",
-        help="Skip LLM-as-Judge evaluation (faster, F1 only)",
-    )
-    parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
@@ -216,59 +199,29 @@ def main() -> None:
     # Ingestion
     if not args.skip_ingest and needs_reflexio:
         logger.info("=== Ingestion Phase ===")
-        enable_feedbacks = "reflexio_enhanced" in strategies
         ingest_all(
             samples=samples,
             reflexio_url=args.reflexio_url,
             reflexio_api_key=reflexio_api_key,
             max_workers=args.ingest_workers,
-            enable_feedbacks=enable_feedbacks,
         )
     elif needs_reflexio:
         logger.info("Skipping ingestion (--skip-ingest)")
 
-    # Evaluation (single or multi-run)
-    num_runs = args.runs
-    output_dir = Path(args.output_dir)
+    # Evaluation
+    logger.info("=== Evaluation Phase ===")
+    results = evaluate(
+        samples=samples,
+        strategies=strategies,
+        model=args.model,
+        reflexio_url=args.reflexio_url,
+        reflexio_api_key=reflexio_api_key,
+        output_dir=args.output_dir,
+    )
 
-    if num_runs <= 1:
-        logger.info("=== Evaluation Phase ===")
-        results = evaluate(
-            samples=samples,
-            strategies=strategies,
-            model=args.model,
-            reflexio_url=args.reflexio_url,
-            reflexio_api_key=reflexio_api_key,
-            output_dir=str(output_dir),
-            judge_model=args.judge_model,
-            skip_judge=args.skip_judge,
-        )
-        logger.info("=== Report ===")
-        save_report(results, str(output_dir))
-    else:
-        from benchmarks.locomo.report import aggregate, save_multi_run_report
-
-        all_run_aggs = []
-        for run_idx in range(num_runs):
-            run_dir = output_dir / f"run_{run_idx}"
-            logger.info("=== Run %d/%d ===", run_idx + 1, num_runs)
-            results = evaluate(
-                samples=samples,
-                strategies=strategies,
-                model=args.model,
-                reflexio_url=args.reflexio_url,
-                reflexio_api_key=reflexio_api_key,
-                output_dir=str(run_dir),
-                judge_model=args.judge_model,
-                skip_judge=args.skip_judge,
-            )
-            agg = aggregate(results)
-            all_run_aggs.append(agg)
-            save_report(results, str(run_dir))
-            logger.info("Run %d report saved to %s/", run_idx + 1, run_dir)
-
-        logger.info("=== Multi-Run Aggregated Report ===")
-        save_multi_run_report(all_run_aggs, str(output_dir))
+    # Report
+    logger.info("=== Report ===")
+    save_report(results, args.output_dir)
 
 
 if __name__ == "__main__":

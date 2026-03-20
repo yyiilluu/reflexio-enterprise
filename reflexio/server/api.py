@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import os
-from collections.abc import Iterable
 from typing import Annotated, Any
 
 from fastapi import (
@@ -74,19 +73,14 @@ from reflexio_commons.api_schema.service_schemas import (
     AddFeedbackResponse,
     AddRawFeedbackRequest,
     AddRawFeedbackResponse,
-    BulkDeleteResponse,
     CancelOperationRequest,
     CancelOperationResponse,
     DeleteFeedbackRequest,
     DeleteFeedbackResponse,
-    DeleteFeedbacksByIdsRequest,
-    DeleteProfilesByIdsRequest,
     DeleteRawFeedbackRequest,
     DeleteRawFeedbackResponse,
-    DeleteRawFeedbacksByIdsRequest,
     DeleteRequestRequest,
     DeleteRequestResponse,
-    DeleteRequestsByIdsRequest,
     DeleteSessionRequest,
     DeleteSessionResponse,
     DeleteSkillRequest,
@@ -177,14 +171,6 @@ from reflexio.server.site_var.feature_flags import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-def _strip_embeddings(*collections: Iterable) -> None:
-    """Remove embedding vectors from response objects before sending to client."""
-    for collection in collections:
-        for item in collection:
-            item.embedding = []
-
 
 # Bot protection configuration
 REQUEST_TIMEOUT_SECONDS = 60
@@ -277,7 +263,7 @@ class TimeoutMiddleware(BaseHTTPMiddleware):
 
         try:
             return await asyncio.wait_for(call_next(request), timeout=timeout)
-        except TimeoutError:
+        except asyncio.TimeoutError:
             return JSONResponse(
                 status_code=status.HTTP_504_GATEWAY_TIMEOUT,
                 content={"detail": "Request timeout"},
@@ -1213,7 +1199,9 @@ def search_raw_feedbacks_endpoint(
         SearchRawFeedbackResponse: Response containing matching raw feedbacks
     """
     response = retriever_api.search_raw_feedbacks(org_id=org_id, request=payload)
-    _strip_embeddings(response.raw_feedbacks)
+    # Filter out embedding fields
+    for raw_feedback in response.raw_feedbacks:
+        raw_feedback.embedding = []
     return response
 
 
@@ -1242,7 +1230,9 @@ def search_feedbacks_endpoint(
         SearchFeedbackResponse: Response containing matching feedbacks
     """
     response = retriever_api.search_feedbacks(org_id=org_id, request=payload)
-    _strip_embeddings(response.feedbacks)
+    # Filter out embedding fields
+    for feedback in response.feedbacks:
+        feedback.embedding = []
     return response
 
 
@@ -1273,7 +1263,13 @@ def unified_search_endpoint(
         UnifiedSearchResponse: Combined search results
     """
     response = retriever_api.unified_search(org_id=org_id, request=payload)
-    _strip_embeddings(response.profiles, response.feedbacks, response.raw_feedbacks)
+    # Filter out embedding fields
+    for profile in response.profiles:
+        profile.embedding = []
+    for feedback in response.feedbacks:
+        feedback.embedding = []
+    for raw_feedback in response.raw_feedbacks:
+        raw_feedback.embedding = []
     return response
 
 
@@ -1372,89 +1368,6 @@ def delete_raw_feedback(
     return publisher_api.delete_raw_feedback(org_id=org_id, request=request)
 
 
-@app.delete(
-    "/api/delete_all_interactions",
-    response_model=BulkDeleteResponse,
-    response_model_exclude_none=True,
-)
-def delete_all_interactions(
-    org_id: str = Depends(get_org_id_for_self_host),
-) -> BulkDeleteResponse:
-    return publisher_api.delete_all_interactions_bulk(org_id=org_id)
-
-
-@app.delete(
-    "/api/delete_all_profiles",
-    response_model=BulkDeleteResponse,
-    response_model_exclude_none=True,
-)
-def delete_all_profiles(
-    org_id: str = Depends(get_org_id_for_self_host),
-) -> BulkDeleteResponse:
-    return publisher_api.delete_all_profiles_bulk(org_id=org_id)
-
-
-@app.delete(
-    "/api/delete_all_feedbacks",
-    response_model=BulkDeleteResponse,
-    response_model_exclude_none=True,
-)
-def delete_all_feedbacks(
-    org_id: str = Depends(get_org_id_for_self_host),
-) -> BulkDeleteResponse:
-    return publisher_api.delete_all_feedbacks_bulk(org_id=org_id)
-
-
-@app.delete(
-    "/api/delete_requests_by_ids",
-    response_model=BulkDeleteResponse,
-    response_model_exclude_none=True,
-)
-def delete_requests_by_ids(
-    request: DeleteRequestsByIdsRequest,
-    org_id: str = Depends(get_org_id_for_self_host),
-) -> BulkDeleteResponse:
-    return publisher_api.delete_requests_by_ids(org_id=org_id, request=request)
-
-
-@app.delete(
-    "/api/delete_profiles_by_ids",
-    response_model=BulkDeleteResponse,
-    response_model_exclude_none=True,
-)
-def delete_profiles_by_ids(
-    request: DeleteProfilesByIdsRequest,
-    org_id: str = Depends(get_org_id_for_self_host),
-) -> BulkDeleteResponse:
-    return publisher_api.delete_profiles_by_ids(org_id=org_id, request=request)
-
-
-@app.delete(
-    "/api/delete_feedbacks_by_ids",
-    response_model=BulkDeleteResponse,
-    response_model_exclude_none=True,
-)
-def delete_feedbacks_by_ids(
-    request: DeleteFeedbacksByIdsRequest,
-    org_id: str = Depends(get_org_id_for_self_host),
-) -> BulkDeleteResponse:
-    return publisher_api.delete_feedbacks_by_ids_bulk(org_id=org_id, request=request)
-
-
-@app.delete(
-    "/api/delete_raw_feedbacks_by_ids",
-    response_model=BulkDeleteResponse,
-    response_model_exclude_none=True,
-)
-def delete_raw_feedbacks_by_ids(
-    request: DeleteRawFeedbacksByIdsRequest,
-    org_id: str = Depends(get_org_id_for_self_host),
-) -> BulkDeleteResponse:
-    return publisher_api.delete_raw_feedbacks_by_ids_bulk(
-        org_id=org_id, request=request
-    )
-
-
 @app.post(
     "/api/get_interactions",
     response_model=GetInteractionsResponse,
@@ -1491,7 +1404,10 @@ def get_all_interactions(
     # Get all interactions using Reflexio's get_all_interactions method
     response = reflexio.get_all_interactions(limit=limit)
 
-    _strip_embeddings(response.interactions)
+    # Filter out embedding fields from interactions
+    for interaction in response.interactions:
+        interaction.embedding = []
+
     return response
 
 
@@ -1563,7 +1479,10 @@ def get_all_profiles(
     # Get all profiles using Reflexio's get_all_profiles method
     response = reflexio.get_all_profiles(limit=limit, status_filter=status_filter_list)  # type: ignore[reportArgumentType]
 
-    _strip_embeddings(response.user_profiles)
+    # Filter out embedding fields from profiles
+    for profile in response.user_profiles:
+        profile.embedding = []
+
     return response
 
 
@@ -1651,7 +1570,14 @@ def search_skills(
     org_id: str = Depends(require_skill_generation),
 ) -> SearchSkillsResponse:
     reflexio = get_reflexio(org_id)
-    skills = reflexio.search_skills(payload)
+    skills = reflexio.search_skills(
+        query=payload.query,
+        feedback_name=payload.feedback_name,
+        agent_version=payload.agent_version,
+        skill_status=payload.skill_status,
+        threshold=payload.threshold or 0.5,
+        count=payload.top_k or 10,
+    )
     return SearchSkillsResponse(success=True, skills=skills)
 
 
@@ -1786,7 +1712,10 @@ def get_raw_feedbacks(
     # Get raw feedbacks using Reflexio's get_raw_feedbacks method
     response = reflexio.get_raw_feedbacks(request)
 
-    _strip_embeddings(response.raw_feedbacks)
+    # Filter out embedding fields from raw_feedbacks
+    for raw_feedback in response.raw_feedbacks:
+        raw_feedback.embedding = []
+
     return response
 
 
@@ -1814,7 +1743,10 @@ def get_feedbacks(
     # Get feedbacks using Reflexio's get_feedbacks method
     response = reflexio.get_feedbacks(request)
 
-    _strip_embeddings(response.feedbacks)
+    # Filter out embedding fields from feedbacks
+    for feedback in response.feedbacks:
+        feedback.embedding = []
+
     return response
 
 

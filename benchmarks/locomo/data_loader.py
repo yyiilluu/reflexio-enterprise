@@ -3,46 +3,9 @@
 from __future__ import annotations
 
 import json
-import logging
 from pathlib import Path
-from urllib.error import URLError
-from urllib.request import urlopen
 
 from pydantic import BaseModel
-
-logger = logging.getLogger(__name__)
-
-_LOCOMO_URL = (
-    "https://raw.githubusercontent.com/snap-research/locomo/main/data/locomo10.json"
-)
-
-
-def _ensure_dataset(data_file: Path) -> None:
-    """
-    Download locomo10.json if it doesn't already exist locally.
-
-    Args:
-        data_file (Path): Expected path to the dataset file
-
-    Raises:
-        RuntimeError: If the download fails
-    """
-    if data_file.exists():
-        return
-
-    logger.info("Downloading LoCoMo dataset to %s …", data_file)
-    data_file.parent.mkdir(parents=True, exist_ok=True)
-
-    try:
-        with urlopen(_LOCOMO_URL) as resp:  # noqa: S310
-            data_file.write_bytes(resp.read())
-    except (URLError, OSError) as exc:
-        data_file.unlink(missing_ok=True)  # clean up partial file
-        raise RuntimeError(
-            f"Failed to download LoCoMo dataset from {_LOCOMO_URL}: {exc}"
-        ) from exc
-
-    logger.info("Download complete (%d bytes).", data_file.stat().st_size)
 
 
 class LoCoMoTurn(BaseModel):
@@ -91,7 +54,11 @@ def load_locomo(data_file: str | Path) -> list[LoCoMoSample]:
         list[LoCoMoSample]: Parsed samples
     """
     data_file = Path(data_file)
-    _ensure_dataset(data_file)
+    if not data_file.exists():
+        raise FileNotFoundError(
+            f"{data_file} not found. Download it from "
+            "https://github.com/snap-research/locomo — see benchmarks/locomo/data/README.md"
+        )
 
     with data_file.open() as f:
         raw = json.load(f)

@@ -6,7 +6,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MIGRATIONS_DIR="$SCRIPT_DIR/supabase/migrations"
+MIGRATIONS_DIR="$SCRIPT_DIR/migrations"
 
 # Local Supabase default connection (port 54322, password from supabase start)
 DB_HOST="${DB_HOST:-localhost}"

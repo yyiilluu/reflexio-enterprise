@@ -27,10 +27,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-	deleteAllInteractions,
 	deleteInteraction,
 	deleteRequest,
-	deleteRequestsByIds,
 	deleteSession,
 	type GetRequestsRequest,
 	getRequests,
@@ -532,8 +530,7 @@ export default function InteractionsPage() {
 	const [userId, setUserId] = useState<string>("");
 	const [sessionFilter, setSessionFilter] = useState<string>("");
 	const [sourceFilter, setSourceFilter] = useState<string>("all");
-	const DEFAULT_TOP_K = 30;
-	const [topK, setTopK] = useState<number>(DEFAULT_TOP_K);
+	const [topK, setTopK] = useState<number>(30);
 
 	// Delete state
 	const [requestToDelete, setRequestToDelete] = useState<Request | null>(null);
@@ -541,10 +538,6 @@ export default function InteractionsPage() {
 	const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
 	const [deleting, setDeleting] = useState<boolean>(false);
 	const [deleteError, setDeleteError] = useState<string>("");
-
-	// Bulk delete state
-	const [bulkDeleteType, setBulkDeleteType] = useState<"all" | "filtered" | null>(null);
-	const [bulkDeleting, setBulkDeleting] = useState<boolean>(false);
 
 	// Fetch sessions from API
 	const fetchSessions = useCallback(
@@ -700,44 +693,6 @@ export default function InteractionsPage() {
 		}
 	};
 
-	const confirmBulkDelete = async () => {
-		setBulkDeleting(true);
-		setDeleteError("");
-
-		try {
-			if (bulkDeleteType === "all") {
-				const response = await deleteAllInteractions();
-				if (response.success) {
-					setOffset(0);
-					await fetchSessions(userId, topK, 0);
-					setBulkDeleteType(null);
-				} else {
-					setDeleteError(response.message || "Failed to delete all interactions");
-				}
-			} else if (bulkDeleteType === "filtered") {
-				const requestIds = filteredSessions.flatMap((group) =>
-					group.requests.map((rd) => rd.request.request_id),
-				);
-				if (requestIds.length > 0) {
-					const response = await deleteRequestsByIds(requestIds);
-					if (response.success) {
-						setOffset(0);
-						await fetchSessions(userId, topK, 0);
-						setBulkDeleteType(null);
-					} else {
-						setDeleteError(response.message || "Failed to delete filtered interactions");
-					}
-				}
-			}
-		} catch (error) {
-			setDeleteError(
-				error instanceof Error ? error.message : "An error occurred during bulk delete",
-			);
-		} finally {
-			setBulkDeleting(false);
-		}
-	};
-
 	const confirmDeleteSession = async () => {
 		if (!sessionToDelete) return;
 
@@ -791,9 +746,6 @@ export default function InteractionsPage() {
 		return filtered;
 	}, [sessions, sessionFilter, sourceFilter]);
 
-	const hasActiveFilters =
-		sessionFilter.trim() !== "" || sourceFilter !== "all" || topK !== DEFAULT_TOP_K;
-
 	// Calculate statistics from all sessions
 	const allRequests = useMemo(() => {
 		return sessions.flatMap((group) => group.requests);
@@ -839,7 +791,7 @@ export default function InteractionsPage() {
 									<MessageSquare className="h-5 w-5 text-white" />
 								</div>
 								<div>
-									<CardTitle className="text-lg font-semibold text-slate-800">Interaction Overview</CardTitle>
+									<CardTitle className="text-lg font-semibold text-slate-800">Overview</CardTitle>
 									<CardDescription className="text-xs mt-0.5 text-slate-500">
 										{totalGroups} session{totalGroups !== 1 ? "s" : ""} loaded
 									</CardDescription>
@@ -995,7 +947,7 @@ export default function InteractionsPage() {
 								</div>
 
 								{/* Active filters indicator */}
-								{(userId || sessionFilter || sourceFilter !== "all" || topK !== DEFAULT_TOP_K) && (
+								{(userId || sessionFilter || sourceFilter !== "all") && (
 									<div className="flex items-center gap-2 flex-wrap pt-2 border-t border-slate-100">
 										<span className="text-sm font-medium text-slate-500">Active:</span>
 										{userId && (
@@ -1016,11 +968,6 @@ export default function InteractionsPage() {
 												Source: {sourceFilter}
 											</Badge>
 										)}
-										{topK !== DEFAULT_TOP_K && (
-											<Badge className="text-xs bg-indigo-100 text-indigo-700 hover:bg-indigo-100">
-												Max Results: {topK}
-											</Badge>
-										)}
 										<Button
 											variant="ghost"
 											size="sm"
@@ -1029,7 +976,6 @@ export default function InteractionsPage() {
 												setUserId("");
 												setSessionFilter("");
 												setSourceFilter("all");
-												setTopK(DEFAULT_TOP_K);
 											}}
 										>
 											<XCircle className="h-3 w-3 mr-1" />
@@ -1050,38 +996,6 @@ export default function InteractionsPage() {
 					</Card>
 
 					{/* Results */}
-					<div className="flex items-center justify-between mb-4">
-						<div>
-							<h2 className="text-lg font-semibold text-slate-800">Session Results</h2>
-							<p className="text-xs mt-1 text-slate-500">
-								Showing {filteredSessions.length} session{filteredSessions.length !== 1 ? "s" : ""}{" "}
-								with {totalRequests} request{totalRequests !== 1 ? "s" : ""}
-							</p>
-						</div>
-						<div className="flex gap-2">
-							{(hasActiveFilters || hasMore) && filteredSessions.length > 0 && (
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={() => setBulkDeleteType("filtered")}
-									className="border-amber-300 text-amber-700 hover:bg-amber-50"
-								>
-									<Trash2 className="h-4 w-4 mr-2" />
-									Delete Filtered ({filteredSessions.flatMap((g) => g.requests).length})
-								</Button>
-							)}
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => setBulkDeleteType("all")}
-								disabled={sessions.length === 0}
-								className="border-red-300 text-red-600 hover:bg-red-50"
-							>
-								<Trash2 className="h-4 w-4 mr-2" />
-								Delete All
-							</Button>
-						</div>
-					</div>
 					{loading ? (
 						<div className="text-center py-12">
 							<div className="animate-spin rounded-full h-12 w-12 border-3 border-transparent border-t-indigo-500 border-r-indigo-500 mx-auto mb-4"></div>
@@ -1238,76 +1152,6 @@ export default function InteractionsPage() {
 				}
 				loading={deleting}
 				confirmButtonText="Delete Interaction"
-			/>
-
-			{/* Bulk Delete Confirmation Dialog */}
-			<DeleteConfirmDialog
-				open={!!bulkDeleteType}
-				onOpenChange={(open) => {
-					if (!open) setBulkDeleteType(null);
-				}}
-				onConfirm={confirmBulkDelete}
-				title={bulkDeleteType === "all" ? "Delete All Sessions" : "Delete Filtered Sessions"}
-				description={
-					bulkDeleteType === "all"
-						? "Are you sure you want to delete ALL sessions, requests, and interactions? This will permanently remove everything."
-						: `Are you sure you want to delete ${filteredSessions.flatMap((g) => g.requests).length} request(s) from ${filteredSessions.length} filtered session(s)?`
-				}
-				itemDetails={
-					bulkDeleteType === "all" ? (
-						<>
-							<div className="flex justify-between">
-								<span className="text-muted-foreground">Loaded Sessions:</span>
-								<span className="font-semibold">
-									{sessions.length}
-									{hasMore ? "+" : ""}
-								</span>
-							</div>
-							<div className="flex justify-between">
-								<span className="text-muted-foreground">Total Requests:</span>
-								<span className="font-semibold">
-									{totalRequests}
-									{hasMore ? "+" : ""}
-								</span>
-							</div>
-							<div className="flex justify-between">
-								<span className="text-muted-foreground">Total Interactions:</span>
-								<span className="font-semibold">
-									{totalInteractions}
-									{hasMore ? "+" : ""}
-								</span>
-							</div>
-						</>
-					) : (
-						<>
-							<div className="flex justify-between">
-								<span className="text-muted-foreground">Filtered Sessions:</span>
-								<span className="font-semibold">{filteredSessions.length}</span>
-							</div>
-							<div className="flex justify-between">
-								<span className="text-muted-foreground">Requests to Delete:</span>
-								<span className="font-semibold">
-									{filteredSessions.flatMap((g) => g.requests).length}
-								</span>
-							</div>
-							{sessionFilter && (
-								<div className="flex justify-between">
-									<span className="text-muted-foreground">Session Filter:</span>
-									<span className="font-mono text-xs">{sessionFilter}</span>
-								</div>
-							)}
-							{sourceFilter !== "all" && (
-								<div className="flex justify-between">
-									<span className="text-muted-foreground">Source Filter:</span>
-									<span>{sourceFilter}</span>
-								</div>
-							)}
-						</>
-					)
-				}
-				loading={bulkDeleting}
-				confirmButtonText={bulkDeleteType === "all" ? "Delete All" : "Delete Filtered"}
-				requireTypedConfirmation={bulkDeleteType === "all"}
 			/>
 
 			{/* Delete Error Display */}

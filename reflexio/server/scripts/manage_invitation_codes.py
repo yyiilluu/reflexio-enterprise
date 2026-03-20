@@ -10,7 +10,8 @@ Usage:
 import argparse
 import secrets
 import string
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any, cast
 
 from reflexio.server.db.database import Base, engine
 from reflexio.server.db.db_operations import (
@@ -52,7 +53,7 @@ def generate_codes(count: int, expires_in_days: int | None = None) -> list[str]:
     """
     expires_at = None
     if expires_in_days is not None:
-        expires_at = int(datetime.now(timezone.utc).timestamp()) + (
+        expires_at = int(datetime.now(UTC).timestamp()) + (
             expires_in_days * 86400
         )
 
@@ -81,7 +82,7 @@ def list_codes(show_used: bool = False) -> None:
         if not show_used:
             query = query.eq("is_used", False)
         response = query.execute()
-        rows = response.data
+        rows = cast(list[dict[str, Any]], response.data)
     else:
         from reflexio.server.db.database import SessionLocal
         from reflexio.server.db.db_models import InvitationCode
@@ -120,7 +121,7 @@ def list_codes(show_used: bool = False) -> None:
         used_by = row.get("used_by_email") or ""
         expires_at = row.get("expires_at")
         expires_str = (
-            datetime.fromtimestamp(expires_at, tz=timezone.utc).strftime(
+            datetime.fromtimestamp(expires_at, tz=UTC).strftime(
                 "%Y-%m-%d %H:%M"
             )
             if expires_at

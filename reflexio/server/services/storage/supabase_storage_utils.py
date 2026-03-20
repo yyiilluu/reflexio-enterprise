@@ -7,10 +7,9 @@ from __future__ import annotations
 import json
 import logging
 import re
-from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlparse
 
 if TYPE_CHECKING:
@@ -63,7 +62,7 @@ def _parse_iso_timestamp(ts: str) -> int:
     return int(datetime.fromisoformat(ts).timestamp())
 
 
-def response_to_user_profile(item: Mapping[str, Any]) -> UserProfile:
+def response_to_user_profile(item: dict[str, Any]) -> UserProfile:
     """
     Convert a response item from Supabase to a UserProfile object.
 
@@ -90,7 +89,7 @@ def response_to_user_profile(item: Mapping[str, Any]) -> UserProfile:
     )
 
 
-def response_to_interaction(item: Mapping[str, Any]) -> Interaction:
+def response_to_interaction(item: dict[str, Any]) -> Interaction:
     """
     Convert a response item from Supabase to an Interaction object.
 
@@ -184,7 +183,7 @@ def interaction_to_data(interaction: Interaction) -> dict[str, Any]:
     return data
 
 
-def response_to_request(item: Mapping[str, Any]) -> Request:
+def response_to_request(item: dict[str, Any]) -> Request:
     """
     Convert a response item from Supabase to a Request object.
 
@@ -221,7 +220,9 @@ def request_to_data(request: Request) -> dict[str, Any]:
     return {
         "request_id": request.request_id,
         "user_id": request.user_id,
-        "created_at": datetime.fromtimestamp(request.created_at, tz=UTC).isoformat(),
+        "created_at": datetime.fromtimestamp(
+            request.created_at, tz=UTC
+        ).isoformat(),
         "source": request.source,
         "agent_version": request.agent_version,
         "session_id": request.session_id or None,
@@ -271,7 +272,7 @@ def response_list_to_requests(response_data: list[dict[str, Any]]) -> list[Reque
     return [response_to_request(item) for item in response_data]
 
 
-def response_to_profile_change_log(item: Mapping[str, Any]) -> ProfileChangeLog:
+def response_to_profile_change_log(item: dict[str, Any]) -> ProfileChangeLog:
     """
     Convert a response item from Supabase to a ProfileChangeLog object.
 
@@ -365,7 +366,7 @@ def feedback_aggregation_change_log_to_data(
 
 
 def response_to_feedback_aggregation_change_log(
-    item: Mapping[str, Any],
+    item: dict[str, Any],
 ) -> FeedbackAggregationChangeLog:
     """Convert a response item from Supabase to a FeedbackAggregationChangeLog object.
 
@@ -528,7 +529,9 @@ def skill_to_data(skill: Skill) -> dict[str, Any]:
         "raw_feedback_ids": skill.raw_feedback_ids,
         "skill_status": skill.skill_status.value if skill.skill_status else "draft",
         "embedding": skill.embedding or None,
-        "updated_at": datetime.fromtimestamp(skill.updated_at, tz=UTC).isoformat(),
+        "updated_at": datetime.fromtimestamp(
+            skill.updated_at, tz=UTC
+        ).isoformat(),
     }
     # Only include skill_id if it's set (non-zero), otherwise let DB auto-generate
     if skill.skill_id:
@@ -536,7 +539,7 @@ def skill_to_data(skill: Skill) -> dict[str, Any]:
     return data
 
 
-def response_to_skill(item: Mapping[str, Any]) -> Skill:
+def response_to_skill(item: dict[str, Any]) -> Skill:
     """
     Convert a response item from Supabase to a Skill object.
 
@@ -608,7 +611,7 @@ def is_localhost_url(db_url: str) -> bool:
         parsed = urlparse(db_url)
         host = parsed.hostname or ""
         return host in ("localhost", "127.0.0.1", "::1")
-    except ValueError, AttributeError:
+    except (ValueError, AttributeError):
         return False
 
 
@@ -623,13 +626,7 @@ def get_latest_migration_version() -> str | None:
 
     import reflexio
 
-    migration_dir = (
-        Path(reflexio.__file__).parent.parent
-        / "supabase"
-        / "data"
-        / "supabase"
-        / "migrations"
-    )
+    migration_dir = Path(reflexio.__file__).parent.parent / "supabase" / "data" / "migrations"
     migration_files = sorted(migration_dir.glob("*.sql"))
     if not migration_files:
         return None
@@ -763,11 +760,7 @@ def execute_migration(db_url: str) -> tuple[bool, str]:
     try:
         # Get migration files
         migration_dir = (
-            Path(reflexio.__file__).parent.parent
-            / "supabase"
-            / "data"
-            / "supabase"
-            / "migrations"
+            Path(reflexio.__file__).parent.parent / "supabase" / "data" / "migrations"
         )
         migration_files = sorted(migration_dir.glob("*.sql"))
         if not migration_files:
@@ -881,7 +874,8 @@ def get_organization_config(client: Client, org_id: str) -> str | None:
     if not response.data:
         return None
 
-    return response.data[0].get("configuration_json")
+    row = cast(dict[str, Any], response.data[0])
+    return row.get("configuration_json")
 
 
 def set_organization_config(client: Client, org_id: str, config_json: str) -> bool:

@@ -35,60 +35,29 @@ Ensure the feature branch is up-to-date with the base branch to avoid merge conf
 4. **Verify clean state** — run `git status` to confirm no unresolved conflicts remain
 5. **Push the branch** — run `git push`. If the rebase changed history, use `git push --force-with-lease` instead. If `--force-with-lease` fails, it means someone else has pushed to this branch. Fetch the remote branch (`git fetch origin <branch>`), inspect the divergence (`git log HEAD..origin/<branch> --oneline`), and ask the user how to proceed — they may need to integrate the other contributor's changes first.
 
-### Step 3: Analyze Changes (New + Full)
+### Step 3: Analyze New Changes
 
-#### 3a: Identify new changes since last PR update
-
-Determine what's changed since the PR description was last written/updated:
-
-1. Run `git log origin/<current-branch>..HEAD --oneline` to find commits that haven't been pushed yet (local-only changes). If empty, the PR body may already be up-to-date — but still proceed to verify.
-2. Compare the commits listed in the existing PR body against `git log origin/<base-branch>..HEAD --oneline` to identify commits not yet reflected in the description.
-3. Run `git diff origin/<current-branch>..HEAD` to see the diff of only the new (unpushed) changes. This is what you'll use to append new content in Step 4 Phase A.
-
-#### 3b: Full branch diff (for holistic review)
-
-Understand the full scope of all changes in the PR:
+Understand the full scope of changes now in the PR:
 
 1. Run `git log origin/<base-branch>..HEAD --oneline` to see all commits on this branch
 2. Run `git diff origin/<base-branch>...HEAD --stat` for a high-level summary of changed files
 3. Run `git diff origin/<base-branch>...HEAD` to read the full diff. Note: Three-dot (`...`) syntax is intentional — it shows only the changes introduced on this branch since it diverged from the base, excluding commits on the base branch that aren't part of this PR.
 4. Identify the type of change: `feat`, `fix`, `refactor`, `docs`, `chore`, etc.
+5. **Review existing PR title and body** — compare the current PR title and body (from Step 1) against the full diff. Note what's already accurately described vs. what's missing, outdated, or no longer relevant.
 
-**Important:** Look at ALL commits, not just the latest one. The full branch diff is used for the holistic review in Step 4 Phase B.
+**Important:** Look at ALL commits, not just the latest one. The updated PR description should reflect the entire branch, not just the new additions.
 
 ### Step 4: Update the PR Description
-
-> **Do NOT rewrite the PR body from scratch.** Start from the existing body, add what's new, then refine. The existing description was reviewed and approved — preserve its content unless it's factually wrong or contradicted by new changes.
-
-#### Phase A: Append new changes (incremental update)
-
-1. **Read the existing PR body** from Step 1
-2. **Identify what's already documented** — compare the existing Summary, Changes, and Test Plan against the new changes identified in Step 3a
-3. **Add new content incrementally:**
-   - Add new bullet points to **Summary** for new changes (don't rewrite existing bullets)
-   - Add new entries to **Changes** section (don't reorganize or rephrase existing entries)
-   - Add new test steps to **Test Plan** (don't remove existing steps)
-4. **Preserve manually-added content** — any sections or content not matching the standard template (e.g., reviewer notes, deployment checklists, linked discussions, custom sections) must be preserved by default. Only remove content that directly contradicts the current code.
-
-#### Phase B: Holistic review (light refinement)
-
-Re-read the full updated description (from Phase A) alongside the complete branch diff (from Step 3b):
-
-1. **Check for redundancy** — merge duplicate bullets that describe the same change
-2. **Check for contradictions** — remove or correct statements that contradict the current code
-3. **Check for outdated items** — remove references to code/behavior that no longer exists in the branch
-4. **Check for missing coverage** — if any significant changes from the full diff are not mentioned, add them
-5. **Light coherence pass** — make minor wording adjustments so the description reads naturally as a whole, but do NOT restructure or rephrase content that is already accurate
 
 #### Title
 
 - Under 70 characters
 - Use conventional prefix: `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`
-- Review the existing PR title (from Step 1). If it still accurately reflects the full scope of changes, **keep it unchanged**. Only update if the scope has materially changed or the title is misleading.
+- Review the existing PR title (from Step 1). If it still accurately reflects the full scope of changes, keep it. If the scope has changed or the title is misleading, update it.
 
-#### Body template reference
+#### Body
 
-The body should follow this structure — but when updating, work within the existing body rather than replacing it with this template:
+Review the existing PR body (from Step 1) and update it to reflect the current state of the branch. Preserve any still-accurate content (e.g., context, links, decisions) rather than rewriting from scratch. Use this template — scale detail with PR complexity:
 
 ```
 ## Summary
@@ -104,12 +73,13 @@ The body should follow this structure — but when updating, work within the exi
 <How the changes were verified — manual testing steps, automated tests run, curl commands, etc.>
 ```
 
-#### Guidelines
+Guidelines for the body:
 - State the purpose clearly — explain *why*, not just *what*
 - Cover ALL changes in the branch, not just the latest commits
 - Provide context and background with links to relevant issues/docs
 - Include Mermaid diagrams when they simplify explanation of workflows or architecture
 - Keep PRs focused on a single concern — suggest splitting if the PR is too large
+- Before overwriting the PR body, compare the existing body against the standard template sections (Summary, Changes, Diagrams, Test Plan). Flag any sections or content that appear to have been manually added after PR creation (e.g., reviewer notes, deployment checklists, linked discussions) and ask the user whether to preserve them.
 - Do NOT include any "Generated with Claude Code" footer or bot attribution lines
 - Do NOT include `Co-Authored-By` lines
 
@@ -137,45 +107,6 @@ gh pr edit --title "the pr title" --body-file /tmp/pr_body.md
 - Any "Generated with Claude Code" footer
 
 **Draft/Ready handling:** If the user wants to mark a draft PR as ready for review, run `gh pr ready`. If the user wants to convert to draft, run `gh pr ready --undo`.
-
-### Step 5.5: Frontend UI Verification (when applicable)
-
-If the PR includes frontend changes (`*.tsx`, `*.jsx` files under `reflexio/website/`), run automated UI verification using agent-browser:
-
-1. **Detect frontend changes** — check if any files in the branch diff match `reflexio/website/**/*.{tsx,jsx}`:
-   ```bash
-   git diff origin/<base-branch>...HEAD --name-only -- 'reflexio/website/**/*.tsx' 'reflexio/website/**/*.jsx'
-   ```
-   If no frontend files changed, skip this step.
-
-2. **Ensure services are running** — check if the frontend is accessible:
-   ```bash
-   curl -sf http://localhost:${FRONTEND_PORT:-8080}/ > /dev/null 2>&1
-   ```
-   If not running, start services using the `/run-services` skill.
-
-3. **Identify affected pages** — map changed files to routes:
-   - `app/interactions/page.tsx` → `/interactions`
-   - `app/profiles/page.tsx` → `/profiles`
-   - `app/feedbacks/page.tsx` → `/feedbacks`
-   - Other `app/**/page.tsx` → derive route from path
-
-4. **Verify each affected page** — for each route:
-   ```bash
-   agent-browser open http://localhost:${FRONTEND_PORT:-8080}<route>
-   agent-browser wait --load networkidle
-   agent-browser snapshot -i
-   agent-browser screenshot
-   ```
-   - Verify the page loads without errors (no error boundaries, no blank screens)
-   - Verify key interactive elements are present in the snapshot
-   - If the Test Plan section mentions specific UI behaviors for this page, verify them:
-     - Change filter inputs and verify badges/indicators appear
-     - Click buttons and verify dialogs open
-     - Click cancel/close and verify no side effects
-   - **Do NOT perform destructive actions** (delete, submit forms that modify data)
-
-5. **Attach screenshots** — note the screenshot paths in the PR report so the user can add them to the PR.
 
 ### Step 6: Report
 

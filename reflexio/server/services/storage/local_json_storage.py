@@ -2,16 +2,12 @@ import json
 import logging
 import threading
 import time
-from collections.abc import Sequence
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 from reflexio_commons.api_schema.retriever_schema import (
-    SearchFeedbackRequest,
     SearchInteractionRequest,
-    SearchRawFeedbackRequest,
-    SearchSkillsRequest,
     SearchUserProfileRequest,
 )
 from reflexio_commons.api_schema.service_schemas import (
@@ -30,17 +26,43 @@ from reflexio_commons.api_schema.service_schemas import (
     Status,
     UserProfile,
 )
-from reflexio_commons.config_schema import SearchOptions, StorageConfigLocal
+from reflexio_commons.config_schema import StorageConfigLocal
 
 from reflexio import data
 from reflexio.server import LOCAL_STORAGE_PATH
 from reflexio.server.services.storage.error import StorageError
-from reflexio.server.services.storage.storage_base import (
-    BaseStorage,
-    matches_status_filter,
-)
+from reflexio.server.services.storage.storage_base import BaseStorage
 
 logger = logging.getLogger(__name__)
+
+
+def _matches_status_filter(
+    item_status: Status | None,
+    status_filter: list[Status | None],
+) -> bool:
+    """Check whether an item's status matches a status filter list (Python-side filtering).
+
+    Args:
+        item_status (Status | None): The item's current status
+        status_filter (list[Status | None]): Allowed status values
+
+    Returns:
+        bool: True if the item passes the filter
+    """
+    has_none = None in status_filter
+    status_strings = [
+        s.value for s in status_filter if s is not None and hasattr(s, "value")
+    ]
+    if has_none and item_status is None:
+        return True
+    item_val = (
+        item_status.value
+        if item_status is not None and hasattr(item_status, "value")
+        else item_status
+    )
+    if item_val in status_strings:
+        return True
+    return has_none and not status_strings and item_status is None
 
 
 class LocalJsonStorage(BaseStorage):
@@ -119,7 +141,7 @@ class LocalJsonStorage(BaseStorage):
 
     def _current_timestamp(self) -> str:
         """Return a timezone-aware ISO timestamp for updated_at."""
-        return datetime.now(UTC).isoformat()
+        return datetime.now(timezone.utc).isoformat()
 
     # ==============================
     # CRUD methods
@@ -128,7 +150,7 @@ class LocalJsonStorage(BaseStorage):
     def get_all_profiles(
         self,
         limit: int = 100,
-        status_filter: Sequence[Status | None] | None = None,
+        status_filter: list[Status | None] | None = None,
     ) -> list[UserProfile]:
         if status_filter is None:
             status_filter = [None]  # Default to current profiles (status=None)
@@ -191,7 +213,7 @@ class LocalJsonStorage(BaseStorage):
     def get_user_profile(
         self,
         user_id: str,
-        status_filter: Sequence[Status | None] | None = None,
+        status_filter: list[Status | None] | None = None,
     ) -> list[UserProfile]:
         if status_filter is None:
             status_filter = [None]  # Default to current profiles (status=None)
@@ -517,7 +539,7 @@ class LocalJsonStorage(BaseStorage):
         self,
         old_status: Status | None,
         new_status: Status | None,
-        user_ids: Sequence[str] | None = None,
+        user_ids: list[str] | None = None,
     ) -> int:
         """
         Update all profiles with old_status to new_status atomically.
@@ -564,7 +586,7 @@ class LocalJsonStorage(BaseStorage):
                         # Update the profile status and last modified timestamp
                         profile_obj.status = new_status
                         profile_obj.last_modified_timestamp = int(
-                            datetime.now(UTC).timestamp()
+                            datetime.now(timezone.utc).timestamp()
                         )
                         all_memories[user_id]["profiles"][i] = (
                             profile_obj.model_dump_json()
@@ -802,62 +824,6 @@ class LocalJsonStorage(BaseStorage):
             all_memories["requests"] = []
 
             self._save(all_memories)
-
-    def delete_requests_by_ids(self, request_ids: Sequence[str]) -> int:
-        """Delete requests and their associated interactions by request IDs."""
-        if not request_ids:
-            return 0
-        request_id_set = set(request_ids)
-        with self._lock:
-            all_memories = self._load()
-
-            # Delete interactions for these requests
-            for user_id in list(all_memories.keys()):
-                if user_id != "requests" and "interactions" in all_memories[user_id]:
-                    all_memories[user_id]["interactions"] = [
-                        interaction_json
-                        for interaction_json in all_memories[user_id]["interactions"]
-                        if Interaction.model_validate_json(interaction_json).request_id
-                        not in request_id_set
-                    ]
-
-            # Delete the requests
-            deleted = 0
-            if "requests" in all_memories:
-                original_count = len(all_memories["requests"])
-                all_memories["requests"] = [
-                    request_json
-                    for request_json in all_memories["requests"]
-                    if Request.model_validate_json(request_json).request_id
-                    not in request_id_set
-                ]
-                deleted = original_count - len(all_memories["requests"])
-
-            self._save(all_memories)
-            return deleted
-
-    def delete_profiles_by_ids(self, profile_ids: Sequence[str]) -> int:
-        """Delete profiles by their IDs."""
-        if not profile_ids:
-            return 0
-        profile_id_set = set(profile_ids)
-        with self._lock:
-            all_memories = self._load()
-            deleted = 0
-
-            for user_id in list(all_memories.keys()):
-                if user_id != "requests" and "profiles" in all_memories[user_id]:
-                    original_count = len(all_memories[user_id]["profiles"])
-                    all_memories[user_id]["profiles"] = [
-                        profile_json
-                        for profile_json in all_memories[user_id]["profiles"]
-                        if UserProfile.model_validate_json(profile_json).profile_id
-                        not in profile_id_set
-                    ]
-                    deleted += original_count - len(all_memories[user_id]["profiles"])
-
-            self._save(all_memories)
-            return deleted
 
     def get_requests_by_session(self, user_id: str, session_id: str) -> list[Request]:
         """
@@ -1141,9 +1107,7 @@ class LocalJsonStorage(BaseStorage):
     # ==============================
 
     def search_interaction(
-        self,
-        search_interaction_request: SearchInteractionRequest,
-        options: SearchOptions | None = None,  # noqa: ARG002
+        self, search_interaction_request: SearchInteractionRequest
     ) -> list[Interaction]:
         """Search user interaction from storage
 
@@ -1186,8 +1150,8 @@ class LocalJsonStorage(BaseStorage):
     def search_user_profile(
         self,
         search_user_profile_request: SearchUserProfileRequest,
-        status_filter: Sequence[Status | None] | None = None,
-        options: SearchOptions | None = None,  # noqa: ARG002
+        status_filter: list[Status | None] | None = None,
+        query_embedding: list[float] | None = None,  # noqa: ARG002
     ) -> list[UserProfile]:
         """Search user profile from storage
 
@@ -1268,7 +1232,7 @@ class LocalJsonStorage(BaseStorage):
         user_id: str | None = None,
         feedback_name: str | None = None,
         agent_version: str | None = None,
-        status_filter: Sequence[Status | None] | None = None,
+        status_filter: list[Status | None] | None = None,
         start_time: int | None = None,
         end_time: int | None = None,
         include_embedding: bool = False,  # noqa: ARG002
@@ -1327,7 +1291,7 @@ class LocalJsonStorage(BaseStorage):
         feedback_name: str | None = None,
         min_raw_feedback_id: int | None = None,
         agent_version: str | None = None,
-        status_filter: Sequence[Status | None] | None = None,
+        status_filter: list[Status | None] | None = None,
     ) -> int:
         """
         Count raw feedbacks in storage efficiently.
@@ -1552,7 +1516,7 @@ class LocalJsonStorage(BaseStorage):
         self,
         limit: int = 100,
         feedback_name: str | None = None,
-        status_filter: Sequence[Status | None] | None = None,
+        status_filter: list[Status | None] | None = None,
         feedback_status_filter: list[FeedbackStatus] | None = None,
     ) -> list[Feedback]:
         """
@@ -1776,7 +1740,7 @@ class LocalJsonStorage(BaseStorage):
         all_memories["feedbacks"] = updated_feedbacks
         self._save(all_memories)
 
-    def delete_feedbacks_by_ids(self, feedback_ids: Sequence[int]) -> None:
+    def delete_feedbacks_by_ids(self, feedback_ids: list[int]) -> None:
         """
         Permanently delete feedbacks by their IDs.
         No-op if feedback_ids is empty.
@@ -1923,7 +1887,7 @@ class LocalJsonStorage(BaseStorage):
         logger.info("Deleted %s raw feedbacks with status %s", deleted_count, status)
         return deleted_count
 
-    def delete_raw_feedbacks_by_ids(self, raw_feedback_ids: Sequence[int]) -> int:
+    def delete_raw_feedbacks_by_ids(self, raw_feedback_ids: list[int]) -> int:
         """Delete raw feedbacks by their IDs. No-op for local storage."""
         logger.warning(
             "delete_raw_feedbacks_by_ids is not supported in local storage, skipping deletion of %d feedbacks",
@@ -1984,28 +1948,34 @@ class LocalJsonStorage(BaseStorage):
 
     def search_raw_feedbacks(
         self,
-        request: SearchRawFeedbackRequest,
-        options: SearchOptions | None = None,  # noqa: ARG002
+        query: str | None = None,
+        user_id: str | None = None,
+        agent_version: str | None = None,
+        feedback_name: str | None = None,
+        start_time: int | None = None,
+        end_time: int | None = None,
+        status_filter: list[Status | None] | None = None,
+        match_threshold: float = 0.5,  # noqa: ARG002
+        match_count: int = 10,
+        query_embedding: list[float] | None = None,  # noqa: ARG002
     ) -> list[RawFeedback]:
         """
         Search raw feedbacks with advanced filtering (local storage uses text matching, not vector search).
 
         Args:
-            request (SearchRawFeedbackRequest): Search request with query, filters, and search_mode
-            options (SearchOptions, optional): Not used in local storage
+            query (str, optional): Text query for text search
+            user_id (str, optional): Filter by user (resolved via request_id -> requests linkage)
+            agent_version (str, optional): Filter by agent version
+            feedback_name (str, optional): Filter by feedback name
+            start_time (int, optional): Start timestamp (Unix) for created_at filter
+            end_time (int, optional): End timestamp (Unix) for created_at filter
+            status_filter (list[Optional[Status]], optional): List of status values to filter by
+            match_threshold (float): Not used in local storage
+            match_count (int): Maximum number of results to return
 
         Returns:
             list[RawFeedback]: List of matching raw feedback objects
         """
-        query = request.query
-        user_id = request.user_id
-        agent_version = request.agent_version
-        feedback_name = request.feedback_name
-        start_time = int(request.start_time.timestamp()) if request.start_time else None
-        end_time = int(request.end_time.timestamp()) if request.end_time else None
-        status_filter = request.status_filter
-        match_count = request.top_k or 10
-
         all_memories = self._load()
         if "raw_feedbacks" not in all_memories:
             return []
@@ -2049,7 +2019,7 @@ class LocalJsonStorage(BaseStorage):
                 continue
 
             # Filter by status
-            if status_filter is not None and not matches_status_filter(
+            if status_filter is not None and not _matches_status_filter(
                 rf.status, status_filter
             ):
                 continue
@@ -2062,28 +2032,34 @@ class LocalJsonStorage(BaseStorage):
 
     def search_feedbacks(
         self,
-        request: SearchFeedbackRequest,
-        options: SearchOptions | None = None,  # noqa: ARG002
+        query: str | None = None,
+        agent_version: str | None = None,
+        feedback_name: str | None = None,
+        start_time: int | None = None,
+        end_time: int | None = None,
+        status_filter: list[Status | None] | None = None,
+        feedback_status_filter: FeedbackStatus | None = None,
+        match_threshold: float = 0.5,  # noqa: ARG002
+        match_count: int = 10,
+        query_embedding: list[float] | None = None,  # noqa: ARG002
     ) -> list[Feedback]:
         """
         Search feedbacks with advanced filtering (local storage uses text matching, not vector search).
 
         Args:
-            request (SearchFeedbackRequest): Search request with query, filters, and search_mode
-            options (SearchOptions, optional): Not used in local storage
+            query (str, optional): Text query for text search
+            agent_version (str, optional): Filter by agent version
+            feedback_name (str, optional): Filter by feedback name
+            start_time (int, optional): Start timestamp (Unix) for created_at filter
+            end_time (int, optional): End timestamp (Unix) for created_at filter
+            status_filter (list[Optional[Status]], optional): List of Status values to filter by
+            feedback_status_filter (FeedbackStatus, optional): Filter by FeedbackStatus
+            match_threshold (float): Not used in local storage
+            match_count (int): Maximum number of results to return
 
         Returns:
             list[Feedback]: List of matching feedback objects
         """
-        query = request.query
-        agent_version = request.agent_version
-        feedback_name = request.feedback_name
-        start_time = int(request.start_time.timestamp()) if request.start_time else None
-        end_time = int(request.end_time.timestamp()) if request.end_time else None
-        status_filter = request.status_filter
-        feedback_status_filter = request.feedback_status_filter
-        match_count = request.top_k or 10
-
         all_memories = self._load()
         if "feedbacks" not in all_memories:
             return []
@@ -2123,7 +2099,7 @@ class LocalJsonStorage(BaseStorage):
                     continue
 
             # Filter by status
-            if status_filter is not None and not matches_status_filter(
+            if status_filter is not None and not _matches_status_filter(
                 f.status, status_filter
             ):
                 continue
@@ -2206,7 +2182,7 @@ class LocalJsonStorage(BaseStorage):
             dict: Dictionary containing current_period, previous_period, and raw time_series data
         """
         all_memories = self._load()
-        current_time = int(datetime.now(UTC).timestamp())
+        current_time = int(datetime.now(timezone.utc).timestamp())
 
         # Calculate time boundaries
         seconds_in_period = days_back * 24 * 60 * 60
@@ -2367,7 +2343,7 @@ class LocalJsonStorage(BaseStorage):
         Returns:
             int: Bucket timestamp (start of day/week/month)
         """
-        dt = datetime.fromtimestamp(timestamp, tz=UTC)
+        dt = datetime.fromtimestamp(timestamp, tz=timezone.utc)
 
         if granularity == "daily":
             bucket_dt = dt.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -2843,7 +2819,7 @@ class LocalJsonStorage(BaseStorage):
             dict with keys: current_count, pending_count, archived_count, expiring_soon_count
         """
         all_memories = self._load()
-        current_timestamp = int(datetime.now(UTC).timestamp())
+        current_timestamp = int(datetime.now(timezone.utc).timestamp())
         expiring_soon_timestamp = current_timestamp + (7 * 24 * 60 * 60)  # 7 days
 
         stats = {
@@ -2939,15 +2915,14 @@ class LocalJsonStorage(BaseStorage):
 
     def search_skills(
         self,
-        request: SearchSkillsRequest,
-        options: SearchOptions | None = None,  # noqa: ARG002
+        query: str | None = None,
+        feedback_name: str | None = None,
+        agent_version: str | None = None,
+        skill_status: SkillStatus | None = None,
+        match_threshold: float = 0.5,  # noqa: ARG002
+        match_count: int = 10,
+        query_embedding: list[float] | None = None,  # noqa: ARG002
     ) -> list[Skill]:
-        query = request.query
-        feedback_name = request.feedback_name
-        agent_version = request.agent_version
-        skill_status = request.skill_status
-        match_count = request.top_k or 10
-
         all_memories = self._load()
         if "skills" not in all_memories:
             return []

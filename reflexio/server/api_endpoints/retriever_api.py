@@ -178,6 +178,7 @@ def get_requests(
     reflexio = get_reflexio(org_id=org_id)
     result = reflexio.get_requests(request)
 
+    # Filter out embedding fields from interactions
     for session in result.sessions:
         for request_data in session.requests:
             for interaction in request_data.interactions:

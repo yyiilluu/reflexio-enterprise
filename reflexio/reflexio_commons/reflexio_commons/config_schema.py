@@ -1,8 +1,7 @@
-from dataclasses import dataclass, field
 from enum import Enum, IntEnum
-from typing import Self
 
 from pydantic import BaseModel, Field, model_validator
+from typing_extensions import Self
 
 from reflexio_commons.api_schema.validators import (
     NonEmptyStr,
@@ -13,13 +12,6 @@ from reflexio_commons.api_schema.validators import (
 # Embedding vector dimensions. Changing this requires a DB migration and re-embedding,
 # so it is intentionally a constant rather than a configurable setting.
 EMBEDDING_DIMENSIONS = 512
-
-
-@dataclass
-class SearchOptions:
-    """Engine-level search parameters that are pre-computed or not part of the API request."""
-
-    query_embedding: list[float] | None = field(default=None)
 
 
 class SearchMode(str, Enum):

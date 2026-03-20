@@ -12,13 +12,12 @@ CATEGORY_MAP: dict[int, str] = {
 CATEGORY_IDS: dict[str, int] = {v: k for k, v in CATEGORY_MAP.items()}
 
 # Strategies
-STRATEGIES = ["no_context", "full_context", "reflexio_base", "reflexio_enhanced"]
-NON_REFLEXIO_STRATEGIES = ["no_context", "full_context"]
-REFLEXIO_STRATEGIES = ["reflexio_base", "reflexio_enhanced"]
+STRATEGIES = ["no_context", "reflexio"]
+NON_REFLEXIO_STRATEGIES = ["no_context"]
+REFLEXIO_STRATEGIES = ["reflexio"]
 
 # Defaults
 DEFAULT_MODEL = "minimax/MiniMax-M2.5"
-DEFAULT_JUDGE_MODEL = "gpt-4o-mini"
 DEFAULT_REFLEXIO_URL = "http://localhost:8081"
 DEFAULT_TOP_K = 20
 DEFAULT_SEARCH_THRESHOLD = 0.1

@@ -35,7 +35,6 @@ dependencies = [
     "httpx>=0.28.1",
     "pydantic[email]>=2.12.5",
     "nltk>=3.9.3",
-    "python-multipart>=0.0.22",
 ]
 
 [dependency-groups]
@@ -59,6 +58,7 @@ docs = [
     "mkdocstrings-python>=1.7.0",
 ]
 benchmarks = [
+    "appworld>=0.1.0",
     "scipy>=1.11.0",
 ]
 
@@ -67,8 +67,6 @@ members = ["reflexio/reflexio_commons", "reflexio/reflexio_client"]
 
 [tool.uv.sources]
 reflexio-commons = { workspace = true }
-
-[tool.uv]
 
 [build-system]
 requires = ["hatchling"]

@@ -8,10 +8,10 @@ Reflexio uses **two separate Supabase databases**:
 
 | Database | Directory | Purpose | Default Location |
 |----------|-----------|---------|------------------|
-| **Main** | `supabase/data/` | User profiles, interactions, feedbacks, embeddings, skills | Local (`127.0.0.1:54322`) |
-| **Login** | `supabase/auth/` | Organizations, login credentials, API tokens, invitation codes | Cloud (`*.supabase.co`) or Local |
+| **Main** | `supabase/data/` | User profiles, interactions, feedbacks, embeddings | Local (`127.0.0.1:54322`) |
+| **Login** | `supabase/auth/` | Organizations, login credentials, API keys, invitation codes | Cloud (`*.supabase.co`) or Local |
 
-Each database has its own Supabase project structure with a `config.toml` and `supabase/migrations/` subdirectory. When schema changes are needed (new tables, columns, functions, etc.), migration files are created in the respective `supabase/migrations/` directory and applied to the target database.
+When schema changes are needed (new tables, columns, functions, etc.), migration files are created in the respective `migrations/` directory and applied to the target database.
 
 ## Supabase CLI
 
@@ -110,37 +110,23 @@ supabase db push
 
 ## Applying Login Migrations to Local Supabase
 
-The `supabase/auth/` migrations are normally applied to a cloud Supabase project. To apply them to your **local** Supabase instance (e.g., for local development), use the provided script:
+The `supabase/auth/` migrations are normally applied to a cloud Supabase project. To apply them to your **local** Supabase instance (e.g., for local development), run the SQL files directly via `psql`:
 
 ```bash
-# Apply all auth migrations to local Supabase (default: localhost:54322)
-./supabase/auth/run_migrations.sh
+# Local Supabase DB: postgresql://postgres:postgres@127.0.0.1:54322/postgres
 
-# Or override connection settings via environment variables
-DB_HOST=myhost DB_PORT=5432 DB_PASSWORD=secret ./supabase/auth/run_migrations.sh
-```
+# Apply all login migrations in order
+psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
+  -f supabase/auth/migrations/20251206000001_create_organizations.sql
 
-The script applies all migration files from `supabase/auth/supabase/migrations/` in sorted order via `psql`. It supports the following environment variables (with defaults for local Supabase):
+psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
+  -f supabase/auth/migrations/20251228052539_add_verify_and_count_col.sql
 
-| Variable | Default |
-|----------|---------|
-| `DB_HOST` | `localhost` |
-| `DB_PORT` | `54322` |
-| `DB_NAME` | `postgres` |
-| `DB_USER` | `postgres` |
-| `DB_PASSWORD` | `postgres` |
+psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
+  -f supabase/auth/migrations/20260118120000_add_is_self_managed_col.sql
 
-Current auth migrations:
-
-```
-20251206000001_create_organizations.sql
-20251228052539_add_verify_and_count_col.sql
-20260118120000_add_is_self_managed_col.sql
-20260211000001_create_invitation_codes.sql
-20260313120000_create_api_tokens.sql
-20260313130000_fix_api_token_migration.sql
-20260313140000_drop_organizations_api_key.sql
-20260313150000_add_auth_provider_col.sql
+psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
+  -f supabase/auth/migrations/20260211000001_create_invitation_codes.sql
 ```
 
 These migrations use `IF NOT EXISTS` / `ADD COLUMN` patterns, so they are safe to re-run.
@@ -151,31 +137,25 @@ These migrations use `IF NOT EXISTS` / `ADD COLUMN` patterns, so they are safe t
 
 ## Migration Files
 
-Migration files are stored in each database's `supabase/migrations/` subdirectory with the naming convention:
+Migration files are stored in `supabase/migrations/` with the naming convention:
 
 ```
 YYYYMMDDHHMMSS_description.sql
 ```
 
-- **Main DB migrations**: `supabase/data/supabase/migrations/`
-- **Login DB migrations**: `supabase/auth/supabase/migrations/`
-
-Example (Main DB):
+Example:
 ```
-20251113205946_init.sql
-20260209000000_add_skills_table.sql
-20260312130000_rename_avg_to_user_turns.sql
+20251113205946_init.sql.sql
+20251113220000_exclude_archived_feedbacks.sql
+20251120062400_add_user_col_to_interaction_table.sql
 ```
 
 ### Creating a New Migration
 
-1. Create a new SQL file in the appropriate migrations directory:
+1. Create a new SQL file in `supabase/migrations/`:
    ```bash
-   # Main DB: use supabase CLI (from supabase/data/)
-   cd supabase/data && supabase migration new your_migration_name
-
-   # Login DB: create manually
-   touch supabase/auth/supabase/migrations/$(date +%Y%m%d%H%M%S)_your_migration_name.sql
+   # Use timestamp format: YYYYMMDDHHMMSS
+   touch supabase/migrations/$(date +%Y%m%d%H%M%S)_your_migration_name.sql
    ```
 
 2. Add your SQL statements to the file:
