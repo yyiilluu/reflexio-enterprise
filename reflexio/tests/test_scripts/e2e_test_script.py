@@ -4,14 +4,14 @@ from reflexio_commons.api_schema.retriever_schema import (
     GetInteractionsRequest,
     GetUserProfilesRequest,
 )
-from reflexio_commons.api_schema.service_schemas import UserActionType
+from reflexio_commons.api_schema.service_schemas import InteractionData, UserActionType
 from reflexio_commons.config_schema import (
     Config,
     ProfileExtractorConfig,
     StorageConfigTest,
 )
 
-from reflexio.reflexio_lib.reflexio_lib import InteractionData, Reflexio
+from reflexio.reflexio_lib.reflexio_lib import Reflexio
 from reflexio.server import OPENAI_API_KEY
 
 # Set up logging
