@@ -130,8 +130,8 @@ generate_requirements() {
 
     uv export --no-dev --no-hashes -o docker/requirements.txt
 
-    # Replace local path dependency with PyPI package
-    sed -i '' '/-e file:\/\/.*reflexio_commons/d' docker/requirements.txt
+    # Remove editable installs (not valid in Docker) and add PyPI package instead
+    sed -i '' '/^-e /d' docker/requirements.txt
     echo "reflexio-commons" >> docker/requirements.txt
 
     log_success "requirements.txt generated"
