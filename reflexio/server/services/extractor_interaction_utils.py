@@ -6,7 +6,6 @@ to handle per-extractor stride checking, source filtering, and sliding window it
 """
 
 import logging
-from typing import TypeVar
 
 from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 
@@ -14,15 +13,13 @@ from reflexio.server.services.extractor_config_utils import get_extractor_name
 
 logger = logging.getLogger(__name__)
 
-TExtractorConfig = TypeVar("TExtractorConfig")
-
 
 DEFAULT_WINDOW_SIZE = 10
 DEFAULT_STRIDE_SIZE = 5
 
 
 def get_extractor_window_params(
-    extractor_config: TExtractorConfig,
+    extractor_config: object,
     global_window_size: int | None,
     global_stride: int | None,
 ) -> tuple[int, int]:
@@ -65,7 +62,7 @@ def get_extractor_window_params(
 
 
 def get_effective_source_filter(
-    extractor_config: TExtractorConfig,
+    extractor_config: object,
     triggering_source: str | None,
 ) -> tuple[bool, list[str] | None]:
     """
