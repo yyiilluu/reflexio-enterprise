@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
+from postgrest import APIResponse
 from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
 from reflexio_commons.api_schema.retriever_schema import (
     SearchFeedbackRequest,
@@ -76,6 +77,12 @@ from reflexio.server.site_var.site_var_manager import SiteVarManager
 from supabase import Client, create_client
 
 logger = logging.getLogger(__name__)
+
+
+def _rows(response: APIResponse) -> list[dict[str, Any]]:
+    """Narrow postgrest's List[JSON] to the list[dict] that table queries actually return."""
+    return cast(list[dict[str, Any]], response.data)
+
 
 # Explicit column lists to avoid fetching embedding vectors (512-dim float, ~2KB each as JSON).
 # IMPORTANT: When adding a new column to any table, update the corresponding constant here.
@@ -444,7 +451,7 @@ class SupabaseStorage(BaseStorage):
         response = (
             query.order("last_modified_timestamp", desc=True).limit(limit).execute()
         )
-        return response_list_to_user_profiles(response.data)
+        return response_list_to_user_profiles(_rows(response))
 
     @handle_exceptions
     def get_all_interactions(self, limit: int = 100) -> list[Interaction]:
@@ -455,7 +462,7 @@ class SupabaseStorage(BaseStorage):
             .limit(limit)
             .execute()
         )
-        return response_list_to_interactions(response.data)
+        return response_list_to_interactions(_rows(response))
 
     @handle_exceptions
     def get_user_profile(
@@ -497,7 +504,7 @@ class SupabaseStorage(BaseStorage):
             query = query.in_("status", status_strings)
 
         response = query.execute()
-        return response_list_to_user_profiles(response.data)
+        return response_list_to_user_profiles(_rows(response))
 
     @handle_exceptions
     def get_user_interaction(self, user_id: str) -> list[Interaction]:
@@ -507,7 +514,7 @@ class SupabaseStorage(BaseStorage):
             .eq("user_id", user_id)
             .execute()
         )
-        return response_list_to_interactions(response.data)
+        return response_list_to_interactions(_rows(response))
 
     @handle_exceptions
     def add_user_profile(self, user_id: str, user_profiles: list[UserProfile]) -> None:  # noqa: ARG002
@@ -665,10 +672,11 @@ class SupabaseStorage(BaseStorage):
             .limit(count)
             .execute()
         )
-        if not result.data:
+        rows = _rows(result)
+        if not rows:
             return 0
 
-        ids_to_delete = [row["interaction_id"] for row in result.data]
+        ids_to_delete = [row["interaction_id"] for row in rows]
         self.client.table("interactions").delete().in_(
             "interaction_id", ids_to_delete
         ).execute()
@@ -774,7 +782,8 @@ class SupabaseStorage(BaseStorage):
         response = query.execute()
 
         # Extract unique user_ids
-        return list({row["user_id"] for row in response.data}) if response.data else []
+        data = _rows(response)
+        return list({row["user_id"] for row in data}) if data else []
 
     # ==============================
     # Request methods
@@ -808,10 +817,11 @@ class SupabaseStorage(BaseStorage):
             .execute()
         )
 
-        if not response.data:
+        data = _rows(response)
+        if not data:
             return None
 
-        return response_to_request(response.data[0])
+        return response_to_request(data[0])
 
     @handle_exceptions
     def delete_request(self, request_id: str) -> None:
@@ -847,10 +857,11 @@ class SupabaseStorage(BaseStorage):
             .execute()
         )
 
-        if not response.data:
+        data = _rows(response)
+        if not data:
             return 0
 
-        request_ids = [r["request_id"] for r in response.data]
+        request_ids = [r["request_id"] for r in data]
         request_count = len(request_ids)
 
         # Delete all interactions for all requests in this session
@@ -892,7 +903,7 @@ class SupabaseStorage(BaseStorage):
             .in_("request_id", request_ids)
             .execute()
         )
-        return len(response.data)
+        return len(_rows(response))
 
     @handle_exceptions
     def delete_profiles_by_ids(self, profile_ids: Sequence[str]) -> int:
@@ -905,7 +916,7 @@ class SupabaseStorage(BaseStorage):
             .in_("profile_id", profile_ids)
             .execute()
         )
-        return len(response.data)
+        return len(_rows(response))
 
     @handle_exceptions
     def get_requests_by_session(self, user_id: str, session_id: str) -> list[Request]:
@@ -927,10 +938,11 @@ class SupabaseStorage(BaseStorage):
             .execute()
         )
 
-        if not response.data:
+        data = _rows(response)
+        if not data:
             return []
 
-        return [response_to_request(item) for item in response.data]
+        return [response_to_request(item) for item in data]
 
     @handle_exceptions
     def get_sessions(
@@ -993,12 +1005,13 @@ class SupabaseStorage(BaseStorage):
 
         response = query.execute()
 
-        if not response.data:
+        data = _rows(response)
+        if not data:
             return {}
 
         # Parse and group the results
         grouped_results = {}
-        for item in response.data:
+        for item in data:
             # Parse request
             req = response_to_request(item)
 
@@ -1084,7 +1097,7 @@ class SupabaseStorage(BaseStorage):
                 query = query.eq("agent_version", agent_version)
 
             response = query.execute()
-            rows = response.data or []
+            rows = _rows(response)
 
             if not rows:
                 break
@@ -1118,7 +1131,7 @@ class SupabaseStorage(BaseStorage):
             .limit(limit)
             .execute()
         )
-        return response_list_to_profile_change_logs(response.data)
+        return response_list_to_profile_change_logs(_rows(response))
 
     @handle_exceptions
     def delete_profile_change_log_for_user(self, user_id: str) -> None:
@@ -1157,7 +1170,7 @@ class SupabaseStorage(BaseStorage):
             .limit(limit)
             .execute()
         )
-        return response_list_to_feedback_aggregation_change_logs(response.data)
+        return response_list_to_feedback_aggregation_change_logs(_rows(response))
 
     @handle_exceptions
     def delete_all_feedback_aggregation_change_logs(self) -> None:
@@ -1397,7 +1410,7 @@ class SupabaseStorage(BaseStorage):
                 .eq("user_id", user_id)
                 .execute()
             )
-            request_ids_for_user = [r["request_id"] for r in requests_response.data]
+            request_ids_for_user = [r["request_id"] for r in _rows(requests_response)]
             if not request_ids_for_user:
                 return []
 
@@ -1443,7 +1456,7 @@ class SupabaseStorage(BaseStorage):
                 source_interaction_ids=item.get("source_interaction_ids") or [],
                 embedding=[],
             )
-            for item in response.data
+            for item in _rows(response)
         ]
 
     @handle_exceptions
@@ -1574,7 +1587,7 @@ class SupabaseStorage(BaseStorage):
                 embedding=[],
                 status=Status(item["status"]) if item.get("status") else None,
             )
-            for item in response.data
+            for item in _rows(response)
         ]
 
     # ==============================
@@ -1722,7 +1735,7 @@ class SupabaseStorage(BaseStorage):
                     else []
                 ),
             )
-            for item in response.data
+            for item in _rows(response)
         ]
 
     @handle_exceptions
@@ -1796,10 +1809,11 @@ class SupabaseStorage(BaseStorage):
             .execute()
         )
 
-        if not requests_response.data:
+        requests_data = _rows(requests_response)
+        if not requests_data:
             return 0
 
-        request_ids = [r["request_id"] for r in requests_response.data]
+        request_ids = [r["request_id"] for r in requests_data]
 
         # Count raw_feedbacks with those request_ids
         count_response = (
@@ -1884,7 +1898,7 @@ class SupabaseStorage(BaseStorage):
                 embedding=[],
                 status=item.get("status"),
             )
-            for item in response.data
+            for item in _rows(response)
         ]
 
     @handle_exceptions
@@ -2393,7 +2407,7 @@ class SupabaseStorage(BaseStorage):
                 is_escalated=item.get("is_escalated", False) or False,
                 embedding=[],
             )
-            for item in response.data
+            for item in _rows(response)
         ]
 
     @handle_exceptions
@@ -2492,14 +2506,15 @@ class SupabaseStorage(BaseStorage):
             list[dict[str, Any]]: Raw data rows from the query
         """
         select_cols = f"{time_col}, {extra_cols}" if extra_cols else time_col
-        return (
+        response = (
             self.client.table(table)
             .select(select_cols)
             .gte(time_col, start)
             .lte(time_col, end)
             .order(time_col)
             .execute()
-        ).data
+        )
+        return _rows(response)
 
     @handle_exceptions
     def get_dashboard_stats(self, days_back: int = 30) -> dict:
@@ -2584,20 +2599,22 @@ class SupabaseStorage(BaseStorage):
         }
 
         # Evaluation success rates
-        eval_current_data = (
+        eval_current_response = (
             self.client.table("agent_success_evaluation_result")
             .select("is_success")
             .gte("created_at", current_period_start_iso)
             .lte("created_at", current_time_iso)
             .execute()
-        ).data
-        eval_previous_data = (
+        )
+        eval_current_data = _rows(eval_current_response)
+        eval_previous_response = (
             self.client.table("agent_success_evaluation_result")
             .select("is_success")
             .gte("created_at", previous_period_start_iso)
             .lt("created_at", current_period_start_iso)
             .execute()
-        ).data
+        )
+        eval_previous_data = _rows(eval_previous_response)
 
         current_stats["success_rate"] = _calculate_success_rate(eval_current_data)
         previous_stats["success_rate"] = _calculate_success_rate(eval_previous_data)
@@ -2772,11 +2789,12 @@ class SupabaseStorage(BaseStorage):
             .execute()
         )
 
-        if response.data:
+        data = _rows(response)
+        if data:
             return {
-                "service_name": response.data[0]["service_name"],
-                "operation_state": response.data[0]["operation_state"],
-                "updated_at": response.data[0]["updated_at"],
+                "service_name": data[0]["service_name"],
+                "operation_state": data[0]["operation_state"],
+                "updated_at": data[0]["updated_at"],
             }
         return None
 
@@ -3080,7 +3098,7 @@ class SupabaseStorage(BaseStorage):
         }
 
         # Count profiles by status
-        for profile_data in response.data:
+        for profile_data in _rows(response):
             status = profile_data.get("status")
             expiration_timestamp = profile_data.get("expiration_timestamp")
 
@@ -3167,7 +3185,7 @@ class SupabaseStorage(BaseStorage):
             db_query = db_query.eq("skill_status", skill_status.value)
 
         response = db_query.execute()
-        return [response_to_skill(item) for item in response.data]
+        return [response_to_skill(item) for item in _rows(response)]
 
     @handle_exceptions
     def search_skills(
@@ -3286,4 +3304,4 @@ class SupabaseStorage(BaseStorage):
             .order("created_at", desc=False)
             .execute()
         )
-        return [response_to_interaction(item) for item in response.data]
+        return [response_to_interaction(item) for item in _rows(response)]

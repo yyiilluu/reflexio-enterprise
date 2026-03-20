@@ -11,8 +11,10 @@ import logging
 import os
 from collections.abc import Generator
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any, cast
 
+from postgrest import APIResponse
 from sqlalchemy.orm import Session
 from tenacity import (
     retry,
@@ -44,6 +46,11 @@ SELF_HOST_MODE = os.getenv("SELF_HOST", "false").lower() == "true"
 def _is_self_host_s3_mode() -> bool:
     """Check if we're in self-host mode with S3 storage."""
     return SELF_HOST_MODE and is_s3_org_storage_ready()
+
+
+def _rows(response: APIResponse) -> list[dict[str, Any]]:
+    """Narrow postgrest's List[JSON] to the list[dict] that table queries actually return."""
+    return cast(list[dict[str, Any]], response.data)
 
 
 def _supabase_row_to_organization(row: dict) -> db_models.Organization:
@@ -103,8 +110,9 @@ def get_organization_by_email(
         response = (
             client.table("organizations").select("*").eq("email", email).execute()
         )
-        if response.data:
-            return _supabase_row_to_organization(response.data[0])
+        rows = _rows(response)
+        if rows:
+            return _supabase_row_to_organization(rows[0])
         return None
     if session is None:
         logger.error("No session available and Supabase client not configured")
@@ -143,7 +151,7 @@ def get_organizations(
             .range(skip, skip + limit - 1)
             .execute()
         )
-        return [_supabase_row_to_organization(row) for row in response.data]
+        return [_supabase_row_to_organization(row) for row in _rows(response)]
     if session is None:
         logger.error("No session available and Supabase client not configured")
         return []
@@ -171,8 +179,7 @@ def create_organization(
     client = get_login_supabase_client()
     if client:
         data = {
-            "created_at": organization.created_at
-            or int(datetime.now(timezone.utc).timestamp()),
+            "created_at": organization.created_at or int(datetime.now(UTC).timestamp()),
             "email": organization.email,
             "hashed_password": organization.hashed_password,
             "is_active": organization.is_active
@@ -188,8 +195,9 @@ def create_organization(
             "auth_provider": organization.auth_provider or "email",
         }
         response = client.table("organizations").insert(data).execute()
-        if response.data:
-            return _supabase_row_to_organization(response.data[0])  # type: ignore[reportArgumentType]
+        rows = _rows(response)
+        if rows:
+            return _supabase_row_to_organization(rows[0])
         raise Exception("Failed to create organization in Supabase")
     if session is None:
         raise Exception("No session available and Supabase client not configured")
@@ -234,8 +242,9 @@ def update_organization(
             .eq("id", organization.id)
             .execute()
         )
-        if response.data:
-            return _supabase_row_to_organization(response.data[0])
+        rows = _rows(response)
+        if rows:
+            return _supabase_row_to_organization(rows[0])
         raise Exception("Failed to update organization in Supabase")
     if session is None:
         raise Exception("No session available and Supabase client not configured")
@@ -245,7 +254,7 @@ def update_organization(
 
 
 # Dependency
-def get_db_session() -> Generator[Session | None, None, None]:
+def get_db_session() -> Generator[Session | None]:
     """
     FastAPI dependency that yields a database session.
 
@@ -300,8 +309,9 @@ def get_invitation_code(session: Session, code: str) -> db_models.InvitationCode
         response = (
             client.table("invitation_codes").select("*").eq("code", code).execute()
         )
-        if response.data:
-            return _row_to_invitation_code(response.data[0])
+        rows = _rows(response)
+        if rows:
+            return _row_to_invitation_code(rows[0])
         return None
     if session is None:
         logger.error("No session available and Supabase client not configured")
@@ -329,7 +339,7 @@ def claim_invitation_code(
         The claimed InvitationCode if successful, or None if the code was
         already used, expired, or does not exist.
     """
-    now = int(datetime.now(timezone.utc).timestamp())
+    now = int(datetime.now(UTC).timestamp())
     client = get_login_supabase_client()
     if client:
         # Atomic update: only update if code exists, is unused, and not expired.
@@ -342,9 +352,10 @@ def claim_invitation_code(
             .or_(f"expires_at.is.null,expires_at.gte.{now}")
             .execute()
         )
-        if not response.data:
+        rows = _rows(response)
+        if not rows:
             return None
-        return _row_to_invitation_code(response.data[0])
+        return _row_to_invitation_code(rows[0])
     if session is None:
         logger.error("No session available and Supabase client not configured")
         return None
@@ -411,7 +422,7 @@ def create_invitation_code(
     Returns:
         Created InvitationCode object
     """
-    created_at = int(datetime.now(timezone.utc).timestamp())
+    created_at = int(datetime.now(UTC).timestamp())
     client = get_login_supabase_client()
     if client:
         data = {
@@ -421,8 +432,9 @@ def create_invitation_code(
             "expires_at": expires_at,
         }
         response = client.table("invitation_codes").insert(data).execute()
-        if response.data:
-            return _row_to_invitation_code(response.data[0])  # type: ignore[reportArgumentType]
+        rows = _rows(response)
+        if rows:
+            return _row_to_invitation_code(rows[0])
         raise Exception("Failed to create invitation code in Supabase")
     if session is None:
         raise Exception("No session available and Supabase client not configured")
@@ -472,7 +484,7 @@ def create_api_token(
     Returns:
         Created ApiToken object
     """
-    created_at = int(datetime.now(timezone.utc).timestamp())
+    created_at = int(datetime.now(UTC).timestamp())
 
     if _is_self_host_s3_mode():
         s3_storage = get_s3_org_storage()
@@ -487,8 +499,9 @@ def create_api_token(
             "created_at": created_at,
         }
         response = client.table("api_tokens").insert(data).execute()
-        if response.data:
-            return _row_to_api_token(response.data[0])  # type: ignore[reportArgumentType]
+        rows = _rows(response)
+        if rows:
+            return _row_to_api_token(rows[0])
         raise Exception("Failed to create API token in Supabase")
     if session is None:
         raise Exception("No session available and Supabase client not configured")
@@ -528,7 +541,7 @@ def get_api_tokens_by_org_id(session: Session, org_id: int) -> list[db_models.Ap
             .order("created_at")
             .execute()
         )
-        return [_row_to_api_token(row) for row in response.data]
+        return [_row_to_api_token(row) for row in _rows(response)]
     if session is None:
         return []
     return (
@@ -564,15 +577,17 @@ def get_org_by_api_token(
             .eq("token", token_value)
             .execute()
         )
-        if not response.data:
+        rows = _rows(response)
+        if not rows:
             return None
-        org_id = response.data[0]["org_id"]
+        org_id = rows[0]["org_id"]
         # Now get the organization
         org_response = (
             client.table("organizations").select("*").eq("id", org_id).execute()
         )
-        if org_response.data:
-            return _supabase_row_to_organization(org_response.data[0])
+        org_rows = _rows(org_response)
+        if org_rows:
+            return _supabase_row_to_organization(org_rows[0])
         return None
     if session is None:
         return None
@@ -615,7 +630,7 @@ def delete_api_token(session: Session, token_id: int, org_id: int) -> bool:
             .eq("org_id", org_id)
             .execute()
         )
-        return bool(response.data)
+        return bool(_rows(response))
     if session is None:
         return False
     result = (
@@ -651,7 +666,7 @@ def delete_all_api_tokens_for_org(session: Session, org_id: int) -> int:
     client = get_login_supabase_client()
     if client:
         response = client.table("api_tokens").delete().eq("org_id", org_id).execute()
-        return len(response.data)
+        return len(_rows(response))
     if session is None:
         return 0
     count = (
@@ -681,7 +696,7 @@ def delete_organization(session: Session, org_id: int) -> bool:
     client = get_login_supabase_client()
     if client:
         response = client.table("organizations").delete().eq("id", org_id).execute()
-        return bool(response.data)
+        return bool(_rows(response))
     if session is None:
         return False
     result = (
@@ -716,7 +731,7 @@ def add_db_model(session: Session, db_model: db_models.Base) -> db_models.Base: 
 
 
 @contextmanager
-def db_session_context() -> Generator[Session | None, None, None]:
+def db_session_context() -> Generator[Session | None]:
     """
     Context manager for database sessions.
 
