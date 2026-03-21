@@ -7,14 +7,10 @@ services:
       - "8080:8080"
       - "8081:8081"
     volumes:
-      - ./reflexio/data:/reflexio/data
-      - ./reflexio/server/site_var/site_var_sources:/reflexio/server/site_var/site_var_sources
+      - ./reflexio_ext/data:/reflexio_ext/data
+      - ./open_source/reflexio/reflexio/server/site_var/site_var_sources:/app/open_source/reflexio/reflexio/server/site_var/site_var_sources
     environment:
-      - LOCAL_STORAGE_PATH=/reflexio/data
-      - SQLITE_FILE_DIRECTORY=/reflexio/data
+      - LOCAL_STORAGE_PATH=/reflexio_ext/data
+      - SQLITE_FILE_DIRECTORY=/reflexio_ext/data
       - OPENAI_API_KEY=sk-proj-
     restart: unless-stopped
-
-# volumes:
-#   reflexio-data:
-#   reflexio-site-vars:

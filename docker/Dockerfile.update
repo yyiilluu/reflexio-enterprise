@@ -10,9 +10,8 @@
 #   docker build -f docker/Dockerfile.update -t agenticmem:latest .
 #
 # What this re-copies:
-#   - reflexio_commons (shared schemas)
-#   - FastAPI backend code + configs + prompts
-#   - Scripts, utils, hooks, libs
+#   - Open source reflexio package
+#   - Enterprise extension (reflexio_ext)
 #   - Supabase migrations
 #   - supervisord config
 #
@@ -29,20 +28,11 @@ FROM agenticmem:latest
 
 WORKDIR /app
 
-# Re-copy shared schemas (editable install already points here)
-COPY reflexio/reflexio_commons ./reflexio/reflexio_commons
+# Re-copy open source reflexio package
+COPY open_source/reflexio ./open_source/reflexio
 
-# Re-copy backend code — each directory individually to preserve website/ from base
-COPY reflexio/__init__.py ./reflexio/__init__.py
-COPY reflexio/server ./reflexio/server
-COPY reflexio/scripts ./reflexio/scripts
-COPY reflexio/utils ./reflexio/utils
-COPY reflexio/hooks ./reflexio/hooks
-COPY reflexio/reflexio_lib ./reflexio/reflexio_lib
-COPY reflexio/reflexio_client ./reflexio/reflexio_client
-COPY reflexio/data ./reflexio/data
-# Note: public_docs is NOT re-copied here to preserve the pre-built .next from base.
-# If docs content changed, rebuild with Dockerfile.base instead.
+# Re-copy enterprise extension
+COPY reflexio_ext/ ./reflexio_ext/
 
 # Re-copy Supabase migrations
 COPY supabase/data/ ./supabase/data/

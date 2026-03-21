@@ -1,7 +1,0 @@
-{
-    "should_run_model_name": "minimax/MiniMax-M2.5",
-    "default_generation_model_name": "minimax/MiniMax-M2.5",
-    "default_evaluate_model_name": "minimax/MiniMax-M2.5",
-    "embedding_model_name": "text-embedding-3-small",
-    "query_rewrite_model_name": "minimax/MiniMax-M2.5"
-}

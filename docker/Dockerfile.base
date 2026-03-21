@@ -15,13 +15,13 @@ FROM node:20-alpine AS frontend-builder
 WORKDIR /app/website
 
 # Copy package files
-COPY reflexio/website/package*.json ./
+COPY website/package*.json ./
 
 # Install dependencies
 RUN npm ci
 
 # Copy source files
-COPY reflexio/website/ ./
+COPY website/ ./
 
 # Create empty .env file (Next.js requires it, but no env vars are used at build time)
 RUN touch .env
@@ -37,14 +37,14 @@ FROM node:20-alpine AS docs-builder
 WORKDIR /app/docs
 
 # Copy package files and source config (needed by fumadocs-mdx postinstall)
-COPY reflexio/public_docs/package*.json ./
-COPY reflexio/public_docs/source.config.ts ./
+COPY public_docs/package*.json ./
+COPY public_docs/source.config.ts ./
 
 # Install dependencies
 RUN npm ci
 
 # Copy source files
-COPY reflexio/public_docs/ ./
+COPY public_docs/ ./
 
 # Build docs (pages are pre-rendered at build time)
 RUN npm run build
@@ -85,24 +85,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy and install reflexio_commons package
-COPY reflexio/reflexio_commons ./reflexio/reflexio_commons
-RUN pip install -e ./reflexio/reflexio_commons
+# Copy and install open source reflexio package
+COPY open_source/reflexio ./open_source/reflexio
+RUN pip install -e ./open_source/reflexio
 
-# Copy FastAPI backend
-COPY reflexio/ ./reflexio/
+# Copy enterprise extension
+COPY reflexio_ext/ ./reflexio_ext/
 
 # Copy built Next.js app with node_modules
-COPY --from=frontend-builder /app/website/.next ./reflexio/website/.next
-COPY --from=frontend-builder /app/website/node_modules ./reflexio/website/node_modules
-COPY --from=frontend-builder /app/website/package.json ./reflexio/website/package.json
-COPY --from=frontend-builder /app/website/public ./reflexio/website/public
+COPY --from=frontend-builder /app/website/.next ./website/.next
+COPY --from=frontend-builder /app/website/node_modules ./website/node_modules
+COPY --from=frontend-builder /app/website/package.json ./website/package.json
+COPY --from=frontend-builder /app/website/public ./website/public
 
 # Copy built docs site with node_modules
-COPY --from=docs-builder /app/docs/.next ./reflexio/public_docs/.next
-COPY --from=docs-builder /app/docs/node_modules ./reflexio/public_docs/node_modules
-COPY --from=docs-builder /app/docs/package.json ./reflexio/public_docs/package.json
-COPY --from=docs-builder /app/docs/public ./reflexio/public_docs/public
+COPY --from=docs-builder /app/docs/.next ./public_docs/.next
+COPY --from=docs-builder /app/docs/node_modules ./public_docs/node_modules
+COPY --from=docs-builder /app/docs/package.json ./public_docs/package.json
+COPY --from=docs-builder /app/docs/public ./public_docs/public
 
 # Copy Supabase migrations
 COPY supabase/data/ ./supabase/data/
