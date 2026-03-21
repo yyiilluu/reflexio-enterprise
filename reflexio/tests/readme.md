@@ -45,6 +45,12 @@ pytest reflexio/tests
 | `test_configuration.py` | Configuration and setup validation |
 | `conftest.py` | Shared fixtures and utilities |
 
+### E2E Test Behavior
+
+- **Real LLM requirement** — e2e tests call the real LLM (MiniMax) for profile and feedback extraction. There are no mocks; every test run makes actual API calls.
+- **Non-deterministic output** — LLM responses vary between runs. Tests assert structural correctness (non-null values, correct types, expected fields present) rather than exact values. Occasional failures from LLM variance are expected and by design — retry before investigating.
+- **Long runtime** — the full e2e suite takes several minutes due to real API calls. Use `pytest -k <test_name>` to run specific tests during development rather than the entire suite.
+
 ## Integration Tests
 
 ```shell

@@ -1,7 +1,7 @@
 """End-to-end tests for complete workflows and error handling."""
 
 from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from reflexio_commons.api_schema.retriever_schema import (
     GetDashboardStatsRequest,
@@ -22,6 +22,7 @@ from reflexio_commons.api_schema.service_schemas import (
     Status,
 )
 
+import reflexio.server.services.agent_success_evaluation.group_evaluation_runner as _runner_mod
 from reflexio.reflexio_lib.reflexio_lib import Reflexio
 from reflexio.server.services.agent_success_evaluation.group_evaluation_runner import (
     run_group_evaluation,
@@ -437,7 +438,7 @@ def test_time_filtering_and_pagination(
     assert publish_response.success is True
 
     # Test get_interactions with time filters
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     one_hour_ago = now - timedelta(hours=1)
     one_hour_later = now + timedelta(hours=1)
 
@@ -571,7 +572,7 @@ def test_rerun_profile_generation_with_filters(
     assert operation_status.operation_status.service_name == "profile_generation"
 
     # Test rerun with time filters
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     one_hour_ago = now - timedelta(hours=1)
     rerun_time_filtered = reflexio_instance.rerun_profile_generation(
         RerunProfileGenerationRequest(user_id=user_id, start_time=one_hour_ago)
@@ -693,15 +694,20 @@ def test_full_workflow_with_all_features(
     assert raw_feedbacks[0].agent_version == agent_version
 
     # Step 4: Trigger and verify agent success evaluations
-    run_group_evaluation(
-        org_id=reflexio_instance.org_id,
-        user_id=user_id,
-        session_id=session_id,
-        agent_version=agent_version,
-        source="test_full_workflow",
-        request_context=reflexio_instance.request_context,
-        llm_client=reflexio_instance.llm_client,
-    )
+    original_delay = _runner_mod._EFFECTIVE_DELAY_SECONDS
+    _runner_mod._EFFECTIVE_DELAY_SECONDS = 0
+    try:
+        run_group_evaluation(
+            org_id=reflexio_instance.org_id,
+            user_id=user_id,
+            session_id=session_id,
+            agent_version=agent_version,
+            source="test_full_workflow",
+            request_context=reflexio_instance.request_context,
+            llm_client=reflexio_instance.llm_client,
+        )
+    finally:
+        _runner_mod._EFFECTIVE_DELAY_SECONDS = original_delay
     agent_success_results = (
         reflexio_instance.request_context.storage.get_agent_success_evaluation_results(
             agent_version=agent_version
@@ -804,15 +810,20 @@ def test_rerun_operations_consistency(
     assert publish_response.success is True
 
     # Trigger group evaluation synchronously (normally delayed)
-    run_group_evaluation(
-        org_id=reflexio_instance.org_id,
-        user_id=user_id,
-        session_id=session_id,
-        agent_version=agent_version,
-        source="test_rerun_source",
-        request_context=reflexio_instance.request_context,
-        llm_client=reflexio_instance.llm_client,
-    )
+    original_delay = _runner_mod._EFFECTIVE_DELAY_SECONDS
+    _runner_mod._EFFECTIVE_DELAY_SECONDS = 0
+    try:
+        run_group_evaluation(
+            org_id=reflexio_instance.org_id,
+            user_id=user_id,
+            session_id=session_id,
+            agent_version=agent_version,
+            source="test_rerun_source",
+            request_context=reflexio_instance.request_context,
+            llm_client=reflexio_instance.llm_client,
+        )
+    finally:
+        _runner_mod._EFFECTIVE_DELAY_SECONDS = original_delay
 
     # Record initial state
     initial_interactions = (

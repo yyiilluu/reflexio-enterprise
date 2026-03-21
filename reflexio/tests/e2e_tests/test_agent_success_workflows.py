@@ -12,6 +12,7 @@ from reflexio_commons.api_schema.service_schemas import (
     UserActionType,
 )
 
+import reflexio.server.services.agent_success_evaluation.group_evaluation_runner as _runner_mod
 from reflexio.reflexio_lib.reflexio_lib import Reflexio
 from reflexio.server.services.agent_success_evaluation.group_evaluation_runner import (
     run_group_evaluation,
@@ -30,16 +31,22 @@ def _trigger_group_evaluation(
 
     In production, evaluation is scheduled via the delayed group evaluator.
     This helper calls the runner directly so tests don't have to wait.
+    Temporarily bypasses the session completion delay check.
     """
-    run_group_evaluation(
-        org_id=instance.org_id,
-        user_id=user_id,
-        session_id=session_id,
-        agent_version=agent_version,
-        source=source,
-        request_context=instance.request_context,
-        llm_client=instance.llm_client,
-    )
+    original_delay = _runner_mod._EFFECTIVE_DELAY_SECONDS
+    _runner_mod._EFFECTIVE_DELAY_SECONDS = 0
+    try:
+        run_group_evaluation(
+            org_id=instance.org_id,
+            user_id=user_id,
+            session_id=session_id,
+            agent_version=agent_version,
+            source=source,
+            request_context=instance.request_context,
+            llm_client=instance.llm_client,
+        )
+    finally:
+        _runner_mod._EFFECTIVE_DELAY_SECONDS = original_delay
 
 
 @skip_in_precommit

@@ -2,7 +2,7 @@
 
 import uuid
 from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from reflexio_commons.api_schema.retriever_schema import (
     GetUserProfilesRequest,
@@ -283,7 +283,7 @@ def test_rerun_profile_generation_end_to_end(
     """
     user_id = "test_user_rerun"
 
-    # Step 1: Publish interactions normally to generate initial profiles
+    # Step 1: Publish interactions to generate initial profiles
     response = reflexio_instance_profile_only.publish_interaction(
         {
             "user_id": user_id,
@@ -393,8 +393,8 @@ def test_rerun_profile_generation_with_time_filters(
     assert len(all_interactions) == len(sample_interaction_requests)
 
     # Test with time filter that excludes all interactions (future time range)
-    future_start = datetime.now(timezone.utc) + timedelta(days=1)
-    future_end = datetime.now(timezone.utc) + timedelta(days=2)
+    future_start = datetime.now(UTC) + timedelta(days=1)
+    future_end = datetime.now(UTC) + timedelta(days=2)
 
     rerun_request = RerunProfileGenerationRequest(
         user_id=user_id,
@@ -409,8 +409,8 @@ def test_rerun_profile_generation_with_time_filters(
     assert "No interactions found" in rerun_response.msg
 
     # Test with time filter that includes all interactions (past to future)
-    past_start = datetime.now(timezone.utc) - timedelta(days=1)
-    future_end = datetime.now(timezone.utc) + timedelta(days=1)
+    past_start = datetime.now(UTC) - timedelta(days=1)
+    future_end = datetime.now(UTC) + timedelta(days=1)
 
     rerun_request_valid = RerunProfileGenerationRequest(
         user_id=user_id,
@@ -720,7 +720,7 @@ def _create_test_profile(
         profile_id=str(uuid.uuid4()),
         user_id=user_id,
         profile_content=content,
-        last_modified_timestamp=int(datetime.now(timezone.utc).timestamp()),
+        last_modified_timestamp=int(datetime.now(UTC).timestamp()),
         generated_from_request_id=request_id,
         status=status,
     )

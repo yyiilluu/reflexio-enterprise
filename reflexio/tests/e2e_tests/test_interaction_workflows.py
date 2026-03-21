@@ -11,6 +11,7 @@ from reflexio_commons.api_schema.service_schemas import (
     InteractionData,
 )
 
+import reflexio.server.services.agent_success_evaluation.group_evaluation_runner as _runner_mod
 from reflexio.reflexio_lib.reflexio_lib import Reflexio
 from reflexio.server.services.agent_success_evaluation.group_evaluation_runner import (
     run_group_evaluation,
@@ -86,15 +87,21 @@ def test_publish_interaction_end_to_end(
     assert len(raw_feedbacks) > 0 and raw_feedbacks[0].feedback_content.strip() != ""
 
     # Trigger and verify agent success evaluation results
-    run_group_evaluation(
-        org_id=reflexio_instance.org_id,
-        user_id=user_id,
-        session_id=session_id,
-        agent_version=agent_version,
-        source="test_conversation",
-        request_context=reflexio_instance.request_context,
-        llm_client=reflexio_instance.llm_client,
-    )
+    # Temporarily bypass session completion delay for e2e tests
+    original_delay = _runner_mod._EFFECTIVE_DELAY_SECONDS
+    _runner_mod._EFFECTIVE_DELAY_SECONDS = 0
+    try:
+        run_group_evaluation(
+            org_id=reflexio_instance.org_id,
+            user_id=user_id,
+            session_id=session_id,
+            agent_version=agent_version,
+            source="test_conversation",
+            request_context=reflexio_instance.request_context,
+            llm_client=reflexio_instance.llm_client,
+        )
+    finally:
+        _runner_mod._EFFECTIVE_DELAY_SECONDS = original_delay
     agent_success_results = (
         reflexio_instance.request_context.storage.get_agent_success_evaluation_results(
             agent_version=agent_version

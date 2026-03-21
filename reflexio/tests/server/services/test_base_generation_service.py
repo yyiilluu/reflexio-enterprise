@@ -7,6 +7,7 @@ Tests the abstract base class by creating a concrete implementation for testing.
 import tempfile
 import time
 from dataclasses import dataclass, field
+from datetime import UTC
 from unittest.mock import MagicMock
 
 import pytest
@@ -788,13 +789,13 @@ class TestRunRerun:
         )
 
         # Mock operation state to show in-progress (with recent started_at so stale detection doesn't trigger)
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         service.storage.get_operation_state = MagicMock(
             return_value={
                 "operation_state": {
                     "status": "in_progress",
-                    "started_at": int(datetime.now(timezone.utc).timestamp()),
+                    "started_at": int(datetime.now(UTC).timestamp()),
                 }
             }
         )
@@ -1915,6 +1916,682 @@ class TestSequentialExecution:
         assert service._process_calls[0] == [{"name": "fast"}]
         assert service._last_extractor_run_stats["failed"] == 1
         assert service._last_extractor_run_stats["timed_out"] == 1
+
+
+# ===============================
+# Test: _should_run_before_extraction (pre-extraction check)
+# ===============================
+
+
+class TestShouldRunBeforeExtraction:
+    """Tests for the _should_run_before_extraction method and its skip/false paths."""
+
+    def test_returns_true_when_auto_run_false(self, llm_client, request_context):
+        """Pre-extraction check should always return True for non-auto (rerun) mode."""
+        service = ConcreteGenerationService(
+            llm_client,
+            request_context,
+            extractor_configs=[MockExtractorConfig(extractor_name="ext1")],
+        )
+        service.service_config = MockServiceConfig(auto_run=False)
+
+        result = service._should_run_before_extraction(
+            [MockExtractorConfig(extractor_name="ext1")]
+        )
+        assert result is True
+
+    def test_returns_true_when_mock_llm_env_set(
+        self, llm_client, request_context, monkeypatch
+    ):
+        """Pre-extraction check should return True when MOCK_LLM_RESPONSE is set."""
+        monkeypatch.setenv("MOCK_LLM_RESPONSE", "true")
+        service = ConcreteGenerationService(
+            llm_client,
+            request_context,
+            extractor_configs=[MockExtractorConfig(extractor_name="ext1")],
+        )
+        service.service_config = MockServiceConfig(auto_run=True)
+
+        result = service._should_run_before_extraction(
+            [MockExtractorConfig(extractor_name="ext1")]
+        )
+        assert result is True
+
+    def test_returns_false_when_no_interactions_found(self, llm_client, monkeypatch):
+        """Pre-extraction check returns False when no scoped interactions found (lines ~600-604)."""
+        monkeypatch.delenv("MOCK_LLM_RESPONSE", raising=False)
+
+        mock_storage = MagicMock()
+        mock_storage.get_last_k_interactions_grouped = MagicMock(return_value=([], 0))
+        mock_configurator = MagicMock()
+        mock_configurator.get_config.return_value = None
+
+        mock_ctx = MagicMock(spec=RequestContext)
+        mock_ctx.storage = mock_storage
+        mock_ctx.org_id = "test_org"
+        mock_ctx.configurator = mock_configurator
+
+        service = ConcreteGenerationService(
+            llm_client,
+            mock_ctx,
+            extractor_configs=[MockExtractorConfig(extractor_name="ext1")],
+        )
+        service.service_config = MockServiceConfig(auto_run=True, user_id="user1")
+
+        result = service._should_run_before_extraction(
+            [MockExtractorConfig(extractor_name="ext1")]
+        )
+        assert result is False
+
+    def test_returns_true_when_no_prompt_from_hook(self, llm_client, monkeypatch):
+        """When _build_should_run_prompt returns None, check returns True (line ~609)."""
+        monkeypatch.delenv("MOCK_LLM_RESPONSE", raising=False)
+        from reflexio_commons.api_schema.internal_schema import (
+            RequestInteractionDataModel,
+        )
+        from reflexio_commons.api_schema.service_schemas import Interaction, Request
+
+        mock_storage = MagicMock()
+        mock_configurator = MagicMock()
+        mock_configurator.get_config.return_value = None
+
+        # Return some interactions so we pass the empty check
+        interactions = [
+            Interaction(
+                interaction_id=1,
+                user_id="user1",
+                content="hello",
+                request_id="req1",
+                created_at=1000,
+                role="user",
+            )
+        ]
+        request_obj = Request(
+            request_id="req1", user_id="user1", created_at=1000, source="api"
+        )
+        session_data = [
+            RequestInteractionDataModel(
+                session_id="req1", request=request_obj, interactions=interactions
+            )
+        ]
+        mock_storage.get_last_k_interactions_grouped = MagicMock(
+            return_value=(session_data, 1)
+        )
+
+        mock_ctx = MagicMock(spec=RequestContext)
+        mock_ctx.storage = mock_storage
+        mock_ctx.org_id = "test_org"
+        mock_ctx.configurator = mock_configurator
+
+        service = ConcreteGenerationService(
+            llm_client,
+            mock_ctx,
+            extractor_configs=[MockExtractorConfig(extractor_name="ext1")],
+        )
+        service.service_config = MockServiceConfig(auto_run=True, user_id="user1")
+
+        # Default _build_should_run_prompt returns None -> should return True
+        result = service._should_run_before_extraction(
+            [MockExtractorConfig(extractor_name="ext1")]
+        )
+        assert result is True
+
+    def test_llm_exception_defaults_to_true(self, llm_client, monkeypatch):
+        """When LLM call in should_run raises, defaults to True (lines ~643-649)."""
+        monkeypatch.delenv("MOCK_LLM_RESPONSE", raising=False)
+        from unittest.mock import patch
+
+        from reflexio_commons.api_schema.internal_schema import (
+            RequestInteractionDataModel,
+        )
+        from reflexio_commons.api_schema.service_schemas import Interaction, Request
+
+        mock_storage = MagicMock()
+        mock_configurator = MagicMock()
+        mock_configurator.get_config.return_value = None
+
+        interactions = [
+            Interaction(
+                interaction_id=1,
+                user_id="user1",
+                content="hello",
+                request_id="req1",
+                created_at=1000,
+                role="user",
+            )
+        ]
+        request_obj = Request(
+            request_id="req1", user_id="user1", created_at=1000, source="api"
+        )
+        session_data = [
+            RequestInteractionDataModel(
+                session_id="req1", request=request_obj, interactions=interactions
+            )
+        ]
+        mock_storage.get_last_k_interactions_grouped = MagicMock(
+            return_value=(session_data, 1)
+        )
+
+        mock_ctx = MagicMock(spec=RequestContext)
+        mock_ctx.storage = mock_storage
+        mock_ctx.org_id = "test_org"
+        mock_ctx.configurator = mock_configurator
+
+        # Subclass that provides a prompt so LLM call is made
+        class PromptService(ConcreteGenerationService):
+            def _build_should_run_prompt(self, scoped_configs, session_data_models):
+                return "Should we run extraction?"
+
+        service = PromptService(
+            llm_client,
+            mock_ctx,
+            extractor_configs=[MockExtractorConfig(extractor_name="ext1")],
+        )
+        service.service_config = MockServiceConfig(auto_run=True, user_id="user1")
+
+        # Mock the LLM call to raise an exception
+        with (
+            patch.object(
+                service.client,
+                "generate_chat_response",
+                side_effect=RuntimeError("LLM down"),
+            ),
+            patch(
+                "reflexio.server.services.base_generation_service.BaseGenerationService._resolve_should_run_model",
+                return_value="gpt-4o-mini",
+            ),
+        ):
+            result = service._should_run_before_extraction(
+                [MockExtractorConfig(extractor_name="ext1")]
+            )
+        assert result is True
+
+    def test_llm_returns_false_string(self, llm_client, monkeypatch):
+        """When LLM returns 'false', pre-extraction check returns False (lines ~477-482)."""
+        monkeypatch.delenv("MOCK_LLM_RESPONSE", raising=False)
+        from unittest.mock import patch
+
+        from reflexio_commons.api_schema.internal_schema import (
+            RequestInteractionDataModel,
+        )
+        from reflexio_commons.api_schema.service_schemas import Interaction, Request
+
+        mock_storage = MagicMock()
+        mock_configurator = MagicMock()
+        mock_configurator.get_config.return_value = None
+
+        interactions = [
+            Interaction(
+                interaction_id=1,
+                user_id="user1",
+                content="hello",
+                request_id="req1",
+                created_at=1000,
+                role="user",
+            )
+        ]
+        request_obj = Request(
+            request_id="req1", user_id="user1", created_at=1000, source="api"
+        )
+        session_data = [
+            RequestInteractionDataModel(
+                session_id="req1", request=request_obj, interactions=interactions
+            )
+        ]
+        mock_storage.get_last_k_interactions_grouped = MagicMock(
+            return_value=(session_data, 1)
+        )
+
+        mock_ctx = MagicMock(spec=RequestContext)
+        mock_ctx.storage = mock_storage
+        mock_ctx.org_id = "test_org"
+        mock_ctx.configurator = mock_configurator
+
+        class PromptService(ConcreteGenerationService):
+            def _build_should_run_prompt(self, scoped_configs, session_data_models):
+                return "Should we run extraction?"
+
+        service = PromptService(
+            llm_client,
+            mock_ctx,
+            extractor_configs=[MockExtractorConfig(extractor_name="ext1")],
+        )
+        service.service_config = MockServiceConfig(auto_run=True, user_id="user1")
+
+        # LLM returns "false" -> decision should be False -> skip extraction
+        with (
+            patch.object(
+                service.client, "generate_chat_response", return_value="false"
+            ),
+            patch(
+                "reflexio.server.services.base_generation_service.BaseGenerationService._resolve_should_run_model",
+                return_value="gpt-4o-mini",
+            ),
+        ):
+            result = service._should_run_before_extraction(
+                [MockExtractorConfig(extractor_name="ext1")]
+            )
+        assert result is False
+
+    def test_pre_extraction_false_skips_run(self, llm_client, request_context):
+        """When _should_run_before_extraction returns False, run() skips processing (lines ~477-482)."""
+
+        class SkipService(ConcreteGenerationService):
+            def _should_run_before_extraction(self, extractor_configs):
+                return False
+
+        service = SkipService(
+            llm_client,
+            request_context,
+            extractor_configs=[MockExtractorConfig(extractor_name="ext1")],
+        )
+
+        request = MockServiceConfig(
+            user_id="test_user",
+            request_id="test_request",
+        )
+        service.run(request)
+
+        # _process_results should NOT have been called
+        assert len(service._processed_results) == 0
+
+
+# ===============================
+# Test: _build_should_run_prompt default
+# ===============================
+
+
+class TestBuildShouldRunPrompt:
+    """Test the default _build_should_run_prompt returns None (line ~669)."""
+
+    def test_default_returns_none(self, base_service):
+        """Default implementation returns None (no check needed)."""
+        result = base_service._build_should_run_prompt([], [])
+        assert result is None
+
+
+# ===============================
+# Test: Cancellation in run() with in-progress tracking (lines ~386-391)
+# ===============================
+
+
+class TestCancellationInRunWithLock:
+    """Tests for cancellation detection during run() with in-progress tracking enabled."""
+
+    def test_cancellation_in_batch_mode_clears_lock(self, llm_client, request_context):
+        """When batch mode + cancellation requested in run(), lock is cleared and loop breaks (lines ~386-391)."""
+        generation_calls = []
+
+        class BatchCancelService(InProgressTrackingService):
+            def _run_generation(self, request):
+                generation_calls.append(1)
+                # Simulate being in batch mode with cancellation
+                self._is_batch_mode = True
+
+        service = BatchCancelService(
+            llm_client,
+            request_context,
+            extractor_configs=[MockExtractorConfig(extractor_name="ext1")],
+        )
+
+        # Mock storage to acquire lock successfully
+        service.storage.try_acquire_in_progress_lock = MagicMock(
+            return_value={"acquired": True}
+        )
+        # Mock get_operation_state for cancellation check (separate key)
+        cancellation_state = {"operation_state": {"cancellation_requested": True}}
+
+        def mock_get_state(key):
+            if "cancellation" in key:
+                return cancellation_state
+            return {
+                "operation_state": {
+                    "in_progress": True,
+                    "current_request_id": "req_1",
+                    "pending_request_id": None,
+                }
+            }
+
+        service.storage.get_operation_state = mock_get_state
+        service.storage.upsert_operation_state = MagicMock()
+
+        request = MockServiceConfig(user_id="test_user", request_id="req_1")
+        service.run(request)
+
+        # _run_generation should have been called once, then loop broken
+        assert len(generation_calls) == 1
+        # Lock should have been cleared
+        service.storage.upsert_operation_state.assert_called()
+
+
+# ===============================
+# Test: Rerun methods raising NotImplementedError (lines ~886, 899, 914, 929, 942)
+# ===============================
+
+
+class TestRerunNotImplementedDefaults:
+    """Tests for base class rerun methods raising NotImplementedError."""
+
+    def _make_bare_service(self, llm_client, request_context):
+        """Create a service that does NOT override rerun hooks."""
+
+        class BareService(BaseGenerationService):
+            def _load_extractor_configs(self):
+                return []
+
+            def _load_generation_service_config(self, request):
+                return request
+
+            def _create_extractor(self, extractor_config, service_config):
+                return MagicMock()
+
+            def _get_service_name(self):
+                return "bare_service"
+
+            def _get_base_service_name(self):
+                return "bare"
+
+            def _process_results(self, results):
+                pass
+
+            def _should_track_in_progress(self):
+                return False
+
+            def _get_lock_scope_id(self, request):
+                return None
+
+        return BareService(llm_client, request_context)
+
+    def test_get_rerun_user_ids_raises(self, llm_client, request_context):
+        """_get_rerun_user_ids raises NotImplementedError by default (line ~886)."""
+        service = self._make_bare_service(llm_client, request_context)
+        with pytest.raises(NotImplementedError, match="Rerun not supported"):
+            service._get_rerun_user_ids(MagicMock())
+
+    def test_build_rerun_request_params_raises(self, llm_client, request_context):
+        """_build_rerun_request_params raises NotImplementedError by default (line ~899)."""
+        service = self._make_bare_service(llm_client, request_context)
+        with pytest.raises(NotImplementedError, match="Rerun not supported"):
+            service._build_rerun_request_params(MagicMock())
+
+    def test_create_run_request_for_item_raises(self, llm_client, request_context):
+        """_create_run_request_for_item raises NotImplementedError by default (line ~914)."""
+        service = self._make_bare_service(llm_client, request_context)
+        with pytest.raises(NotImplementedError, match="Rerun not supported"):
+            service._create_run_request_for_item("user1", MagicMock())
+
+    def test_create_rerun_response_raises(self, llm_client, request_context):
+        """_create_rerun_response raises NotImplementedError by default (line ~929)."""
+        service = self._make_bare_service(llm_client, request_context)
+        with pytest.raises(NotImplementedError, match="Rerun not supported"):
+            service._create_rerun_response(True, "msg", 0)
+
+    def test_get_generated_count_raises(self, llm_client, request_context):
+        """_get_generated_count raises NotImplementedError by default (line ~942)."""
+        service = self._make_bare_service(llm_client, request_context)
+        with pytest.raises(NotImplementedError, match="Rerun not supported"):
+            service._get_generated_count(MagicMock())
+
+
+# ===============================
+# Test: Upgrade/Downgrade NotImplementedError defaults (lines ~1029, 1043, 1065, 1118)
+# ===============================
+
+
+class TestUpgradeDowngradeNotImplementedDefaults:
+    """Tests for base class upgrade/downgrade methods raising NotImplementedError."""
+
+    def _make_bare_service(self, llm_client, request_context):
+        """Create a service that does NOT override upgrade/downgrade hooks."""
+
+        class BareService(BaseGenerationService):
+            def _load_extractor_configs(self):
+                return []
+
+            def _load_generation_service_config(self, request):
+                return request
+
+            def _create_extractor(self, extractor_config, service_config):
+                return MagicMock()
+
+            def _get_service_name(self):
+                return "bare_service"
+
+            def _get_base_service_name(self):
+                return "bare"
+
+            def _process_results(self, results):
+                pass
+
+            def _should_track_in_progress(self):
+                return False
+
+            def _get_lock_scope_id(self, request):
+                return None
+
+        return BareService(llm_client, request_context)
+
+    def test_has_items_with_status_raises(self, llm_client, request_context):
+        """_has_items_with_status raises NotImplementedError by default (line ~1029)."""
+        service = self._make_bare_service(llm_client, request_context)
+        with pytest.raises(
+            NotImplementedError, match="Upgrade/downgrade not supported"
+        ):
+            service._has_items_with_status(Status.PENDING, MagicMock())
+
+    def test_delete_items_by_status_raises(self, llm_client, request_context):
+        """_delete_items_by_status raises NotImplementedError by default (line ~1043)."""
+        service = self._make_bare_service(llm_client, request_context)
+        with pytest.raises(
+            NotImplementedError, match="Upgrade/downgrade not supported"
+        ):
+            service._delete_items_by_status(Status.ARCHIVED, MagicMock())
+
+    def test_update_items_status_raises(self, llm_client, request_context):
+        """_update_items_status raises NotImplementedError by default (line ~1065)."""
+        service = self._make_bare_service(llm_client, request_context)
+        with pytest.raises(
+            NotImplementedError, match="Upgrade/downgrade not supported"
+        ):
+            service._update_items_status(None, Status.ARCHIVED, MagicMock())
+
+    def test_create_status_change_response_raises(self, llm_client, request_context):
+        """_create_status_change_response raises NotImplementedError by default (line ~1118)."""
+        service = self._make_bare_service(llm_client, request_context)
+        with pytest.raises(
+            NotImplementedError, match="Upgrade/downgrade not supported"
+        ):
+            service._create_status_change_response(
+                StatusChangeOperation.UPGRADE, True, {}, "msg"
+            )
+
+
+# ===============================
+# Test: run_rerun exception handling (lines ~1005-1007)
+# ===============================
+
+
+class TestRunRerunExceptionHandling:
+    """Tests for run_rerun exception paths."""
+
+    def test_rerun_exception_marks_progress_failed(self, llm_client, request_context):
+        """When run_rerun encounters an exception, it returns failure response (lines ~1005-1007)."""
+
+        class ExplodingRerunService(ConcreteGenerationService):
+            def _get_rerun_user_ids(self, request):
+                raise RuntimeError("Database connection lost")
+
+        service = ExplodingRerunService(
+            llm_client,
+            request_context,
+            extractor_configs=[MockExtractorConfig(extractor_name="ext1")],
+        )
+
+        # Use stateful mock: check_in_progress reads progress key first (returns None
+        # to allow proceeding), then mark_progress_failed reads it again (returns None,
+        # so it silently passes). The key test is the response itself.
+        get_state, upsert_state, update_state = create_mock_operation_state_storage()
+        service.storage.get_operation_state = get_state
+        service.storage.upsert_operation_state = upsert_state
+        service.storage.update_operation_state = update_state
+
+        request = MagicMock()
+        response = service.run_rerun(request)
+
+        assert response["success"] is False
+        assert "Failed to run" in response["message"]
+        assert "Database connection lost" in response["message"]
+
+    def test_rerun_with_no_user_ids_returns_failure(self, llm_client, request_context):
+        """When no user IDs found, run_rerun returns failure response."""
+        service = ConcreteGenerationService(
+            llm_client,
+            request_context,
+            extractor_configs=[MockExtractorConfig(extractor_name="ext1")],
+        )
+
+        service.storage.get_operation_state = MagicMock(return_value=None)
+
+        request = MagicMock()
+        request.interactions = []  # No interactions -> no user IDs
+
+        response = service.run_rerun(request)
+
+        assert response["success"] is False
+        assert "No interactions found" in response["message"]
+        assert response["count"] == 0
+
+
+# ===============================
+# Test: run_upgrade / run_downgrade exception handlers (lines ~1178-1179, 1245-1246)
+# ===============================
+
+
+class TestUpgradeDowngradeExceptionHandlers:
+    """Tests for exception handling in run_upgrade and run_downgrade."""
+
+    def test_upgrade_exception_returns_failure(self, llm_client, request_context):
+        """When run_upgrade encounters an exception, it returns failure response (lines ~1178-1179)."""
+
+        class FailingUpgradeService(ConcreteGenerationService):
+            def _has_items_with_status(self, status, request):
+                return status == Status.PENDING
+
+            def _delete_items_by_status(self, status, request):
+                raise RuntimeError("Storage error during delete")
+
+        service = FailingUpgradeService(
+            llm_client,
+            request_context,
+            extractor_configs=[MockExtractorConfig(extractor_name="ext1")],
+        )
+
+        request = MagicMock()
+        response = service.run_upgrade(request)
+
+        assert response["success"] is False
+        assert response["operation"] == "upgrade"
+        assert "Failed to upgrade" in response["message"]
+        assert "Storage error" in response["message"]
+        assert response["counts"]["deleted"] == 0
+
+    def test_downgrade_exception_returns_failure(self, llm_client, request_context):
+        """When run_downgrade encounters an exception, it returns failure response (lines ~1245-1246)."""
+
+        class FailingDowngradeService(ConcreteGenerationService):
+            def _has_items_with_status(self, status, request):
+                return status == Status.ARCHIVED
+
+            def _update_items_status(
+                self, old_status, new_status, request, user_ids=None
+            ):
+                raise RuntimeError("Storage error during status update")
+
+        service = FailingDowngradeService(
+            llm_client,
+            request_context,
+            extractor_configs=[MockExtractorConfig(extractor_name="ext1")],
+        )
+
+        request = MagicMock()
+        response = service.run_downgrade(request)
+
+        assert response["success"] is False
+        assert response["operation"] == "downgrade"
+        assert "Failed to downgrade" in response["message"]
+        assert "Storage error" in response["message"]
+        assert response["counts"]["demoted"] == 0
+
+
+# ===============================
+# Test: Executor shutdown in finally block (line ~528->491)
+# ===============================
+
+
+class TestExecutorShutdown:
+    """Tests for ThreadPoolExecutor shutdown in the finally block."""
+
+    def test_executor_shutdown_called_on_success(self, llm_client, request_context):
+        """Verify executor.shutdown is called even when extractor succeeds (line ~528->491)."""
+        from unittest.mock import patch
+
+        class TrackingService(ConcreteGenerationService):
+            def _create_extractor(self, extractor_config, service_config):
+                return MockExtractor(result={"name": extractor_config.extractor_name})
+
+        service = TrackingService(
+            llm_client,
+            request_context,
+            extractor_configs=[MockExtractorConfig(extractor_name="ext1")],
+        )
+
+        # Patch ThreadPoolExecutor to track shutdown calls
+        with patch(
+            "reflexio.server.services.base_generation_service.ThreadPoolExecutor"
+        ) as mock_executor_cls:
+            mock_executor = MagicMock()
+            mock_future = MagicMock()
+            mock_future.result.return_value = {"name": "ext1"}
+            mock_executor.submit.return_value = mock_future
+            mock_executor_cls.return_value = mock_executor
+
+            request = MockServiceConfig(user_id="test_user", request_id="test_request")
+            service.run(request)
+
+            mock_executor.shutdown.assert_called_once_with(
+                wait=False, cancel_futures=True
+            )
+
+    def test_executor_shutdown_called_on_exception(self, llm_client, request_context):
+        """Verify executor.shutdown is called when extractor raises (line ~528->491)."""
+        from unittest.mock import patch
+
+        service = ConcreteGenerationService(
+            llm_client,
+            request_context,
+            extractor_configs=[
+                MockExtractorConfig(extractor_name="ext1"),
+                MockExtractorConfig(extractor_name="ext2"),
+            ],
+        )
+
+        with patch(
+            "reflexio.server.services.base_generation_service.ThreadPoolExecutor"
+        ) as mock_executor_cls:
+            mock_executor = MagicMock()
+            mock_future = MagicMock()
+            mock_future.result.side_effect = [
+                RuntimeError("extractor boom"),
+                {"name": "ext2"},
+            ]
+            mock_executor.submit.return_value = mock_future
+            mock_executor_cls.return_value = mock_executor
+
+            request = MockServiceConfig(user_id="test_user", request_id="test_request")
+            service.run(request)
+
+            # shutdown called twice (once per extractor, both in finally)
+            assert mock_executor.shutdown.call_count == 2
 
 
 if __name__ == "__main__":

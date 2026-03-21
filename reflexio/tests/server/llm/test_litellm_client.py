@@ -203,8 +203,8 @@ class TestLiteLLMClientConfiguration:
 class TestLiteLLMClientOpenAI:
     """Test LiteLLM client with OpenAI models."""
 
-    @skip_in_precommit
     @skip_low_priority
+    @skip_in_precommit
     def test_generate_response_simple(self, openai_client: LiteLLMClient):
         """Test simple text generation with OpenAI."""
         response = openai_client.generate_response(
@@ -215,7 +215,6 @@ class TestLiteLLMClientOpenAI:
         assert "4" in response
 
     @skip_in_precommit
-    @skip_low_priority
     def test_generate_response_with_system_message(self, openai_client: LiteLLMClient):
         """Test response with system message."""
         response = openai_client.generate_response(
@@ -226,8 +225,8 @@ class TestLiteLLMClientOpenAI:
         assert isinstance(response, str)
         assert len(response) > 0
 
-    @skip_in_precommit
     @skip_low_priority
+    @skip_in_precommit
     def test_generate_chat_response(self, openai_client: LiteLLMClient):
         """Test multi-turn chat response."""
         messages = [
@@ -242,7 +241,6 @@ class TestLiteLLMClientOpenAI:
         assert "alice" in response.lower()
 
     @skip_in_precommit
-    @skip_low_priority
     def test_generate_chat_response_with_system_message(
         self, openai_client: LiteLLMClient
     ):
@@ -259,8 +257,8 @@ class TestLiteLLMClientOpenAI:
         assert isinstance(response, str)
         assert len(response) > 0
 
-    @skip_in_precommit
     @skip_low_priority
+    @skip_in_precommit
     def test_structured_output_with_pydantic(self, openai_client: LiteLLMClient):
         """Test structured output using Pydantic model."""
         response = openai_client.generate_response(
@@ -274,7 +272,6 @@ class TestLiteLLMClientOpenAI:
         assert len(response.explanation) > 0
 
     @skip_in_precommit
-    @skip_low_priority
     def test_embeddings(self, openai_client: LiteLLMClient):
         """Test embedding generation."""
         embedding = openai_client.get_embedding("Hello, world!")
@@ -288,7 +285,6 @@ class TestLiteLLMClientClaude:
     """Test LiteLLM client with Claude models."""
 
     @skip_in_precommit
-    @skip_low_priority
     def test_generate_response_simple(self, claude_client: LiteLLMClient):
         """Test simple text generation with Claude."""
         response = claude_client.generate_response(
@@ -299,7 +295,6 @@ class TestLiteLLMClientClaude:
         assert "6" in response
 
     @skip_in_precommit
-    @skip_low_priority
     def test_generate_response_with_system_message(self, claude_client: LiteLLMClient):
         """Test response with system message."""
         response = claude_client.generate_response(
@@ -311,7 +306,6 @@ class TestLiteLLMClientClaude:
         assert len(response) > 0
 
     @skip_in_precommit
-    @skip_low_priority
     def test_generate_chat_response(self, claude_client: LiteLLMClient):
         """Test multi-turn chat response."""
         messages = [
@@ -326,7 +320,6 @@ class TestLiteLLMClientClaude:
         assert "blue" in response.lower()
 
     @skip_in_precommit
-    @skip_low_priority
     def test_structured_output_with_pydantic(self, claude_client: LiteLLMClient):
         """Test structured output using Pydantic model with Claude."""
         response = claude_client.generate_response(
@@ -343,8 +336,8 @@ class TestLiteLLMClientClaude:
 class TestLiteLLMClientMultiModal:
     """Test LiteLLM client with image inputs."""
 
-    @skip_in_precommit
     @skip_low_priority
+    @skip_in_precommit
     def test_generate_response_with_image_file_openai(
         self, openai_client: LiteLLMClient, test_image_file: str
     ):
@@ -357,8 +350,8 @@ class TestLiteLLMClientMultiModal:
         assert isinstance(response, str)
         assert "red" in response.lower()
 
-    @skip_in_precommit
     @skip_low_priority
+    @skip_in_precommit
     def test_generate_response_with_image_bytes_openai(
         self, openai_client: LiteLLMClient, test_image_bytes: bytes
     ):
@@ -373,7 +366,6 @@ class TestLiteLLMClientMultiModal:
         assert "red" in response.lower()
 
     @skip_in_precommit
-    @skip_low_priority
     def test_generate_response_with_image_file_claude(
         self, claude_client: LiteLLMClient, test_image_file: str
     ):
@@ -387,7 +379,6 @@ class TestLiteLLMClientMultiModal:
         assert "red" in response.lower()
 
     @skip_in_precommit
-    @skip_low_priority
     def test_generate_response_with_image_bytes_claude(
         self, claude_client: LiteLLMClient, test_image_bytes: bytes
     ):
@@ -401,8 +392,8 @@ class TestLiteLLMClientMultiModal:
         assert isinstance(response, str)
         assert "red" in response.lower()
 
-    @skip_in_precommit
     @skip_low_priority
+    @skip_in_precommit
     def test_generate_response_with_multiple_images(self, openai_client: LiteLLMClient):
         """Test analysis of multiple images."""
         red_image = create_minimal_png(20, 20, (255, 0, 0))
@@ -420,7 +411,6 @@ class TestLiteLLMClientMultiModal:
         assert "blue" in response_lower
 
     @skip_in_precommit
-    @skip_low_priority
     def test_image_with_system_message(
         self, openai_client: LiteLLMClient, test_image_bytes: bytes
     ):
@@ -479,7 +469,6 @@ class TestLiteLLMClientModelSwitching:
     """Test switching between different models."""
 
     @skip_in_precommit
-    @skip_low_priority
     def test_switch_from_openai_to_claude(self):
         """Test that we can create clients for different providers."""
         if not os.getenv("OPENAI_API_KEY") or not os.getenv("ANTHROPIC_API_KEY"):
@@ -573,8 +562,8 @@ class TestLiteLLMClientEdgeCases:
         assert config.retry_delay == 1.0
         assert config.top_p == 1.0
 
-    @skip_in_precommit
     @skip_low_priority
+    @skip_in_precommit
     def test_long_conversation(self, openai_client: LiteLLMClient):
         """Test handling of longer conversations."""
         messages = []
@@ -752,8 +741,8 @@ class TestLiteLLMClientAPIKeyOverride:
         # OpenAI model but no OpenAI key configured
         assert client._api_key is None
 
-    @skip_in_precommit
     @skip_low_priority
+    @skip_in_precommit
     def test_generate_response_with_api_key_override_openai(self):
         """Test generating response using OpenAI API key from config override."""
         openai_key = os.getenv("OPENAI_API_KEY")
@@ -776,7 +765,6 @@ class TestLiteLLMClientAPIKeyOverride:
         assert "2" in response
 
     @skip_in_precommit
-    @skip_low_priority
     def test_generate_response_with_api_key_override_anthropic(self):
         """Test generating response using Anthropic API key from config override."""
         anthropic_key = os.getenv("ANTHROPIC_API_KEY")
@@ -799,7 +787,6 @@ class TestLiteLLMClientAPIKeyOverride:
         assert "8" in response
 
     @skip_in_precommit
-    @skip_low_priority
     def test_embeddings_with_api_key_override(self):
         """Test embedding generation with API key override."""
         openai_key = os.getenv("OPENAI_API_KEY")
@@ -818,8 +805,8 @@ class TestLiteLLMClientAPIKeyOverride:
         assert len(embedding) > 0
         assert all(isinstance(x, float) for x in embedding)
 
-    @skip_in_precommit
     @skip_low_priority
+    @skip_in_precommit
     def test_structured_output_with_api_key_override(self):
         """Test structured output with API key override."""
         openai_key = os.getenv("OPENAI_API_KEY")
@@ -866,8 +853,8 @@ class TestLiteLLMClientAPIKeyOverride:
         claude_client = LiteLLMClient(claude_config)
         assert claude_client._api_key == "anthropic-shared-key"
 
-    @skip_in_precommit
     @skip_low_priority
+    @skip_in_precommit
     def test_chat_response_with_api_key_override(self):
         """Test multi-turn chat response with API key override."""
         openai_key = os.getenv("OPENAI_API_KEY")
@@ -893,8 +880,8 @@ class TestLiteLLMClientAPIKeyOverride:
         assert isinstance(response, str)
         assert "42" in response
 
-    @skip_in_precommit
     @skip_low_priority
+    @skip_in_precommit
     def test_image_analysis_with_api_key_override(self, test_image_bytes: bytes):
         """Test image analysis with API key override."""
         openai_key = os.getenv("OPENAI_API_KEY")

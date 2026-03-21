@@ -195,6 +195,261 @@ class TestQueryRewriter(unittest.TestCase):
         self.assertEqual(variables["conversation_context_block"], "")
 
 
+class TestQueryRewriterInit(unittest.TestCase):
+    """Tests for QueryRewriter.__init__ model resolution branches."""
+
+    def test_model_none_with_non_dict_site_var(self):
+        """When model is None and site var is not a dict, should default to gpt-5-nano."""
+        api_key_config = MagicMock()
+        prompt_manager = MagicMock()
+
+        with (
+            patch("reflexio.server.services.query_rewriter.LiteLLMClient") as mock_llm,
+            patch("reflexio.server.services.query_rewriter.SiteVarManager") as mock_svm,
+        ):
+            # Return a non-dict value (e.g. None or a string)
+            mock_svm.return_value.get_site_var.return_value = None
+            rewriter = QueryRewriter(
+                api_key_config=api_key_config,
+                prompt_manager=prompt_manager,
+            )
+
+        # The LiteLLMConfig should have been created with "gpt-5-nano"
+        config_arg = mock_llm.call_args[0][0]
+        self.assertEqual(config_arg.model, "gpt-5-nano")
+        self.assertIsNotNone(rewriter)
+
+    def test_model_none_with_dict_site_var_having_model_name(self):
+        """When model is None and site var dict has query_rewrite_model_name, should use it."""
+        api_key_config = MagicMock()
+        prompt_manager = MagicMock()
+
+        with (
+            patch("reflexio.server.services.query_rewriter.LiteLLMClient") as mock_llm,
+            patch("reflexio.server.services.query_rewriter.SiteVarManager") as mock_svm,
+        ):
+            mock_svm.return_value.get_site_var.return_value = {
+                "query_rewrite_model_name": "custom-model"
+            }
+            QueryRewriter(
+                api_key_config=api_key_config,
+                prompt_manager=prompt_manager,
+            )
+
+        config_arg = mock_llm.call_args[0][0]
+        self.assertEqual(config_arg.model, "custom-model")
+
+    def test_model_none_with_dict_site_var_missing_model_name(self):
+        """When model is None and site var dict lacks key, should default to gpt-5-nano."""
+        api_key_config = MagicMock()
+        prompt_manager = MagicMock()
+
+        with (
+            patch("reflexio.server.services.query_rewriter.LiteLLMClient") as mock_llm,
+            patch("reflexio.server.services.query_rewriter.SiteVarManager") as mock_svm,
+        ):
+            mock_svm.return_value.get_site_var.return_value = {"other_key": "value"}
+            QueryRewriter(
+                api_key_config=api_key_config,
+                prompt_manager=prompt_manager,
+            )
+
+        config_arg = mock_llm.call_args[0][0]
+        self.assertEqual(config_arg.model, "gpt-5-nano")
+
+
+class TestLlmRewriteBranches(unittest.TestCase):
+    """Tests for _llm_rewrite branch coverage."""
+
+    def test_llm_returns_none_falls_back(self):
+        """When LLM returns None (non-string), should fall back to original query."""
+        rewriter = _make_rewriter()
+        rewriter.llm_client.generate_response.return_value = None
+
+        result = rewriter.rewrite("test query", enabled=True)
+
+        self.assertEqual(result.fts_query, "test query")
+
+    def test_llm_returns_invalid_rewrite_falls_back(self):
+        """When LLM returns a string that fails validation, should fall back."""
+        rewriter = _make_rewriter()
+        # Contains curly braces, which _is_valid_rewrite rejects
+        rewriter.llm_client.generate_response.return_value = '{"bad": "json"}'
+
+        result = rewriter.rewrite("test query", enabled=True)
+
+        self.assertEqual(result.fts_query, "test query")
+
+    def test_explicit_model_skips_site_var_lookup(self):
+        """When model is explicitly provided, should skip SiteVarManager lookup."""
+        rewriter = _make_rewriter(model="explicit-model")
+        rewriter.llm_client.generate_response.return_value = "expanded query"
+
+        result = rewriter.rewrite("test query", enabled=True)
+
+        self.assertEqual(result.fts_query, "expanded query")
+
+
+class TestExtractCandidateQuery(unittest.TestCase):
+    """Tests for QueryRewriter._extract_candidate_query edge cases."""
+
+    def test_code_block_json_without_valid_keys(self):
+        """Fenced JSON with neither fts_query nor query key falls through to _clean_candidate."""
+        output = '```json\n{"other_key": "value"}\n```'
+        result = QueryRewriter._extract_candidate_query(output)
+        # Falls through JSON key loop, then _clean_candidate on fenced content,
+        # then to _clean_candidate on raw -- returns the raw cleaned text
+        self.assertEqual(result, '{"other_key": "value"}')
+
+    def test_code_block_json_with_empty_fts_query(self):
+        """Fenced JSON with whitespace-only fts_query falls through to clean fenced content."""
+        output = '```json\n{"fts_query": "  "}\n```'
+        result = QueryRewriter._extract_candidate_query(output)
+        # _clean_candidate("  ") returns None, falls to _clean_candidate on fenced content
+        self.assertEqual(result, '{"fts_query": " "}')
+
+    def test_code_block_json_with_query_key(self):
+        """Fenced JSON with 'query' key (not fts_query) should be extracted."""
+        output = '```json\n{"query": "refund OR return"}\n```'
+        result = QueryRewriter._extract_candidate_query(output)
+        self.assertEqual(result, "refund OR return")
+
+    def test_code_block_non_json_content_that_cleans_to_empty(self):
+        """Fenced content with only whitespace falls through; 'text' from language tag is cleaned from raw."""
+        output = "```text\n   \n```"
+        result = QueryRewriter._extract_candidate_query(output)
+        # Fenced content is whitespace-only, _clean_candidate returns None.
+        # Raw is the full string including ```, _clean_candidate returns "text" from first line
+        self.assertEqual(result, "text")
+
+    def test_raw_json_without_valid_keys(self):
+        """Raw JSON dict without fts_query or query keys falls through to _clean_candidate on raw."""
+        output = '{"unrelated_key": "value"}'
+        result = QueryRewriter._extract_candidate_query(output)
+        # Falls through JSON key loop, then _clean_candidate on raw returns the text as-is
+        self.assertEqual(result, '{"unrelated_key": "value"}')
+
+    def test_raw_json_with_empty_value(self):
+        """Raw JSON with empty fts_query falls through to _clean_candidate on raw."""
+        output = '{"fts_query": ""}'
+        result = QueryRewriter._extract_candidate_query(output)
+        # _clean_candidate("") returns None, falls through to _clean_candidate on raw
+        self.assertEqual(result, '{"fts_query": ""}')
+
+    def test_raw_json_with_query_key(self):
+        """Raw JSON with 'query' key should be extracted."""
+        output = '{"query": "refund OR return"}'
+        result = QueryRewriter._extract_candidate_query(output)
+        self.assertEqual(result, "refund OR return")
+
+    def test_empty_input_returns_none(self):
+        """Empty string should return None."""
+        self.assertIsNone(QueryRewriter._extract_candidate_query(""))
+
+    def test_whitespace_input_returns_none(self):
+        """Whitespace-only string should return None."""
+        self.assertIsNone(QueryRewriter._extract_candidate_query("   "))
+
+    def test_none_input_returns_none(self):
+        """None input should return None."""
+        self.assertIsNone(QueryRewriter._extract_candidate_query(None))
+
+    def test_fenced_json_with_non_string_fts_query(self):
+        """Fenced JSON where fts_query value is not a string should skip it."""
+        output = '```json\n{"fts_query": 123}\n```'
+        result = QueryRewriter._extract_candidate_query(output)
+        # fts_query is int, not str -- skipped; falls through to _clean_candidate
+        self.assertIsNotNone(result)
+
+    def test_raw_json_with_non_string_query(self):
+        """Raw JSON where query value is not a string should skip it."""
+        output = '{"query": 42}'
+        result = QueryRewriter._extract_candidate_query(output)
+        # query is int, not str -- skipped; falls through to _clean_candidate
+        self.assertIsNotNone(result)
+
+    def test_all_paths_exhausted_returns_none(self):
+        """When all extraction and cleaning paths fail, should return None (line 212)."""
+        # Triple backticks get stripped by _clean_candidate, yielding empty string -> None
+        result = QueryRewriter._extract_candidate_query("```")
+        self.assertIsNone(result)
+
+
+class TestCleanCandidate(unittest.TestCase):
+    """Tests for QueryRewriter._clean_candidate edge cases."""
+
+    def test_empty_string_returns_none(self):
+        """Empty string should return None."""
+        self.assertIsNone(QueryRewriter._clean_candidate(""))
+
+    def test_whitespace_only_returns_none(self):
+        """Whitespace-only string should return None."""
+        self.assertIsNone(QueryRewriter._clean_candidate("   "))
+
+    def test_multiline_text_returns_first_nonempty_line(self):
+        """Multi-line text should return the first non-empty line."""
+        result = QueryRewriter._clean_candidate("refund OR return\nreimburse OR credit")
+        self.assertEqual(result, "refund OR return")
+
+    def test_multiline_text_all_empty_lines(self):
+        """Multi-line text with all empty lines should return None."""
+        result = QueryRewriter._clean_candidate("\n  \n   \n")
+        self.assertIsNone(result)
+
+    def test_strips_prefix_patterns(self):
+        """Should strip known prefix patterns like 'fts_query:'."""
+        result = QueryRewriter._clean_candidate("fts_query: refund OR return")
+        self.assertEqual(result, "refund OR return")
+
+    def test_strips_quotes_and_backticks(self):
+        """Should strip surrounding quotes and backticks."""
+        result = QueryRewriter._clean_candidate('"refund OR return"')
+        self.assertEqual(result, "refund OR return")
+
+
+class TestIsValidRewrite(unittest.TestCase):
+    """Tests for QueryRewriter._is_valid_rewrite rejection branches."""
+
+    def test_empty_string_is_invalid(self):
+        """Empty string should be invalid."""
+        self.assertFalse(QueryRewriter._is_valid_rewrite(""))
+
+    def test_too_long_is_invalid(self):
+        """Query exceeding MAX_REWRITE_LENGTH should be invalid."""
+        long_query = "a " * 300  # 600 chars
+        self.assertFalse(QueryRewriter._is_valid_rewrite(long_query))
+
+    def test_curly_braces_invalid(self):
+        """Query with curly braces should be invalid."""
+        self.assertFalse(QueryRewriter._is_valid_rewrite('{"fts_query": "test"}'))
+
+    def test_square_brackets_invalid(self):
+        """Query with square brackets should be invalid."""
+        self.assertFalse(QueryRewriter._is_valid_rewrite("test [query]"))
+
+    def test_backticks_invalid(self):
+        """Query with triple backticks should be invalid."""
+        self.assertFalse(QueryRewriter._is_valid_rewrite("```test```"))
+
+    def test_no_alphanumeric_invalid(self):
+        """Query with no alphanumeric characters should be invalid."""
+        self.assertFalse(QueryRewriter._is_valid_rewrite("--- ... !!!"))
+
+    def test_unsafe_phrase_here_is(self):
+        """Query containing unsafe phrase 'here is' should be invalid."""
+        self.assertFalse(QueryRewriter._is_valid_rewrite("here is the expanded query"))
+
+    def test_unsafe_phrase_i_cannot(self):
+        """Query containing 'i cannot' should be invalid."""
+        self.assertFalse(QueryRewriter._is_valid_rewrite("i cannot rewrite this query"))
+
+    def test_valid_query_passes(self):
+        """Normal valid query should pass."""
+        self.assertTrue(
+            QueryRewriter._is_valid_rewrite("refund OR return OR reimburse")
+        )
+
+
 class TestFormatConversationContext(unittest.TestCase):
     """Unit tests for QueryRewriter._format_conversation_context."""
 
@@ -225,6 +480,18 @@ class TestFormatConversationContext(unittest.TestCase):
         ]
         result = QueryRewriter._format_conversation_context(turns)
         self.assertEqual(result, "[user]: Hello\n[agent]: Hi there")
+
+    def test_truncates_at_char_limit(self):
+        """Conversation context should stop adding turns when char limit is reached."""
+        # Create a turn with content that nearly fills the budget
+        long_content = "x" * 3990
+        turns = [
+            ConversationTurn(role="user", content=long_content),
+            ConversationTurn(role="user", content="This should be excluded"),
+        ]
+        result = QueryRewriter._format_conversation_context(turns)
+        self.assertIn(long_content, result)
+        self.assertNotIn("This should be excluded", result)
 
 
 if __name__ == "__main__":

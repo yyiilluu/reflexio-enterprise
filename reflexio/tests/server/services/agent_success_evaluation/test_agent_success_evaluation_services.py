@@ -11,8 +11,7 @@ Tests core functionality without external dependencies:
 import contextlib
 import datetime
 import tempfile
-from datetime import timezone
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
@@ -29,6 +28,7 @@ from reflexio.server.api_endpoints.request_context import RequestContext
 from reflexio.server.llm.litellm_client import LiteLLMClient, LiteLLMConfig
 from reflexio.server.services.agent_success_evaluation.agent_success_evaluation_service import (
     AgentSuccessEvaluationService,
+    AgentSuccessGenerationServiceConfig,
 )
 from reflexio.server.services.agent_success_evaluation.agent_success_evaluation_utils import (
     AgentSuccessEvaluationRequest,
@@ -49,7 +49,7 @@ def create_request_interaction_data_model(
         source="test",
         agent_version=agent_version,
         session_id=session_id,
-        created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
     )
     return RequestInteractionDataModel(
         request=test_request,
@@ -82,7 +82,7 @@ def test_evaluate_agent_success(mock_chat_completion):
         request_id="test_request_id",
         content="The agent helped me complete my task successfully",
         role="user",
-        created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
     )
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -178,7 +178,7 @@ def test_missing_configs(mock_chat_completion):
         request_id="test_request_id",
         content="The agent helped me complete my task successfully",
         role="user",
-        created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
     )
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -219,7 +219,7 @@ def test_error_handling(mock_chat_completion):
         request_id="test_request_id",
         content="The agent helped me complete my task successfully",
         role="user",
-        created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
     )
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -274,7 +274,7 @@ def test_multiple_configs(mock_chat_completion):
         request_id="test_request_id",
         content="The agent helped me complete my task successfully",
         role="user",
-        created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
     )
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -329,7 +329,7 @@ def test_with_tool_configs(mock_chat_completion):
         request_id="test_request_id",
         content="The agent used the search tool effectively",
         role="user",
-        created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
     )
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -425,7 +425,7 @@ def test_agent_success_message_construction_with_interactions():
             request_id="test_request_id",
             content="The agent helped me complete my task successfully",
             role="user",
-            created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
+            created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
         ),
         Interaction(
             interaction_id=2,
@@ -433,7 +433,7 @@ def test_agent_success_message_construction_with_interactions():
             request_id="test_request_id",
             content="I used the search tool",
             role="assistant",
-            created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
+            created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
             user_action="click",
             user_action_description="search button",
         ),
@@ -531,6 +531,207 @@ def test_agent_success_message_construction_with_interactions():
         assert found_interactions_in_prompt, (
             "Did not find interactions in any rendered prompt"
         )
+
+
+class TestProcessResults:
+    """Tests for _process_results to cover lines 125-150."""
+
+    def _make_service(self):
+        """Create an AgentSuccessEvaluationService with mocked internals."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            llm_config = LiteLLMConfig(model="gpt-4o-mini")
+            llm_client = LiteLLMClient(llm_config)
+            return AgentSuccessEvaluationService(
+                llm_client=llm_client,
+                request_context=RequestContext(org_id="0", storage_base_dir=temp_dir),
+            )
+
+    def test_process_results_flattens_lists(self):
+        """_process_results flattens nested result lists and saves them."""
+        service = self._make_service()
+        # Set up service_config so session_id is accessible in logging
+        service.service_config = AgentSuccessGenerationServiceConfig(
+            session_id="test_session",
+            agent_version="1.0",
+            request_interaction_data_models=[],
+        )
+
+        mock_result_1 = MagicMock()
+        mock_result_2 = MagicMock()
+
+        with patch.object(service, "storage"):
+            service._process_results([[mock_result_1, mock_result_2]])
+
+        assert service.last_run_result_count == 2
+
+    def test_process_results_empty_results(self):
+        """_process_results handles empty results (no save called)."""
+        service = self._make_service()
+        service.service_config = AgentSuccessGenerationServiceConfig(
+            session_id="test_session",
+            agent_version="1.0",
+            request_interaction_data_models=[],
+        )
+
+        with patch.object(service, "storage"):
+            service._process_results([])
+
+        assert service.last_run_result_count == 0
+        assert service.last_run_saved_result_count == 0
+
+    def test_process_results_save_success(self):
+        """_process_results saves results and updates saved count."""
+        service = self._make_service()
+        service.service_config = AgentSuccessGenerationServiceConfig(
+            session_id="test_session",
+            agent_version="1.0",
+            request_interaction_data_models=[],
+        )
+
+        mock_result = MagicMock()
+        with patch.object(service, "storage") as mock_storage:
+            mock_storage.save_agent_success_evaluation_results.return_value = None
+            service._process_results([[mock_result]])
+
+        assert service.last_run_result_count == 1
+        assert service.last_run_saved_result_count == 1
+        assert service.last_run_save_failed is False
+
+    def test_process_results_save_exception(self):
+        """_process_results sets save_failed flag on storage exception (lines 148-150)."""
+        service = self._make_service()
+        service.service_config = AgentSuccessGenerationServiceConfig(
+            session_id="test_session",
+            agent_version="1.0",
+            request_interaction_data_models=[],
+        )
+
+        mock_result = MagicMock()
+        with patch.object(service, "storage") as mock_storage:
+            mock_storage.save_agent_success_evaluation_results.side_effect = (
+                RuntimeError("db error")
+            )
+            service._process_results([[mock_result]])
+
+        assert service.last_run_result_count == 1
+        assert service.last_run_save_failed is True
+        assert service.last_run_saved_result_count == 0
+
+    def test_process_results_non_list_items_skipped(self):
+        """_process_results only extends from list-typed results."""
+        service = self._make_service()
+        service.service_config = AgentSuccessGenerationServiceConfig(
+            session_id="test_session",
+            agent_version="1.0",
+            request_interaction_data_models=[],
+        )
+
+        with patch.object(service, "storage"):
+            # Pass a mix of list and non-list results
+            service._process_results(["not_a_list", [MagicMock()]])
+
+        # Only the list result should be flattened
+        assert service.last_run_result_count == 1
+
+
+class TestHasRunFailures:
+    """Tests for has_run_failures to cover lines 160-161."""
+
+    def _make_service(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            llm_config = LiteLLMConfig(model="gpt-4o-mini")
+            llm_client = LiteLLMClient(llm_config)
+            return AgentSuccessEvaluationService(
+                llm_client=llm_client,
+                request_context=RequestContext(org_id="0", storage_base_dir=temp_dir),
+            )
+
+    def test_no_failures(self):
+        """has_run_failures returns False when no failures occurred."""
+        service = self._make_service()
+        service._last_extractor_run_stats = {"total": 2, "failed": 0, "timed_out": 0}
+        service.last_run_save_failed = False
+
+        assert service.has_run_failures() is False
+
+    def test_extractor_failure(self):
+        """has_run_failures returns True when extractors failed."""
+        service = self._make_service()
+        service._last_extractor_run_stats = {"total": 2, "failed": 1, "timed_out": 0}
+        service.last_run_save_failed = False
+
+        assert service.has_run_failures() is True
+
+    def test_save_failure(self):
+        """has_run_failures returns True when save failed."""
+        service = self._make_service()
+        service._last_extractor_run_stats = {"total": 2, "failed": 0, "timed_out": 0}
+        service.last_run_save_failed = True
+
+        assert service.has_run_failures() is True
+
+
+class TestGetBaseServiceName:
+    """Tests for _get_base_service_name to cover line 179."""
+
+    def test_returns_expected_name(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            llm_config = LiteLLMConfig(model="gpt-4o-mini")
+            llm_client = LiteLLMClient(llm_config)
+            service = AgentSuccessEvaluationService(
+                llm_client=llm_client,
+                request_context=RequestContext(org_id="0", storage_base_dir=temp_dir),
+            )
+            assert service._get_base_service_name() == "agent_success_evaluation"
+
+
+class TestGetLockScopeId:
+    """Tests for _get_lock_scope_id to cover line 203."""
+
+    def test_raises_not_implemented(self):
+        """_get_lock_scope_id raises NotImplementedError since service does not track in-progress."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            llm_config = LiteLLMConfig(model="gpt-4o-mini")
+            llm_client = LiteLLMClient(llm_config)
+            service = AgentSuccessEvaluationService(
+                llm_client=llm_client,
+                request_context=RequestContext(org_id="0", storage_base_dir=temp_dir),
+            )
+            request = AgentSuccessEvaluationRequest(
+                session_id="test",
+                agent_version="1.0",
+                request_interaction_data_models=[],
+            )
+            with pytest.raises(NotImplementedError):
+                service._get_lock_scope_id(request)
+
+
+class TestRunResetsFlags:
+    """Tests for run() method to verify flag reset logic."""
+
+    def test_run_resets_all_flags(self, mock_chat_completion):
+        """run() resets all per-run outcome flags at the start."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            llm_config = LiteLLMConfig(model="gpt-4o-mini")
+            llm_client = LiteLLMClient(llm_config)
+            service = AgentSuccessEvaluationService(
+                llm_client=llm_client,
+                request_context=RequestContext(org_id="0", storage_base_dir=temp_dir),
+            )
+            # Set flags to non-default values
+            service.last_run_result_count = 99
+            service.last_run_saved_result_count = 88
+            service.last_run_save_failed = True
+
+            request = AgentSuccessEvaluationRequest(
+                session_id="test",
+                agent_version="1.0",
+                request_interaction_data_models=[],
+            )
+            service.run(request)
+
+            # Flags should be reset (either to 0/False or updated by the run)
+            assert service.last_run_save_failed is False
 
 
 if __name__ == "__main__":

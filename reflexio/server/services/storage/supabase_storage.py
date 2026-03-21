@@ -1859,10 +1859,15 @@ class SupabaseStorage(BaseStorage):
 
         # Apply status filter (for Status: CURRENT, ARCHIVED, PENDING, etc.)
         if status_filter is not None:
-            has_none = None in status_filter
-            status_strings = [
-                s.value for s in status_filter if s is not None and s.value is not None
-            ]
+            has_none = False
+            status_strings = []
+            for s in status_filter:
+                if s is None or (hasattr(s, "value") and s.value is None):
+                    has_none = True
+                elif isinstance(s, Status):
+                    status_strings.append(s.value)
+                elif isinstance(s, str):
+                    status_strings.append(s)
             if has_none and status_strings:
                 query = query.or_(
                     f"status.is.null,status.in.({','.join(status_strings)})"
@@ -1878,7 +1883,12 @@ class SupabaseStorage(BaseStorage):
         # Apply feedback_status filter (for FeedbackStatus: PENDING, APPROVED, REJECTED)
         # Only apply if specified; when None or empty, return all feedback statuses
         if feedback_status_filter:
-            status_values = [s.value for s in feedback_status_filter]
+            # Handle single enum value passed instead of list
+            if isinstance(feedback_status_filter, (str, FeedbackStatus)):
+                feedback_status_filter = [feedback_status_filter]
+            status_values = [
+                s.value if hasattr(s, "value") else s for s in feedback_status_filter
+            ]
             query = query.in_("feedback_status", status_values)
 
         response = query.execute()

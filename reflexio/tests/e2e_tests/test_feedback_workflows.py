@@ -2,6 +2,7 @@
 
 import os
 from collections.abc import Callable
+from datetime import UTC
 
 from reflexio_commons.api_schema.retriever_schema import (
     GetFeedbacksRequest,
@@ -847,7 +848,7 @@ def test_rerun_feedback_generation_with_time_filters(
     2. Future time range returns no results
     3. Valid time range regenerates feedbacks
     """
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
     user_id = "test_user_rerun_feedback_time"
     agent_version = "test_agent_rerun_time"
@@ -870,8 +871,8 @@ def test_rerun_feedback_generation_with_time_filters(
         assert publish_response.success is True
 
         # Test with future time range (should fail - no interactions)
-        future_start = datetime.now(timezone.utc) + timedelta(days=1)
-        future_end = datetime.now(timezone.utc) + timedelta(days=2)
+        future_start = datetime.now(UTC) + timedelta(days=1)
+        future_end = datetime.now(UTC) + timedelta(days=2)
 
         future_response = reflexio_instance_feedback_only.rerun_feedback_generation(
             RerunFeedbackGenerationRequest(
@@ -885,8 +886,8 @@ def test_rerun_feedback_generation_with_time_filters(
         assert "No interactions found" in future_response.msg
 
         # Test with valid time range (past to future)
-        past_start = datetime.now(timezone.utc) - timedelta(days=1)
-        future_end = datetime.now(timezone.utc) + timedelta(days=1)
+        past_start = datetime.now(UTC) - timedelta(days=1)
+        future_end = datetime.now(UTC) + timedelta(days=1)
 
         valid_response = reflexio_instance_feedback_only.rerun_feedback_generation(
             RerunFeedbackGenerationRequest(
