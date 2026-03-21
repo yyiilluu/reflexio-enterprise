@@ -1,4 +1,4 @@
-# /user_profiler/reflexio/website
+# Reflexio Website
 Description: Next.js frontend for viewing user profiles and interactions
 
 ## Main Entry Points
@@ -49,7 +49,7 @@ Feature flags are returned from the login API and stored in localStorage (`refle
 
 **Next.js App Router** - Uses React Server Components where possible
 **ShadCN UI** - Consistent design system across pages
-**Backend API** - Calls FastAPI server at `http://0.0.0.0:8081`
+**Backend API** - Calls FastAPI server at `http://localhost:${BACKEND_PORT}` (default: 8081)
 
 ## Development
 
