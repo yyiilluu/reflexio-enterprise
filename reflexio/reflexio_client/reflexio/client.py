@@ -36,6 +36,7 @@ from reflexio_commons.api_schema.retriever_schema import (
     UnifiedSearchRequest,
     UnifiedSearchResponse,
 )
+from reflexio_commons.config_schema import SearchMode
 
 # Load environment variables from .env file
 load_dotenv()
@@ -322,6 +323,7 @@ class ReflexioClient:
         end_time: datetime | None = None,
         top_k: int | None = None,
         most_recent_k: int | None = None,
+        search_mode: SearchMode | None = None,
     ) -> SearchInteractionResponse:
         """Search for user interactions.
 
@@ -348,6 +350,7 @@ class ReflexioClient:
             end_time=end_time,
             top_k=top_k,
             most_recent_k=most_recent_k,
+            search_mode=search_mode,
         )
         response = self._make_request(
             "POST",
@@ -371,6 +374,7 @@ class ReflexioClient:
         extractor_name: str | None = None,
         threshold: float | None = None,
         query_rewrite: bool | None = None,
+        search_mode: SearchMode | None = None,
     ) -> SearchUserProfileResponse:
         """Search for user profiles.
 
@@ -405,6 +409,7 @@ class ReflexioClient:
             extractor_name=extractor_name,
             threshold=threshold,
             query_rewrite=query_rewrite,
+            search_mode=search_mode,
         )
         response = self._make_request(
             "POST", "/api/search_profiles", json=req.model_dump()
@@ -425,6 +430,7 @@ class ReflexioClient:
         top_k: int | None = None,
         threshold: float | None = None,
         query_rewrite: bool | None = None,
+        search_mode: SearchMode | None = None,
     ) -> SearchRawFeedbackResponse:
         """Search for raw feedbacks with semantic/text search and filtering.
 
@@ -457,6 +463,7 @@ class ReflexioClient:
             top_k=top_k,
             threshold=threshold,
             query_rewrite=query_rewrite,
+            search_mode=search_mode,
         )
         response = self._make_request(
             "POST", "/api/search_raw_feedbacks", json=req.model_dump()
@@ -477,6 +484,7 @@ class ReflexioClient:
         top_k: int | None = None,
         threshold: float | None = None,
         query_rewrite: bool | None = None,
+        search_mode: SearchMode | None = None,
     ) -> SearchFeedbackResponse:
         """Search for aggregated feedbacks with semantic/text search and filtering.
 
@@ -509,6 +517,7 @@ class ReflexioClient:
             top_k=top_k,
             threshold=threshold,
             query_rewrite=query_rewrite,
+            search_mode=search_mode,
         )
         response = self._make_request(
             "POST", "/api/search_feedbacks", json=req.model_dump()
@@ -1614,6 +1623,7 @@ class ReflexioClient:
         user_id: str | None = None,
         query_rewrite: bool | None = None,
         conversation_history: list[ConversationTurn] | None = None,
+        search_mode: SearchMode | None = None,
     ) -> UnifiedSearchResponse:
         """Search across all entity types (profiles, feedbacks, raw_feedbacks, skills).
 
@@ -1646,6 +1656,7 @@ class ReflexioClient:
             user_id=user_id,
             query_rewrite=query_rewrite,
             conversation_history=conversation_history,
+            search_mode=search_mode,
         )
         response = self._make_request("POST", "/api/search", json=req.model_dump())
         return UnifiedSearchResponse(**response)
