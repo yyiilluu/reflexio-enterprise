@@ -47,13 +47,13 @@ class StorageConfigLocal(BaseModel):
     dir_path: NonEmptyStr
 
 
-class StorageConfigSQLite(BaseModel):
-    """SQLite storage configuration."""
+class StorageConfigSupabase(BaseModel):
+    url: NonEmptyStr
+    key: NonEmptyStr
+    db_url: NonEmptyStr
 
-    db_path: str | None = None  # None = use SQLITE_FILE_DIRECTORY env var default
 
-
-StorageConfig = StorageConfigLocal | StorageConfigSQLite
+StorageConfig = StorageConfigLocal | StorageConfigSupabase | None
 
 
 class AzureOpenAIConfig(BaseModel):
@@ -74,8 +74,6 @@ class OpenAIConfig(BaseModel):
     @model_validator(mode="after")
     def check_at_least_one_auth(self) -> Self:
         """Validate that at least one of api_key or azure_config is provided."""
-        if self.api_key is not None and not self.api_key.strip():
-            self.api_key = None
         if not self.api_key and not self.azure_config:
             raise ValueError(
                 "At least one of 'api_key' or 'azure_config' must be provided"
@@ -223,7 +221,6 @@ class LLMConfig(BaseModel):
         None  # Model for generation and evaluation tasks
     )
     embedding_model_name: str | None = None  # Model for embedding generation
-    query_rewrite_model_name: str | None = None  # Model for query rewriting
 
 
 class Config(BaseModel):

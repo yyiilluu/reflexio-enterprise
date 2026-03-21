@@ -1,5 +1,5 @@
-"""Reflexio library package."""
+"""Reflexio library package — shim re-exporting from open_source submodule."""
 
-from reflexio.reflexio_lib.reflexio_lib import Reflexio
+from src.reflexio_lib.reflexio_lib import Reflexio
 
 __all__ = ["Reflexio"]

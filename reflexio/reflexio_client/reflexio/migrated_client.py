@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import time
+import warnings
 from collections.abc import Callable, Coroutine
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -23,6 +24,8 @@ from reflexio_commons.api_schema.retriever_schema import (
     GetRawFeedbacksResponse,
     GetRequestsRequest,
     GetRequestsResponse,
+    GetSkillsRequest,
+    GetSkillsResponse,
     GetUserProfilesRequest,
     GetUserProfilesResponse,
     SearchFeedbackRequest,
@@ -31,6 +34,8 @@ from reflexio_commons.api_schema.retriever_schema import (
     SearchInteractionResponse,
     SearchRawFeedbackRequest,
     SearchRawFeedbackResponse,
+    SearchSkillsRequest,
+    SearchSkillsResponse,
     SearchUserProfileRequest,
     SearchUserProfileResponse,
     UnifiedSearchRequest,
@@ -44,28 +49,28 @@ IS_TEST_ENV = os.environ.get("IS_TEST_ENV", "false").strip() == "true"
 
 BACKEND_URL = "http://127.0.0.1:8000" if IS_TEST_ENV else "https://www.reflexio.com/"
 
+from reflexio_commons.api_schema.login_schema import Token
 from reflexio_commons.api_schema.service_schemas import (
     AddFeedbackRequest,
     AddFeedbackResponse,
     AddRawFeedbackRequest,
     AddRawFeedbackResponse,
-    BulkDeleteResponse,
     DeleteFeedbackRequest,
     DeleteFeedbackResponse,
-    DeleteFeedbacksByIdsRequest,
-    DeleteProfilesByIdsRequest,
     DeleteRawFeedbackRequest,
     DeleteRawFeedbackResponse,
-    DeleteRawFeedbacksByIdsRequest,
     DeleteRequestRequest,
     DeleteRequestResponse,
-    DeleteRequestsByIdsRequest,
     DeleteSessionRequest,
     DeleteSessionResponse,
+    DeleteSkillRequest,
+    DeleteSkillResponse,
     DeleteUserInteractionRequest,
     DeleteUserInteractionResponse,
     DeleteUserProfileRequest,
     DeleteUserProfileResponse,
+    ExportSkillsRequest,
+    ExportSkillsResponse,
     Feedback,
     FeedbackStatus,
     GetOperationStatusResponse,
@@ -83,9 +88,14 @@ from reflexio_commons.api_schema.service_schemas import (
     RerunProfileGenerationResponse,
     RunFeedbackAggregationRequest,
     RunFeedbackAggregationResponse,
+    RunSkillGenerationRequest,
+    RunSkillGenerationResponse,
+    SkillStatus,
     Status,
+    UpdateSkillStatusRequest,
+    UpdateSkillStatusResponse,
 )
-from reflexio_commons.config_schema import Config
+from reflexio_commons.config_schema import Config, SearchMode
 
 from .cache import InMemoryCache
 
@@ -100,14 +110,22 @@ class ReflexioClient:
     # Shared thread pool for all instances to maximize efficiency
     _thread_pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="reflexio")
 
-    def __init__(self, url_endpoint: str = "", timeout: int = 300) -> None:
+    def __init__(
+        self, api_key: str = "", url_endpoint: str = "", timeout: int = 300
+    ) -> None:
         """Initialize the Reflexio client.
 
+        The client authenticates using an API key. You can provide the key directly
+        or set the REFLEXIO_API_KEY environment variable. Similarly, the URL can be
+        provided directly or via the REFLEXIO_API_URL environment variable.
+
         Args:
+            api_key (str): Your API key for authentication. Falls back to REFLEXIO_API_KEY env var.
             url_endpoint (str): Base URL for the API. Falls back to REFLEXIO_API_URL env var,
                 then to the default backend URL.
             timeout (int): Default request timeout in seconds (default 300)
         """
+        self.api_key = api_key or os.environ.get("REFLEXIO_API_KEY", "")
         self.base_url = (
             url_endpoint or os.environ.get("REFLEXIO_API_URL", "") or BACKEND_URL
         )
@@ -115,13 +133,18 @@ class ReflexioClient:
         self.session = requests.Session()
         self._cache = InMemoryCache()
 
-    def _get_headers(self) -> dict:
-        """Get default headers for API requests.
+    def _get_auth_headers(self) -> dict:
+        """Get authentication headers for API requests.
 
         Returns:
-            dict: Headers with content-type
+            dict: Headers with authorization and content-type
         """
-        return {"Content-Type": "application/json"}
+        if self.api_key:
+            return {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            }
+        return {}
 
     def _convert_to_model(self, data: dict | object, model_class: type[T]) -> T:
         """Convert dict to model instance if needed.
@@ -185,7 +208,7 @@ class ReflexioClient:
         url = urljoin(self.base_url, endpoint)
 
         # Merge auth headers with any provided headers
-        request_headers = self._get_headers()
+        request_headers = self._get_auth_headers()
         if headers:
             request_headers.update(headers)
 
@@ -213,7 +236,7 @@ class ReflexioClient:
         url = urljoin(self.base_url, endpoint)
 
         # Merge auth headers with any provided headers
-        request_headers = self._get_headers()
+        request_headers = self._get_auth_headers()
         if headers:
             request_headers.update(headers)
 
@@ -222,6 +245,44 @@ class ReflexioClient:
         response = self.session.request(method, url, **kwargs)
         response.raise_for_status()
         return response.json()
+
+    def login(self, email: str, password: str) -> Token:
+        """Login to the Reflexio API.
+
+        .. deprecated::
+            The login() method is deprecated. Pass your API key directly instead:
+
+            client = ReflexioClient(api_key="your-api-key")
+
+            Or set the REFLEXIO_API_KEY environment variable:
+
+            export REFLEXIO_API_KEY="your-api-key"
+            client = ReflexioClient()
+
+        Args:
+            email (str): User email
+            password (str): User password
+
+        Returns:
+            Token: Authentication token response
+        """
+        warnings.warn(
+            "login() is deprecated. Pass api_key directly to ReflexioClient() "
+            "or set the REFLEXIO_API_KEY environment variable instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        response = self._make_request(
+            "POST",
+            "/token",
+            data={"username": email, "password": password},
+            headers={
+                "Content-Type": "application/x-www-form-urlencoded",
+                "accept": "application/json",
+            },
+        )
+        self.api_key = response["api_key"]
+        return Token(**response)
 
     def _publish_interaction_sync(
         self,
@@ -322,6 +383,7 @@ class ReflexioClient:
         end_time: datetime | None = None,
         top_k: int | None = None,
         most_recent_k: int | None = None,
+        search_mode: SearchMode | None = None,
     ) -> SearchInteractionResponse:
         """Search for user interactions.
 
@@ -348,6 +410,7 @@ class ReflexioClient:
             end_time=end_time,
             top_k=top_k,
             most_recent_k=most_recent_k,
+            search_mode=search_mode,
         )
         response = self._make_request(
             "POST",
@@ -371,6 +434,7 @@ class ReflexioClient:
         extractor_name: str | None = None,
         threshold: float | None = None,
         query_rewrite: bool | None = None,
+        search_mode: SearchMode | None = None,
     ) -> SearchUserProfileResponse:
         """Search for user profiles.
 
@@ -405,6 +469,7 @@ class ReflexioClient:
             extractor_name=extractor_name,
             threshold=threshold,
             query_rewrite=query_rewrite,
+            search_mode=search_mode,
         )
         response = self._make_request(
             "POST", "/api/search_profiles", json=req.model_dump()
@@ -425,6 +490,7 @@ class ReflexioClient:
         top_k: int | None = None,
         threshold: float | None = None,
         query_rewrite: bool | None = None,
+        search_mode: SearchMode | None = None,
     ) -> SearchRawFeedbackResponse:
         """Search for raw feedbacks with semantic/text search and filtering.
 
@@ -457,6 +523,7 @@ class ReflexioClient:
             top_k=top_k,
             threshold=threshold,
             query_rewrite=query_rewrite,
+            search_mode=search_mode,
         )
         response = self._make_request(
             "POST", "/api/search_raw_feedbacks", json=req.model_dump()
@@ -477,6 +544,7 @@ class ReflexioClient:
         top_k: int | None = None,
         threshold: float | None = None,
         query_rewrite: bool | None = None,
+        search_mode: SearchMode | None = None,
     ) -> SearchFeedbackResponse:
         """Search for aggregated feedbacks with semantic/text search and filtering.
 
@@ -509,6 +577,7 @@ class ReflexioClient:
             top_k=top_k,
             threshold=threshold,
             query_rewrite=query_rewrite,
+            search_mode=search_mode,
         )
         response = self._make_request(
             "POST", "/api/search_feedbacks", json=req.model_dump()
@@ -936,24 +1005,6 @@ class ReflexioClient:
         )
 
         return result
-
-    def get_all_interactions(
-        self,
-        limit: int = 100,
-    ) -> GetInteractionsResponse:
-        """Get all user interactions across all users.
-
-        Args:
-            limit (int, optional): Maximum number of interactions to return. Defaults to 100.
-
-        Returns:
-            GetInteractionsResponse: Response containing all user interactions
-        """
-        response = self._make_request(
-            "GET",
-            f"/api/get_all_interactions?limit={limit}",
-        )
-        return GetInteractionsResponse(**response)
 
     def get_all_profiles(
         self,
@@ -1602,6 +1653,132 @@ class ReflexioClient:
         self._fire_and_forget(self._run_feedback_aggregation_async, req)
         return None
 
+    def _run_skill_generation_sync(
+        self, request: RunSkillGenerationRequest
+    ) -> RunSkillGenerationResponse:
+        """Internal sync method to run skill generation."""
+        response = self._make_request(
+            "POST",
+            "/api/run_skill_generation",
+            json=request.model_dump(),
+        )
+        return RunSkillGenerationResponse(**response)
+
+    async def _run_skill_generation_async(
+        self, request: RunSkillGenerationRequest
+    ) -> RunSkillGenerationResponse:
+        """Internal async method to run skill generation."""
+        response = await self._make_async_request(
+            "POST",
+            "/api/run_skill_generation",
+            json=request.model_dump(),
+        )
+        return RunSkillGenerationResponse(**response)
+
+    def run_skill_generation(
+        self,
+        request: RunSkillGenerationRequest | dict | None = None,
+        wait_for_response: bool = False,
+        *,
+        agent_version: str | None = None,
+        feedback_name: str | None = None,
+    ) -> RunSkillGenerationResponse | None:
+        """Run skill generation to create skills from clustered feedback.
+
+        Args:
+            request: The skill generation request object (alternative to kwargs)
+            wait_for_response: If True, wait for response
+            agent_version: The agent version
+            feedback_name: The feedback type name
+
+        Returns:
+            RunSkillGenerationResponse if wait_for_response=True, None otherwise
+        """
+        req = self._build_request(
+            request,
+            RunSkillGenerationRequest,
+            agent_version=agent_version,
+            feedback_name=feedback_name,
+        )
+        if wait_for_response:
+            return self._run_skill_generation_sync(req)
+        self._fire_and_forget(self._run_skill_generation_async, req)
+        return None
+
+    def get_skills(
+        self,
+        request: GetSkillsRequest | dict | None = None,
+        *,
+        limit: int | None = None,
+        feedback_name: str | None = None,
+        agent_version: str | None = None,
+        skill_status: SkillStatus | None = None,
+    ) -> GetSkillsResponse:
+        """Get skills.
+
+        Args:
+            request: The get request object (alternative to kwargs)
+            limit: Maximum number of results
+            feedback_name: Filter by feedback name
+            agent_version: Filter by agent version
+            skill_status: Filter by skill status
+
+        Returns:
+            GetSkillsResponse containing skills
+        """
+        req = self._build_request(
+            request,
+            GetSkillsRequest,
+            limit=limit,
+            feedback_name=feedback_name,
+            agent_version=agent_version,
+            skill_status=skill_status,
+        )
+        response = self._make_request("POST", "/api/get_skills", json=req.model_dump())
+        return GetSkillsResponse(**response)
+
+    def search_skills(
+        self,
+        request: SearchSkillsRequest | dict | None = None,
+        *,
+        query: str | None = None,
+        feedback_name: str | None = None,
+        agent_version: str | None = None,
+        skill_status: SkillStatus | None = None,
+        threshold: float | None = None,
+        top_k: int | None = None,
+        search_mode: SearchMode | None = None,
+    ) -> SearchSkillsResponse:
+        """Search skills with hybrid search.
+
+        Args:
+            request: The search request object (alternative to kwargs)
+            query: Query for semantic/text search
+            feedback_name: Filter by feedback name
+            agent_version: Filter by agent version
+            skill_status: Filter by skill status
+            threshold: Similarity threshold
+            top_k: Maximum number of results
+
+        Returns:
+            SearchSkillsResponse containing matching skills
+        """
+        req = self._build_request(
+            request,
+            SearchSkillsRequest,
+            query=query,
+            feedback_name=feedback_name,
+            agent_version=agent_version,
+            skill_status=skill_status,
+            threshold=threshold,
+            top_k=top_k,
+            search_mode=search_mode,
+        )
+        response = self._make_request(
+            "POST", "/api/search_skills", json=req.model_dump()
+        )
+        return SearchSkillsResponse(**response)
+
     def search(
         self,
         request: UnifiedSearchRequest | dict | None = None,
@@ -1614,6 +1791,7 @@ class ReflexioClient:
         user_id: str | None = None,
         query_rewrite: bool | None = None,
         conversation_history: list[ConversationTurn] | None = None,
+        search_mode: SearchMode | None = None,
     ) -> UnifiedSearchResponse:
         """Search across all entity types (profiles, feedbacks, raw_feedbacks, skills).
 
@@ -1646,99 +1824,71 @@ class ReflexioClient:
             user_id=user_id,
             query_rewrite=query_rewrite,
             conversation_history=conversation_history,
+            search_mode=search_mode,
         )
         response = self._make_request("POST", "/api/search", json=req.model_dump())
         return UnifiedSearchResponse(**response)
 
-    # =========================================================================
-    # Bulk Delete Operations
-    # =========================================================================
-
-    def delete_requests_by_ids(self, request_ids: list[str]) -> BulkDeleteResponse:
-        """Delete multiple requests by their IDs.
+    def update_skill_status(
+        self, skill_id: int, skill_status: SkillStatus
+    ) -> UpdateSkillStatusResponse:
+        """Update skill status.
 
         Args:
-            request_ids (list[str]): List of request IDs to delete
+            skill_id: The skill ID
+            skill_status: The new status
 
         Returns:
-            BulkDeleteResponse: Response containing success status and deleted count
+            UpdateSkillStatusResponse
         """
-        req = DeleteRequestsByIdsRequest(request_ids=request_ids)
+        request = UpdateSkillStatusRequest(skill_id=skill_id, skill_status=skill_status)
         response = self._make_request(
-            "DELETE", "/api/delete_requests_by_ids", json=req.model_dump()
+            "POST", "/api/update_skill_status", json=request.model_dump()
         )
-        return BulkDeleteResponse(**response)
+        return UpdateSkillStatusResponse(**response)
 
-    def delete_profiles_by_ids(self, profile_ids: list[str]) -> BulkDeleteResponse:
-        """Delete multiple profiles by their IDs.
+    def delete_skill(self, skill_id: int) -> DeleteSkillResponse:
+        """Delete a skill by ID.
 
         Args:
-            profile_ids (list[str]): List of profile IDs to delete
+            skill_id: The skill ID to delete
 
         Returns:
-            BulkDeleteResponse: Response containing success status and deleted count
+            DeleteSkillResponse
         """
-        req = DeleteProfilesByIdsRequest(profile_ids=profile_ids)
+        request = DeleteSkillRequest(skill_id=skill_id)
         response = self._make_request(
-            "DELETE", "/api/delete_profiles_by_ids", json=req.model_dump()
+            "DELETE", "/api/delete_skill", json=request.model_dump()
         )
-        return BulkDeleteResponse(**response)
+        return DeleteSkillResponse(**response)
 
-    def delete_feedbacks_by_ids(self, feedback_ids: list[int]) -> BulkDeleteResponse:
-        """Delete multiple feedbacks by their IDs.
+    def export_skills(
+        self,
+        request: ExportSkillsRequest | dict | None = None,
+        *,
+        feedback_name: str | None = None,
+        agent_version: str | None = None,
+        skill_status: SkillStatus | None = None,
+    ) -> ExportSkillsResponse:
+        """Export skills as markdown.
 
         Args:
-            feedback_ids (list[int]): List of feedback IDs to delete
+            request: The export request object (alternative to kwargs)
+            feedback_name: Filter by feedback name
+            agent_version: Filter by agent version
+            skill_status: Filter by skill status
 
         Returns:
-            BulkDeleteResponse: Response containing success status and deleted count
+            ExportSkillsResponse containing markdown
         """
-        req = DeleteFeedbacksByIdsRequest(feedback_ids=feedback_ids)
-        response = self._make_request(
-            "DELETE", "/api/delete_feedbacks_by_ids", json=req.model_dump()
+        req = self._build_request(
+            request,
+            ExportSkillsRequest,
+            feedback_name=feedback_name,
+            agent_version=agent_version,
+            skill_status=skill_status,
         )
-        return BulkDeleteResponse(**response)
-
-    def delete_raw_feedbacks_by_ids(
-        self, raw_feedback_ids: list[int]
-    ) -> BulkDeleteResponse:
-        """Delete multiple raw feedbacks by their IDs.
-
-        Args:
-            raw_feedback_ids (list[int]): List of raw feedback IDs to delete
-
-        Returns:
-            BulkDeleteResponse: Response containing success status and deleted count
-        """
-        req = DeleteRawFeedbacksByIdsRequest(raw_feedback_ids=raw_feedback_ids)
         response = self._make_request(
-            "DELETE", "/api/delete_raw_feedbacks_by_ids", json=req.model_dump()
+            "POST", "/api/export_skills", json=req.model_dump()
         )
-        return BulkDeleteResponse(**response)
-
-    def delete_all_interactions(self) -> BulkDeleteResponse:
-        """Delete all requests and their associated interactions.
-
-        Returns:
-            BulkDeleteResponse: Response containing success status and deleted count
-        """
-        response = self._make_request("DELETE", "/api/delete_all_interactions")
-        return BulkDeleteResponse(**response)
-
-    def delete_all_profiles(self) -> BulkDeleteResponse:
-        """Delete all profiles.
-
-        Returns:
-            BulkDeleteResponse: Response containing success status and deleted count
-        """
-        response = self._make_request("DELETE", "/api/delete_all_profiles")
-        return BulkDeleteResponse(**response)
-
-    def delete_all_feedbacks(self) -> BulkDeleteResponse:
-        """Delete all feedbacks (both raw and aggregated).
-
-        Returns:
-            BulkDeleteResponse: Response containing success status and deleted count
-        """
-        response = self._make_request("DELETE", "/api/delete_all_feedbacks")
-        return BulkDeleteResponse(**response)
+        return ExportSkillsResponse(**response)
