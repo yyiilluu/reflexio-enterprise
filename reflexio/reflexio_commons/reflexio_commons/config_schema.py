@@ -53,7 +53,13 @@ class StorageConfigSQLite(BaseModel):
     db_path: str | None = None  # None = use SQLITE_FILE_DIRECTORY env var default
 
 
-StorageConfig = StorageConfigLocal | StorageConfigSQLite
+class StorageConfigSupabase(BaseModel):
+    url: NonEmptyStr
+    key: NonEmptyStr
+    db_url: NonEmptyStr
+
+
+StorageConfig = StorageConfigLocal | StorageConfigSQLite | StorageConfigSupabase | None
 
 
 class AzureOpenAIConfig(BaseModel):
