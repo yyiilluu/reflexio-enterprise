@@ -1,41 +1,19 @@
 [project]
-name = "reflexio"
+name = "reflexio-enterprise"
 version = "0.1.2"
-description = "A Python library for the Reflexio"
+description = "Reflexio Enterprise — extends the open-source Reflexio platform"
 authors = [{name = "Reflexio Team"}]
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.14"
 dependencies = [
-    "fastapi>=0.111.1",
+    "reflexio",
     "psycopg2-binary>=2.9.9",
     "boto3>=1.34.149",
     "sqlalchemy>=2.0.31",
-    "python-jose>=3.3.0",
-    "passlib>=1.7.4",
-    "openai>=2.8.0",
-    "tenacity>=9.0.0",
-    "duckduckgo-search>=7.0.1",
-    "bcrypt>=4.2.1",
-    "reflexio-commons",
-    "uvicorn>=0.34.0",
-    "xlsxwriter>=3.2.2",
-    "aiohttp>=3.11.12",
     "supabase>=2.15.1",
-    "python-dotenv>=1.1.0",
-    "hdbscan>=0.8.40",
-    "redis>=6.2.0",
-    "websocket-client>=1.8.0",
-    "tiktoken>=0.12.0",
-    "anthropic>=0.72.0",
-    "litellm>=1.80.11",
-    "slowapi>=0.1.9",
-    "cachetools>=6.2.4",
-    "colorlog>=6.10.1",
-    "httpx>=0.28.1",
-    "pydantic[email]>=2.12.5",
-    "nltk>=3.9.3",
     "python-multipart>=0.0.22",
+    "cryptography>=44.0.0",
 ]
 
 [dependency-groups]
@@ -64,11 +42,9 @@ benchmarks = [
     "scipy>=1.11.0",
 ]
 
-[tool.uv.workspace]
-members = ["reflexio/reflexio_commons", "reflexio/reflexio_client"]
-
 [tool.uv.sources]
-reflexio-commons = { workspace = true }
+reflexio = { path = "open_source/reflexio", editable = true }
+reflexio-commons = { path = "open_source/reflexio/reflexio/reflexio_commons", editable = true }
 
 [tool.uv]
 
@@ -77,29 +53,24 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["reflexio"]
+packages = ["reflexio_ext"]
 
 [tool.pytest.ini_options]
 # Parallel test execution with pytest-xdist
 # -n auto: Use all available CPU cores
 # --dist loadfile: Group tests by file (reduces fixture overhead, safer for in-file dependencies)
 addopts = "-n auto --dist loadfile --cov --cov-report=term-missing --cov-report=html"
-testpaths = ["reflexio/tests"]
+testpaths = ["reflexio_ext/tests"]
 asyncio_default_fixture_loop_scope = "function"
 
 [tool.coverage.run]
 # Measure branch coverage — ensures both if/else paths are tested, not just lines
 branch = true
-source = ["reflexio"]
+source = ["reflexio_ext"]
 omit = [
     "**/__init__.py",
-    "reflexio/tests/*",
-    "reflexio/website/*",
-    "reflexio/data/*",
-    "reflexio/scripts/*",
-    "reflexio/public_docs/*",
-    "reflexio/reflexio_commons/tests/*",
-    "reflexio/reflexio_client/tests/*",
+    "reflexio_ext/tests/*",
+    "reflexio_ext/data/*",
     "*/conftest.py",
 ]
 
@@ -157,15 +128,11 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "F403"]
-"reflexio/tests/**" = ["S101", "ARG001", "ARG002", "PTH", "ANN"]
+"reflexio_ext/tests/**" = ["S101", "ARG001", "ARG002", "PTH", "ANN"]
 "conftest.py" = ["ARG001"]
-"reflexio/reflexio_commons/tests/**" = ["S101", "ARG001", "ARG002", "PTH", "ANN"]
 "notebooks/**" = ["S101", "F821", "S105", "S106", "ANN"]
-"reflexio/scripts/**" = ["S101", "G004", "ANN"]
-"reflexio/reflexio_client/tests/**" = ["S101", "ARG001", "ARG002", "PTH", "ANN"]
-"reflexio/server/api.py" = ["B008", "ARG001", "ARG002"]
-"reflexio/server/api_endpoints/**" = ["B008", "ARG001", "ARG002"]
-"reflexio/server/services/configurator/test_config_storage.py" = ["S101", "ANN"]
+"reflexio_ext/server/api.py" = ["B008", "ARG001", "ARG002"]
+"reflexio_ext/server/api_endpoints/**" = ["B008", "ARG001", "ARG002"]
 "demo/**" = ["S101", "PTH", "G004", "ANN"]
 "benchmarks/**" = ["S101", "PTH", "G004", "ANN"]
 

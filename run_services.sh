@@ -15,13 +15,13 @@ else
 fi
 
 # Start first service
-uvicorn reflexio.server.api:app --host 0.0.0.0 --port ${BACKEND_PORT} --reload --reload-include "reflexio/server/site_var/site_var_sources/*.json" &
+uvicorn reflexio_ext.server.api:app --host 0.0.0.0 --port ${BACKEND_PORT} --reload --reload-include "open_source/reflexio/reflexio/server/site_var/site_var_sources/*.json" &
 
 # Start website
-(cd reflexio/website && npx next dev -p ${FRONTEND_PORT}) &
+(cd website && npx next dev -p ${FRONTEND_PORT}) &
 
 # Start documentation server
-(cd reflexio/public_docs && npx next dev -p ${DOCS_PORT}) &
+(cd public_docs && npx next dev -p ${DOCS_PORT}) &
 
 # Keep container running
 wait

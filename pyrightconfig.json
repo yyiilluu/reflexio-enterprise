@@ -1,11 +1,9 @@
 {
-    "include": ["reflexio"],
+    "include": ["reflexio_ext"],
     "exclude": [
-        "reflexio/website", "reflexio/tests", "reflexio/data",
-        "reflexio/public_docs", "**/__pycache__",
-        "reflexio/reflexio_commons/tests",
-        "reflexio/reflexio_client/tests",
-        "reflexio/scripts", "notebooks", "demo"
+        "reflexio_ext/tests", "reflexio_ext/data",
+        "**/__pycache__",
+        "notebooks", "demo"
     ],
     "pythonVersion": "3.14",
     "typeCheckingMode": "basic",

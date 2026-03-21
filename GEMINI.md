@@ -1,106 +1,67 @@
 # About the code base
-- backend FastAPI server requires OpenAI key, so the server is already started and running on http://localhost:8081 (or custom port — check `run_services.sh`)
-- frontend website is also already started and running on http://localhost:8080 (or custom port — check `run_services.sh`)
-- You can test your changes by sending api request to above endpoints
-- run command in uv env (use `uv run <cmd>` or activate `.venv`)
-- never change env variable value in .env file
+- Backend (FastAPI) and frontend (Next.js) require `./run_services.sh` to start — check its output for ports
+- Use curl for API testing (faster); use Chrome for frontend tasks
+- Run commands in uv env (use `uv run <cmd>` or activate `.venv`)
+- Never change env variable values in .env file
+
+# Architecture
+- **Shared code**: `open_source/reflexio/reflexio/` (installed as editable dependency)
+- **Enterprise-only code**: `reflexio_ext/` (auth, Supabase storage, configurator extensions, etc.)
+- **Frontend**: `website/` (Next.js)
+- **Docs**: `public_docs/` (Next.js)
 
 # API Authentication
-Use `REFLEXIO_API_KEY` from `.env` to authenticate API requests. Pass it as a Bearer token in the Authorization header, e.g.:
+Use `REFLEXIO_API_KEY` from `.env` to authenticate API requests. Pass it as a Bearer token:
 ```
-curl -H "Authorization: Bearer $REFLEXIO_API_KEY" http://localhost:8081/...
+curl -H "Authorization: Bearer $REFLEXIO_API_KEY" http://localhost:$BACKEND_PORT/...
 ```
 Or with the Python client:
 ```python
 from reflexio import ReflexioClient
-client = ReflexioClient(url_endpoint="http://localhost:8081")  # picks up REFLEXIO_API_KEY from env automatically
+client = ReflexioClient(url_endpoint=f"http://localhost:{BACKEND_PORT}")  # picks up REFLEXIO_API_KEY from env automatically
 ```
-Use Curl to test api and get test information for investigation, which is faster than going through with web browser like chrome.
-Test with Chrome when there is frontend related task.
-
-# Activate env before run any command
-activate the virtual env before running any test or script in the repo using `source .venv/bin/activate` (or use `uv run <cmd>` directly)
 
 # Local Packages: reflexio_commons and reflexio_client
-The `reflexio_commons` and `reflexio_client` packages are in the main repository.
+The `reflexio_commons` and `reflexio_client` packages are in the open-source submodule.
 
 **File locations**:
-- `reflexio_commons` Python source: `reflexio/reflexio_commons/reflexio_commons/`
-- `reflexio_client` Python source: `reflexio/reflexio_client/reflexio/`
+- `reflexio_commons` Python source: `open_source/reflexio/reflexio/reflexio_commons/reflexio_commons/`
+- `reflexio_client` Python source: `open_source/reflexio/reflexio/reflexio_client/reflexio/`
 
-**Installation**: `reflexio-commons` is installed via uv workspace dependency.
+**Installation**: Installed as editable dependencies via `uv.sources` in pyproject.toml.
 
-**When modifying schemas**: Edit files in `reflexio/reflexio_commons/reflexio_commons/api_schema/`
+**When modifying schemas**: Edit files in `open_source/reflexio/reflexio/reflexio_commons/reflexio_commons/api_schema/`
 
 # Supabase migration
 use supabase cli `supabase migration up` to apply migrations locally instead of using the migration script which will migrate non-local storage as well.
 
-# Use/Update README.md
-- `README.md` is code navigation hint (code map) for you at project root level and maybe component levels (e.g., `reflexio/server/README.md`).
-- Read only related `README.md` for the change during planning for the change
-- `how_to_write_readme.md` contains instruction to update `README.md`
+# Development Guidelines
+- Use FastAPI as backend, ShadCN for frontend UI — prefer existing packages over building from scratch
+- Ensure consistent UI style across the entire project
+- Use `uv` to add and manage python packages
+- Suggest better architecture patterns and ask for clarification before writing if needed
 
-# Guideline to how to write code
-- Always design the UI carefully without over complication
-- Ensure same UI style across the entire project
-- Use FastAPI as backend
-- Use uv command to add and manage python packages
-- Suggest to me if there is a better architecture pattern when writing the code and ask for clarification before writing if needed
+# Code Quality Tools
+- **Python**: Ruff (lint + format), Pyright (type check)
+- **TypeScript/JavaScript**: Biome (lint + format), tsc (type check)
 
-# Building frontend
-- Build UI frontend with ShadCN. Try to use packages instead of building things from the scratch.
-- Always design the UI carefully without over complication
-- Ensure same UI style across the entire project. Always use same UI style for similar components to ensure consistency.
-
-# Building backend
-- when implement a new change to API, validate your change by sending sample CURL request to the API, server is started at http://localhost:8081
-
-# Python docstring example
-Generate python code with docstring in the following example
-```
-def check_string_token_overlap(str1: str, str2: str, threshold: float = 0.7) -> bool:
-    """
-    Check if two strings have significant token overlap, indicating they might be referring to the same thing.
-    This is useful for fuzzy matching when exact string matching is too strict.
-
-    Args:
-        str1 (str): First string to compare
-        str2 (str): Second string to compare
-        threshold (float): Minimum overlap ratio required to consider strings as matching (0.0 to 1.0)
-
-    Returns:
-        bool: True if strings have significant overlap, False otherwise
-    """
-```
+# Browser Testing (agent-browser)
+- Use `agent-browser` skill for visual verification of frontend UI changes
+- Install: `npm i -g agent-browser` then `agent-browser install` (downloads Chrome)
+- If `agent-browser` is not installed when a frontend UI task needs it, help the developer install it before proceeding
+- Core workflow: `open <url>` → `snapshot -i` → interact with refs → re-snapshot
 
 # Git Worktree Development
-When working in a git worktree, services must run on different ports.
-
-## Port Convention: +10 offset
-| Service | Default | Worktree |
-|---------|---------|----------|
-| Backend | 8081 | 8091 |
-| Frontend | 8080 | 8090 |
-| Docs | 8082 | 8092 |
-
-## Environment Variables
-| Variable | Default | Description |
-|----------|---------|-------------|
-| BACKEND_PORT | 8081 | FastAPI server port |
-| FRONTEND_PORT | 8080 | Next.js dev server port |
-| DOCS_PORT | 8082 | MkDocs server port |
-| API_BACKEND_URL | auto-derived | Auto-set to http://localhost:$BACKEND_PORT |
+When working in a git worktree, services must run on different ports. Use `/run-services` skill for automatic port handling.
 
 ## Setup Checklist
-1. git worktree add ../reflexio-feature feature-branch
-2. cd ../reflexio-feature
-3. Copy .env from main worktree
-4. uv sync && (cd reflexio/website && npm install)
-5. export BACKEND_PORT=8091 FRONTEND_PORT=8090 DOCS_PORT=8092
-6. ./run_services.sh
-7. To stop: set same env vars, then ./stop_services.sh
+1. `git worktree add ../reflexio-feature feature-branch`
+2. `cd ../reflexio-feature`
+3. Copy `.env` from main worktree
+4. `uv sync && (cd website && npm install)`
+5. `export BACKEND_PORT=8091 FRONTEND_PORT=8090 DOCS_PORT=8092`
+6. `./run_services.sh` (or `/run-services` skill)
 
 ## Notes
 - Supabase is shared across worktrees (54321/54322) — no changes needed
 - Do NOT modify .env for port variables — export in shell instead
-- API testing: use http://localhost:$BACKEND_PORT/token
