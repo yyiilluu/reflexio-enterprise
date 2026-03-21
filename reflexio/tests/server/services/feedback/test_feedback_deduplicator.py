@@ -517,6 +517,335 @@ class TestDeduplicateHappyPath:
 # ===============================
 
 
+class TestBuildDeduplicatedResultsEdgeCases:
+    """Extended tests for _build_deduplicated_results edge cases."""
+
+    def test_template_fallback_to_existing_feedback(self, mock_deduplicator):
+        """Test template selection falls back to existing feedback when no NEW in group."""
+        existing_feedbacks = [
+            _make_raw_feedback(
+                0,
+                raw_feedback_id=100,
+                feedback_name="existing_fb",
+                source_interaction_ids=[5],
+            ),
+        ]
+
+        # Group only has EXISTING items, no NEW items
+        dedup_output = FeedbackDeduplicationOutput(
+            duplicate_groups=[
+                FeedbackDeduplicationDuplicateGroup(
+                    item_ids=["EXISTING-0"],
+                    merged_content=StructuredFeedbackContent(
+                        do_action="merged do",
+                        when_condition="merged when",
+                    ),
+                    reasoning="Existing-only group",
+                )
+            ],
+            unique_ids=[],
+        )
+
+        result, delete_ids = mock_deduplicator._build_deduplicated_results(
+            new_feedbacks=[],
+            existing_feedbacks=existing_feedbacks,
+            dedup_output=dedup_output,
+            request_id="req1",
+            agent_version="v1",
+        )
+
+        assert len(result) == 1
+        # Template should come from existing feedback
+        assert result[0].feedback_name == "existing_fb"
+        assert 100 in delete_ids
+
+    def test_template_fallback_skips_out_of_range_existing(self, mock_deduplicator):
+        """Test that out-of-range existing indices are skipped in fallback."""
+        dedup_output = FeedbackDeduplicationOutput(
+            duplicate_groups=[
+                FeedbackDeduplicationDuplicateGroup(
+                    item_ids=["EXISTING-99"],  # out of range
+                    merged_content=StructuredFeedbackContent(
+                        do_action="merged do",
+                        when_condition="merged when",
+                    ),
+                    reasoning="Bad index",
+                )
+            ],
+            unique_ids=[],
+        )
+
+        result, delete_ids = mock_deduplicator._build_deduplicated_results(
+            new_feedbacks=[],
+            existing_feedbacks=[],
+            dedup_output=dedup_output,
+            request_id="req1",
+            agent_version="v1",
+        )
+
+        # Group should be skipped entirely since no valid template was found
+        assert len(result) == 0
+        assert delete_ids == []
+
+    def test_source_interaction_ids_combined_from_new_and_existing(
+        self, mock_deduplicator
+    ):
+        """Test that source_interaction_ids are combined from both NEW and EXISTING feedbacks."""
+        new_feedbacks = [
+            _make_raw_feedback(0, source_interaction_ids=[1, 2]),
+        ]
+        existing_feedbacks = [
+            _make_raw_feedback(
+                1, raw_feedback_id=100, source_interaction_ids=[3, 4]
+            ),
+        ]
+
+        dedup_output = FeedbackDeduplicationOutput(
+            duplicate_groups=[
+                FeedbackDeduplicationDuplicateGroup(
+                    item_ids=["NEW-0", "EXISTING-0"],
+                    merged_content=StructuredFeedbackContent(
+                        do_action="merged",
+                        when_condition="merged condition",
+                    ),
+                    reasoning="Combined",
+                )
+            ],
+            unique_ids=[],
+        )
+
+        result, delete_ids = mock_deduplicator._build_deduplicated_results(
+            new_feedbacks=new_feedbacks,
+            existing_feedbacks=existing_feedbacks,
+            dedup_output=dedup_output,
+            request_id="req1",
+            agent_version="v1",
+        )
+
+        assert len(result) == 1
+        assert set(result[0].source_interaction_ids) == {1, 2, 3, 4}
+        assert 100 in delete_ids
+
+    def test_source_interaction_ids_deduplication(self, mock_deduplicator):
+        """Test that duplicate source_interaction_ids are not repeated."""
+        new_feedbacks = [
+            _make_raw_feedback(0, source_interaction_ids=[1, 2]),
+            _make_raw_feedback(1, source_interaction_ids=[2, 3]),
+        ]
+
+        dedup_output = FeedbackDeduplicationOutput(
+            duplicate_groups=[
+                FeedbackDeduplicationDuplicateGroup(
+                    item_ids=["NEW-0", "NEW-1"],
+                    merged_content=StructuredFeedbackContent(
+                        do_action="merged",
+                        when_condition="merged cond",
+                    ),
+                    reasoning="Overlap IDs",
+                )
+            ],
+            unique_ids=[],
+        )
+
+        result, _ = mock_deduplicator._build_deduplicated_results(
+            new_feedbacks=new_feedbacks,
+            existing_feedbacks=[],
+            dedup_output=dedup_output,
+            request_id="req1",
+            agent_version="v1",
+        )
+
+        assert len(result) == 1
+        # ID 2 should appear only once
+        assert result[0].source_interaction_ids == [1, 2, 3]
+
+    def test_unhandled_feedbacks_safety_net(self, mock_deduplicator):
+        """Test that feedbacks not mentioned in unique_ids or groups are added via safety net."""
+        new_feedbacks = [
+            _make_raw_feedback(0),
+            _make_raw_feedback(1),
+            _make_raw_feedback(2),
+        ]
+
+        # LLM only mentions index 1 as unique, leaves 0 and 2 unmentioned
+        dedup_output = FeedbackDeduplicationOutput(
+            duplicate_groups=[],
+            unique_ids=["NEW-1"],
+        )
+
+        result, _ = mock_deduplicator._build_deduplicated_results(
+            new_feedbacks=new_feedbacks,
+            existing_feedbacks=[],
+            dedup_output=dedup_output,
+            request_id="req1",
+            agent_version="v1",
+        )
+
+        assert len(result) == 3
+        # Index 1 is from unique_ids, indices 0 and 2 from safety fallback
+        contents = {fb.feedback_content for fb in result}
+        assert "content_0" in contents
+        assert "content_1" in contents
+        assert "content_2" in contents
+
+    def test_invalid_item_ids_are_skipped_in_unique_ids(self, mock_deduplicator):
+        """Test that unparseable item IDs in unique_ids are skipped."""
+        new_feedbacks = [_make_raw_feedback(0)]
+
+        dedup_output = FeedbackDeduplicationOutput(
+            duplicate_groups=[],
+            unique_ids=["BADFORMAT", "NEW-0"],
+        )
+
+        result, _ = mock_deduplicator._build_deduplicated_results(
+            new_feedbacks=new_feedbacks,
+            existing_feedbacks=[],
+            dedup_output=dedup_output,
+            request_id="req1",
+            agent_version="v1",
+        )
+
+        # NEW-0 added via unique_ids, BADFORMAT skipped
+        assert len(result) == 1
+
+    def test_existing_only_unique_ids_not_added(self, mock_deduplicator):
+        """Test that EXISTING prefix in unique_ids does not add feedback."""
+        new_feedbacks = [_make_raw_feedback(0)]
+
+        dedup_output = FeedbackDeduplicationOutput(
+            duplicate_groups=[],
+            unique_ids=["EXISTING-0"],
+        )
+
+        result, _ = mock_deduplicator._build_deduplicated_results(
+            new_feedbacks=new_feedbacks,
+            existing_feedbacks=[_make_raw_feedback(1, raw_feedback_id=100)],
+            dedup_output=dedup_output,
+            request_id="req1",
+            agent_version="v1",
+        )
+
+        # EXISTING-0 in unique_ids is ignored; NEW-0 added by safety net
+        contents = {fb.feedback_content for fb in result}
+        assert "content_0" in contents
+
+    def test_out_of_range_new_index_in_unique_ids(self, mock_deduplicator):
+        """Test that out-of-range NEW index in unique_ids is safely ignored."""
+        new_feedbacks = [_make_raw_feedback(0)]
+
+        dedup_output = FeedbackDeduplicationOutput(
+            duplicate_groups=[],
+            unique_ids=["NEW-0", "NEW-99"],  # 99 is out of range
+        )
+
+        result, _ = mock_deduplicator._build_deduplicated_results(
+            new_feedbacks=new_feedbacks,
+            existing_feedbacks=[],
+            dedup_output=dedup_output,
+            request_id="req1",
+            agent_version="v1",
+        )
+
+        assert len(result) == 1
+
+
+class TestFormatItemsForPrompt:
+    """Tests for _format_items_for_prompt (delegates to _format_feedbacks_with_prefix)."""
+
+    def test_delegates_with_new_prefix(self, mock_deduplicator):
+        """Test that _format_items_for_prompt uses 'NEW' prefix."""
+        feedbacks = [_make_raw_feedback(0)]
+        result = mock_deduplicator._format_items_for_prompt(feedbacks)
+        assert "[NEW-0]" in result
+
+    def test_empty_list(self, mock_deduplicator):
+        """Test that empty list returns '(None)'."""
+        result = mock_deduplicator._format_items_for_prompt([])
+        assert result == "(None)"
+
+
+class TestFormatFeedbacksEdgeCases:
+    """Edge cases for _format_feedbacks_with_prefix."""
+
+    def test_empty_feedback_name_shows_unknown(self, mock_deduplicator):
+        """Test that empty feedback_name displays as 'unknown'."""
+        fb = RawFeedback(
+            raw_feedback_id=0,
+            agent_version="v1",
+            request_id="req1",
+            feedback_name="",
+            feedback_content="content",
+        )
+        result = mock_deduplicator._format_feedbacks_with_prefix([fb], "NEW")
+        assert "Name: unknown" in result
+
+    def test_none_source_shows_unknown(self, mock_deduplicator):
+        """Test that None source displays as 'unknown'."""
+        fb = RawFeedback(
+            raw_feedback_id=0,
+            agent_version="v1",
+            request_id="req1",
+            feedback_name="fb",
+            feedback_content="content",
+            source=None,
+        )
+        result = mock_deduplicator._format_feedbacks_with_prefix([fb], "NEW")
+        assert "Source: unknown" in result
+
+
+class TestMockModeCheck:
+    """Tests for mock mode check in deduplicate."""
+
+    def test_mock_mode_handles_non_list_results(self, mock_deduplicator):
+        """Test that mock mode isinstance check filters non-list items."""
+        fb = _make_raw_feedback(0)
+
+        with patch.dict("os.environ", {"MOCK_LLM_RESPONSE": "true"}):
+            result, delete_ids = mock_deduplicator.deduplicate(
+                results=[[fb]],
+                request_id="req1",
+                agent_version="v1",
+            )
+
+        assert len(result) == 1
+        assert delete_ids == []
+
+    def test_mock_mode_case_insensitive(self, mock_deduplicator):
+        """Test that mock mode check is case insensitive."""
+        fb = _make_raw_feedback(0)
+
+        with patch.dict("os.environ", {"MOCK_LLM_RESPONSE": "True"}):
+            result, delete_ids = mock_deduplicator.deduplicate(
+                results=[[fb]],
+                request_id="req1",
+                agent_version="v1",
+            )
+
+        assert len(result) == 1
+        assert delete_ids == []
+
+    def test_mock_mode_false_proceeds_normally(self, mock_deduplicator):
+        """Test that mock mode disabled runs full dedup path."""
+        mock_deduplicator.client.get_embeddings.return_value = [[0.1]]
+        mock_deduplicator.request_context.storage.search_raw_feedbacks.return_value = []
+        mock_deduplicator.client.generate_chat_response.return_value = (
+            FeedbackDeduplicationOutput(
+                duplicate_groups=[],
+                unique_ids=["NEW-0"],
+            )
+        )
+
+        fb = _make_raw_feedback(0)
+        with patch.dict("os.environ", {"MOCK_LLM_RESPONSE": "false"}):
+            result, _ = mock_deduplicator.deduplicate(
+                results=[[fb]],
+                request_id="req1",
+                agent_version="v1",
+            )
+
+        assert len(result) == 1
+
+
 class TestRetrieveExistingFeedbacksWithUserId:
     """Tests for _retrieve_existing_feedbacks with user_id filter."""
 

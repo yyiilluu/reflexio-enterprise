@@ -317,6 +317,206 @@ class TestParseFrontmatterExtended:
         assert meta["changelog"] == "Added new feature"
 
 
+class TestParseFrontmatterDeepEdgeCases:
+    """Deep edge cases for _parse_frontmatter."""
+
+    def test_first_item_block_list_on_same_line(self):
+        """Test that '- value' on the same line as key is parsed as a list."""
+        raw = "---\nitems: - first_item\n---\nBody"
+        meta, body = _parse_frontmatter(raw)
+        assert meta["items"] == ["first_item"]
+        assert body == "Body"
+
+    def test_block_list_continuation_after_key(self):
+        """Test block-style list with items on subsequent lines (continuation)."""
+        raw = "---\nactive: true\ntags:\n  - alpha\n  - beta\n  - gamma\n---\nContent"
+        meta, body = _parse_frontmatter(raw)
+        assert meta["tags"] == ["alpha", "beta", "gamma"]
+        assert body == "Content"
+
+    def test_block_list_replaces_inline_value(self):
+        """Test that block-style list items override any inline value for the key."""
+        # The key has a value that gets parsed first pass, then block items override it
+        raw = "---\nactive: true\ndata: initial_value\n  - item_a\n  - item_b\n---\nBody"
+        meta, _ = _parse_frontmatter(raw)
+        # The block list parser should convert data to a list
+        assert meta["data"] == ["item_a", "item_b"]
+
+    def test_empty_key_line_skipped(self):
+        """Test that lines with empty keys (after strip) are skipped."""
+        raw = "---\nactive: true\n: only_value\nvariables:\n  - x\n---\nBody"
+        meta, _ = _parse_frontmatter(raw)
+        assert "" not in meta
+        assert meta["active"] is True
+
+    def test_line_without_colon_skipped(self):
+        """Test that lines without a colon are skipped in parsing."""
+        raw = "---\nactive: true\nno-colon-here\nvariables:\n  - x\n---\nBody"
+        meta, _ = _parse_frontmatter(raw)
+        assert meta["active"] is True
+        assert "no-colon-here" not in meta
+
+    def test_quoted_string_value(self):
+        """Test that quoted string values have quotes stripped."""
+        raw = "---\nactive: true\ndescription: 'my prompt description'\nvariables:\n  - x\n---\nBody"
+        meta, _ = _parse_frontmatter(raw)
+        assert meta["description"] == "my prompt description"
+
+    def test_inline_list_with_quoted_items(self):
+        """Test parsing inline list with quoted items."""
+        raw = "---\nvariables: ['foo', \"bar\", baz]\n---\nBody"
+        meta, _ = _parse_frontmatter(raw)
+        assert meta["variables"] == ["foo", "bar", "baz"]
+
+    def test_boolean_true(self):
+        """Test true boolean parsing."""
+        raw = "---\nactive: true\nvariables:\n  - x\n---\nBody"
+        meta, _ = _parse_frontmatter(raw)
+        assert meta["active"] is True
+
+    def test_boolean_false(self):
+        """Test false boolean parsing."""
+        raw = "---\nactive: false\nvariables:\n  - x\n---\nBody"
+        meta, _ = _parse_frontmatter(raw)
+        assert meta["active"] is False
+
+
+class TestRenderPromptErrors:
+    """Tests for render_prompt error cases."""
+
+    def test_missing_variable_raises_key_error_as_value_error(self):
+        """Test that a KeyError from format() is wrapped in ValueError."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            prompt_bank = Path(temp_dir) / "prompt_bank"
+            prompt_bank.mkdir()
+            prompt_dir = prompt_bank / "key_err"
+            prompt_dir.mkdir()
+
+            # Template uses {a} and {b}, but frontmatter only declares {a}
+            # This means the frontmatter variables check passes for {a},
+            # but format() will raise KeyError for {b} not supplied
+            _write_prompt_md(
+                prompt_dir,
+                "1.0.0",
+                "Hello {a} and {b}",
+                ["a"],
+                active=True,
+            )
+
+            pm = PromptManager(str(prompt_bank))
+            # Providing only 'a' but template needs 'b' => KeyError from format()
+            with pytest.raises(ValueError, match="Missing required variable"):
+                pm.render_prompt("key_err", {"a": "val_a"})
+
+    def test_general_format_error_raises_value_error(self):
+        """Test that a general formatting error raises ValueError."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            prompt_bank = Path(temp_dir) / "prompt_bank"
+            prompt_bank.mkdir()
+            prompt_dir = prompt_bank / "fmt_err"
+            prompt_dir.mkdir()
+
+            # Bad format string with incomplete brace
+            (prompt_dir / "v1.0.0.prompt.md").write_text(
+                "---\nactive: true\nvariables:\n  - x\n---\nHello {x!z}"
+            )
+
+            pm = PromptManager(str(prompt_bank))
+            with pytest.raises(ValueError, match="Error rendering prompt"):
+                pm.render_prompt("fmt_err", {"x": "val"})
+
+
+class TestLoadPromptEdgeCases:
+    """Tests for _load_prompt edge cases."""
+
+    def test_nonexistent_version_file_returns_none(self):
+        """Test that requesting a non-existent version file returns None."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            prompt_bank = Path(temp_dir) / "prompt_bank"
+            prompt_bank.mkdir()
+            prompt_dir = prompt_bank / "my_prompt"
+            prompt_dir.mkdir()
+
+            _write_prompt_md(prompt_dir, "1.0.0", "Content", ["x"], active=True)
+
+            pm = PromptManager(str(prompt_bank))
+            result = pm._load_prompt("my_prompt", "99.99.99")
+            assert result is None
+
+    def test_malformed_frontmatter_returns_none(self):
+        """Test that a prompt file with malformed frontmatter returns None."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            prompt_bank = Path(temp_dir) / "prompt_bank"
+            prompt_bank.mkdir()
+            prompt_dir = prompt_bank / "bad_prompt"
+            prompt_dir.mkdir()
+
+            (prompt_dir / "v1.0.0.prompt.md").write_text("No frontmatter here")
+
+            pm = PromptManager(str(prompt_bank))
+            result = pm._load_prompt("bad_prompt", "1.0.0")
+            assert result is None
+
+    def test_read_error_returns_none(self):
+        """Test that a file read error returns None."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            prompt_bank = Path(temp_dir) / "prompt_bank"
+            prompt_bank.mkdir()
+
+            pm = PromptManager(str(prompt_bank))
+            # Prompt directory doesn't exist at all
+            result = pm._load_prompt("nonexistent_prompt", "1.0.0")
+            assert result is None
+
+
+class TestFindActiveVersionCacheMiss:
+    """Tests for _find_active_version and _get_prompt cache behavior."""
+
+    def test_no_active_version_returns_none(self):
+        """Test that when no version has active: true, _get_prompt returns None."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            prompt_bank = Path(temp_dir) / "prompt_bank"
+            prompt_bank.mkdir()
+            prompt_dir = prompt_bank / "inactive"
+            prompt_dir.mkdir()
+
+            # Write a version with active: false
+            _write_prompt_md(prompt_dir, "1.0.0", "Content", ["x"])
+
+            pm = PromptManager(str(prompt_bank))
+            result = pm._get_prompt("inactive")
+            assert result is None
+            # Should not be cached since it wasn't found
+            assert "inactive" not in pm._cache
+
+    def test_active_version_gets_cached(self):
+        """Test that a found active prompt gets cached."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            prompt_bank = Path(temp_dir) / "prompt_bank"
+            prompt_bank.mkdir()
+            prompt_dir = prompt_bank / "cached_prompt"
+            prompt_dir.mkdir()
+
+            _write_prompt_md(prompt_dir, "1.0.0", "Content", ["x"], active=True)
+
+            pm = PromptManager(str(prompt_bank))
+            result1 = pm._get_prompt("cached_prompt")
+            assert result1 is not None
+            assert "cached_prompt" in pm._cache
+            # Second call should return same cached instance
+            result2 = pm._get_prompt("cached_prompt")
+            assert result1 is result2
+
+    def test_nonexistent_prompt_dir_returns_none(self):
+        """Test that _find_active_version returns None for non-existent prompt dir."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            prompt_bank = Path(temp_dir) / "prompt_bank"
+            prompt_bank.mkdir()
+
+            pm = PromptManager(str(prompt_bank))
+            assert pm._find_active_version("does_not_exist") is None
+
+
 class TestFindActiveVersionWithException:
     """Tests for _find_active_version when a prompt file has invalid content."""
 

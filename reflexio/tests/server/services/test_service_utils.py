@@ -1,6 +1,6 @@
 """Tests for service_utils module."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from reflexio_commons.api_schema.internal_schema import RequestInteractionDataModel
@@ -11,7 +11,9 @@ from reflexio_commons.api_schema.service_schemas import (
 )
 
 from reflexio.server.services.service_utils import (
+    extract_json_from_string,
     format_interactions_to_history_string,
+    format_messages_for_logging,
     format_sessions_to_history_string,
 )
 
@@ -25,7 +27,7 @@ def test_format_interactions_to_history_string_with_content():
             request_id="test_request",
             content="I love Italian food",
             role="user",
-            created_at=int(datetime.now(timezone.utc).timestamp()),
+            created_at=int(datetime.now(UTC).timestamp()),
             user_action=UserActionType.NONE,
             user_action_description="",
         ),
@@ -35,7 +37,7 @@ def test_format_interactions_to_history_string_with_content():
             request_id="test_request",
             content="I also enjoy sushi",
             role="user",
-            created_at=int(datetime.now(timezone.utc).timestamp()),
+            created_at=int(datetime.now(UTC).timestamp()),
             user_action=UserActionType.NONE,
             user_action_description="",
         ),
@@ -55,7 +57,7 @@ def test_format_interactions_to_history_string_with_actions():
             request_id="test_request",
             content="",
             role="user",
-            created_at=int(datetime.now(timezone.utc).timestamp()),
+            created_at=int(datetime.now(UTC).timestamp()),
             user_action=UserActionType.CLICK,
             user_action_description="menu item",
         ),
@@ -65,7 +67,7 @@ def test_format_interactions_to_history_string_with_actions():
             request_id="test_request",
             content="",
             role="user",
-            created_at=int(datetime.now(timezone.utc).timestamp()),
+            created_at=int(datetime.now(UTC).timestamp()),
             user_action=UserActionType.SCROLL,
             user_action_description="to bottom",
         ),
@@ -85,7 +87,7 @@ def test_format_interactions_to_history_string_mixed():
             request_id="test_request",
             content="I love sushi",
             role="user",
-            created_at=int(datetime.now(timezone.utc).timestamp()),
+            created_at=int(datetime.now(UTC).timestamp()),
             user_action=UserActionType.NONE,
             user_action_description="",
         ),
@@ -95,7 +97,7 @@ def test_format_interactions_to_history_string_mixed():
             request_id="test_request",
             content="",
             role="user",
-            created_at=int(datetime.now(timezone.utc).timestamp()),
+            created_at=int(datetime.now(UTC).timestamp()),
             user_action=UserActionType.CLICK,
             user_action_description="menu item",
         ),
@@ -115,7 +117,7 @@ def test_format_interactions_to_history_string_with_content_and_action():
             request_id="test_request",
             content="I love sushi",
             role="user",
-            created_at=int(datetime.now(timezone.utc).timestamp()),
+            created_at=int(datetime.now(UTC).timestamp()),
             user_action=UserActionType.CLICK,
             user_action_description="sushi restaurant",
         ),
@@ -142,7 +144,7 @@ def test_format_interactions_to_history_string_multiple_roles():
             request_id="test_request",
             content="Can you help me?",
             role="user",
-            created_at=int(datetime.now(timezone.utc).timestamp()),
+            created_at=int(datetime.now(UTC).timestamp()),
             user_action=UserActionType.NONE,
             user_action_description="",
         ),
@@ -152,7 +154,7 @@ def test_format_interactions_to_history_string_multiple_roles():
             request_id="test_request",
             content="Of course, I can help!",
             role="assistant",
-            created_at=int(datetime.now(timezone.utc).timestamp()),
+            created_at=int(datetime.now(UTC).timestamp()),
             user_action=UserActionType.NONE,
             user_action_description="",
         ),
@@ -198,7 +200,7 @@ def test_format_sessions_to_history_string_empty():
 
 def test_format_sessions_to_history_string_single_group():
     """Test formatting a single session."""
-    base_time = int(datetime.now(timezone.utc).timestamp())
+    base_time = int(datetime.now(UTC).timestamp())
 
     session_data = RequestInteractionDataModel(
         session_id="group_1",
@@ -216,7 +218,7 @@ def test_format_sessions_to_history_string_single_group():
 
 def test_format_sessions_to_history_string_consolidates_same_group():
     """Test that multiple requests with the same group name are consolidated under one header."""
-    base_time = int(datetime.now(timezone.utc).timestamp())
+    base_time = int(datetime.now(UTC).timestamp())
 
     # Three separate requests, all with the same session_id name
     session_id_1 = RequestInteractionDataModel(
@@ -265,7 +267,7 @@ def test_format_sessions_to_history_string_consolidates_same_group():
 
 def test_format_sessions_to_history_string_multiple_groups():
     """Test formatting multiple different sessions."""
-    base_time = int(datetime.now(timezone.utc).timestamp())
+    base_time = int(datetime.now(UTC).timestamp())
 
     group_a = RequestInteractionDataModel(
         session_id="session_a",
@@ -295,7 +297,7 @@ def test_format_sessions_to_history_string_multiple_groups():
 
 def test_format_sessions_to_history_string_mixed_groups():
     """Test multiple sessions with some sharing the same name."""
-    base_time = int(datetime.now(timezone.utc).timestamp())
+    base_time = int(datetime.now(UTC).timestamp())
 
     # Two requests in group_1
     group_1_req_1 = RequestInteractionDataModel(
@@ -341,7 +343,7 @@ def test_format_sessions_to_history_string_mixed_groups():
 
 def test_format_sessions_to_history_string_preserves_order_within_group():
     """Test that requests within the same group are ordered by created_at."""
-    base_time = int(datetime.now(timezone.utc).timestamp())
+    base_time = int(datetime.now(UTC).timestamp())
 
     # Create requests out of order
     late_request = RequestInteractionDataModel(
@@ -381,6 +383,190 @@ def test_format_sessions_to_history_string_preserves_order_within_group():
         "user: ```Late message```"
     )
     assert result == expected
+
+
+# ===============================
+# Tests for fix_unescaped_inner_quotes (via extract_json_from_string)
+# ===============================
+
+
+def test_fix_unescaped_inner_quotes_repairs_apostrophe():
+    """Test that inner double-quotes between word chars are fixed (line 375)."""
+    # The LLM returned customer"s instead of customer's inside a JSON value
+    text = '{"feedback": "The customer"s request was handled well"}'
+    result = extract_json_from_string(text)
+
+    assert result == {"feedback": "The customer's request was handled well"}
+
+
+def test_fix_unescaped_inner_quotes_multiple():
+    """Test multiple inner quotes are all repaired."""
+    text = '{"a": "it"s fine", "b": "she"s done"}'
+    result = extract_json_from_string(text)
+
+    assert result == {"a": "it's fine", "b": "she's done"}
+
+
+# ===============================
+# Tests for extract_json_from_string: ast.literal_eval fallback
+# ===============================
+
+
+def test_extract_json_literal_eval_fallback_single_quotes():
+    """Test ast.literal_eval fallback for Python-style dicts with single quotes (lines 391-395)."""
+    text = "{'key': 'value', 'count': 42}"
+    result = extract_json_from_string(text)
+
+    assert result == {"key": "value", "count": 42}
+
+
+def test_extract_json_literal_eval_fallback_in_code_block():
+    """Test ast.literal_eval fallback when inside a code block with single quotes."""
+    text = "```json\n{'do_action': 'be polite', 'when_condition': 'greeting'}\n```"
+    result = extract_json_from_string(text)
+
+    assert result == {"do_action": "be polite", "when_condition": "greeting"}
+
+
+# ===============================
+# Tests for extract_json_from_string: warnings on parse failure
+# ===============================
+
+
+def test_extract_json_code_block_warning_then_braces_fallback():
+    """Test JSON parse warning from code block (lines 409-410) followed by braces fallback."""
+    # Code block has invalid JSON, but the text outside also contains valid JSON
+    # The braces extraction will find the valid JSON after code block fails
+    text = '```json\nnot valid json at all\n```\n\n{"fallback": true}'
+    result = extract_json_from_string(text)
+
+    assert result == {"fallback": True}
+
+
+def test_extract_json_braces_warning_returns_empty():
+    """Test JSON parse warning from braces (lines 420-421) returns empty dict."""
+    text = "{this is definitely not json}"
+    result = extract_json_from_string(text)
+
+    assert result == {}
+
+
+def test_extract_json_no_json_at_all():
+    """Test that extract_json_from_string returns empty dict when no JSON anywhere."""
+    text = "This is plain text with no JSON content"
+    result = extract_json_from_string(text)
+
+    assert result == {}
+
+
+def test_extract_json_python_booleans():
+    """Test that Python-style True/False/None are converted to JSON equivalents."""
+    text = '{"active": True, "deleted": False, "value": None}'
+    result = extract_json_from_string(text)
+
+    assert result == {"active": True, "deleted": False, "value": None}
+
+
+# ===============================
+# Tests for format_messages_for_logging: multimodal content/images
+# ===============================
+
+
+def test_format_messages_for_logging_multimodal_with_image_url():
+    """Test format_messages_for_logging with multimodal content including image URL (lines 473-476)."""
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "What do you see?"},
+                {
+                    "type": "image_url",
+                    "image_url": {"url": "https://example.com/img.png"},
+                },
+            ],
+        }
+    ]
+
+    result = format_messages_for_logging(messages)
+
+    assert "Message 1:" in result
+    assert "role: user" in result
+    assert "type: text" in result
+    assert "What do you see?" in result
+    assert "image_url" in result
+    assert "https://example.com/img.png" in result
+
+
+def test_format_messages_for_logging_multimodal_with_base64():
+    """Test format_messages_for_logging with base64-encoded image content."""
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "Describe this image"},
+                {
+                    "type": "image_url",
+                    "image_url": {"url": "data:image/jpeg;base64,/9j/abc123"},
+                },
+            ],
+        }
+    ]
+
+    result = format_messages_for_logging(messages)
+
+    assert "Describe this image" in result
+    assert "image_url" in result
+
+
+def test_format_messages_for_logging_string_content():
+    """Test format_messages_for_logging with simple string content."""
+    messages = [
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": "Hello!\nHow are you?"},
+    ]
+
+    result = format_messages_for_logging(messages)
+
+    assert "Message 1:" in result
+    assert "role: system" in result
+    assert "You are a helpful assistant." in result
+    assert "Message 2:" in result
+    assert "Hello!" in result
+    assert "How are you?" in result
+
+
+def test_format_messages_for_logging_non_standard_content():
+    """Test format_messages_for_logging with non-string, non-list content (lines 475-476)."""
+    messages = [
+        {"role": "user", "content": 42},
+    ]
+
+    result = format_messages_for_logging(messages)
+
+    assert "content: 42" in result
+
+
+def test_format_messages_for_logging_empty_messages():
+    """Test format_messages_for_logging with empty message list."""
+    result = format_messages_for_logging([])
+
+    assert result == ""
+
+
+def test_format_messages_for_logging_multimodal_non_dict_items():
+    """Test format_messages_for_logging with non-dict items in content list (line 473)."""
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                "plain string item",
+            ],
+        }
+    ]
+
+    result = format_messages_for_logging(messages)
+
+    assert "plain string item" in result
 
 
 if __name__ == "__main__":

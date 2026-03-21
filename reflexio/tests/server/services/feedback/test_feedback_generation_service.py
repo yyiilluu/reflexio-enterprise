@@ -1467,5 +1467,462 @@ class TestUpdateConfigForIncremental:
             assert len(service.service_config.previously_extracted) == 1
 
 
+# ===============================
+# Tests for run_manual_regular: specific user_ids and progress tracking
+# ===============================
+
+
+class TestRunManualRegularUnit:
+    """Unit tests for run_manual_regular with mocked storage."""
+
+    def _create_service(
+        self, temp_dir: str, output_pending: bool = False
+    ) -> FeedbackGenerationService:
+        """Helper to create a FeedbackGenerationService for testing."""
+        llm_config = LiteLLMConfig(model="gpt-4o-mini")
+        llm_client = LiteLLMClient(llm_config)
+        svc = FeedbackGenerationService(
+            llm_client=llm_client,
+            request_context=RequestContext(org_id="0", storage_base_dir=temp_dir),
+            allow_manual_trigger=True,
+            output_pending_status=output_pending,
+        )
+        feedback_config = AgentFeedbackConfig(
+            feedback_name="test_feedback",
+            feedback_definition_prompt="test",
+            feedback_aggregator_config=FeedbackAggregatorConfig(
+                min_feedback_threshold=2,
+            ),
+            allow_manual_trigger=True,
+        )
+        svc.configurator.set_config_by_name(
+            "agent_feedback_configs", [feedback_config]
+        )
+        svc.configurator.set_config_by_name("extraction_window_size", 100)
+        return svc
+
+    def test_run_manual_regular_with_specific_user_ids(self, mock_chat_completion):
+        """Test run_manual_regular processes specific user_ids from sessions."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            svc = self._create_service(temp_dir)
+
+            # Add interactions for two distinct users
+            for uid in ("user_alpha", "user_beta"):
+                req_id = f"req_{uid}"
+                interaction = Interaction(
+                    interaction_id=hash(uid) % 10000,
+                    user_id=uid,
+                    request_id=req_id,
+                    content=f"Content from {uid}",
+                    role="user",
+                    created_at=int(
+                        datetime.datetime.now(datetime.UTC).timestamp()
+                    ),
+                )
+                request_obj = Request(
+                    request_id=req_id,
+                    user_id=uid,
+                    source="",
+                    agent_version="1.0",
+                )
+                svc.storage.add_request(request_obj)
+                svc.storage.add_user_interaction(uid, interaction)
+
+            from reflexio_commons.api_schema.service_schemas import (
+                ManualFeedbackGenerationRequest,
+            )
+
+            request = ManualFeedbackGenerationRequest(agent_version="1.0")
+            response = svc.run_manual_regular(request)
+
+            assert response.success is True
+
+    def test_run_manual_regular_progress_tracking(self, mock_chat_completion):
+        """Test that run_manual_regular invokes _run_batch_with_progress."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            svc = self._create_service(temp_dir)
+
+            # Add one user with one interaction
+            interaction = Interaction(
+                interaction_id=1,
+                user_id="user_prog",
+                request_id="req_prog",
+                content="progress test",
+                role="user",
+                created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+            )
+            request_obj = Request(
+                request_id="req_prog",
+                user_id="user_prog",
+                source="",
+                agent_version="1.0",
+            )
+            svc.storage.add_request(request_obj)
+            svc.storage.add_user_interaction("user_prog", interaction)
+
+            from reflexio_commons.api_schema.service_schemas import (
+                ManualFeedbackGenerationRequest,
+            )
+
+            with patch.object(
+                svc, "_run_batch_with_progress"
+            ) as mock_batch:
+                request = ManualFeedbackGenerationRequest(agent_version="1.0")
+                response = svc.run_manual_regular(request)
+
+            assert response.success is True
+            mock_batch.assert_called_once()
+            call_kwargs = mock_batch.call_args[1]
+            assert "user_prog" in call_kwargs["user_ids"]
+            assert call_kwargs["request_params"]["mode"] == "manual_regular"
+
+
+# ===============================
+# Tests for _count_manual_generated
+# ===============================
+
+
+class TestCountManualGenerated:
+    """Tests for _count_manual_generated method."""
+
+    def test_returns_zero_when_no_matching_feedbacks(self):
+        """Test _count_manual_generated returns 0 when storage has no CURRENT feedbacks."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            llm_config = LiteLLMConfig(model="gpt-4o-mini")
+            llm_client = LiteLLMClient(llm_config)
+            svc = FeedbackGenerationService(
+                llm_client=llm_client,
+                request_context=RequestContext(
+                    org_id="0", storage_base_dir=temp_dir
+                ),
+            )
+            svc.service_config = svc._load_generation_service_config(
+                FeedbackGenerationRequest(
+                    request_id="test", agent_version="1.0", auto_run=False
+                )
+            )
+
+            from reflexio_commons.api_schema.service_schemas import (
+                ManualFeedbackGenerationRequest,
+            )
+
+            request = ManualFeedbackGenerationRequest(agent_version="1.0")
+            result = svc._count_manual_generated(request)
+
+            assert result == 0
+
+    def test_returns_count_with_mock_storage(self):
+        """Test _count_manual_generated returns correct count from mocked storage."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            llm_config = LiteLLMConfig(model="gpt-4o-mini")
+            llm_client = LiteLLMClient(llm_config)
+            svc = FeedbackGenerationService(
+                llm_client=llm_client,
+                request_context=RequestContext(
+                    org_id="0", storage_base_dir=temp_dir
+                ),
+            )
+            svc.service_config = svc._load_generation_service_config(
+                FeedbackGenerationRequest(
+                    request_id="test", agent_version="1.0", auto_run=False
+                )
+            )
+
+            from reflexio_commons.api_schema.service_schemas import (
+                ManualFeedbackGenerationRequest,
+                RawFeedback,
+            )
+
+            svc.storage.get_raw_feedbacks = MagicMock(
+                return_value=[
+                    RawFeedback(
+                        request_id="r1",
+                        agent_version="1.0",
+                        feedback_name="fb",
+                        feedback_content="content",
+                    ),
+                    RawFeedback(
+                        request_id="r2",
+                        agent_version="1.0",
+                        feedback_name="fb",
+                        feedback_content="content2",
+                    ),
+                ]
+            )
+
+            request = ManualFeedbackGenerationRequest(agent_version="1.0")
+            result = svc._count_manual_generated(request)
+
+            assert result == 2
+
+
+# ===============================
+# Tests for _create_run_request_for_item
+# ===============================
+
+
+class TestCreateRunRequestForItem:
+    """Tests for _create_run_request_for_item with both request types."""
+
+    def _create_service(self, temp_dir: str) -> FeedbackGenerationService:
+        """Helper to create a FeedbackGenerationService."""
+        llm_config = LiteLLMConfig(model="gpt-4o-mini")
+        llm_client = LiteLLMClient(llm_config)
+        svc = FeedbackGenerationService(
+            llm_client=llm_client,
+            request_context=RequestContext(org_id="0", storage_base_dir=temp_dir),
+            output_pending_status=True,
+        )
+        svc.service_config = svc._load_generation_service_config(
+            FeedbackGenerationRequest(
+                request_id="test", agent_version="1.0", auto_run=False
+            )
+        )
+        return svc
+
+    def test_manual_feedback_generation_request_path(self):
+        """Test _create_run_request_for_item with ManualFeedbackGenerationRequest (line 514/550)."""
+        from reflexio_commons.api_schema.service_schemas import (
+            ManualFeedbackGenerationRequest,
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            svc = self._create_service(temp_dir)
+
+            manual_req = ManualFeedbackGenerationRequest(
+                agent_version="2.0", source="web"
+            )
+            result = svc._create_run_request_for_item("user_x", manual_req)
+
+            assert result.request_id.startswith("manual_")
+            assert result.agent_version == "2.0"
+            assert result.user_id == "user_x"
+            assert result.source == "web"
+            assert result.auto_run is False
+            # Manual requests should not have rerun time fields
+            assert result.rerun_start_time is None
+            assert result.rerun_end_time is None
+
+    def test_rerun_feedback_generation_request_path(self):
+        """Test _create_run_request_for_item with RerunFeedbackGenerationRequest."""
+        from reflexio_commons.api_schema.service_schemas import (
+            RerunFeedbackGenerationRequest,
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            svc = self._create_service(temp_dir)
+
+            start = datetime.datetime(2024, 1, 1, tzinfo=datetime.UTC)
+            end = datetime.datetime(2024, 6, 1, tzinfo=datetime.UTC)
+            rerun_req = RerunFeedbackGenerationRequest(
+                agent_version="1.5",
+                start_time=start,
+                end_time=end,
+                feedback_name="quality",
+                source="api",
+            )
+            result = svc._create_run_request_for_item("user_y", rerun_req)
+
+            assert result.request_id.startswith("rerun_feedback_")
+            assert result.agent_version == "1.5"
+            assert result.user_id == "user_y"
+            assert result.source == "api"
+            assert result.feedback_name == "quality"
+            assert result.auto_run is False
+            assert result.rerun_start_time == int(start.timestamp())
+            assert result.rerun_end_time == int(end.timestamp())
+
+
+# ===============================
+# Tests for _pre_process_rerun
+# ===============================
+
+
+class TestPreProcessRerun:
+    """Tests for _pre_process_rerun method."""
+
+    def test_deletes_pending_feedbacks(self):
+        """Test _pre_process_rerun deletes pending raw feedbacks (lines 443-448)."""
+        from reflexio_commons.api_schema.service_schemas import (
+            RerunFeedbackGenerationRequest,
+            Status,
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            llm_config = LiteLLMConfig(model="gpt-4o-mini")
+            llm_client = LiteLLMClient(llm_config)
+            svc = FeedbackGenerationService(
+                llm_client=llm_client,
+                request_context=RequestContext(
+                    org_id="0", storage_base_dir=temp_dir
+                ),
+                output_pending_status=True,
+            )
+            svc.service_config = svc._load_generation_service_config(
+                FeedbackGenerationRequest(
+                    request_id="test", agent_version="1.0", auto_run=False
+                )
+            )
+
+            svc.storage.delete_all_raw_feedbacks_by_status = MagicMock(
+                return_value=5
+            )
+
+            rerun_req = RerunFeedbackGenerationRequest(
+                agent_version="1.0",
+                feedback_name="quality",
+            )
+            svc._pre_process_rerun(rerun_req)
+
+            svc.storage.delete_all_raw_feedbacks_by_status.assert_called_once_with(
+                status=Status.PENDING,
+                agent_version="1.0",
+                feedback_name="quality",
+            )
+
+
+# ===============================
+# Tests for status change methods
+# ===============================
+
+
+class TestStatusChangeMethods:
+    """Tests for _has_items_with_status, _delete_items_by_status, _create_status_change_response."""
+
+    def _create_service(self, temp_dir: str) -> FeedbackGenerationService:
+        """Helper to create a FeedbackGenerationService."""
+        llm_config = LiteLLMConfig(model="gpt-4o-mini")
+        llm_client = LiteLLMClient(llm_config)
+        svc = FeedbackGenerationService(
+            llm_client=llm_client,
+            request_context=RequestContext(org_id="0", storage_base_dir=temp_dir),
+        )
+        svc.service_config = svc._load_generation_service_config(
+            FeedbackGenerationRequest(
+                request_id="test", agent_version="1.0", auto_run=False
+            )
+        )
+        return svc
+
+    def test_has_items_with_status(self):
+        """Test _has_items_with_status delegates to storage (line 697)."""
+        from reflexio_commons.api_schema.service_schemas import Status
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            svc = self._create_service(temp_dir)
+            svc.storage.has_raw_feedbacks_with_status = MagicMock(return_value=True)
+
+            request = FeedbackGenerationRequest(
+                request_id="r1",
+                agent_version="1.0",
+                feedback_name="quality",
+                auto_run=False,
+            )
+            result = svc._has_items_with_status(Status.PENDING, request)
+
+            assert result is True
+            svc.storage.has_raw_feedbacks_with_status.assert_called_once_with(
+                status=Status.PENDING,
+                agent_version="1.0",
+                feedback_name="quality",
+            )
+
+    def test_delete_items_by_status(self):
+        """Test _delete_items_by_status delegates to storage (line 715)."""
+        from reflexio_commons.api_schema.service_schemas import Status
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            svc = self._create_service(temp_dir)
+            svc.storage.delete_all_raw_feedbacks_by_status = MagicMock(
+                return_value=3
+            )
+
+            request = FeedbackGenerationRequest(
+                request_id="r1",
+                agent_version="1.0",
+                feedback_name="quality",
+                auto_run=False,
+            )
+            result = svc._delete_items_by_status(Status.PENDING, request)
+
+            assert result == 3
+            svc.storage.delete_all_raw_feedbacks_by_status.assert_called_once_with(
+                status=Status.PENDING,
+                agent_version="1.0",
+                feedback_name="quality",
+            )
+
+    def test_create_status_change_response_upgrade(self):
+        """Test _create_status_change_response for UPGRADE returns UpgradeRawFeedbacksResponse (lines 765-772)."""
+        from reflexio_commons.api_schema.service_schemas import (
+            UpgradeRawFeedbacksResponse,
+        )
+
+        from reflexio.server.services.base_generation_service import (
+            StatusChangeOperation,
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            svc = self._create_service(temp_dir)
+
+            counts = {"deleted": 2, "archived": 3, "promoted": 5}
+            result = svc._create_status_change_response(
+                StatusChangeOperation.UPGRADE, True, counts, "done"
+            )
+
+            assert isinstance(result, UpgradeRawFeedbacksResponse)
+            assert result.success is True
+            assert result.raw_feedbacks_deleted == 2
+            assert result.raw_feedbacks_archived == 3
+            assert result.raw_feedbacks_promoted == 5
+            assert result.message == "done"
+
+    def test_create_status_change_response_downgrade(self):
+        """Test _create_status_change_response for DOWNGRADE returns DowngradeRawFeedbacksResponse (lines 773-779)."""
+        from reflexio_commons.api_schema.service_schemas import (
+            DowngradeRawFeedbacksResponse,
+        )
+
+        from reflexio.server.services.base_generation_service import (
+            StatusChangeOperation,
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            svc = self._create_service(temp_dir)
+
+            counts = {"demoted": 4, "restored": 6}
+            result = svc._create_status_change_response(
+                StatusChangeOperation.DOWNGRADE, False, counts, "rollback"
+            )
+
+            assert isinstance(result, DowngradeRawFeedbacksResponse)
+            assert result.success is False
+            assert result.raw_feedbacks_demoted == 4
+            assert result.raw_feedbacks_restored == 6
+            assert result.message == "rollback"
+
+    def test_create_status_change_response_missing_count_keys(self):
+        """Test _create_status_change_response defaults to 0 for missing count keys."""
+        from reflexio_commons.api_schema.service_schemas import (
+            UpgradeRawFeedbacksResponse,
+        )
+
+        from reflexio.server.services.base_generation_service import (
+            StatusChangeOperation,
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            svc = self._create_service(temp_dir)
+
+            result = svc._create_status_change_response(
+                StatusChangeOperation.UPGRADE, True, {}, "no counts"
+            )
+
+            assert isinstance(result, UpgradeRawFeedbacksResponse)
+            assert result.raw_feedbacks_deleted == 0
+            assert result.raw_feedbacks_archived == 0
+            assert result.raw_feedbacks_promoted == 0
+
+
 if __name__ == "__main__":
     pytest.main([__file__])

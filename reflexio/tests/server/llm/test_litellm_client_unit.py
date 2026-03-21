@@ -1285,3 +1285,163 @@ class TestCreateLiteLLMClient:
             model="gpt-4o", api_key_config=api_key_config
         )
         assert client._api_key == "sk-test"
+
+
+# ===================================================================
+# Additional retry/error handling edge cases
+# ===================================================================
+
+
+class TestRetryErrorEdgeCases:
+    """Additional edge cases for retry logic and error handling."""
+
+    @patch("reflexio.server.llm.litellm_client.time.sleep")
+    @patch("reflexio.server.llm.litellm_client.litellm.completion")
+    def test_exponential_backoff_delay(self, mock_completion, mock_sleep):
+        """Verify exponential backoff: delay = retry_delay * 2^attempt."""
+        mock_completion.side_effect = [
+            RuntimeError("temp failure 1"),
+            RuntimeError("temp failure 2"),
+            _make_completion_response("ok"),
+        ]
+        config = LiteLLMConfig(model="gpt-4o", max_retries=3, retry_delay=1.0)
+        client = LiteLLMClient(config)
+
+        result = client._make_request([{"role": "user", "content": "hi"}])
+
+        assert result == "ok"
+        assert mock_sleep.call_count == 2
+        # First retry: 1.0 * 2^0 = 1.0
+        assert mock_sleep.call_args_list[0][0][0] == 1.0
+        # Second retry: 1.0 * 2^1 = 2.0
+        assert mock_sleep.call_args_list[1][0][0] == 2.0
+
+    @patch("reflexio.server.llm.litellm_client.litellm.completion")
+    def test_non_retryable_stops_on_first_attempt(self, mock_completion):
+        """Non-retryable errors should not trigger retries."""
+        mock_completion.side_effect = RuntimeError("quota_exceeded for project")
+        config = LiteLLMConfig(model="gpt-4o", max_retries=5)
+        client = LiteLLMClient(config)
+
+        with pytest.raises(LiteLLMClientError, match="quota_exceeded"):
+            client._make_request([{"role": "user", "content": "hi"}])
+
+        # Should only try once
+        assert mock_completion.call_count == 1
+
+    @patch("reflexio.server.llm.litellm_client.litellm.completion")
+    def test_max_retries_zero_treated_as_one(self, mock_completion):
+        """max_retries=0 should be treated as at least 1 attempt."""
+        mock_completion.return_value = _make_completion_response("ok")
+        config = LiteLLMConfig(model="gpt-4o", max_retries=0)
+        client = LiteLLMClient(config)
+
+        result = client._make_request([{"role": "user", "content": "hi"}])
+        assert result == "ok"
+
+    @patch("reflexio.server.llm.litellm_client.litellm.completion")
+    def test_negative_max_retries_treated_as_one(self, mock_completion):
+        """Negative max_retries should be treated as at least 1."""
+        mock_completion.return_value = _make_completion_response("ok")
+        config = LiteLLMConfig(model="gpt-4o", max_retries=-1)
+        client = LiteLLMClient(config)
+
+        result = client._make_request([{"role": "user", "content": "hi"}])
+        assert result == "ok"
+
+
+class TestTokenUsageLoggingEdgeCases:
+    """Edge cases for _log_token_usage."""
+
+    def test_no_prompt_tokens_details(self):
+        """Test logging with no prompt_tokens_details."""
+        client = _build_client()
+        response = MagicMock()
+        response.usage.prompt_tokens = 10
+        response.usage.completion_tokens = 5
+        response.usage.total_tokens = 15
+        response.usage.prompt_tokens_details = None
+        response.usage.cache_creation_input_tokens = None
+        response.usage.cache_read_input_tokens = None
+        # Should not raise
+        client._log_token_usage({"model": "gpt-4o"}, response)
+
+    def test_cached_tokens_zero(self):
+        """Test logging when cached_tokens is 0 (no cache info appended)."""
+        client = _build_client()
+        response = MagicMock()
+        response.usage.prompt_tokens = 10
+        response.usage.completion_tokens = 5
+        response.usage.total_tokens = 15
+        details = MagicMock(cached_tokens=0)
+        response.usage.prompt_tokens_details = details
+        response.usage.cache_creation_input_tokens = None
+        response.usage.cache_read_input_tokens = None
+        # Should not raise
+        client._log_token_usage({"model": "gpt-4o"}, response)
+
+
+class TestSanitizeJsonEdgeCases:
+    """Additional edge cases for _sanitize_json_string."""
+
+    def test_nested_single_quotes(self):
+        """Test nested single-quoted strings."""
+        client = _build_client()
+        result = client._sanitize_json_string("{'items': ['a', 'b', 'c']}")
+        parsed = json.loads(result)
+        assert parsed == {"items": ["a", "b", "c"]}
+
+    def test_trailing_comma_in_array(self):
+        """Test trailing commas before closing bracket."""
+        client = _build_client()
+        result = client._sanitize_json_string('{"items": [1, 2, 3, ]}')
+        parsed = json.loads(result)
+        assert parsed == {"items": [1, 2, 3]}
+
+    def test_mixed_python_values(self):
+        """Test handling of mixed True/False/None values."""
+        client = _build_client()
+        result = client._sanitize_json_string(
+            '{"a": True, "b": False, "c": None}'
+        )
+        parsed = json.loads(result)
+        assert parsed == {"a": True, "b": False, "c": None}
+
+    def test_boolean_inside_string_not_replaced(self):
+        """Test that True/False inside strings are not replaced."""
+        client = _build_client()
+        result = client._sanitize_json_string('{"msg": "This is True story"}')
+        parsed = json.loads(result)
+        # "True" inside the string value should remain unchanged
+        assert "True" in parsed["msg"]
+
+
+class TestBuildCompletionParamsEdgeCases:
+    """Additional edge cases for _build_completion_params."""
+
+    def test_max_retries_kwarg_overrides_config(self):
+        """Test that max_retries kwarg overrides config value."""
+        config = LiteLLMConfig(model="gpt-4o", max_retries=2)
+        client = LiteLLMClient(config)
+
+        _, _, _, max_retries = client._build_completion_params(
+            [{"role": "user", "content": "hi"}],
+            max_retries=5,
+        )
+        assert max_retries == 5
+
+    def test_model_kwarg_overrides_config(self):
+        """Test that model kwarg overrides config model."""
+        api_key_config = APIKeyConfig(
+            anthropic=AnthropicConfig(api_key="ant-key"),
+            openai=CommonsOpenAIConfig(api_key="sk-openai"),
+        )
+        config = LiteLLMConfig(model="gpt-4o", api_key_config=api_key_config)
+        client = LiteLLMClient(config)
+
+        params, _, _, _ = client._build_completion_params(
+            [{"role": "user", "content": "hi"}],
+            model="claude-3-5-sonnet",
+        )
+        assert params["model"] == "claude-3-5-sonnet"
+        assert params["api_key"] == "ant-key"

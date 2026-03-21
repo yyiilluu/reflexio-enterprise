@@ -205,3 +205,97 @@ class TestCancelOperation:
 
         assert response.success is False
         assert response.msg is not None
+
+    def test_cancel_with_dict_input(self):
+        """Accept a plain dict and auto-convert to CancelOperationRequest."""
+        mixin = _make_mixin()
+
+        with patch(
+            "reflexio.reflexio_lib._operations.OperationStateManager"
+        ) as mock_mgr_cls:
+            mock_mgr_instance = MagicMock()
+            mock_mgr_instance.request_cancellation.return_value = True
+            mock_mgr_cls.return_value = mock_mgr_instance
+
+            response = mixin.cancel_operation(
+                {"service_name": "profile_generation"}
+            )
+
+        assert response.success is True
+        assert "profile_generation" in response.cancelled_services
+
+    def test_cancel_exception_handling(self):
+        """Test that exceptions in cancel_operation are caught gracefully."""
+        mixin = _make_mixin()
+
+        with patch(
+            "reflexio.reflexio_lib._operations.OperationStateManager"
+        ) as mock_mgr_cls:
+            mock_mgr_cls.side_effect = RuntimeError("storage error")
+
+            request = CancelOperationRequest(service_name="profile_generation")
+            response = mixin.cancel_operation(request)
+
+        assert response.success is False
+        assert "Failed to cancel" in (response.msg or "")
+
+
+class TestGetOperationStatusEdgeCases:
+    """Additional edge cases for get_operation_status."""
+
+    def test_in_progress_not_stale(self):
+        """IN_PROGRESS operation within threshold is returned as-is."""
+        mixin = _make_mixin()
+        now = int(time.time())
+        _get_storage(mixin).get_operation_state.return_value = {
+            "operation_state": {
+                "service_name": "profile_generation",
+                "status": OperationStatus.IN_PROGRESS.value,
+                "started_at": now - 10,  # Started 10 seconds ago, well within threshold
+            }
+        }
+
+        request = GetOperationStatusRequest(service_name="profile_generation")
+        response = mixin.get_operation_status(request)
+
+        assert response.success is True
+        assert response.operation_status is not None
+        assert response.operation_status.status == OperationStatus.IN_PROGRESS
+
+    def test_in_progress_without_started_at(self):
+        """IN_PROGRESS operation without started_at is not auto-recovered."""
+        mixin = _make_mixin()
+        now = int(time.time())
+        _get_storage(mixin).get_operation_state.return_value = {
+            "operation_state": {
+                "service_name": "profile_generation",
+                "status": OperationStatus.IN_PROGRESS.value,
+                "started_at": now,
+                "total_users": 5,
+                "processed_users": 2,
+                "progress_percentage": 40.0,
+                # started_at present and recent, so no auto-recovery
+            }
+        }
+
+        request = GetOperationStatusRequest(service_name="profile_generation")
+        response = mixin.get_operation_status(request)
+
+        assert response.success is True
+        assert response.operation_status is not None
+        assert response.operation_status.status == OperationStatus.IN_PROGRESS
+        # Storage should NOT have been updated since it's not stale
+        _get_storage(mixin).update_operation_state.assert_not_called()
+
+    def test_exception_returns_failure(self):
+        """Exception during get_operation_status returns failure response."""
+        mixin = _make_mixin()
+        _get_storage(mixin).get_operation_state.side_effect = RuntimeError(
+            "db connection failed"
+        )
+
+        request = GetOperationStatusRequest(service_name="profile_generation")
+        response = mixin.get_operation_status(request)
+
+        assert response.success is False
+        assert "Failed to get operation status" in (response.msg or "")

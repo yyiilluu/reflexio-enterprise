@@ -2484,3 +2484,714 @@ class TestSearchSkillsFilters:
             SearchSkillsRequest(top_k=2),
         )
         assert len(results) == 2
+
+
+# ===========================================================================
+# Status filter branch coverage: profile status mismatch paths
+# (lines 145->167, 150->145, 155->145, 158->145 in get_all_profiles)
+# (same in get_user_profile)
+# ===========================================================================
+
+
+class TestStatusFilterBranches:
+    def test_get_all_profiles_none_filter_skips_non_null_status(self, storage):
+        """Covers 150->145 branch: filter is None but profile has status, skip."""
+        storage.add_user_profile(
+            "u1", [_make_profile(status=Status.PENDING)]
+        )
+        # Default filter is [None], which only matches profiles with status=None
+        profiles = storage.get_all_profiles(status_filter=[None])
+        assert len(profiles) == 0
+
+    def test_get_all_profiles_enum_filter_skips_non_matching(self, storage):
+        """Covers 155->145 branch: filter is Status.ARCHIVED but profile is PENDING."""
+        storage.add_user_profile(
+            "u1", [_make_profile(status=Status.PENDING)]
+        )
+        profiles = storage.get_all_profiles(status_filter=[Status.ARCHIVED])
+        assert len(profiles) == 0
+
+    def test_get_all_profiles_string_filter_skips_none_status(self, storage):
+        """Covers 158->145 branch: legacy string filter with profile status=None."""
+        storage.add_user_profile("u1", [_make_profile(status=None)])
+        profiles = storage.get_all_profiles(status_filter=["pending"])
+        assert len(profiles) == 0
+
+    def test_get_all_profiles_multiple_status_filters(self, storage):
+        """Covers 145->167 branch: iterate multiple filters before match."""
+        storage.add_user_profile("u1", [_make_profile(status=Status.PENDING)])
+        storage.add_user_profile(
+            "u1", [_make_profile(profile_id="p2", status=None)]
+        )
+        storage.add_user_profile(
+            "u1", [_make_profile(profile_id="p3", status=Status.ARCHIVED)]
+        )
+        profiles = storage.get_all_profiles(
+            status_filter=[None, Status.PENDING, Status.ARCHIVED]
+        )
+        assert len(profiles) == 3
+
+    def test_get_user_profile_none_filter_skips_non_null_status(self, storage):
+        """Covers get_user_profile 150->145 branch."""
+        storage.add_user_profile(
+            "u1", [_make_profile(status=Status.ARCHIVED)]
+        )
+        profiles = storage.get_user_profile("u1", status_filter=[None])
+        assert len(profiles) == 0
+
+    def test_get_user_profile_enum_filter_skips_non_matching(self, storage):
+        """Covers get_user_profile 155->145 branch."""
+        storage.add_user_profile(
+            "u1", [_make_profile(status=Status.PENDING)]
+        )
+        profiles = storage.get_user_profile(
+            "u1", status_filter=[Status.ARCHIVED]
+        )
+        assert len(profiles) == 0
+
+    def test_get_user_profile_string_filter_skips_none_status(self, storage):
+        """Covers get_user_profile 158->145 branch."""
+        storage.add_user_profile("u1", [_make_profile(status=None)])
+        profiles = storage.get_user_profile("u1", status_filter=["archived"])
+        assert len(profiles) == 0
+
+
+# ===========================================================================
+# Time range filter branches in sessions/interactions
+# (lines 826->836, 849->848, 979->981)
+# ===========================================================================
+
+
+class TestTimeRangeFilterBranches:
+    def test_delete_requests_by_ids_no_requests_key(self, storage):
+        """Covers line 826->836: 'requests' key absent in delete_requests_by_ids."""
+        # Storage has no requests, but we pass request_ids.
+        # The deletion should still work (deleted=0 because nothing to delete).
+        deleted = storage.delete_requests_by_ids(["r1"])
+        assert deleted == 0
+
+    def test_delete_profiles_by_ids_no_user_profiles(self, storage):
+        """Covers line 849->848: user has no 'profiles' key."""
+        # Add an interaction so user exists but with no profiles
+        storage.add_user_interaction("u1", _make_interaction(interaction_id=1))
+        deleted = storage.delete_profiles_by_ids(["p1"])
+        assert deleted == 0
+
+    def test_get_sessions_interaction_grouping(self, storage):
+        """Covers line 979->981: interactions grouped by request_id."""
+        now = _now_ts()
+        storage.add_request(
+            _make_request(request_id="r1", session_id="s1", created_at=now)
+        )
+        storage.add_user_interaction(
+            "user1",
+            _make_interaction(request_id="r1", interaction_id=1, created_at=now),
+        )
+        storage.add_user_interaction(
+            "user1",
+            _make_interaction(
+                request_id="r1", interaction_id=2, created_at=now + 1
+            ),
+        )
+        sessions = storage.get_sessions(user_id="user1")
+        assert "s1" in sessions
+        assert len(sessions["s1"]) == 1
+        assert len(sessions["s1"][0].interactions) == 2
+
+    def test_get_sessions_start_time_filter(self, storage):
+        """Covers line 934: start_time filter excludes older requests."""
+        now = _now_ts()
+        storage.add_request(
+            _make_request(request_id="r1", created_at=now - 200)
+        )
+        storage.add_request(
+            _make_request(request_id="r2", created_at=now)
+        )
+        sessions = storage.get_sessions(user_id="user1", start_time=now - 50)
+        total = sum(len(v) for v in sessions.values())
+        assert total == 1
+
+
+# ===========================================================================
+# Empty request collection and session/request filter branches
+# (lines 923, 931)
+# ===========================================================================
+
+
+class TestEmptyRequestCollection:
+    def test_get_sessions_user_id_filter_skips_requests(self, storage):
+        """Covers line 922-923: user_id filter causes request to be skipped."""
+        now = _now_ts()
+        storage.add_request(
+            _make_request(
+                request_id="r1", user_id="other_user", created_at=now
+            )
+        )
+        sessions = storage.get_sessions(user_id="missing_user")
+        assert sessions == {}
+
+    def test_get_sessions_session_id_filter_skips_requests(self, storage):
+        """Covers line 929-931: session_id filter causes request to be skipped."""
+        now = _now_ts()
+        storage.add_request(
+            _make_request(
+                request_id="r1", session_id="s1", created_at=now
+            )
+        )
+        sessions = storage.get_sessions(
+            user_id="user1", session_id="nonexistent_session"
+        )
+        assert sessions == {}
+
+    def test_get_sessions_offset_pagination(self, storage):
+        """Covers line 948: offset + limit pagination on requests."""
+        now = _now_ts()
+        for i in range(5):
+            storage.add_request(
+                _make_request(
+                    request_id=f"r{i}",
+                    session_id=f"s{i}",
+                    created_at=now + i,
+                )
+            )
+        # top_k=2, offset=2 -> should skip first 2 (most recent) and get next 2
+        sessions = storage.get_sessions(
+            user_id="user1", top_k=2, offset=2
+        )
+        total = sum(len(v) for v in sessions.values())
+        assert total == 2
+
+
+# ===========================================================================
+# Search with no results (lines 1090->exit, 1135->exit)
+# ===========================================================================
+
+
+class TestSearchNoResults:
+    def test_search_interaction_query_no_match(self, storage):
+        """Covers search_interaction returning empty when query doesn't match."""
+        storage.add_user_interaction(
+            "u1", _make_interaction(content="hello world", interaction_id=1)
+        )
+        results = storage.search_interaction(
+            SearchInteractionRequest(user_id="u1", query="nonexistent_query"),
+        )
+        assert results == []
+
+    def test_search_user_profile_query_no_match(self, storage):
+        """Covers search_user_profile returning empty when query doesn't match."""
+        storage.add_user_profile("u1", [_make_profile(content="likes sushi")])
+        results = storage.search_user_profile(
+            SearchUserProfileRequest(
+                user_id="u1", query="nonexistent_query"
+            ),
+        )
+        assert results == []
+
+    def test_search_raw_feedbacks_query_no_match(self, storage):
+        """Covers search_raw_feedbacks returning empty when query doesn't match."""
+        storage.save_raw_feedbacks(
+            [_make_raw_feedback(content="user likes sushi")]
+        )
+        results = storage.search_raw_feedbacks(
+            SearchRawFeedbackRequest(query="nonexistent_query"),
+        )
+        assert results == []
+
+    def test_search_feedbacks_query_no_match(self, storage):
+        """Covers search_feedbacks returning empty when query doesn't match."""
+        storage.save_feedbacks(
+            [_make_feedback(content="always greet users")]
+        )
+        results = storage.search_feedbacks(
+            SearchFeedbackRequest(query="nonexistent_query"),
+        )
+        assert results == []
+
+    def test_search_skills_query_no_match(self, storage):
+        """Covers search_skills returning empty when query doesn't match."""
+        storage.save_skills(
+            [_make_skill(instructions="Say hello", description="Greeting")]
+        )
+        results = storage.search_skills(
+            SearchSkillsRequest(query="nonexistent_query"),
+        )
+        assert results == []
+
+
+# ===========================================================================
+# Dashboard stats: items outside both current and previous period
+# (lines 2248->2239, 2263->2254, 2278->2270, 2290->2284)
+# ===========================================================================
+
+
+class TestDashboardStatsNoPreviousPeriod:
+    def test_data_older_than_both_periods_not_counted(self, storage):
+        """Covers branches where timestamp < previous_period_start (neither period)."""
+        now = _now_ts()
+        days_back = 7
+        seconds = days_back * 24 * 60 * 60
+        # Place data far outside both periods
+        ancient_ts = now - (3 * seconds)
+
+        storage.add_user_interaction(
+            "u1",
+            _make_interaction(interaction_id=1, created_at=ancient_ts),
+        )
+        storage.add_user_profile("u1", [_make_profile(timestamp=ancient_ts)])
+        storage.save_raw_feedbacks(
+            [_make_raw_feedback(created_at=ancient_ts)]
+        )
+        storage.save_feedbacks([_make_feedback(created_at=ancient_ts)])
+        storage.save_agent_success_evaluation_results(
+            [
+                AgentSuccessEvaluationResult(
+                    agent_version="v1",
+                    session_id="s1",
+                    is_success=True,
+                    created_at=ancient_ts,
+                ),
+            ]
+        )
+
+        stats = storage.get_dashboard_stats(days_back=days_back)
+        assert stats["current_period"]["total_interactions"] == 0
+        assert stats["current_period"]["total_profiles"] == 0
+        assert stats["current_period"]["total_feedbacks"] == 0
+        assert stats["current_period"]["success_rate"] == 0.0
+        assert stats["previous_period"]["total_interactions"] == 0
+        assert stats["previous_period"]["total_profiles"] == 0
+        assert stats["previous_period"]["total_feedbacks"] == 0
+        assert stats["previous_period"]["success_rate"] == 0.0
+
+    def test_aggregated_feedback_previous_period(self, storage):
+        """Covers line 2290->2284: aggregated feedback in previous period."""
+        now = _now_ts()
+        days_back = 30
+        seconds = days_back * 24 * 60 * 60
+        prev_ts = now - seconds - 100
+
+        storage.save_feedbacks([_make_feedback(created_at=prev_ts)])
+        stats = storage.get_dashboard_stats(days_back=days_back)
+        assert stats["previous_period"]["total_feedbacks"] == 1
+
+    def test_mixed_current_previous_and_ancient_data(self, storage):
+        """Covers all period branches with mixed timestamps."""
+        now = _now_ts()
+        days_back = 7
+        seconds = days_back * 24 * 60 * 60
+        current_ts = now - 100
+        prev_ts = now - seconds - 100
+        ancient_ts = now - (3 * seconds)
+
+        # Current period data
+        storage.add_user_interaction(
+            "u1",
+            _make_interaction(interaction_id=1, created_at=current_ts),
+        )
+        # Previous period data
+        storage.add_user_interaction(
+            "u1",
+            _make_interaction(interaction_id=2, created_at=prev_ts),
+        )
+        # Ancient data (neither period)
+        storage.add_user_interaction(
+            "u1",
+            _make_interaction(interaction_id=3, created_at=ancient_ts),
+        )
+
+        stats = storage.get_dashboard_stats(days_back=days_back)
+        assert stats["current_period"]["total_interactions"] == 1
+        assert stats["previous_period"]["total_interactions"] == 1
+
+    def test_evaluation_previous_period_success_rate(self, storage):
+        """Covers line 2322-2325: evaluations in previous period."""
+        now = _now_ts()
+        days_back = 30
+        seconds = days_back * 24 * 60 * 60
+        prev_ts = now - seconds - 100
+
+        storage.save_agent_success_evaluation_results(
+            [
+                AgentSuccessEvaluationResult(
+                    agent_version="v1",
+                    session_id="s1",
+                    is_success=True,
+                    created_at=prev_ts,
+                ),
+                AgentSuccessEvaluationResult(
+                    agent_version="v1",
+                    session_id="s2",
+                    is_success=False,
+                    created_at=prev_ts,
+                ),
+            ]
+        )
+
+        stats = storage.get_dashboard_stats(days_back=days_back)
+        assert stats["previous_period"]["success_rate"] == 50.0
+        assert stats["current_period"]["success_rate"] == 0.0
+
+
+# ===========================================================================
+# Remaining CRUD edge cases: delete interaction no-op (line 333),
+# raw feedback edge cases (lines 1853-1855),
+# search skills with all filters (lines 2534-2542)
+# ===========================================================================
+
+
+class TestRemainingCRUDEdgeCases:
+    def test_delete_interaction_no_op_no_interactions_key(self, storage):
+        """Covers line 333: user exists but has no 'interactions' key."""
+        # Add a profile so user exists, but no interactions
+        storage.add_user_profile("u1", [_make_profile(user_id="u1")])
+        storage.delete_user_interaction(
+            DeleteUserInteractionRequest(user_id="u1", interaction_id=999),
+        )
+        # Should not raise
+
+    def test_raw_feedback_status_enum_match_in_update(self, storage):
+        """Covers lines 1853-1855: Status enum comparison in update_all_raw_feedbacks_status."""
+        storage.save_raw_feedbacks(
+            [_make_raw_feedback(status=Status.PENDING)]
+        )
+        count = storage.update_all_raw_feedbacks_status(
+            old_status=Status.PENDING,
+            new_status=Status.ARCHIVED,
+        )
+        assert count == 1
+        result = storage.get_raw_feedbacks(status_filter=[Status.ARCHIVED])
+        assert len(result) == 1
+
+    def test_search_skills_with_all_filters(self, storage):
+        """Covers lines 2960-2965: search_skills with query + feedback_name + agent_version + skill_status."""
+        storage.save_skills(
+            [
+                _make_skill(
+                    skill_name="greet",
+                    feedback_name="fb1",
+                    agent_version="v1",
+                    instructions="Say hello to user",
+                    skill_status=SkillStatus.PUBLISHED,
+                ),
+                _make_skill(
+                    skill_name="farewell",
+                    feedback_name="fb2",
+                    agent_version="v2",
+                    instructions="Say goodbye to user",
+                    skill_status=SkillStatus.DRAFT,
+                ),
+            ]
+        )
+        results = storage.search_skills(
+            SearchSkillsRequest(
+                query="hello",
+                feedback_name="fb1",
+                agent_version="v1",
+                skill_status=SkillStatus.PUBLISHED,
+            ),
+        )
+        assert len(results) == 1
+        assert results[0].skill_name == "greet"
+
+    def test_search_skills_all_filters_no_match(self, storage):
+        """Covers search_skills with filters that exclude all skills."""
+        storage.save_skills(
+            [_make_skill(skill_name="greet", agent_version="v1")]
+        )
+        results = storage.search_skills(
+            SearchSkillsRequest(agent_version="v99"),
+        )
+        assert results == []
+
+    def test_add_user_interactions_bulk_auto_id(self, storage):
+        """Covers bulk add with auto-increment interaction_id."""
+        interactions = [
+            _make_interaction(content="a", interaction_id=0),
+            _make_interaction(content="b", interaction_id=0),
+        ]
+        storage.add_user_interactions_bulk("user1", interactions)
+        result = storage.get_user_interaction("user1")
+        assert len(result) == 2
+        ids = {i.interaction_id for i in result}
+        assert 1 in ids
+        assert 2 in ids
+
+    def test_get_sessions_no_requests_returns_empty(self, storage):
+        """Covers line 914: early return when no 'requests' key."""
+        result = storage.get_sessions(user_id="u1")
+        assert result == {}
+
+    def test_get_sessions_null_session_id_grouped_as_empty_string(self, storage):
+        """Covers line 953: request with session_id=None grouped as ''."""
+        now = _now_ts()
+        storage.add_request(
+            _make_request(
+                request_id="r1", session_id=None, created_at=now
+            )
+        )
+        sessions = storage.get_sessions(user_id="user1")
+        assert "" in sessions
+        assert len(sessions[""]) == 1
+
+    def test_search_interaction_empty_user(self, storage):
+        """Covers search_interaction on user with no interactions."""
+        results = storage.search_interaction(
+            SearchInteractionRequest(user_id="nonexistent"),
+        )
+        assert results == []
+
+    def test_dashboard_time_series_data_present(self, storage):
+        """Covers time series data points being included in dashboard stats."""
+        now = _now_ts()
+        storage.add_user_interaction(
+            "u1", _make_interaction(interaction_id=1, created_at=now)
+        )
+        storage.add_user_profile("u1", [_make_profile(timestamp=now)])
+        storage.save_raw_feedbacks([_make_raw_feedback(created_at=now)])
+        storage.save_agent_success_evaluation_results(
+            [
+                AgentSuccessEvaluationResult(
+                    agent_version="v1",
+                    session_id="s1",
+                    is_success=False,
+                    created_at=now,
+                ),
+            ]
+        )
+        stats = storage.get_dashboard_stats()
+        assert len(stats["interactions_time_series"]) == 1
+        assert len(stats["profiles_time_series"]) == 1
+        assert len(stats["feedbacks_time_series"]) == 1
+        assert len(stats["evaluations_time_series"]) == 1
+        assert stats["evaluations_time_series"][0]["value"] == 0  # is_success=False -> 0
+
+
+# ===========================================================================
+# Operation state with new request interaction: timestamp-based filtering
+# (lines 2534-2542, 2502, 2506->2510, 2543->2530)
+# ===========================================================================
+
+
+class TestOpStateTimestampFiltering:
+    def _set_op_state_directly(self, storage, service_name, state_data):
+        """Write operation state directly into storage JSON for precise control."""
+        import json
+        from pathlib import Path
+
+        all_memories = json.loads(Path(storage.file_path).read_text())
+        if "operation_states" not in all_memories:
+            all_memories["operation_states"] = {}
+        all_memories["operation_states"][service_name] = state_data
+        Path(storage.file_path).write_text(json.dumps(all_memories))
+
+    def test_newer_timestamp_collected(self, storage):
+        """Covers line 2534: created_at > last_processed_timestamp."""
+        now = _now_ts()
+        storage.add_user_interaction(
+            "u1", _make_interaction(interaction_id=1, created_at=now - 200)
+        )
+        storage.add_user_interaction(
+            "u1", _make_interaction(interaction_id=2, created_at=now)
+        )
+        # Write operation state directly with last_processed_timestamp at top level
+        self._set_op_state_directly(storage, "svc1", {
+            "last_processed_interaction_ids": ["1"],
+            "last_processed_timestamp": now - 100,
+        })
+        _, sessions = storage.get_operation_state_with_new_request_interaction(
+            "svc1", "u1"
+        )
+        all_ids = [i.interaction_id for s in sessions for i in s.interactions]
+        assert 2 in all_ids
+        assert 1 not in all_ids
+
+    def test_same_timestamp_not_in_processed_set(self, storage):
+        """Covers lines 2537-2542: same timestamp, id not in processed set triggers collection."""
+        now = _now_ts()
+        storage.add_user_interaction(
+            "u1", _make_interaction(interaction_id=10, created_at=now)
+        )
+        storage.add_user_interaction(
+            "u1", _make_interaction(interaction_id=20, created_at=now)
+        )
+        # processed_set contains string "10"; interaction_id=10 (int) won't match
+        # so interactions at same timestamp with ids NOT in processed_set are collected
+        self._set_op_state_directly(storage, "svc1", {
+            "last_processed_interaction_ids": [],
+            "last_processed_timestamp": now,
+        })
+        _, sessions = storage.get_operation_state_with_new_request_interaction(
+            "svc1", "u1"
+        )
+        all_ids = [i.interaction_id for s in sessions for i in s.interactions]
+        # Both have same timestamp as last_processed and ids not in empty processed set
+        assert 10 in all_ids
+        assert 20 in all_ids
+
+    def test_older_timestamp_skipped(self, storage):
+        """Covers implicit skip: created_at < last_processed_timestamp and created_at != last_processed_timestamp."""
+        now = _now_ts()
+        storage.add_user_interaction(
+            "u1", _make_interaction(interaction_id=1, created_at=now - 200)
+        )
+        storage.add_user_interaction(
+            "u1", _make_interaction(interaction_id=2, created_at=now + 100)
+        )
+        self._set_op_state_directly(storage, "svc1", {
+            "last_processed_interaction_ids": [],
+            "last_processed_timestamp": now,
+        })
+        _, sessions = storage.get_operation_state_with_new_request_interaction(
+            "svc1", "u1"
+        )
+        all_ids = [i.interaction_id for s in sessions for i in s.interactions]
+        # interaction 1 is older than last_processed_timestamp and not == timestamp -> skipped
+        assert 1 not in all_ids
+        # interaction 2 is newer -> collected
+        assert 2 in all_ids
+
+    def test_last_processed_ids_not_list_normalized(self, storage):
+        """Covers line 2502: last_processed_interaction_ids is not a list."""
+        now = _now_ts()
+        storage.add_user_interaction(
+            "u1", _make_interaction(interaction_id=1, created_at=now)
+        )
+        self._set_op_state_directly(storage, "svc1", {
+            "last_processed_interaction_ids": "not_a_list",
+            "last_processed_timestamp": now - 100,
+        })
+        _, sessions = storage.get_operation_state_with_new_request_interaction(
+            "svc1", "u1"
+        )
+        all_ids = [i.interaction_id for s in sessions for i in s.interactions]
+        assert 1 in all_ids
+
+    def test_no_processed_timestamp_uses_id_check(self, storage):
+        """Covers line 2543: no last_processed_timestamp, falls to id-based check."""
+        now = _now_ts()
+        storage.add_user_interaction(
+            "u1", _make_interaction(interaction_id=1, created_at=now)
+        )
+        storage.add_user_interaction(
+            "u1", _make_interaction(interaction_id=2, created_at=now)
+        )
+        # No last_processed_timestamp -> goes to elif branch (line 2543)
+        # processed_set = {"1"}, but interaction_id is int, so int not in set of strings
+        # Both interactions collected
+        self._set_op_state_directly(storage, "svc1", {
+            "last_processed_interaction_ids": ["1"],
+        })
+        _, sessions = storage.get_operation_state_with_new_request_interaction(
+            "svc1", "u1"
+        )
+        all_ids = [i.interaction_id for s in sessions for i in s.interactions]
+        # Both collected because int ids don't match string processed set
+        assert 1 in all_ids
+        assert 2 in all_ids
+
+
+# ===========================================================================
+# get_last_k_interactions_grouped: agent_version filter (line 2670)
+# ===========================================================================
+
+
+class TestGetLastKAgentVersionFilter:
+    def test_agent_version_filter_excludes_non_matching(self, storage):
+        """Covers line 2667-2670: agent_version filter."""
+        now = _now_ts()
+        storage.add_request(
+            _make_request(request_id="r1", agent_version="v1")
+        )
+        storage.add_request(
+            _make_request(request_id="r2", agent_version="v2")
+        )
+        storage.add_user_interaction(
+            "u1",
+            _make_interaction(
+                request_id="r1", interaction_id=1, created_at=now
+            ),
+        )
+        storage.add_user_interaction(
+            "u1",
+            _make_interaction(
+                request_id="r2", interaction_id=2, created_at=now
+            ),
+        )
+        _, flat = storage.get_last_k_interactions_grouped(
+            user_id="u1",
+            k=10,
+            agent_version="v1",
+        )
+        assert len(flat) == 1
+        assert flat[0].request_id == "r1"
+
+    def test_agent_version_filter_no_request_found(self, storage):
+        """Covers line 2668: agent_version filter with request=None."""
+        now = _now_ts()
+        # Add interaction without a corresponding request
+        storage.add_user_interaction(
+            "u1",
+            _make_interaction(
+                request_id="nonexistent", interaction_id=1, created_at=now
+            ),
+        )
+        _, flat = storage.get_last_k_interactions_grouped(
+            user_id="u1",
+            k=10,
+            agent_version="v1",
+        )
+        assert len(flat) == 0
+
+
+# ===========================================================================
+# add_user_interactions_bulk: missing interactions key (line 332-333)
+# ===========================================================================
+
+
+class TestBulkInteractionsMissingKey:
+    def test_bulk_add_user_exists_no_interactions_key(self, storage):
+        """Covers line 332-333: user exists but no 'interactions' key."""
+        import json
+        from pathlib import Path
+
+        all_memories = json.loads(Path(storage.file_path).read_text())
+        all_memories["u1"] = {"profiles": []}  # user exists but no interactions
+        Path(storage.file_path).write_text(json.dumps(all_memories))
+
+        interactions = [_make_interaction(content="a", interaction_id=0)]
+        storage.add_user_interactions_bulk("u1", interactions)
+        result = storage.get_user_interaction("u1")
+        assert len(result) == 1
+
+
+# ===========================================================================
+# search_raw_feedbacks user_id filter via request_id map (lines 2016-2019, 2027-2029)
+# ===========================================================================
+
+
+class TestSearchRawFeedbacksUserIdFilter:
+    def test_search_raw_feedbacks_user_id_no_requests_stored(self, storage):
+        """Covers line 2016: user_id filter with no stored requests -> empty map."""
+        storage.save_raw_feedbacks(
+            [_make_raw_feedback(request_id="r1", content="orphan feedback")]
+        )
+        # user_id is set but no requests exist -> request_user_map is empty
+        # -> feedback's request not in map -> skipped
+        results = storage.search_raw_feedbacks(
+            SearchRawFeedbackRequest(user_id="u1"),
+        )
+        assert results == []
+
+    def test_search_raw_feedbacks_no_user_id_returns_all(self, storage):
+        """Covers search_raw_feedbacks without user_id filter returns all."""
+        storage.save_raw_feedbacks(
+            [
+                _make_raw_feedback(content="fb1", user_id="u1"),
+                _make_raw_feedback(content="fb2", user_id="u2"),
+            ]
+        )
+        results = storage.search_raw_feedbacks(
+            SearchRawFeedbackRequest(),
+        )
+        assert len(results) == 2

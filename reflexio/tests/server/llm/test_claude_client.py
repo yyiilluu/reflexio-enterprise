@@ -14,6 +14,7 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic import BaseModel
 
 from reflexio.server.llm.claude_client import (
     ClaudeClient,
@@ -648,3 +649,321 @@ class TestConfigHelpers:
         models = client.get_available_models()
         assert models
         assert all(isinstance(m, str) for m in models)
+
+
+# ====================================================================
+# Additional coverage tests
+# ====================================================================
+
+
+class TestInitInvalidApiKey:
+    """Tests for __init__ when Anthropic constructor raises (lines 162-163)."""
+
+    def test_init_anthropic_constructor_raises(self, monkeypatch):
+        """When Anthropic() raises, ClaudeClientError should wrap the original error."""
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-bad-key")
+
+        with patch("reflexio.server.llm.claude_client.Anthropic") as mock_cls:
+            mock_cls.side_effect = ValueError("invalid key format")
+
+            with pytest.raises(ClaudeClientError, match="Failed to initialize Claude client"):
+                ClaudeClient(ClaudeConfig(api_key="sk-ant-bad-key"))
+
+    def test_init_anthropic_constructor_raises_preserves_cause(self, monkeypatch):
+        """The wrapped error should chain the original exception via __cause__."""
+        with patch("reflexio.server.llm.claude_client.Anthropic") as mock_cls:
+            original = TypeError("bad timeout type")
+            mock_cls.side_effect = original
+
+            with pytest.raises(ClaudeClientError) as exc_info:
+                ClaudeClient(ClaudeConfig(api_key="sk-ant-test"))
+
+            assert exc_info.value.__cause__ is original
+
+
+class TestTopPOverride:
+    """Tests for top_p override in generate_response and generate_chat_response (line 330)."""
+
+    def test_generate_response_top_p_overrides_temperature(self, client, mock_anthropic):
+        """When top_p != 1.0, it should be used instead of temperature."""
+        _, mock_inst = mock_anthropic
+        mock_inst.messages.create.return_value = _make_response(
+            _make_text_block("ok")
+        )
+
+        client.generate_response("test prompt", top_p=0.9)
+
+        call_kwargs = mock_inst.messages.create.call_args[1]
+        assert call_kwargs["top_p"] == 0.9
+        assert "temperature" not in call_kwargs
+
+    def test_generate_response_default_top_p_uses_temperature(self, client, mock_anthropic):
+        """When top_p == 1.0 (default), temperature should be used instead."""
+        _, mock_inst = mock_anthropic
+        mock_inst.messages.create.return_value = _make_response(
+            _make_text_block("ok")
+        )
+
+        client.generate_response("test prompt", temperature=0.5)
+
+        call_kwargs = mock_inst.messages.create.call_args[1]
+        assert call_kwargs["temperature"] == 0.5
+        assert "top_p" not in call_kwargs
+
+    def test_generate_chat_response_top_p_overrides_temperature(self, client, mock_anthropic):
+        """generate_chat_response should also use top_p when != 1.0 (line 330)."""
+        _, mock_inst = mock_anthropic
+        mock_inst.messages.create.return_value = _make_response(
+            _make_text_block("ok")
+        )
+
+        messages = [{"role": "user", "content": "hello"}]
+        client.generate_chat_response(messages, top_p=0.8)
+
+        call_kwargs = mock_inst.messages.create.call_args[1]
+        assert call_kwargs["top_p"] == 0.8
+        assert "temperature" not in call_kwargs
+
+
+class TestNonTextContentBlockFallback:
+    """Tests for non-text content block fallback str(content_block) (line 386)."""
+
+    def test_fallback_uses_content_attribute(self, client, mock_anthropic):
+        """When block has no text/json but has a content attribute, use str(content)."""
+        _, mock_inst = mock_anthropic
+
+        block = MagicMock(spec=[])
+        # No text or json attributes -- getattr returns None
+        block.text = None
+        block.json = None
+        block.content = "fallback content"
+
+        mock_inst.messages.create.return_value = _make_response(block)
+
+        result = client._make_request_with_retry(
+            {"model": "test", "max_tokens": 10, "messages": []}
+        )
+        assert result == "fallback content"
+
+    def test_fallback_uses_str_content_block_when_content_empty(self, client, mock_anthropic):
+        """When content attr is empty, str(content_block) should be used."""
+        _, mock_inst = mock_anthropic
+
+        class FallbackBlock:
+            """Block with no text/json and empty content -- forces str(self) path."""
+
+            text = None
+            json = None
+            content = ""
+
+            def __str__(self):
+                return "stringified-block"
+
+        mock_inst.messages.create.return_value = _make_response(FallbackBlock())
+
+        result = client._make_request_with_retry(
+            {"model": "test", "max_tokens": 10, "messages": []}
+        )
+        assert result == "stringified-block"
+
+
+class TestEmptyContentTextRaises:
+    """Tests for empty content text raising error (line 391)."""
+
+    def test_whitespace_only_content_raises(self, client, mock_anthropic):
+        """Response with only whitespace content should raise ClaudeClientError."""
+        _, mock_inst = mock_anthropic
+
+        block = MagicMock(spec=[])
+        block.text = None
+        block.json = None
+        block.content = "   "
+
+        mock_inst.messages.create.return_value = _make_response(block)
+
+        with pytest.raises(ClaudeClientError, match="Empty response content"):
+            client._make_request_with_retry(
+                {"model": "test", "max_tokens": 10, "messages": []}
+            )
+
+    def test_empty_string_content_raises(self, client, mock_anthropic):
+        """Response blocks with all-empty content should raise ClaudeClientError."""
+        _, mock_inst = mock_anthropic
+
+        class EmptyBlock:
+            """Block where both content attr and str() return empty."""
+
+            text = None
+            json = None
+            content = ""
+
+            def __str__(self):
+                return ""
+
+        mock_inst.messages.create.return_value = _make_response(EmptyBlock())
+
+        with pytest.raises(ClaudeClientError, match="Empty response content"):
+            client._make_request_with_retry(
+                {"model": "test", "max_tokens": 10, "messages": []}
+            )
+
+
+class TestStructuredOutputBaseModelAndDict:
+    """Tests for BaseModel/dict isinstance in structured output (lines 449, 453)."""
+
+    def test_basemodel_content_converted_to_dict(self, client):
+        """BaseModel content should be converted via model_dump()."""
+
+        class SampleModel(BaseModel):
+            name: str
+            value: int
+
+        model_instance = SampleModel(name="test", value=42)
+
+        result = client._maybe_parse_structured_output(
+            model_instance,
+            response_format={"type": "json_object"},
+            parse_structured_output=True,
+        )
+        assert result == {"name": "test", "value": 42}
+        assert isinstance(result, dict)
+
+    def test_dict_content_returned_as_is(self, client):
+        """Dict content should be returned unchanged."""
+        data = {"key": "value", "count": 5}
+
+        result = client._maybe_parse_structured_output(
+            data,
+            response_format={"type": "json_object"},
+            parse_structured_output=True,
+        )
+        assert result is data
+
+    def test_basemodel_not_parsed_when_disabled(self, client):
+        """BaseModel should be returned as-is when parse_structured_output=False."""
+
+        class SampleModel(BaseModel):
+            name: str
+
+        model_instance = SampleModel(name="test")
+
+        result = client._maybe_parse_structured_output(
+            model_instance,
+            response_format={"type": "json_object"},
+            parse_structured_output=False,
+        )
+        assert isinstance(result, BaseModel)
+
+
+class TestNonRetryableErrorDetection:
+    """Tests for non-retryable error detection with various error patterns (lines 484-488)."""
+
+    def test_authentication_error_is_non_retryable(self, client):
+        """Error containing 'authentication' should not be retried."""
+        error = Exception("AuthenticationError: invalid credentials")
+        assert client._is_non_retryable_error(error) is True
+
+    def test_permission_denied_is_non_retryable(self, client):
+        """Error containing 'permission denied' should not be retried."""
+        error = Exception("Permission Denied: access not allowed")
+        assert client._is_non_retryable_error(error) is True
+
+    def test_forbidden_is_non_retryable(self, client):
+        """Error containing 'forbidden' should not be retried."""
+        error = Exception("403 Forbidden")
+        assert client._is_non_retryable_error(error) is True
+
+    def test_retry_stops_on_authentication_error_in_request(self, client, mock_anthropic):
+        """Retry loop should stop immediately on authentication errors."""
+        _, mock_inst = mock_anthropic
+        mock_inst.messages.create.side_effect = RuntimeError(
+            "Authentication failed: bad key"
+        )
+
+        with pytest.raises(ClaudeClientError):
+            client._make_request_with_retry(
+                {"model": "test", "max_tokens": 10, "messages": []}
+            )
+        # Should only attempt once (no retries for auth errors)
+        assert mock_inst.messages.create.call_count == 1
+
+    def test_retry_stops_on_permission_denied_in_request(self, client, mock_anthropic):
+        """Retry loop should stop immediately on permission denied errors."""
+        _, mock_inst = mock_anthropic
+        mock_inst.messages.create.side_effect = RuntimeError(
+            "Permission denied for this resource"
+        )
+
+        with pytest.raises(ClaudeClientError):
+            client._make_request_with_retry(
+                {"model": "test", "max_tokens": 10, "messages": []}
+            )
+        assert mock_inst.messages.create.call_count == 1
+
+
+class TestGetResponseFormatType:
+    """Tests for _get_response_format_type with non-Mapping formats (lines 484-488)."""
+
+    def test_object_with_type_attribute(self, client):
+        """Non-Mapping object with a .type string attribute should return the type."""
+
+        class FormatSpec:
+            type = "json_schema"
+
+        result = client._get_response_format_type(FormatSpec())
+        assert result == "json_schema"
+
+    def test_object_with_non_string_type_attribute(self, client):
+        """Non-Mapping object with a non-string .type should return None."""
+
+        class FormatSpec:
+            type = 42
+
+        result = client._get_response_format_type(FormatSpec())
+        assert result is None
+
+    def test_object_without_type_attribute(self, client):
+        """Object with no .type attribute should return None."""
+
+        class FormatSpec:
+            pass
+
+        result = client._get_response_format_type(FormatSpec())
+        assert result is None
+
+
+class TestEmbeddingFallbackOnGenericError:
+    """Tests for embedding fallback on generic (non-OpenAI) error (lines 586-587)."""
+
+    def test_generic_error_wrapped_in_claude_client_error(self, client):
+        """Non-OpenAIClientError exceptions should be wrapped with generic message."""
+        mock_openai_instance = MagicMock()
+        mock_openai_instance.get_embedding.side_effect = RuntimeError("unexpected crash")
+
+        mock_module = MagicMock()
+        mock_module.OpenAIClient = MagicMock(return_value=mock_openai_instance)
+        mock_module.OpenAIClientError = _OpenAIClientErrorStub
+
+        with (
+            patch.dict("sys.modules", {"reflexio.server.llm.openai_client": mock_module}),
+            pytest.raises(ClaudeClientError, match="Failed to get embedding: unexpected crash"),
+        ):
+            client.get_embedding("test text")
+
+    def test_generic_error_preserves_cause(self, client):
+        """The __cause__ should be set to the original exception."""
+        original = ValueError("bad value")
+        mock_openai_instance = MagicMock()
+        mock_openai_instance.get_embedding.side_effect = original
+
+        mock_module = MagicMock()
+        mock_module.OpenAIClient = MagicMock(return_value=mock_openai_instance)
+        mock_module.OpenAIClientError = _OpenAIClientErrorStub
+
+        with (
+            patch.dict("sys.modules", {"reflexio.server.llm.openai_client": mock_module}),
+            pytest.raises(ClaudeClientError) as exc_info,
+        ):
+            client.get_embedding("test text")
+
+        assert exc_info.value.__cause__ is original

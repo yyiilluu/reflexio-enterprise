@@ -483,5 +483,213 @@ class TestTestAndInitStorageConfig:
         assert msg == "Failed to create storage"
 
 
+# ===============================
+# Tests for init with S3 config and base_dir both set
+# ===============================
+
+
+class TestInitWithS3AndBaseDir:
+    """Tests for SimpleConfigurator init priority when both S3 and base_dir available."""
+
+    def test_base_dir_takes_priority_over_s3(self, tmp_path):
+        """When base_dir is provided, local config storage is used even if S3 is ready."""
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.CONFIG_S3_PATH",
+                "s3://bucket/path",
+            )
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.CONFIG_S3_REGION",
+                "us-east-1",
+            )
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.CONFIG_S3_ACCESS_KEY",
+                "AKIAEXAMPLE",
+            )
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.CONFIG_S3_SECRET_KEY",
+                "secret123",
+            )
+
+            from reflexio.server.services.configurator.local_json_config_storage import (
+                LocalJsonConfigStorage,
+            )
+
+            configurator = SimpleConfigurator(
+                org_id="test_org", base_dir=str(tmp_path)
+            )
+            assert isinstance(configurator.config_storage, LocalJsonConfigStorage)
+
+
+# ===============================
+# Tests for init with RDS fallback
+# ===============================
+
+
+class TestInitWithRdsFallback:
+    """Tests for SimpleConfigurator init with RDS fallback path."""
+
+    def test_rds_fallback_when_no_s3_and_not_self_host(self):
+        """When no base_dir, no S3, and not self-host, RDS storage is used."""
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.SELF_HOST_MODE",
+                False,
+            )
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.CONFIG_S3_PATH", ""
+            )
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.CONFIG_S3_REGION",
+                "",
+            )
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.CONFIG_S3_ACCESS_KEY",
+                "",
+            )
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.CONFIG_S3_SECRET_KEY",
+                "",
+            )
+
+            from unittest.mock import patch
+
+            from reflexio.server.services.configurator.rds_config_storage import (
+                RdsConfigStorage,
+            )
+
+            with patch.object(
+                RdsConfigStorage,
+                "__init__",
+                lambda self, org_id: setattr(self, "org_id", org_id) or None,
+            ), patch.object(
+                RdsConfigStorage,
+                "load_config",
+                return_value=Config(
+                    storage_config=StorageConfigLocal(dir_path="/test/rds_config")
+                ),
+            ):
+                configurator = SimpleConfigurator(org_id="test_org")
+                assert isinstance(configurator.config_storage, RdsConfigStorage)
+
+    def test_init_with_config_object_skips_storage(self):
+        """When config object is provided directly, no storage is initialized."""
+        config = Config(storage_config=StorageConfigLocal(dir_path="/test"))
+        configurator = SimpleConfigurator(
+            org_id="test_org", config=config
+        )
+        assert configurator.config is config
+        assert not hasattr(configurator, "config_storage")
+
+    def test_init_raises_when_config_is_none(self):
+        """When load_config returns None, ValueError is raised."""
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.SELF_HOST_MODE",
+                False,
+            )
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.CONFIG_S3_PATH", ""
+            )
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.CONFIG_S3_REGION",
+                "",
+            )
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.CONFIG_S3_ACCESS_KEY",
+                "",
+            )
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.CONFIG_S3_SECRET_KEY",
+                "",
+            )
+
+            from unittest.mock import patch
+
+            from reflexio.server.services.configurator.rds_config_storage import (
+                RdsConfigStorage,
+            )
+
+            with (
+                patch.object(
+                    RdsConfigStorage,
+                    "__init__",
+                    lambda self, org_id: setattr(self, "org_id", org_id) or None,
+                ),
+                patch.object(
+                    RdsConfigStorage,
+                    "load_config",
+                    return_value=None,
+                ),
+                pytest.raises(
+                    ValueError, match="Failed to load configuration"
+                ),
+            ):
+                SimpleConfigurator(org_id="test_org")
+
+
+# ===============================
+# Tests for set_config_by_name with invalid field
+# ===============================
+
+
+class TestSetConfigByNameInvalid:
+    """Tests for set_config_by_name with invalid field name."""
+
+    def test_invalid_field_name_raises(self, configurator):
+        """Test that setting a nonexistent field raises ValueError."""
+        with pytest.raises(ValueError, match="Invalid config name"):
+            configurator.set_config_by_name("totally_bogus_field", "value")
+
+
+# ===============================
+# Tests for create_storage edge cases
+# ===============================
+
+
+class TestCreateStorageEdgeCases:
+    """Additional edge cases for create_storage."""
+
+    def test_invalid_storage_config_type_raises(self, configurator):
+        """Test that an unknown storage config type raises ValueError."""
+        with pytest.raises(ValueError, match="Invalid storage config type"):
+            configurator.create_storage("not_a_config_object")
+
+
+# ===============================
+# Tests for is_storage_configured with partial config
+# ===============================
+
+
+class TestIsStorageConfiguredPartial:
+    """Tests for is_storage_configured with partial or edge configurations."""
+
+    def test_none_storage_config_not_ready(self, configurator):
+        """Test that None storage config is not ready."""
+        assert configurator.is_storage_config_ready_to_test(None) is False
+
+    def test_is_storage_configured_returns_false_when_test_failed(self, configurator):
+        """Test is_storage_configured returns False when test status is FAILED."""
+        configurator.set_config_by_name("storage_config_test", StorageConfigTest.FAILED)
+        assert configurator.is_storage_configured() is False
+
+    def test_is_storage_configured_returns_true_when_test_succeeded(
+        self, configurator
+    ):
+        """Test is_storage_configured returns True when test status is SUCCEEDED."""
+        configurator.set_config_by_name(
+            "storage_config_test", StorageConfigTest.SUCCEEDED
+        )
+        assert configurator.is_storage_configured() is True
+
+    def test_is_storage_configured_returns_false_when_config_not_ready(
+        self, configurator
+    ):
+        """Test is_storage_configured returns False when underlying config is not ready."""
+        # Use None config to make it not ready
+        configurator.config.storage_config = None
+        assert configurator.is_storage_configured() is False
+
+
 if __name__ == "__main__":
     pytest.main(["-v", __file__, "-k", "test_init_creates_config_file"])
