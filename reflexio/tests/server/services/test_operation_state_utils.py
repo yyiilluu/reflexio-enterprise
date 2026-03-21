@@ -6,7 +6,7 @@ extractor bookmark, aggregator bookmark, and simple lock.
 """
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -105,7 +105,7 @@ class TestCheckInProgress:
         mock_storage.get_operation_state.return_value = {
             "operation_state": {
                 "status": OperationStatus.IN_PROGRESS.value,
-                "started_at": int(datetime.now(timezone.utc).timestamp()),
+                "started_at": int(datetime.now(UTC).timestamp()),
             }
         }
         result = manager.check_in_progress()
@@ -122,7 +122,7 @@ class TestCheckInProgress:
         """State without nested operation_state wrapper."""
         mock_storage.get_operation_state.return_value = {
             "status": OperationStatus.IN_PROGRESS.value,
-            "started_at": int(datetime.now(timezone.utc).timestamp()),
+            "started_at": int(datetime.now(UTC).timestamp()),
         }
         result = manager.check_in_progress()
         assert result is not None
@@ -806,3 +806,123 @@ class TestMarkCancelled:
         mock_storage.get_operation_state.return_value = None
         manager.mark_cancelled()
         mock_storage.update_operation_state.assert_not_called()
+
+
+# ===============================
+# Additional edge cases
+# ===============================
+
+
+class TestCheckInProgressStaleLock:
+    """Edge cases for check_in_progress stale lock detection."""
+
+    def test_stale_operation_auto_recovered(self, manager, mock_storage):
+        """Test that a stale IN_PROGRESS operation is auto-marked as FAILED."""
+        stale_started_at = int(datetime.now(UTC).timestamp()) - 700
+        mock_storage.get_operation_state.return_value = {
+            "operation_state": {
+                "status": OperationStatus.IN_PROGRESS.value,
+                "started_at": stale_started_at,
+            }
+        }
+
+        result = manager.check_in_progress()
+        assert result is None  # Lock is released
+
+        # Verify storage was updated with FAILED status
+        mock_storage.update_operation_state.assert_called_once()
+        _, state = mock_storage.update_operation_state.call_args[0]
+        assert state["status"] == OperationStatus.FAILED.value
+        assert "Auto-recovered" in state["error_message"]
+        assert state["completed_at"] is not None
+
+    def test_legacy_state_without_started_at(self, manager, mock_storage):
+        """Test that legacy IN_PROGRESS state without started_at blocks new operations."""
+        mock_storage.get_operation_state.return_value = {
+            "operation_state": {
+                "status": OperationStatus.IN_PROGRESS.value,
+                # No started_at field - legacy state
+            }
+        }
+
+        result = manager.check_in_progress()
+        assert result is not None
+        assert "already in progress" in result
+
+
+class TestAcquireLockEdgeCases:
+    """Edge cases for acquire_lock."""
+
+    def test_acquire_lock_returns_false_from_storage(self, manager, mock_storage):
+        """Test that acquire_lock returns False when storage says not acquired."""
+        mock_storage.try_acquire_in_progress_lock.return_value = {"acquired": False}
+
+        result = manager.acquire_lock("req_test")
+        assert result is False
+
+    def test_acquire_lock_missing_acquired_key(self, manager, mock_storage):
+        """Test that acquire_lock returns False when storage returns no 'acquired' key."""
+        mock_storage.try_acquire_in_progress_lock.return_value = {}
+
+        result = manager.acquire_lock("req_test")
+        assert result is False
+
+
+class TestAcquireSimpleLockEdgeCases:
+    """Additional edge cases for acquire_simple_lock."""
+
+    def test_stale_lock_overridden(self, manager, mock_storage):
+        """Test that a stale simple lock is overridden and lock is acquired."""
+        mock_storage.get_operation_state.return_value = {
+            "in_progress": True,
+            "started_at": int(time.time()) - 1000,  # Very old
+        }
+
+        result = manager.acquire_simple_lock(stale_seconds=300)
+        assert result is True
+        mock_storage.upsert_operation_state.assert_called_once()
+
+    def test_non_in_progress_state_allows_acquisition(self, manager, mock_storage):
+        """Test that existing state with in_progress=False allows lock acquisition."""
+        mock_storage.get_operation_state.return_value = {
+            "in_progress": False,
+            "started_at": int(time.time()),
+        }
+
+        result = manager.acquire_simple_lock()
+        assert result is True
+
+
+class TestClusterFingerprints:
+    """Tests for cluster fingerprint methods."""
+
+    def test_get_cluster_fingerprints_with_data(self, manager, mock_storage):
+        """Test getting cluster fingerprints returns correct data."""
+        fingerprints = {"fp1": {"feedback_id": 1, "raw_feedback_ids": [1, 2]}}
+        mock_storage.get_operation_state.return_value = {
+            "operation_state": {"cluster_fingerprints": fingerprints}
+        }
+
+        result = manager.get_cluster_fingerprints("fb", "v1")
+        assert result == fingerprints
+
+    def test_get_cluster_fingerprints_no_state(self, manager, mock_storage):
+        """Test getting cluster fingerprints returns empty dict when no state."""
+        mock_storage.get_operation_state.return_value = None
+
+        result = manager.get_cluster_fingerprints("fb", "v1")
+        assert result == {}
+
+    def test_update_cluster_fingerprints(self, manager, mock_storage):
+        """Test updating cluster fingerprints."""
+        fingerprints = {"fp1": {"feedback_id": 1, "raw_feedback_ids": [1]}}
+        manager.update_cluster_fingerprints("fb", "v1", fingerprints)
+
+        key, state = mock_storage.upsert_operation_state.call_args[0]
+        assert "::clusters" in key
+        assert state["cluster_fingerprints"] == fingerprints
+
+    def test_cancellation_key_format(self, manager):
+        """Test the cancellation key format."""
+        key = manager._cancellation_key()
+        assert key == "test_service::org_123::cancellation"

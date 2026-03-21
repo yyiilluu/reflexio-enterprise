@@ -2,9 +2,11 @@ import unittest
 from unittest.mock import patch
 
 from reflexio.server.site_var.feature_flags import (
+    _get_feature_flags_config,
     get_all_feature_flags,
     is_deduplicator_enabled,
     is_feature_enabled,
+    is_invitation_only_enabled,
     is_skill_generation_enabled,
 )
 
@@ -162,6 +164,75 @@ class TestFeatureFlags(unittest.TestCase):
     def test_is_deduplicator_enabled_unknown_defaults_enabled(self, _mock):
         """is_deduplicator_enabled with empty config should default to enabled."""
         self.assertTrue(is_deduplicator_enabled("org-123"))
+
+
+class TestGetFeatureFlagsConfig(unittest.TestCase):
+    """Tests for _get_feature_flags_config when site var returns invalid data."""
+
+    @patch("reflexio.server.site_var.feature_flags.SiteVarManager")
+    def test_returns_empty_dict_when_site_var_is_none(self, mock_svm):
+        """When site var returns None, should return empty dict."""
+        mock_svm.return_value.get_site_var.return_value = None
+        result = _get_feature_flags_config()
+        self.assertEqual(result, {})
+
+    @patch("reflexio.server.site_var.feature_flags.SiteVarManager")
+    def test_returns_empty_dict_when_site_var_is_not_dict(self, mock_svm):
+        """When site var returns a non-dict (e.g. string), should return empty dict."""
+        mock_svm.return_value.get_site_var.return_value = "not a dict"
+        result = _get_feature_flags_config()
+        self.assertEqual(result, {})
+
+    @patch("reflexio.server.site_var.feature_flags.SiteVarManager")
+    def test_returns_config_when_valid_dict(self, mock_svm):
+        """When site var returns a valid dict, should return it."""
+        mock_svm.return_value.get_site_var.return_value = {
+            "feature_a": {"enabled": True}
+        }
+        result = _get_feature_flags_config()
+        self.assertEqual(result, {"feature_a": {"enabled": True}})
+
+
+class TestIsInvitationOnlyEnabled(unittest.TestCase):
+    """Tests for is_invitation_only_enabled."""
+
+    @patch(
+        "reflexio.server.site_var.feature_flags._get_feature_flags_config",
+        return_value={
+            "invitation_only": {"enabled": True},
+        },
+    )
+    def test_returns_true_when_enabled(self, _mock):
+        """Should return True when invitation_only is enabled."""
+        self.assertTrue(is_invitation_only_enabled())
+
+    @patch(
+        "reflexio.server.site_var.feature_flags._get_feature_flags_config",
+        return_value={
+            "invitation_only": {"enabled": False},
+        },
+    )
+    def test_returns_false_when_disabled(self, _mock):
+        """Should return False when invitation_only is disabled."""
+        self.assertFalse(is_invitation_only_enabled())
+
+    @patch(
+        "reflexio.server.site_var.feature_flags._get_feature_flags_config",
+        return_value={},
+    )
+    def test_returns_false_when_not_configured(self, _mock):
+        """Should return False when invitation_only is not in config."""
+        self.assertFalse(is_invitation_only_enabled())
+
+    @patch(
+        "reflexio.server.site_var.feature_flags._get_feature_flags_config",
+        return_value={
+            "invitation_only": {},
+        },
+    )
+    def test_returns_false_when_enabled_key_missing(self, _mock):
+        """Should return False when invitation_only config exists but has no 'enabled' key."""
+        self.assertFalse(is_invitation_only_enabled())
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 """Integration tests for FeedbackGenerationService with Supabase storage."""
 
 import contextlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -109,7 +109,7 @@ def test_interactions():
             request_id="test_request_1",
             content="I need help with my account",
             role="user",
-            created_at=int(datetime.now(timezone.utc).timestamp()),
+            created_at=int(datetime.now(UTC).timestamp()),
             user_action="click",
             user_action_description="Clicked help button",
             interacted_image_url="https://example.com/help",
@@ -120,7 +120,7 @@ def test_interactions():
             request_id="test_request_1",
             content="Thank you for your help!",
             role="user",
-            created_at=int(datetime.now(timezone.utc).timestamp()),
+            created_at=int(datetime.now(UTC).timestamp()),
             user_action="click",
             user_action_description="Clicked thank you button",
             interacted_image_url="https://example.com/thank-you",
@@ -340,7 +340,7 @@ def test_feedback_message_construction_with_interactions(
             request_id="test_request_1",
             content="I need help with my account",
             role="user",
-            created_at=int(datetime.now(timezone.utc).timestamp()),
+            created_at=int(datetime.now(UTC).timestamp()),
             user_action="click",
             user_action_description="help button",
             interacted_image_url="https://example.com/help",
@@ -351,7 +351,7 @@ def test_feedback_message_construction_with_interactions(
             request_id="test_request_1",
             content="Thank you for your help!",
             role="user",
-            created_at=int(datetime.now(timezone.utc).timestamp()),
+            created_at=int(datetime.now(UTC).timestamp()),
             user_action="none",
             user_action_description="",
         ),

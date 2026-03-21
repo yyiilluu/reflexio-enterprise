@@ -6,7 +6,6 @@ but real storage (LocalJsonStorage in temp directory) and real services.
 
 import datetime
 import tempfile
-from datetime import timezone
 
 import pytest
 from reflexio_commons.api_schema.retriever_schema import (
@@ -83,7 +82,7 @@ def test_publish_interaction_success(reflexio_with_config):
     # Publish interaction
     interaction_data = InteractionData(
         content="I really like sushi",
-        created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
     )
 
     request = PublishUserInteractionRequest(
@@ -153,7 +152,7 @@ def test_publish_interaction_dict_input(reflexio_with_config):
         "interaction_data_list": [
             {
                 "content": "Dictionary input test",
-                "created_at": int(datetime.datetime.now(timezone.utc).timestamp()),
+                "created_at": int(datetime.datetime.now(datetime.UTC).timestamp()),
             }
         ],
         "source": "dict_source",
@@ -198,7 +197,7 @@ def test_search_interactions(reflexio_with_config):
     # Publish interaction
     interaction_data = InteractionData(
         content="I love sushi and ramen",
-        created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
     )
 
     publish_request = PublishUserInteractionRequest(
@@ -226,7 +225,7 @@ def test_search_profiles_current_only(reflexio_with_config):
     # Publish interaction to generate profile
     interaction_data = InteractionData(
         content="Profile search test - sushi lover",
-        created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
     )
 
     publish_request = PublishUserInteractionRequest(
@@ -254,7 +253,7 @@ def test_search_profiles_with_status_filter(reflexio_with_config):
     # Publish interaction
     interaction_data = InteractionData(
         content="Status filter test",
-        created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
     )
 
     publish_request = PublishUserInteractionRequest(
@@ -281,7 +280,7 @@ def test_get_interactions_with_time_filters(reflexio_with_config):
     reflexio = reflexio_with_config
 
     # Publish interaction
-    now = datetime.datetime.now(timezone.utc)
+    now = datetime.datetime.now(datetime.UTC)
     interaction_data = InteractionData(
         content="Time filter test", created_at=int(now.timestamp())
     )
@@ -314,7 +313,7 @@ def test_get_profiles_with_status_filter(reflexio_with_config):
     # Publish interaction to generate profile
     interaction_data = InteractionData(
         content="Get profiles test",
-        created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
     )
 
     publish_request = PublishUserInteractionRequest(
@@ -340,7 +339,7 @@ def test_get_all_profiles_and_interactions(reflexio_with_config):
         user_id = f"user_{i}"
         interaction_data = InteractionData(
             content=f"User {i} interaction",
-            created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
+            created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
         )
 
         publish_request = PublishUserInteractionRequest(
@@ -373,7 +372,7 @@ def test_rerun_profile_generation_single_user(reflexio_with_config):
     # Publish interaction
     interaction_data = InteractionData(
         content="Rerun test - loves ramen",
-        created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
     )
 
     publish_request = PublishUserInteractionRequest(
@@ -399,7 +398,7 @@ def test_rerun_profile_generation_all_users(reflexio_with_config):
         user_id = f"rerun_user_{i}"
         interaction_data = InteractionData(
             content=f"User {i} loves sushi",
-            created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
+            created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
         )
 
         publish_request = PublishUserInteractionRequest(
@@ -434,7 +433,7 @@ def test_rerun_profile_generation_with_time_filters(reflexio_with_config):
     reflexio = reflexio_with_config
 
     # Publish interaction
-    now = datetime.datetime.now(timezone.utc)
+    now = datetime.datetime.now(datetime.UTC)
     interaction_data = InteractionData(
         content="Time filter rerun test", created_at=int(now.timestamp())
     )
@@ -466,7 +465,7 @@ def test_rerun_profile_generation_with_source_filter(reflexio_with_config):
     # Publish interaction with specific source
     interaction_data = InteractionData(
         content="Source filter test",
-        created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
     )
 
     publish_request = PublishUserInteractionRequest(
@@ -513,7 +512,7 @@ def test_upgrade_all_profiles(reflexio_with_config):
     # Publish interaction to create CURRENT profile
     interaction_data = InteractionData(
         content="Upgrade test",
-        created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
     )
 
     publish_request = PublishUserInteractionRequest(
@@ -557,7 +556,7 @@ def test_downgrade_all_profiles(reflexio_with_config):
     # Create initial profile
     interaction_data = InteractionData(
         content="Downgrade test",
-        created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
     )
 
     publish_request = PublishUserInteractionRequest(
@@ -595,7 +594,7 @@ def test_upgrade_only_affected_users(reflexio_with_config):
     for user_id in [user_with_pending, user_without_pending]:
         interaction_data = InteractionData(
             content=f"Initial content for {user_id}",
-            created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
+            created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
         )
         publish_request = PublishUserInteractionRequest(
             user_id=user_id, interaction_data_list=[interaction_data]
@@ -678,7 +677,7 @@ def test_downgrade_only_affected_users(reflexio_with_config):
     for user_id in [user_with_archived, user_without_archived]:
         interaction_data = InteractionData(
             content=f"Initial content for {user_id}",
-            created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
+            created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
         )
         publish_request = PublishUserInteractionRequest(
             user_id=user_id, interaction_data_list=[interaction_data]
@@ -753,7 +752,7 @@ def test_get_profile_statistics(reflexio_with_config):
     # Publish interaction
     interaction_data = InteractionData(
         content="Stats test",
-        created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
     )
 
     publish_request = PublishUserInteractionRequest(
@@ -782,7 +781,7 @@ def test_delete_profile_success(reflexio_with_config):
     # Publish interaction to create profile
     interaction_data = InteractionData(
         content="Delete profile test",
-        created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
     )
 
     publish_request = PublishUserInteractionRequest(
@@ -818,7 +817,7 @@ def test_delete_interaction_success(reflexio_with_config):
     # Publish interaction
     interaction_data = InteractionData(
         content="Delete interaction test",
-        created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
     )
 
     publish_request = PublishUserInteractionRequest(
@@ -860,7 +859,7 @@ def test_get_profile_change_logs(reflexio_with_config):
     # Publish interaction (creates profile and changelog)
     interaction_data = InteractionData(
         content="Changelog test",
-        created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
     )
 
     publish_request = PublishUserInteractionRequest(
@@ -919,7 +918,7 @@ def test_get_dashboard_stats(reflexio_with_config):
     # Publish interaction
     interaction_data = InteractionData(
         content="Dashboard test",
-        created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
     )
 
     publish_request = PublishUserInteractionRequest(
@@ -952,7 +951,7 @@ def test_get_requests_grouped(reflexio_with_config):
     # Publish interaction
     interaction_data = InteractionData(
         content="Request grouping test",
-        created_at=int(datetime.datetime.now(timezone.utc).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
     )
 
     publish_request = PublishUserInteractionRequest(
@@ -978,7 +977,7 @@ def test_get_requests_with_filters(reflexio_with_config):
     reflexio = reflexio_with_config
 
     # Publish interaction
-    now = datetime.datetime.now(timezone.utc)
+    now = datetime.datetime.now(datetime.UTC)
     interaction_data = InteractionData(
         content="Request filter test", created_at=int(now.timestamp())
     )

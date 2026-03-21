@@ -167,5 +167,90 @@ class TestS3Utils:
         assert exc_info.value.response["Error"]["Code"] == "404"
 
 
+class TestS3UtilsErrors:
+    """Tests for error handling in S3Utils methods."""
+
+    def test_read_json_client_error_non_nosuchkey(self, s3_utils):
+        """Test that non-NoSuchKey ClientError is re-raised in read_json."""
+        from unittest.mock import MagicMock
+
+        error_response = {"Error": {"Code": "AccessDenied", "Message": "Forbidden"}}
+        s3_utils.s3_client.get_object = MagicMock(
+            side_effect=ClientError(error_response, "GetObject")
+        )
+
+        with pytest.raises(ClientError) as exc_info:
+            s3_utils.read_json("some/file.json")
+        assert exc_info.value.response["Error"]["Code"] == "AccessDenied"
+
+    def test_write_json_client_error_raised(self, s3_utils):
+        """Test that ClientError in write_json is re-raised."""
+        from unittest.mock import MagicMock
+
+        error_response = {"Error": {"Code": "InternalError", "Message": "Server Error"}}
+        s3_utils.s3_client.put_object = MagicMock(
+            side_effect=ClientError(error_response, "PutObject")
+        )
+
+        with pytest.raises(ClientError):
+            s3_utils.write_json("some/file.json", {"key": "value"})
+
+    def test_file_exists_client_error_non_404(self, s3_utils):
+        """Test that non-404 ClientError is re-raised in file_exists."""
+        from unittest.mock import MagicMock
+
+        error_response = {"Error": {"Code": "InternalError", "Message": "Server Error"}}
+        s3_utils.s3_client.head_object = MagicMock(
+            side_effect=ClientError(error_response, "HeadObject")
+        )
+
+        with pytest.raises(ClientError):
+            s3_utils.file_exists("some/file.json")
+
+    def test_delete_file_client_error_raised(self, s3_utils):
+        """Test that ClientError in delete_file is re-raised."""
+        from unittest.mock import MagicMock
+
+        error_response = {"Error": {"Code": "InternalError", "Message": "Server Error"}}
+        s3_utils.s3_client.delete_object = MagicMock(
+            side_effect=ClientError(error_response, "DeleteObject")
+        )
+
+        with pytest.raises(ClientError):
+            s3_utils.delete_file("some/file.json")
+
+    def test_list_files_client_error_raised(self, s3_utils):
+        """Test that ClientError in list_files is re-raised."""
+        from unittest.mock import MagicMock
+
+        error_response = {"Error": {"Code": "InternalError", "Message": "Server Error"}}
+        s3_utils.s3_client.list_objects_v2 = MagicMock(
+            side_effect=ClientError(error_response, "ListObjectsV2")
+        )
+
+        with pytest.raises(ClientError):
+            s3_utils.list_files()
+
+    def test_get_file_metadata_client_error_raised(self, s3_utils):
+        """Test that ClientError in get_file_metadata is re-raised."""
+        from unittest.mock import MagicMock
+
+        error_response = {"Error": {"Code": "InternalError", "Message": "Server Error"}}
+        s3_utils.s3_client.head_object = MagicMock(
+            side_effect=ClientError(error_response, "HeadObject")
+        )
+
+        with pytest.raises(ClientError):
+            s3_utils.get_file_metadata("some/file.json")
+
+    def test_list_files_all(self, s3_client, s3_utils):
+        """Test listing all files without prefix."""
+        s3_client.put_object(Bucket=TEST_BUCKET, Key="file1.json", Body="data")
+        s3_client.put_object(Bucket=TEST_BUCKET, Key="file2.json", Body="data")
+
+        files = s3_utils.list_files()
+        assert len(files) == 2
+
+
 if __name__ == "__main__":
     pytest.main()

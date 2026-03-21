@@ -33,6 +33,7 @@ from reflexio.server.services.feedback.feedback_generation_service import (
 from reflexio.server.services.feedback.feedback_service_utils import (
     StructuredFeedbackContent,
 )
+from reflexio.server.site_var.site_var_manager import SiteVarManager
 
 # ===============================
 # Fixtures
@@ -979,3 +980,322 @@ class TestBlockingIssueRoundTrip:
             == "No direct database query tool available"
         )
         assert "Blocked by: [missing_tool]" in result[0].feedback_content
+
+
+# ===============================
+# Test: __init__ with invalid llm_model_setting
+# ===============================
+
+
+class TestInitInvalidModelSetting:
+    """Tests for __init__ when llm_model_setting is not a dict (line 80)."""
+
+    def test_raises_value_error_when_model_setting_is_string(
+        self,
+        request_context,
+        mock_llm_client,
+        extractor_config,
+        service_config,
+    ):
+        """Test that __init__ raises ValueError when llm_model_setting returns a string."""
+        with patch.object(
+            SiteVarManager, "get_site_var", return_value="not_a_dict"
+        ), pytest.raises(ValueError, match="llm_model_setting must be a dict"):
+            FeedbackExtractor(
+                request_context=request_context,
+                llm_client=mock_llm_client,
+                extractor_config=extractor_config,
+                service_config=service_config,
+                agent_context="Test agent",
+            )
+
+    def test_raises_value_error_when_model_setting_is_none(
+        self,
+        request_context,
+        mock_llm_client,
+        extractor_config,
+        service_config,
+    ):
+        """Test that __init__ raises ValueError when llm_model_setting returns None."""
+        with patch.object(
+            SiteVarManager, "get_site_var", return_value=None
+        ), pytest.raises(ValueError, match="llm_model_setting must be a dict"):
+            FeedbackExtractor(
+                request_context=request_context,
+                llm_client=mock_llm_client,
+                extractor_config=extractor_config,
+                service_config=service_config,
+                agent_context="Test agent",
+            )
+
+    def test_raises_value_error_when_model_setting_is_list(
+        self,
+        request_context,
+        mock_llm_client,
+        extractor_config,
+        service_config,
+    ):
+        """Test that __init__ raises ValueError when llm_model_setting returns a list."""
+        with patch.object(
+            SiteVarManager, "get_site_var", return_value=["model1", "model2"]
+        ), pytest.raises(ValueError, match="llm_model_setting must be a dict"):
+            FeedbackExtractor(
+                request_context=request_context,
+                llm_client=mock_llm_client,
+                extractor_config=extractor_config,
+                service_config=service_config,
+                agent_context="Test agent",
+            )
+
+
+# ===============================
+# Test: _get_interactions with should_skip=True
+# ===============================
+
+
+class TestGetInteractionsSkip:
+    """Tests for _get_interactions when source filter causes skip (line 144)."""
+
+    def test_returns_none_when_should_skip(
+        self,
+        request_context,
+        mock_llm_client,
+        service_config,
+    ):
+        """Test _get_interactions returns None when effective source filter says should_skip=True."""
+        config = AgentFeedbackConfig(
+            feedback_name="web_feedback",
+            feedback_definition_prompt="Extract web feedback",
+            request_sources_enabled=["web"],
+        )
+
+        # service_config has source="api", which won't match request_sources_enabled=["web"]
+        service_config_with_source = FeedbackGenerationServiceConfig(
+            agent_version="1.0.0",
+            request_id="test_request",
+            source="api",
+        )
+
+        extractor = FeedbackExtractor(
+            request_context=request_context,
+            llm_client=mock_llm_client,
+            extractor_config=config,
+            service_config=service_config_with_source,
+            agent_context="Test agent",
+        )
+
+        result = extractor._get_interactions()
+
+        assert result is None
+        # storage should never be queried
+        request_context.storage.get_last_k_interactions_grouped.assert_not_called()
+
+
+# ===============================
+# Test: Incremental feedback construction path (lines 272-282)
+# ===============================
+
+
+class TestIncrementalFeedbackExtraction:
+    """Tests for the incremental feedback extraction path."""
+
+    def test_incremental_path_uses_previously_extracted(
+        self,
+        request_context,
+        mock_llm_client,
+        extractor_config,
+        sample_request_interaction_models,
+    ):
+        """Test that extract_feedbacks uses incremental messages when is_incremental=True (lines 272-282)."""
+        prev_feedback = RawFeedback(
+            request_id="prev_req",
+            agent_version="1.0.0",
+            feedback_name="quality_feedback",
+            feedback_content="previous feedback",
+        )
+
+        service_config = FeedbackGenerationServiceConfig(
+            agent_version="1.0.0",
+            request_id="test_request",
+            source="api",
+            is_incremental=True,
+            previously_extracted=[[prev_feedback]],
+        )
+
+        extractor = FeedbackExtractor(
+            request_context=request_context,
+            llm_client=mock_llm_client,
+            extractor_config=extractor_config,
+            service_config=service_config,
+            agent_context="Test agent",
+        )
+
+        # Mock LLM response
+        mock_llm_client.generate_chat_response.return_value = StructuredFeedbackContent(
+            do_action="new action",
+            when_condition="new condition",
+        )
+
+        request_context.prompt_manager = MagicMock()
+        request_context.prompt_manager.render_prompt.return_value = "mock prompt"
+
+        with (
+            patch.dict(os.environ, {"MOCK_LLM_RESPONSE": "false"}),
+            patch(
+                "reflexio.server.services.feedback.feedback_service_utils.construct_incremental_feedback_extraction_messages",
+                return_value=[
+                    {"role": "system", "content": "incremental system"},
+                    {"role": "user", "content": "incremental user"},
+                ],
+            ) as mock_incremental,
+        ):
+            result = extractor.extract_feedbacks(
+                sample_request_interaction_models
+            )
+
+        # Verify incremental path was taken
+        mock_incremental.assert_called_once()
+        call_kwargs = mock_incremental.call_args[1]
+        assert call_kwargs["previously_extracted"] == [prev_feedback]
+
+        assert len(result) == 1
+        assert result[0].do_action == "new action"
+
+    def test_incremental_path_flattens_previously_extracted(
+        self,
+        request_context,
+        mock_llm_client,
+        extractor_config,
+        sample_request_interaction_models,
+    ):
+        """Test that incremental path flattens nested previously_extracted lists."""
+        fb1 = RawFeedback(
+            request_id="r1",
+            agent_version="1.0.0",
+            feedback_name="quality_feedback",
+            feedback_content="feedback 1",
+        )
+        fb2 = RawFeedback(
+            request_id="r2",
+            agent_version="1.0.0",
+            feedback_name="quality_feedback",
+            feedback_content="feedback 2",
+        )
+
+        service_config = FeedbackGenerationServiceConfig(
+            agent_version="1.0.0",
+            request_id="test_request",
+            source="api",
+            is_incremental=True,
+            previously_extracted=[[fb1], [fb2]],
+        )
+
+        extractor = FeedbackExtractor(
+            request_context=request_context,
+            llm_client=mock_llm_client,
+            extractor_config=extractor_config,
+            service_config=service_config,
+            agent_context="Test agent",
+        )
+
+        mock_llm_client.generate_chat_response.return_value = StructuredFeedbackContent(
+            do_action="action",
+            when_condition="condition",
+        )
+
+        request_context.prompt_manager = MagicMock()
+        request_context.prompt_manager.render_prompt.return_value = "mock prompt"
+
+        with (
+            patch.dict(os.environ, {"MOCK_LLM_RESPONSE": "false"}),
+            patch(
+                "reflexio.server.services.feedback.feedback_service_utils.construct_incremental_feedback_extraction_messages",
+                return_value=[
+                    {"role": "system", "content": "sys"},
+                    {"role": "user", "content": "usr"},
+                ],
+            ) as mock_incremental,
+        ):
+            extractor.extract_feedbacks(sample_request_interaction_models)
+
+        # The flattened list should contain both feedbacks
+        call_kwargs = mock_incremental.call_args[1]
+        assert len(call_kwargs["previously_extracted"]) == 2
+        assert call_kwargs["previously_extracted"][0] == fb1
+        assert call_kwargs["previously_extracted"][1] == fb2
+
+
+# ===============================
+# Test: Exception handling in extract_feedbacks (lines 328-333)
+# ===============================
+
+
+class TestExtractFeedbacksException:
+    """Tests for exception handling in extract_feedbacks."""
+
+    def test_returns_empty_on_llm_exception(
+        self,
+        request_context,
+        mock_llm_client,
+        extractor_config,
+        service_config,
+        sample_request_interaction_models,
+    ):
+        """Test extract_feedbacks returns [] when LLM raises an exception (lines 328-333)."""
+        extractor = FeedbackExtractor(
+            request_context=request_context,
+            llm_client=mock_llm_client,
+            extractor_config=extractor_config,
+            service_config=service_config,
+            agent_context="Test agent",
+        )
+
+        mock_llm_client.generate_chat_response.side_effect = RuntimeError(
+            "LLM timeout"
+        )
+
+        request_context.prompt_manager = MagicMock()
+        request_context.prompt_manager.render_prompt.return_value = "mock prompt"
+
+        with patch.dict(os.environ, {"MOCK_LLM_RESPONSE": "false"}):
+            result = extractor.extract_feedbacks(sample_request_interaction_models)
+
+        assert result == []
+
+    def test_returns_empty_on_processing_exception(
+        self,
+        request_context,
+        mock_llm_client,
+        extractor_config,
+        service_config,
+        sample_request_interaction_models,
+    ):
+        """Test extract_feedbacks returns [] when _process_structured_response raises."""
+        extractor = FeedbackExtractor(
+            request_context=request_context,
+            llm_client=mock_llm_client,
+            extractor_config=extractor_config,
+            service_config=service_config,
+            agent_context="Test agent",
+        )
+
+        # Return a valid response from LLM but make processing fail
+        mock_llm_client.generate_chat_response.return_value = StructuredFeedbackContent(
+            do_action="action",
+            when_condition="condition",
+        )
+
+        request_context.prompt_manager = MagicMock()
+        request_context.prompt_manager.render_prompt.return_value = "mock prompt"
+
+        with (
+            patch.dict(os.environ, {"MOCK_LLM_RESPONSE": "false"}),
+            patch.object(
+                extractor,
+                "_process_structured_response",
+                side_effect=Exception("processing error"),
+            ),
+        ):
+            result = extractor.extract_feedbacks(sample_request_interaction_models)
+
+        assert result == []
