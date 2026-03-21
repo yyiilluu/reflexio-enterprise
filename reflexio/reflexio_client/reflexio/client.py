@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import time
+import warnings
 from collections.abc import Callable, Coroutine
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -11,6 +12,7 @@ from urllib.parse import urljoin
 import aiohttp
 import requests
 from dotenv import load_dotenv
+from reflexio_commons.api_schema.login_schema import Token
 from reflexio_commons.api_schema.retriever_schema import (
     ConversationTurn,
     GetAgentSuccessEvaluationResultsRequest,
@@ -101,14 +103,22 @@ class ReflexioClient:
     # Shared thread pool for all instances to maximize efficiency
     _thread_pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="reflexio")
 
-    def __init__(self, url_endpoint: str = "", timeout: int = 300) -> None:
+    def __init__(
+        self, api_key: str = "", url_endpoint: str = "", timeout: int = 300
+    ) -> None:
         """Initialize the Reflexio client.
 
+        The client authenticates using an API key. You can provide the key directly
+        or set the REFLEXIO_API_KEY environment variable. Similarly, the URL can be
+        provided directly or via the REFLEXIO_API_URL environment variable.
+
         Args:
+            api_key (str): Your API key for authentication. Falls back to REFLEXIO_API_KEY env var.
             url_endpoint (str): Base URL for the API. Falls back to REFLEXIO_API_URL env var,
                 then to the default backend URL.
             timeout (int): Default request timeout in seconds (default 300)
         """
+        self.api_key = api_key or os.environ.get("REFLEXIO_API_KEY", "")
         self.base_url = (
             url_endpoint or os.environ.get("REFLEXIO_API_URL", "") or BACKEND_URL
         )
@@ -116,13 +126,18 @@ class ReflexioClient:
         self.session = requests.Session()
         self._cache = InMemoryCache()
 
-    def _get_headers(self) -> dict:
-        """Get default headers for API requests.
+    def _get_auth_headers(self) -> dict:
+        """Get authentication headers for API requests.
 
         Returns:
-            dict: Headers with content-type
+            dict: Headers with authorization and content-type
         """
-        return {"Content-Type": "application/json"}
+        if self.api_key:
+            return {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            }
+        return {}
 
     def _convert_to_model(self, data: dict | object, model_class: type[T]) -> T:
         """Convert dict to model instance if needed.
@@ -186,7 +201,7 @@ class ReflexioClient:
         url = urljoin(self.base_url, endpoint)
 
         # Merge auth headers with any provided headers
-        request_headers = self._get_headers()
+        request_headers = self._get_auth_headers()
         if headers:
             request_headers.update(headers)
 
@@ -214,7 +229,7 @@ class ReflexioClient:
         url = urljoin(self.base_url, endpoint)
 
         # Merge auth headers with any provided headers
-        request_headers = self._get_headers()
+        request_headers = self._get_auth_headers()
         if headers:
             request_headers.update(headers)
 
@@ -223,6 +238,44 @@ class ReflexioClient:
         response = self.session.request(method, url, **kwargs)
         response.raise_for_status()
         return response.json()
+
+    def login(self, email: str, password: str) -> Token:
+        """Login to the Reflexio API.
+
+        .. deprecated::
+            The login() method is deprecated. Pass your API key directly instead:
+
+            client = ReflexioClient(api_key="your-api-key")
+
+            Or set the REFLEXIO_API_KEY environment variable:
+
+            export REFLEXIO_API_KEY="your-api-key"
+            client = ReflexioClient()
+
+        Args:
+            email (str): User email
+            password (str): User password
+
+        Returns:
+            Token: Authentication token response
+        """
+        warnings.warn(
+            "login() is deprecated. Pass api_key directly to ReflexioClient() "
+            "or set the REFLEXIO_API_KEY environment variable instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        response = self._make_request(
+            "POST",
+            "/token",
+            data={"username": email, "password": password},
+            headers={
+                "Content-Type": "application/x-www-form-urlencoded",
+                "accept": "application/json",
+            },
+        )
+        self.api_key = response["api_key"]
+        return Token(**response)
 
     def _publish_interaction_sync(
         self,
