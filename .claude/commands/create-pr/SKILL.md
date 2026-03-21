@@ -20,11 +20,78 @@ Run these checks before anything else:
 1. **Verify GitHub CLI authentication** — run `gh api user --jq '.login'` to confirm the CLI is authenticated. If this fails, tell the user to run `gh auth login` first and stop.
 2. **Determine the base branch** — ALWAYS use `main` as the base branch unless the user explicitly specifies a different base. Do NOT infer the base branch from the current branch's upstream, the repository default, or any other source. Capture as `$BASE_BRANCH`.
 
+### Step 1.5: Detect Submodule Changes
+
+Check if the `open_source/reflexio` submodule has changes that need a separate PR:
+
+1. **Check for uncommitted changes in submodule**:
+   ```bash
+   git -C open_source/reflexio status --porcelain
+   ```
+2. **Check for unpushed commits in submodule**:
+   ```bash
+   git -C open_source/reflexio log --oneline origin/main..HEAD 2>/dev/null
+   ```
+3. If either command produces output, set `$SUBMODULE_HAS_CHANGES=true`. Otherwise `false`.
+4. If `$SUBMODULE_HAS_CHANGES=true`, store the submodule path: `$SUBMODULE_PATH=open_source/reflexio`
+
 ### Step 2: Commit Uncommitted Changes
 
-Run `git status` to check for uncommitted changes. If there are uncommitted changes, run the `/commit` skill to commit them. This ensures all code quality checks (ruff, pyright, biome, tsc) and precommit hooks are applied consistently.
+Run `git status` to check for uncommitted changes **in the enterprise repo** (excluding the submodule — submodule changes are handled in Step 2.5). If there are uncommitted changes, run the `/commit` skill to commit them. This ensures all code quality checks (ruff, pyright, biome, tsc) and precommit hooks are applied consistently.
 
-If there are no uncommitted changes, skip to Step 3.
+If there are no uncommitted changes, skip to Step 2.5.
+
+### Step 2.5: Create Submodule PR (if submodule has changes)
+
+Skip this step if `$SUBMODULE_HAS_CHANGES` is false.
+
+Process the submodule as a mini create-pr workflow:
+
+1. **Commit submodule changes** — `cd` into `$SUBMODULE_PATH`:
+   ```bash
+   cd open_source/reflexio
+   ```
+   Run `git status`. If there are uncommitted changes, stage and commit them
+   (use ruff check/format for Python files, write a conventional commit message).
+
+2. **Create/reuse feature branch in submodule**:
+   - Check current branch: `git branch --show-current`
+   - If on `main`, create a feature branch with a name matching the enterprise work
+     (e.g., if enterprise branch is `feat/add-search`, use `feat/add-search` in submodule too)
+   - If already on a feature branch, reuse it
+
+3. **Sync with base** — `git fetch origin main && git rebase origin/main` (handle conflicts the same way as Step 4)
+
+4. **Push submodule branch** — `git push -u origin HEAD` (or `--force-with-lease` if rejected)
+
+5. **Check for existing submodule PR** — `gh pr view --json number,url 2>/dev/null`
+
+6. **Create submodule PR** (if none exists):
+   - Analyze changes: `git log main..HEAD --oneline` and `git diff main...HEAD --stat`
+   - Draft title and body following the same template as the enterprise PR (Summary, Changes, Test Plan)
+   - Add a placeholder "Related PRs" section:
+     ```
+     ## Related PRs
+     - Enterprise PR: *(will be linked after creation)*
+     ```
+   - Write body to a temp file and create:
+     ```bash
+     gh pr create --title "..." --base main --body-file /tmp/submodule_pr_body.md
+     ```
+   - Capture the submodule PR URL as `$SUBMODULE_PR_URL`
+
+   **If PR already exists**: capture its URL as `$SUBMODULE_PR_URL` from the `gh pr view` output.
+
+7. **Return to enterprise root** — `cd` back to the enterprise repo root
+
+8. **Stage submodule reference update**:
+   ```bash
+   git add open_source/reflexio
+   ```
+   If there are staged changes (the submodule pointer changed), commit:
+   ```bash
+   git commit -m "chore: update open_source/reflexio submodule reference"
+   ```
 
 ### Step 3: Ensure Feature Branch
 
@@ -60,9 +127,15 @@ If the push is rejected (e.g., diverged history after rebase), use `git push --f
    - `git log $BASE_BRANCH..HEAD --oneline` — all commits
    - `git diff $BASE_BRANCH...HEAD --stat` — files changed summary
    - `git diff $BASE_BRANCH...HEAD` — full diff
-2. **Check PR size** — if >500 lines changed, warn the user but continue.
-3. **Draft title** — under 70 characters, conventional prefix (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`). The title should describe the PR's overall goal, not enumerate commits. Omit intermediate steps (reverts, temporary scaffolding, cleanup of earlier commits in the same branch).
-4. **Draft body** using this template:
+2. **If `$SUBMODULE_HAS_CHANGES=true`**, also analyze the submodule diff to include in the PR description:
+   ```bash
+   git -C open_source/reflexio log origin/main..HEAD --oneline
+   git -C open_source/reflexio diff origin/main...HEAD --stat
+   ```
+   Include a summary of submodule changes in the PR body (under Changes section).
+3. **Check PR size** — if >500 lines changed, warn the user but continue.
+4. **Draft title** — under 70 characters, conventional prefix (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`). The title should describe the PR's overall goal, not enumerate commits. Omit intermediate steps (reverts, temporary scaffolding, cleanup of earlier commits in the same branch).
+5. **Draft body** using this template:
 
 ```
 ## Summary
@@ -73,6 +146,9 @@ If the push is rejected (e.g., diverged history after rebase), use `git push --f
 
 ## Diagrams
 <OPTIONAL — include Mermaid diagrams when visual aids clarify workflow or architecture changes>
+
+## Related PRs
+<ONLY if $SUBMODULE_HAS_CHANGES=true — link to the submodule PR>
 
 ## Test Plan
 <How the changes were verified — manual testing steps, automated tests run, curl commands, etc.>
@@ -104,6 +180,8 @@ EOF
 gh pr create --title "the pr title" --base $BASE_BRANCH --body-file /tmp/pr_body.md
 ```
 
+**If `$SUBMODULE_HAS_CHANGES=true`**: include a `## Related PRs` section in the body with a link to `$SUBMODULE_PR_URL`.
+
 **Optional flags:**
 - WIP/draft: add `--draft`
 - Reviewers: add `--reviewer <handle>`
@@ -114,13 +192,34 @@ gh pr create --title "the pr title" --base $BASE_BRANCH --body-file /tmp/pr_body
 - Any `Co-Authored-By` trailer
 - Any "Generated with Claude Code" footer
 
+### Step 7.1: Cross-link Submodule PR (if submodule has changes)
+
+Skip this step if `$SUBMODULE_HAS_CHANGES` is false.
+
+After creating the enterprise PR, update the submodule PR's body to link back:
+
+```bash
+# Get enterprise PR URL
+ENTERPRISE_PR_URL=$(gh pr view --json url --jq '.url')
+# Update submodule PR body to add the link
+cd open_source/reflexio
+EXISTING_BODY=$(gh pr view --json body --jq '.body')
+# Replace placeholder with actual link
+UPDATED_BODY=$(echo "$EXISTING_BODY" | sed "s|Enterprise PR: .*(will be linked after creation).*|Enterprise PR: $ENTERPRISE_PR_URL|")
+cat > /tmp/submodule_pr_body_updated.md <<EOF
+$UPDATED_BODY
+EOF
+gh pr edit --body-file /tmp/submodule_pr_body_updated.md
+cd ../..
+```
+
 ### Step 7.5: Frontend UI Verification (when applicable)
 
-If the PR includes frontend changes (`*.tsx`, `*.jsx` files under `reflexio/website/`), run automated UI verification using agent-browser:
+If the PR includes frontend changes (`*.tsx`, `*.jsx` files under `website/`), run automated UI verification using agent-browser:
 
-1. **Detect frontend changes** — check if any files in the branch diff match `reflexio/website/**/*.{tsx,jsx}`:
+1. **Detect frontend changes** — check if any files in the branch diff match `website/**/*.{tsx,jsx}`:
    ```bash
-   git diff $BASE_BRANCH...HEAD --name-only -- 'reflexio/website/**/*.tsx' 'reflexio/website/**/*.jsx'
+   git diff $BASE_BRANCH...HEAD --name-only -- 'website/**/*.tsx' 'website/**/*.jsx'
    ```
    If no frontend files changed, skip this step.
 
