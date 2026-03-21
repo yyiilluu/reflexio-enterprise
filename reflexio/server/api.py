@@ -1,4 +1,5 @@
 """Shim re-exporting from open_source submodule."""
 
-# ruff: noqa: F401,F403
-from src.server.api import *
+from src.server.api import app  # noqa: F401
+
+__all__ = ["app"]

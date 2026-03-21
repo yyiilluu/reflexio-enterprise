@@ -1,4 +1,5 @@
 """Shim re-exporting from open_source submodule."""
-# ruff: noqa: F401,F403
 
-from src.reflexio_lib._dashboard import *
+from src.reflexio_lib._dashboard import DashboardMixin  # noqa: F401
+
+__all__ = ["DashboardMixin"]
