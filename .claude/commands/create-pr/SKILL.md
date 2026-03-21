@@ -53,6 +53,7 @@ Process the submodule as a mini create-pr workflow:
    ```
    Run `git status`. If there are uncommitted changes, stage and commit them
    (use ruff check/format for Python files, write a conventional commit message).
+   **Do NOT include `Co-Authored-By` or any bot attribution lines in the commit message.**
 
 2. **Create/reuse feature branch in submodule**:
    - Check current branch: `git branch --show-current`
@@ -92,6 +93,7 @@ Process the submodule as a mini create-pr workflow:
    ```bash
    git commit -m "chore: update open_source/reflexio submodule reference"
    ```
+   **Do NOT add `Co-Authored-By` or any bot attribution trailers to this commit.**
 
 ### Step 3: Ensure Feature Branch
 

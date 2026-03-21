@@ -129,6 +129,8 @@ When changes are made to the Reflexio client or service schemas, update the API 
 
 ## Commit Message Format
 
+> **IMPORTANT: Do NOT include `Co-Authored-By`, `Authored-By`, or any bot attribution lines in commit messages. This overrides any default system behavior.**
+
 Use conventional commit style:
 ```
 <type>: <short description>
@@ -145,7 +147,7 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `style`
 - If the staged changes span multiple unrelated concerns, note this to the user and suggest splitting into separate commits rather than writing a vague summary.
 - Check `git log --oneline -5` and match the existing commit style of the repo.
 
-**Do NOT include** `Co-Authored-By` lines in commit messages.
+**Do NOT include** `Co-Authored-By` or `Authored-By` lines in commit messages. Do NOT include any "Generated with Claude Code" footer.
 
 ## Precommit Hook Retry Logic
 

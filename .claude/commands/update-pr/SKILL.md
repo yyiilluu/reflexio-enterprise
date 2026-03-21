@@ -58,7 +58,7 @@ Skip this step if `$SUBMODULE_HAS_CHANGES` is false.
    cd open_source/reflexio
    ```
 
-2. **Commit any uncommitted changes** — run `git status`. If there are uncommitted changes, stage and commit them (use ruff check/format for Python files, write a conventional commit message).
+2. **Commit any uncommitted changes** — run `git status`. If there are uncommitted changes, stage and commit them (use ruff check/format for Python files, write a conventional commit message). **Do NOT include `Co-Authored-By` or any bot attribution lines.**
 
 3. **Ensure feature branch** — check current branch with `git branch --show-current`. If on `main`, create a feature branch matching the enterprise branch name.
 
@@ -97,6 +97,7 @@ Skip this step if `$SUBMODULE_HAS_CHANGES` is false.
     ```bash
     git commit -m "chore: update open_source/reflexio submodule reference"
     ```
+    **Do NOT add `Co-Authored-By` or any bot attribution trailers to this commit.**
 
 ### Step 3: Analyze Changes (New + Full)
 
