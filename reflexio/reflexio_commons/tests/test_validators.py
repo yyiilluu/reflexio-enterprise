@@ -10,7 +10,7 @@ Covers:
 6. Cross-field model validators
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
@@ -571,21 +571,21 @@ class TestTimeRangeValidation:
         """end_time before start_time is rejected."""
         with pytest.raises(ValidationError, match="end_time must be after"):
             RerunProfileGenerationRequest(
-                start_time=datetime(2024, 6, 1, tzinfo=timezone.utc),
-                end_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                start_time=datetime(2024, 6, 1, tzinfo=UTC),
+                end_time=datetime(2024, 1, 1, tzinfo=UTC),
             )
 
     def test_equal_times_rejected(self):
         """Equal start_time and end_time is rejected."""
-        same_time = datetime(2024, 6, 1, tzinfo=timezone.utc)
+        same_time = datetime(2024, 6, 1, tzinfo=UTC)
         with pytest.raises(ValidationError, match="end_time must be after"):
             RerunProfileGenerationRequest(start_time=same_time, end_time=same_time)
 
     def test_valid_time_range_accepted(self):
         """Valid time range (end > start) is accepted."""
         req = RerunProfileGenerationRequest(
-            start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
-            end_time=datetime(2024, 6, 1, tzinfo=timezone.utc),
+            start_time=datetime(2024, 1, 1, tzinfo=UTC),
+            end_time=datetime(2024, 6, 1, tzinfo=UTC),
         )
         assert req.start_time < req.end_time
 
@@ -599,7 +599,7 @@ class TestTimeRangeValidation:
         """Only start_time without end_time is accepted."""
         req = SearchInteractionRequest(
             user_id="test",
-            start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            start_time=datetime(2024, 1, 1, tzinfo=UTC),
         )
         assert req.start_time is not None
         assert req.end_time is None
@@ -609,8 +609,8 @@ class TestTimeRangeValidation:
         with pytest.raises(ValidationError, match="end_time must be after"):
             RerunFeedbackGenerationRequest(
                 agent_version="v1",
-                start_time=datetime(2024, 6, 1, tzinfo=timezone.utc),
-                end_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                start_time=datetime(2024, 6, 1, tzinfo=UTC),
+                end_time=datetime(2024, 1, 1, tzinfo=UTC),
             )
 
     def test_search_interaction_time_range(self):
@@ -618,16 +618,16 @@ class TestTimeRangeValidation:
         with pytest.raises(ValidationError, match="end_time must be after"):
             SearchInteractionRequest(
                 user_id="test",
-                start_time=datetime(2024, 6, 1, tzinfo=timezone.utc),
-                end_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                start_time=datetime(2024, 6, 1, tzinfo=UTC),
+                end_time=datetime(2024, 1, 1, tzinfo=UTC),
             )
 
     def test_get_requests_time_range(self):
         """GetRequestsRequest validates time range."""
         with pytest.raises(ValidationError, match="end_time must be after"):
             GetRequestsRequest(
-                start_time=datetime(2024, 6, 1, tzinfo=timezone.utc),
-                end_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                start_time=datetime(2024, 6, 1, tzinfo=UTC),
+                end_time=datetime(2024, 1, 1, tzinfo=UTC),
             )
 
 
@@ -769,3 +769,258 @@ class TestConversationTurn:
         """Valid ConversationTurn is accepted."""
         turn = ConversationTurn(role="user", content="Hello, how are you?")
         assert turn.role == "user"
+
+
+# =============================================================================
+# SafeHttpUrl — IPv6 and Link-Local IP Tests
+# =============================================================================
+
+
+class TestSSRFIPv6AndLinkLocal:
+    """Tests for SSRF prevention with IPv6 addresses and link-local IPs."""
+
+    def test_always_blocks_aws_metadata_ipv6(self):
+        """IPv6 cloud metadata address fd00:ec2::254 is ALWAYS blocked."""
+        with pytest.raises(ValidationError, match="cloud metadata"):
+            CustomEndpointConfig(
+                model="x",
+                api_key="k",
+                api_base="http://[fd00:ec2::254]/latest",
+            )
+
+    def test_blocks_ipv6_loopback_in_strict_mode(self, strict_mode):
+        """IPv6 loopback ::1 is blocked in strict mode."""
+        with pytest.raises(ValidationError, match="private"):
+            CustomEndpointConfig(
+                model="x",
+                api_key="k",
+                api_base="http://[::1]:8000/v1",
+            )
+
+    def test_allows_ipv6_loopback_by_default(self, non_strict_mode):
+        """IPv6 loopback ::1 is allowed when strict mode is off."""
+        config = CustomEndpointConfig(
+            model="x",
+            api_key="k",
+            api_base="http://[::1]:8000/v1",
+        )
+        assert config.api_base is not None
+
+    def test_blocks_ipv6_link_local_in_strict_mode(self, strict_mode):
+        """IPv6 link-local address (fe80::) is blocked in strict mode."""
+        with pytest.raises(ValidationError, match="private"):
+            CustomEndpointConfig(
+                model="x",
+                api_key="k",
+                api_base="http://[fe80::1]:8080/v1",
+            )
+
+    def test_blocks_ipv4_link_local_in_strict_mode(self, strict_mode):
+        """IPv4 link-local address (169.254.x.x, non-metadata) is blocked in strict mode."""
+        with pytest.raises(ValidationError, match="private"):
+            CustomEndpointConfig(
+                model="x",
+                api_key="k",
+                api_base="http://169.254.1.1:8080/v1",
+            )
+
+    def test_blocks_zero_address_in_strict_mode(self, strict_mode):
+        """0.0.0.0 is blocked in strict mode."""
+        with pytest.raises(ValidationError, match="0.0.0.0"):  # noqa: S104
+            CustomEndpointConfig(
+                model="x",
+                api_key="k",
+                api_base="http://0.0.0.0:8080/v1",  # noqa: S104
+            )
+
+
+# =============================================================================
+# _is_strict_mode Env Var Edge Cases
+# =============================================================================
+
+
+class TestStrictModeEnvVar:
+    """Tests for _is_strict_mode with various env var values."""
+
+    def test_strict_mode_true(self, monkeypatch):
+        """REFLEXIO_BLOCK_PRIVATE_URLS=true enables strict mode."""
+        monkeypatch.setenv("REFLEXIO_BLOCK_PRIVATE_URLS", "true")
+        with pytest.raises(ValidationError):
+            CustomEndpointConfig(
+                model="x", api_key="k", api_base="http://localhost:8080/v1"
+            )
+
+    def test_strict_mode_one(self, monkeypatch):
+        """REFLEXIO_BLOCK_PRIVATE_URLS=1 enables strict mode."""
+        monkeypatch.setenv("REFLEXIO_BLOCK_PRIVATE_URLS", "1")
+        with pytest.raises(ValidationError):
+            CustomEndpointConfig(
+                model="x", api_key="k", api_base="http://localhost:8080/v1"
+            )
+
+    def test_strict_mode_yes(self, monkeypatch):
+        """REFLEXIO_BLOCK_PRIVATE_URLS=yes enables strict mode."""
+        monkeypatch.setenv("REFLEXIO_BLOCK_PRIVATE_URLS", "yes")
+        with pytest.raises(ValidationError):
+            CustomEndpointConfig(
+                model="x", api_key="k", api_base="http://localhost:8080/v1"
+            )
+
+    def test_strict_mode_true_uppercase(self, monkeypatch):
+        """REFLEXIO_BLOCK_PRIVATE_URLS=TRUE (uppercase) enables strict mode."""
+        monkeypatch.setenv("REFLEXIO_BLOCK_PRIVATE_URLS", "TRUE")
+        with pytest.raises(ValidationError):
+            CustomEndpointConfig(
+                model="x", api_key="k", api_base="http://localhost:8080/v1"
+            )
+
+    def test_strict_mode_false_does_not_block(self, monkeypatch):
+        """REFLEXIO_BLOCK_PRIVATE_URLS=false does NOT enable strict mode."""
+        monkeypatch.setenv("REFLEXIO_BLOCK_PRIVATE_URLS", "false")
+        config = CustomEndpointConfig(
+            model="x", api_key="k", api_base="http://localhost:8080/v1"
+        )
+        assert "localhost" in str(config.api_base)
+
+    def test_strict_mode_empty_string_does_not_block(self, monkeypatch):
+        """REFLEXIO_BLOCK_PRIVATE_URLS='' does NOT enable strict mode."""
+        monkeypatch.setenv("REFLEXIO_BLOCK_PRIVATE_URLS", "")
+        config = CustomEndpointConfig(
+            model="x", api_key="k", api_base="http://localhost:8080/v1"
+        )
+        assert "localhost" in str(config.api_base)
+
+    def test_strict_mode_unset_does_not_block(self, monkeypatch):
+        """Unset REFLEXIO_BLOCK_PRIVATE_URLS does NOT enable strict mode."""
+        monkeypatch.delenv("REFLEXIO_BLOCK_PRIVATE_URLS", raising=False)
+        config = CustomEndpointConfig(
+            model="x", api_key="k", api_base="http://localhost:8080/v1"
+        )
+        assert "localhost" in str(config.api_base)
+
+    def test_strict_mode_arbitrary_value_does_not_block(self, monkeypatch):
+        """REFLEXIO_BLOCK_PRIVATE_URLS=foobar does NOT enable strict mode."""
+        monkeypatch.setenv("REFLEXIO_BLOCK_PRIVATE_URLS", "foobar")
+        config = CustomEndpointConfig(
+            model="x", api_key="k", api_base="http://localhost:8080/v1"
+        )
+        assert "localhost" in str(config.api_base)
+
+
+# =============================================================================
+# _strip_control_chars — Specific Control Characters
+# =============================================================================
+
+
+class TestStripControlCharsDetailed:
+    """Tests for _strip_control_chars with specific control characters."""
+
+    def test_strips_null_byte(self):
+        """NULL byte (\\x00) is stripped."""
+        config = ProfileExtractorConfig(
+            extractor_name="test",
+            profile_content_definition_prompt="a\x00b",
+        )
+        assert config.profile_content_definition_prompt == "ab"
+
+    def test_strips_backspace(self):
+        """Backspace (\\x08) is stripped."""
+        config = ProfileExtractorConfig(
+            extractor_name="test",
+            profile_content_definition_prompt="pass\x08word",
+        )
+        assert config.profile_content_definition_prompt == "password"
+
+    def test_strips_vertical_tab(self):
+        """Vertical tab (\\x0b) is stripped."""
+        config = ProfileExtractorConfig(
+            extractor_name="test",
+            profile_content_definition_prompt="line1\x0bline2",
+        )
+        assert config.profile_content_definition_prompt == "line1line2"
+
+    def test_strips_form_feed(self):
+        """Form feed (\\x0c) is stripped."""
+        config = ProfileExtractorConfig(
+            extractor_name="test",
+            profile_content_definition_prompt="page1\x0cpage2",
+        )
+        assert config.profile_content_definition_prompt == "page1page2"
+
+    def test_strips_shift_out(self):
+        """Shift Out (\\x0e) is stripped."""
+        config = ProfileExtractorConfig(
+            extractor_name="test",
+            profile_content_definition_prompt="data\x0emore",
+        )
+        assert config.profile_content_definition_prompt == "datamore"
+
+    def test_strips_delete_character(self):
+        """DEL character (\\x7f) is stripped."""
+        config = ProfileExtractorConfig(
+            extractor_name="test",
+            profile_content_definition_prompt="keep\x7fthis",
+        )
+        assert config.profile_content_definition_prompt == "keepthis"
+
+    def test_preserves_tab(self):
+        """Tab (\\x09) is preserved — it is a legitimate whitespace character."""
+        config = ProfileExtractorConfig(
+            extractor_name="test",
+            profile_content_definition_prompt="col1\tcol2",
+        )
+        assert "\t" in config.profile_content_definition_prompt
+
+    def test_preserves_newline(self):
+        """Newline (\\x0a) is preserved."""
+        config = ProfileExtractorConfig(
+            extractor_name="test",
+            profile_content_definition_prompt="line1\nline2",
+        )
+        assert "\n" in config.profile_content_definition_prompt
+
+    def test_preserves_carriage_return(self):
+        """Carriage return (\\x0d) is preserved."""
+        config = ProfileExtractorConfig(
+            extractor_name="test",
+            profile_content_definition_prompt="line1\r\nline2",
+        )
+        assert "\r" in config.profile_content_definition_prompt
+
+    def test_strips_multiple_control_chars_at_once(self):
+        """Multiple different control characters are all stripped in one pass."""
+        config = ProfileExtractorConfig(
+            extractor_name="test",
+            profile_content_definition_prompt="\x00hello\x07\x08world\x1b\x7f",
+        )
+        assert config.profile_content_definition_prompt == "helloworld"
+
+
+# =============================================================================
+# EmbeddingVector — Boundary Dimension Tests
+# =============================================================================
+
+
+class TestEmbeddingVectorBoundary:
+    """Tests for embedding dimension boundary values (off-by-one)."""
+
+    def test_511_dimensions_rejected(self):
+        """511 dimensions (one less than 512) is rejected."""
+        with pytest.raises(ValidationError, match="512"):
+            Interaction(
+                user_id="test", request_id="req-1", embedding=[0.1] * 511
+            )
+
+    def test_513_dimensions_rejected(self):
+        """513 dimensions (one more than 512) is rejected."""
+        with pytest.raises(ValidationError, match="512"):
+            Interaction(
+                user_id="test", request_id="req-1", embedding=[0.1] * 513
+            )
+
+    def test_single_dimension_rejected(self):
+        """Single-element embedding (length 1) is rejected."""
+        with pytest.raises(ValidationError, match="512"):
+            Interaction(
+                user_id="test", request_id="req-1", embedding=[0.5]
+            )
