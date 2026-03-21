@@ -7,7 +7,7 @@ README.md should be just code maps help LLMs (and developers) quickly understand
 
 **Two-Tier Approach:**
 1. **Main Code Map** (`README.md`) - High-level overview of all components
-2. **Component Code Maps** (e.g., `reflexio/server/README.md`) - Detailed documentation
+2. **Component Code Maps** (e.g., `open_source/reflexio/reflexio/server/README.md`) - Detailed documentation
 
 **Template:**
 ```markdown
@@ -115,13 +115,13 @@ For complex components, create `README.md` in that directory with:
 
 ## Example: Adding New File
 
-**Scenario:** New `evolvement_feedback_extractor.py` added to `reflexio/server/services/feedback/`
+**Scenario:** New `evolvement_feedback_extractor.py` added to `open_source/reflexio/reflexio/server/services/feedback/`
 
 **Steps:**
 1. Check changes: `git status` shows new file in `services/feedback/`
 2. Review changes: `git diff --cached` or `git diff HEAD` to see new code
-3. Identify scope: Component-specific (update `reflexio/server/README.md`)
-4. Read current docs: `cat reflexio/server/README.md | grep -A 20 "Feedback"`
+3. Identify scope: Component-specific (update `open_source/reflexio/reflexio/server/README.md`)
+4. Read current docs: `cat open_source/reflexio/reflexio/server/README.md | grep -A 20 "Feedback"`
 5. Add to Feedback Extraction section with other extractors
 6. Check main map: No update needed (already covered at high level)
 7. Verify: Correct path, follows pattern, no duplication

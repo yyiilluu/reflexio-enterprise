@@ -1,4 +1,4 @@
-# /user_profiler/reflexio/tests/evaluation
+# Evaluation Tests
 Description: Evaluation framework for measuring profiling service quality
 
 ## Purpose

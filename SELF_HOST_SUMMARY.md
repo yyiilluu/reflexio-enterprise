@@ -6,33 +6,33 @@ Successfully implemented self-host mode for the Reflexio application, allowing i
 
 ## Key Changes
 
-### 1. Database (reflexio/server/db/database.py)
+### 1. Database (open_source/reflexio/reflexio/server/db/database.py)
 - ✅ Detects `SELF_HOST=true` environment variable
 - ✅ Skips database initialization completely
 - ✅ Uses in-memory SQLite as fallback (never actually used)
 
-### 2. Authentication (reflexio/server/api.py)
+### 2. Authentication (reflexio_ext/server/api.py)
 - ✅ All API endpoints skip authentication when `SELF_HOST=true`
 - ✅ Uses default org ID: `self-host-org`
 - ✅ No Bearer token required
 
-### 3. Storage Path Fix (reflexio/server/services/configurator/local_json_config_storage.py)
+### 3. Storage Path Fix (open_source/reflexio/reflexio/server/services/configurator/local_json_config_storage.py)
 - ✅ **Critical fix**: Ensures all paths are absolute
 - ✅ Prevents `StorageError: non absolute path` error
 - ✅ Converts relative paths using `os.path.abspath()`
 
 ### 4. Local Storage
-- ✅ All data stored in: `/Users/yilu/repos/user_profiler/reflexio/data/`
-- ✅ Config stored in: `reflexio/data/configs/`
+- ✅ All data stored in: `open_source/reflexio/reflexio/data/`
+- ✅ Config stored in: `open_source/reflexio/reflexio/data/configs/`
 - ✅ No S3, Supabase, or PostgreSQL required
 
 ## Files Modified
 
-1. `reflexio/server/db/database.py` - Skip DB in self-host mode
-2. `reflexio/server/api.py` - Skip auth in self-host mode
-3. `reflexio/server/api_endpoints/publisher_api.py` - Use local storage
-4. `reflexio/server/api_endpoints/retriever_api.py` - Use local storage
-5. `reflexio/server/services/configurator/local_json_config_storage.py` - Fix absolute paths
+1. `open_source/reflexio/reflexio/server/db/database.py` - Skip DB in self-host mode
+2. `reflexio_ext/server/api.py` - Skip auth in self-host mode
+3. `open_source/reflexio/reflexio/server/api_endpoints/publisher_api.py` - Use local storage
+4. `open_source/reflexio/reflexio/server/api_endpoints/retriever_api.py` - Use local storage
+5. `open_source/reflexio/reflexio/server/services/configurator/local_json_config_storage.py` - Fix absolute paths
 
 ## How to Use
 
@@ -72,7 +72,7 @@ Expected response:
 ### Check Stored Data
 ```bash
 # Data is stored here:
-ls -la reflexio/data/
+ls -la open_source/reflexio/reflexio/data/
 ```
 
 ## Toggle Self-Host Mode
@@ -96,7 +96,7 @@ Then restart server.
 ✅ **No Database Required** - Perfect for development and single-user deployments
 ✅ **No Authentication** - Quick testing without tokens
 ✅ **Local Storage** - All data in one directory
-✅ **Easy Backup** - Just copy `reflexio/data/` folder
+✅ **Easy Backup** - Just copy `open_source/reflexio/reflexio/data/` folder
 ✅ **Privacy** - Data stays on your machine
 
 ## What's Working
