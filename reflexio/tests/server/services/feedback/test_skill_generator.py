@@ -28,7 +28,6 @@ from reflexio.server.services.feedback.skill_generator import (
     SkillGenerator,
     render_skills_markdown,
 )
-from reflexio.tests.server.test_utils import skip_low_priority
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -160,7 +159,6 @@ class TestSkillGeneratorConfig:
         config = skill_generator._get_skill_generator_config("nonexistent")
         assert config is None
 
-    @skip_low_priority
     def test_get_skill_generator_config_no_configs(self, skill_generator):
         """Test when no agent_feedback_configs exist."""
         mock_config = MagicMock()
@@ -169,14 +167,12 @@ class TestSkillGeneratorConfig:
         config = skill_generator._get_skill_generator_config("test_feedback")
         assert config is None
 
-    @skip_low_priority
     def test_get_feedback_aggregator_config(self, skill_generator):
         """Test feedback aggregator config lookup."""
         config = skill_generator._get_feedback_aggregator_config("test_feedback")
         assert config is not None
         assert config.min_feedback_threshold == 2
 
-    @skip_low_priority
     def test_get_feedback_aggregator_config_not_found(self, skill_generator):
         """Test feedback aggregator config for non-matching name."""
         config = skill_generator._get_feedback_aggregator_config("nonexistent")
@@ -194,7 +190,6 @@ class TestShouldRunGeneration:
             is True
         )
 
-    @skip_low_priority
     def test_disabled_config_returns_false(self, skill_generator):
         """Test that disabled config skips generation."""
         config = SkillGeneratorConfig(enabled=False)
@@ -235,7 +230,6 @@ class TestShouldRunGeneration:
             is True
         )
 
-    @skip_low_priority
     def test_no_previous_run(self, skill_generator):
         """Test that generation runs when there's no previous run."""
         config = SkillGeneratorConfig(enabled=True, cooldown_hours=24)
@@ -287,7 +281,6 @@ class TestFormatClusterForPrompt:
         assert "BLOCKED BY issues:" in result
         assert "[permission_denied] No admin access" in result
 
-    @skip_low_priority
     def test_formats_partial_feedback(self, skill_generator):
         """Test formatting when some fields are missing."""
         feedbacks = [
@@ -308,13 +301,11 @@ class TestFormatClusterForPrompt:
         assert "DON'T" not in result
         assert "BLOCKED BY" not in result
 
-    @skip_low_priority
     def test_formats_empty_feedbacks(self, skill_generator):
         """Test formatting with empty feedback list."""
         result = skill_generator._format_cluster_for_prompt([])
         assert result == ""
 
-    @skip_low_priority
     def test_aggregates_multiple_feedbacks(self, skill_generator):
         """Test that multiple feedbacks are aggregated together."""
         feedbacks = [
@@ -344,7 +335,6 @@ class TestFormatClusterForPrompt:
         assert "action B" in result
 
 
-@skip_low_priority
 class TestGetToolCanUseStr:
     """Tests for _get_tool_can_use_str."""
 
@@ -367,7 +357,6 @@ class TestGetToolCanUseStr:
 # ---------------------------------------------------------------------------
 
 
-@skip_low_priority
 class TestCollectInteractionContext:
     """Tests for _collect_interaction_context."""
 
@@ -456,7 +445,6 @@ class TestGenerateNewSkill:
         assert skill.skill_status == SkillStatus.DRAFT
         assert skill.raw_feedback_ids == [0, 1, 2, 3, 4]
 
-    @skip_low_priority
     def test_returns_none_when_llm_returns_none(
         self, skill_generator, sample_raw_feedbacks
     ):
@@ -472,7 +460,6 @@ class TestGenerateNewSkill:
 
         assert skill is None
 
-    @skip_low_priority
     def test_returns_none_on_exception(self, skill_generator, sample_raw_feedbacks):
         """Test that None is returned on LLM exception."""
         skill_generator.client.generate_chat_response.side_effect = Exception(
@@ -488,7 +475,6 @@ class TestGenerateNewSkill:
 
         assert skill is None
 
-    @skip_low_priority
     def test_uses_correct_prompt(
         self, skill_generator, sample_raw_feedbacks, mock_skill_generation_output
     ):
@@ -540,7 +526,6 @@ class TestUpdateExistingSkill:
         assert updated.feedback_name == "test_feedback"
         assert updated.skill_status == SkillStatus.DRAFT
 
-    @skip_low_priority
     def test_merges_raw_feedback_ids(
         self,
         skill_generator,
@@ -565,7 +550,6 @@ class TestUpdateExistingSkill:
         merged = set(updated.raw_feedback_ids)
         assert {0, 1, 2, 3, 4}.issubset(merged)
 
-    @skip_low_priority
     def test_version_bump_incremental(
         self,
         skill_generator,
@@ -588,7 +572,6 @@ class TestUpdateExistingSkill:
 
         assert updated.version == "1.6.0"
 
-    @skip_low_priority
     def test_returns_none_on_exception(
         self, skill_generator, sample_skill, sample_raw_feedbacks
     ):
@@ -627,7 +610,6 @@ class TestSkillGeneratorRun:
         assert result["skills_generated"] == 0
         assert result["skills_updated"] == 0
 
-    @skip_low_priority
     def test_returns_zero_when_cooldown_not_elapsed(self, skill_generator):
         """Test that run returns zeros when cooldown hasn't elapsed."""
         mock_mgr = MagicMock()
@@ -644,7 +626,6 @@ class TestSkillGeneratorRun:
         assert result["skills_generated"] == 0
         assert result["skills_updated"] == 0
 
-    @skip_low_priority
     def test_skips_clusters_below_min_size(
         self, skill_generator, mock_skill_generation_output
     ):
@@ -746,7 +727,6 @@ class TestSkillGeneratorRun:
             assert result["skills_updated"] == 1
             skill_generator.storage.save_skills.assert_called_once()
 
-    @skip_low_priority
     def test_updates_operation_state_after_run(
         self, skill_generator, sample_raw_feedbacks, mock_skill_generation_output
     ):
@@ -777,7 +757,6 @@ class TestSkillGeneratorRun:
 
             mock_mgr.update_aggregator_bookmark.assert_called_once()
 
-    @skip_low_priority
     def test_search_skills_failure_falls_back_to_new_generation(
         self,
         skill_generator,
@@ -818,7 +797,6 @@ class TestSkillGeneratorRun:
 # ---------------------------------------------------------------------------
 
 
-@skip_low_priority
 class TestRenderSkillsMarkdown:
     """Tests for render_skills_markdown."""
 
@@ -878,7 +856,6 @@ class TestRenderSkillsMarkdown:
 # ---------------------------------------------------------------------------
 
 
-@skip_low_priority
 class TestOperationStateManager:
     """Tests for OperationStateManager creation."""
 
@@ -887,3 +864,147 @@ class TestOperationStateManager:
         mgr = skill_generator._create_state_manager()
         assert mgr.service_name == "skill_generator"
         assert mgr.org_id == "test_org"
+
+
+# ---------------------------------------------------------------------------
+# Tests: Config None Fallback & Non-standard Version
+# ---------------------------------------------------------------------------
+
+
+class TestSkillConfigNoneFallback:
+    """Tests for skill_config is None fallback in run()."""
+
+    def test_run_uses_default_config_when_skill_config_is_none(self, skill_generator):
+        """Test that run() creates a default SkillGeneratorConfig when config is None."""
+        # Override configurator to return no agent_feedback_configs
+        mock_config = MagicMock()
+        mock_config.agent_feedback_configs = None
+        mock_config.tool_can_use = None
+        skill_generator.configurator.get_config.return_value = mock_config
+        skill_generator.storage.get_raw_feedbacks.return_value = []
+
+        request = SkillGeneratorRequest(
+            agent_version="1.0.0",
+            feedback_name="unknown_feedback",
+            rerun=True,
+        )
+        result = skill_generator.run(request)
+
+        # Should still return a valid result (zero counts since no feedbacks)
+        assert result["skills_generated"] == 0
+        assert result["skills_updated"] == 0
+
+    def test_run_default_config_values_are_applied(
+        self, skill_generator, sample_raw_feedbacks, mock_skill_generation_output
+    ):
+        """Test that the default SkillGeneratorConfig values are used when config lookup returns None."""
+        # Override configurator so _get_skill_generator_config returns None
+        mock_config = MagicMock()
+        mock_config.agent_feedback_configs = None
+        mock_config.tool_can_use = None
+        skill_generator.configurator.get_config.return_value = mock_config
+        skill_generator.storage.get_raw_feedbacks.return_value = sample_raw_feedbacks
+        skill_generator.storage.get_skills.return_value = []
+        skill_generator.storage.get_interactions_by_request_ids.return_value = []
+        skill_generator.client.generate_chat_response.return_value = (
+            mock_skill_generation_output
+        )
+
+        default_config = SkillGeneratorConfig()
+
+        with patch(
+            "reflexio.server.services.feedback.skill_generator.FeedbackAggregator"
+        ) as MockAgg:  # noqa: N806
+            mock_agg_instance = MagicMock()
+            # Cluster size exceeds default min_feedback_per_cluster
+            mock_agg_instance.get_clusters.return_value = {0: sample_raw_feedbacks}
+            MockAgg.return_value = mock_agg_instance
+
+            request = SkillGeneratorRequest(
+                agent_version="1.0.0",
+                feedback_name="unknown_feedback",
+                rerun=True,
+            )
+            skill_generator.run(request)
+
+            # Verify FeedbackAggregator was called with a default aggregator config
+            # whose min_feedback_threshold matches default min_feedback_per_cluster
+            agg_call_args = mock_agg_instance.get_clusters.call_args
+            aggregator_config_arg = agg_call_args[0][1]
+            assert (
+                aggregator_config_arg.min_feedback_threshold
+                == default_config.min_feedback_per_cluster
+            )
+
+
+class TestVersionNonStandardFormat:
+    """Tests for _update_existing_skill with non-standard version strings."""
+
+    def test_non_standard_version_kept_unchanged(
+        self,
+        skill_generator,
+        sample_skill,
+        sample_raw_feedbacks,
+        mock_skill_generation_output,
+    ):
+        """Test that a version with != 3 parts is kept unchanged."""
+        skill_generator.client.generate_chat_response.return_value = (
+            mock_skill_generation_output
+        )
+        sample_skill.version = "2.0"
+
+        updated = skill_generator._update_existing_skill(
+            sample_skill,
+            sample_raw_feedbacks,
+            "ctx",
+            "tools",
+        )
+
+        assert updated is not None
+        assert updated.version == "2.0"
+
+    def test_single_part_version_kept_unchanged(
+        self,
+        skill_generator,
+        sample_skill,
+        sample_raw_feedbacks,
+        mock_skill_generation_output,
+    ):
+        """Test that a single-part version string is kept unchanged."""
+        skill_generator.client.generate_chat_response.return_value = (
+            mock_skill_generation_output
+        )
+        sample_skill.version = "5"
+
+        updated = skill_generator._update_existing_skill(
+            sample_skill,
+            sample_raw_feedbacks,
+            "ctx",
+            "tools",
+        )
+
+        assert updated is not None
+        assert updated.version == "5"
+
+    def test_four_part_version_kept_unchanged(
+        self,
+        skill_generator,
+        sample_skill,
+        sample_raw_feedbacks,
+        mock_skill_generation_output,
+    ):
+        """Test that a four-part version string is kept unchanged."""
+        skill_generator.client.generate_chat_response.return_value = (
+            mock_skill_generation_output
+        )
+        sample_skill.version = "1.2.3.4"
+
+        updated = skill_generator._update_existing_skill(
+            sample_skill,
+            sample_raw_feedbacks,
+            "ctx",
+            "tools",
+        )
+
+        assert updated is not None
+        assert updated.version == "1.2.3.4"

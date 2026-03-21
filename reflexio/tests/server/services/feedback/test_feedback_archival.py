@@ -28,7 +28,7 @@ from reflexio.server.services.feedback.feedback_service_utils import (
     FeedbackAggregatorRequest,
 )
 from reflexio.server.services.storage.supabase_storage import SupabaseStorage
-from reflexio.tests.server.test_utils import skip_in_precommit, skip_low_priority
+from reflexio.tests.server.test_utils import skip_in_precommit
 
 
 @pytest.fixture
@@ -143,7 +143,6 @@ def test_archive_feedbacks_by_feedback_name(supabase_storage, cleanup_after_test
 
 
 @skip_in_precommit
-@skip_low_priority
 def test_restore_archived_feedbacks(supabase_storage, cleanup_after_test):
     """Test restoring archived feedbacks."""
     # Create and save test feedbacks
@@ -180,7 +179,6 @@ def test_restore_archived_feedbacks(supabase_storage, cleanup_after_test):
 
 
 @skip_in_precommit
-@skip_low_priority
 def test_delete_archived_feedbacks(supabase_storage, cleanup_after_test):
     """Test permanently deleting archived feedbacks."""
     # Create and save test feedbacks
@@ -343,7 +341,6 @@ def test_aggregator_archives_then_deletes_on_success(
 
 
 @skip_in_precommit
-@skip_low_priority
 def test_aggregator_restores_on_error(supabase_storage, cleanup_after_test, llm_client):
     """Test that aggregator restores archived feedbacks when an error occurs."""
     org_id = "test_org"

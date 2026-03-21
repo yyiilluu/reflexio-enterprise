@@ -16,6 +16,7 @@ from reflexio_commons.api_schema.retriever_schema import (
 from reflexio_commons.api_schema.service_schemas import (
     AddRawFeedbackRequest,
     DeleteRawFeedbackRequest,
+    DeleteRawFeedbacksByIdsRequest,
     DowngradeRawFeedbacksResponse,
     RawFeedback,
     UpgradeRawFeedbacksResponse,
@@ -317,9 +318,7 @@ class TestUpgradeDowngradeRawFeedbacks:
         ) as mock_svc_cls:
             mock_svc_cls.return_value.run_upgrade.return_value = mock_response
 
-            response = mixin.upgrade_all_raw_feedbacks(
-                {"feedback_name": "my_feedback"}
-            )
+            response = mixin.upgrade_all_raw_feedbacks({"feedback_name": "my_feedback"})
 
         assert response.success is True
 
@@ -339,3 +338,192 @@ class TestUpgradeDowngradeRawFeedbacks:
             )
 
         assert response.success is True
+
+    def test_upgrade_with_none_input(self):
+        """Upgrade with None converts to default request (line 217->221)."""
+        mixin = _make_mixin()
+
+        mock_response = UpgradeRawFeedbacksResponse(success=True)
+
+        with patch(
+            "reflexio.reflexio_lib._raw_feedback.FeedbackGenerationService"
+        ) as mock_svc_cls:
+            mock_svc_cls.return_value.run_upgrade.return_value = mock_response
+
+            response = mixin.upgrade_all_raw_feedbacks(None)
+
+        assert response.success is True
+        mock_svc_cls.return_value.run_upgrade.assert_called_once()
+
+    def test_downgrade_with_none_input(self):
+        """Downgrade with None converts to default request (line 255->259)."""
+        mixin = _make_mixin()
+
+        mock_response = DowngradeRawFeedbacksResponse(success=True)
+
+        with patch(
+            "reflexio.reflexio_lib._raw_feedback.FeedbackGenerationService"
+        ) as mock_svc_cls:
+            mock_svc_cls.return_value.run_downgrade.return_value = mock_response
+
+            response = mixin.downgrade_all_raw_feedbacks(None)
+
+        assert response.success is True
+        mock_svc_cls.return_value.run_downgrade.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# get_raw_feedbacks - dict input and error paths (lines 51, 60-61)
+# ---------------------------------------------------------------------------
+
+
+class TestGetRawFeedbacksDictAndError:
+    def test_dict_input(self):
+        """Accepts dict input and auto-converts (line 51)."""
+        mixin = _make_mixin()
+        _get_storage(mixin).get_raw_feedbacks.return_value = []
+
+        response = mixin.get_raw_feedbacks({"limit": 5, "feedback_name": "my_fb"})
+
+        assert response.success is True
+        _get_storage(mixin).get_raw_feedbacks.assert_called_once()
+
+    def test_storage_exception(self):
+        """Returns failure on storage exception (lines 60-61)."""
+        mixin = _make_mixin()
+        _get_storage(mixin).get_raw_feedbacks.side_effect = RuntimeError("db error")
+
+        request = GetRawFeedbacksRequest(limit=10)
+        response = mixin.get_raw_feedbacks(request)
+
+        assert response.success is False
+        assert "db error" in (response.msg or "")
+
+
+# ---------------------------------------------------------------------------
+# add_raw_feedback - dict input and error path (lines 80, 118-119)
+# ---------------------------------------------------------------------------
+
+
+class TestAddRawFeedbackDictAndError:
+    def test_dict_input(self):
+        """Accepts dict input and auto-converts (line 80)."""
+        mixin = _make_mixin()
+        rf = _sample_raw_feedback()
+
+        response = mixin.add_raw_feedback({"raw_feedbacks": [rf.model_dump()]})
+
+        assert response.success is True
+
+    def test_storage_exception(self):
+        """Returns failure on storage exception (lines 118-119)."""
+        mixin = _make_mixin()
+        _get_storage(mixin).save_raw_feedbacks.side_effect = RuntimeError("save error")
+
+        rf = _sample_raw_feedback()
+        request = AddRawFeedbackRequest(raw_feedbacks=[rf])
+
+        response = mixin.add_raw_feedback(request)
+
+        assert response.success is False
+        assert "save error" in (response.message or "")
+
+
+# ---------------------------------------------------------------------------
+# search_raw_feedbacks - dict input and error path (lines 138, 148-149)
+# ---------------------------------------------------------------------------
+
+
+class TestSearchRawFeedbacksDictAndError:
+    def test_dict_input(self):
+        """Accepts dict input and auto-converts (line 138)."""
+        mixin = _make_mixin()
+        _get_storage(mixin).search_raw_feedbacks.return_value = []
+
+        response = mixin.search_raw_feedbacks({"query": "test"})
+
+        assert response.success is True
+
+    def test_storage_exception(self):
+        """Returns failure on storage exception (lines 148-149)."""
+        mixin = _make_mixin()
+        _get_storage(mixin).search_raw_feedbacks.side_effect = RuntimeError(
+            "search error"
+        )
+
+        request = SearchRawFeedbackRequest(query="test")
+        response = mixin.search_raw_feedbacks(request)
+
+        assert response.success is False
+        assert "search error" in (response.msg or "")
+
+    def test_query_rewrite_applied(self):
+        """Query rewrite modifies the request when enabled (line 145)."""
+        mixin = _make_mixin()
+        _get_storage(mixin).search_raw_feedbacks.return_value = []
+
+        # Mock the _rewrite_query to return a rewritten query
+        mixin._rewrite_query = MagicMock(return_value="rewritten query")
+
+        request = SearchRawFeedbackRequest(query="original", query_rewrite=True)
+        response = mixin.search_raw_feedbacks(request)
+
+        assert response.success is True
+        # Verify the rewritten query was passed to storage
+        call_arg = _get_storage(mixin).search_raw_feedbacks.call_args[0][0]
+        assert call_arg.query == "rewritten query"
+
+
+# ---------------------------------------------------------------------------
+# delete_raw_feedback - dict input (line 167)
+# ---------------------------------------------------------------------------
+
+
+class TestDeleteRawFeedbackDict:
+    def test_dict_input(self):
+        """Accepts dict input and auto-converts (line 167)."""
+        mixin = _make_mixin()
+
+        response = mixin.delete_raw_feedback({"raw_feedback_id": 99})
+
+        assert response.success is True
+        _get_storage(mixin).delete_raw_feedback.assert_called_once_with(99)
+
+
+# ---------------------------------------------------------------------------
+# delete_raw_feedbacks_by_ids_bulk - dict input and storage_not_configured (lines 184-189)
+# ---------------------------------------------------------------------------
+
+
+class TestDeleteRawFeedbacksByIdsBulk:
+    def test_deletes_by_ids(self):
+        """Deletes raw feedbacks by IDs and returns count."""
+        mixin = _make_mixin()
+        _get_storage(mixin).delete_raw_feedbacks_by_ids.return_value = 3
+
+        request = DeleteRawFeedbacksByIdsRequest(raw_feedback_ids=[1, 2, 3])
+        response = mixin.delete_raw_feedbacks_by_ids_bulk(request)
+
+        assert response.success is True
+        assert response.deleted_count == 3
+
+    def test_dict_input(self):
+        """Accepts dict input and auto-converts (line 184)."""
+        mixin = _make_mixin()
+        _get_storage(mixin).delete_raw_feedbacks_by_ids.return_value = 2
+
+        response = mixin.delete_raw_feedbacks_by_ids_bulk(
+            {"raw_feedback_ids": [10, 20]}
+        )
+
+        assert response.success is True
+        assert response.deleted_count == 2
+
+    def test_storage_not_configured(self):
+        """Fails when storage is not configured."""
+        mixin = _make_mixin(storage_configured=False)
+
+        request = DeleteRawFeedbacksByIdsRequest(raw_feedback_ids=[1])
+        response = mixin.delete_raw_feedbacks_by_ids_bulk(request)
+
+        assert response.success is False

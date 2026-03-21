@@ -18,6 +18,7 @@ from reflexio_commons.api_schema.service_schemas import (
 )
 
 from reflexio.server.services.extractor_interaction_utils import (
+    filter_interactions_by_source,
     get_effective_source_filter,
     get_extractor_window_params,
     iter_sliding_windows,
@@ -494,3 +495,71 @@ class TestIterSlidingWindows:
 
         indices = [w[0] for w in windows]
         assert indices == list(range(5))
+
+    def test_negative_stride_defaults_to_window_size(self):
+        """Test that negative stride defaults to window_size."""
+        models = [
+            _create_mock_request_interaction_model(10),
+            _create_mock_request_interaction_model(10),
+        ]
+        # stride=-1 should default to window_size=10
+        windows = list(iter_sliding_windows(models, window_size=10, stride_size=-1))
+
+        assert len(windows) == 2
+
+
+# ===============================
+# Test: filter_interactions_by_source
+# ===============================
+
+
+class TestFilterInteractionsBySource:
+    """Tests for filter_interactions_by_source."""
+
+    def test_none_filter_returns_all(self):
+        """When source_filter is None, all models should be returned."""
+        models = [
+            _create_mock_request_interaction_model(3, source="api"),
+            _create_mock_request_interaction_model(3, source="web"),
+        ]
+        result = filter_interactions_by_source(models, source_filter=None)
+        assert result == models
+
+    def test_string_filter_returns_matching_source(self):
+        """When source_filter is a string, only matching source models should be returned."""
+        models = [
+            _create_mock_request_interaction_model(3, source="api"),
+            _create_mock_request_interaction_model(3, source="web"),
+            _create_mock_request_interaction_model(3, source="api"),
+        ]
+        result = filter_interactions_by_source(models, source_filter="api")
+        assert len(result) == 2
+        assert all(m.request.source == "api" for m in result)
+
+    def test_list_filter_returns_matching_sources(self):
+        """When source_filter is a list, models matching any source should be returned."""
+        models = [
+            _create_mock_request_interaction_model(3, source="api"),
+            _create_mock_request_interaction_model(3, source="web"),
+            _create_mock_request_interaction_model(3, source="mobile"),
+        ]
+        result = filter_interactions_by_source(models, source_filter=["api", "mobile"])
+        assert len(result) == 2
+        sources = {m.request.source for m in result}
+        assert sources == {"api", "mobile"}
+
+    def test_string_filter_no_match_returns_empty(self):
+        """When source_filter string matches nothing, empty list should be returned."""
+        models = [
+            _create_mock_request_interaction_model(3, source="api"),
+        ]
+        result = filter_interactions_by_source(models, source_filter="web")
+        assert result == []
+
+    def test_list_filter_no_match_returns_empty(self):
+        """When source_filter list matches nothing, empty list should be returned."""
+        models = [
+            _create_mock_request_interaction_model(3, source="api"),
+        ]
+        result = filter_interactions_by_source(models, source_filter=["web", "mobile"])
+        assert result == []

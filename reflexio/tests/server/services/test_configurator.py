@@ -159,9 +159,7 @@ class TestDeleteAllConfigs:
 
     def test_resets_all_to_defaults(self, configurator):
         """Test that delete_all_configs resets everything to defaults."""
-        configurator.set_config_by_name(
-            "agent_context_prompt", "custom"
-        )
+        configurator.set_config_by_name("agent_context_prompt", "custom")
         configurator.set_config_by_name(
             "profile_extractor_configs",
             [
@@ -195,7 +193,9 @@ class TestStorageConfigHashing:
         """Test that identical configs produce the same hash."""
         c1 = SimpleConfigurator(org_id=test_org_id, base_dir=temp_dir)
         c2 = SimpleConfigurator(org_id=test_org_id, base_dir=temp_dir)
-        assert c1.get_storage_configuration_hash() == c2.get_storage_configuration_hash()
+        assert (
+            c1.get_storage_configuration_hash() == c2.get_storage_configuration_hash()
+        )
 
     def test_different_config_different_hash(self, temp_dir, test_org_id):
         """Test that different configs produce different hashes."""
@@ -242,9 +242,7 @@ class TestStorageConfigReadiness:
 
     def test_is_storage_configured_with_failed_test(self, configurator):
         """Test that is_storage_configured returns False when test status is FAILED."""
-        configurator.set_config_by_name(
-            "storage_config_test", StorageConfigTest.FAILED
-        )
+        configurator.set_config_by_name("storage_config_test", StorageConfigTest.FAILED)
         assert configurator.is_storage_configured() is False
 
     def test_is_storage_configured_with_succeeded_test(self, configurator):
@@ -286,6 +284,203 @@ class TestCreateStorage:
         )
         storage = configurator.create_storage(supabase_config)
         assert isinstance(storage, SupabaseStorage)
+
+
+# ===============================
+# Tests for is_s3_config_storage_ready
+# ===============================
+
+
+class TestIsS3ConfigStorageReady:
+    """Tests for the module-level is_s3_config_storage_ready function."""
+
+    def test_all_vars_set_returns_true(self):
+        """Test returns True when all S3 env vars are set."""
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr("reflexio.server.CONFIG_S3_PATH", "s3://bucket/path")
+            mp.setattr("reflexio.server.CONFIG_S3_REGION", "us-east-1")
+            mp.setattr("reflexio.server.CONFIG_S3_ACCESS_KEY", "AKIAEXAMPLE")
+            mp.setattr("reflexio.server.CONFIG_S3_SECRET_KEY", "secret123")
+            # The function reads from reflexio.server.services.configurator.configurator
+            # which imports these at top level, so we patch the references there too
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.CONFIG_S3_PATH",
+                "s3://bucket/path",
+            )
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.CONFIG_S3_REGION",
+                "us-east-1",
+            )
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.CONFIG_S3_ACCESS_KEY",
+                "AKIAEXAMPLE",
+            )
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.CONFIG_S3_SECRET_KEY",
+                "secret123",
+            )
+            from reflexio.server.services.configurator.configurator import (
+                is_s3_config_storage_ready,
+            )
+
+            assert is_s3_config_storage_ready() is True
+
+    def test_partial_vars_returns_false(self):
+        """Test returns False when only some S3 env vars are set."""
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.CONFIG_S3_PATH",
+                "s3://bucket/path",
+            )
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.CONFIG_S3_REGION",
+                "us-east-1",
+            )
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.CONFIG_S3_ACCESS_KEY",
+                "",
+            )
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.CONFIG_S3_SECRET_KEY",
+                "",
+            )
+            from reflexio.server.services.configurator.configurator import (
+                is_s3_config_storage_ready,
+            )
+
+            assert is_s3_config_storage_ready() is False
+
+    def test_no_vars_set_returns_false(self):
+        """Test returns False when no S3 env vars are set."""
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.CONFIG_S3_PATH", ""
+            )
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.CONFIG_S3_REGION",
+                "",
+            )
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.CONFIG_S3_ACCESS_KEY",
+                "",
+            )
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.CONFIG_S3_SECRET_KEY",
+                "",
+            )
+            from reflexio.server.services.configurator.configurator import (
+                is_s3_config_storage_ready,
+            )
+
+            assert is_s3_config_storage_ready() is False
+
+
+# ===============================
+# Tests for SELF_HOST_MODE with missing S3 vars
+# ===============================
+
+
+class TestSelfHostMode:
+    """Tests for SimpleConfigurator init behavior in SELF_HOST_MODE."""
+
+    def test_self_host_mode_missing_s3_raises_value_error(self):
+        """Test that SELF_HOST_MODE=True with no S3 vars raises ValueError."""
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.SELF_HOST_MODE",
+                True,
+            )
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.CONFIG_S3_PATH", ""
+            )
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.CONFIG_S3_REGION",
+                "",
+            )
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.CONFIG_S3_ACCESS_KEY",
+                "",
+            )
+            mp.setattr(
+                "reflexio.server.services.configurator.configurator.CONFIG_S3_SECRET_KEY",
+                "",
+            )
+            with pytest.raises(ValueError, match="SELF_HOST=true requires S3"):
+                SimpleConfigurator(org_id="test_org")
+
+
+# ===============================
+# Tests for test_and_init_storage_config
+# ===============================
+
+
+class TestTestAndInitStorageConfig:
+    """Tests for test_and_init_storage_config method."""
+
+    def test_ready_config_migration_success(self, configurator, temp_dir):
+        """Test successful storage init when config is ready and migration succeeds."""
+        from unittest.mock import MagicMock
+
+        local_config = StorageConfigLocal(dir_path=temp_dir)
+        mock_storage = MagicMock()
+        # Patch create_storage to return our mock
+        configurator.create_storage = MagicMock(return_value=mock_storage)
+
+        success, msg = configurator.test_and_init_storage_config(local_config)
+
+        assert success is True
+        assert msg == "Storage initialized successfully"
+        mock_storage.migrate.assert_called_once()
+
+    def test_unready_config_returns_false(self, configurator):
+        """Test that an unready config returns failure without attempting creation."""
+
+        # None config is not ready to test
+        success, msg = configurator.test_and_init_storage_config(None)
+        assert success is False
+        assert msg == "Storage configuration is not ready to test"
+
+    def test_storage_error_returns_error_message(self, configurator, temp_dir):
+        """Test that StorageError during init returns the error message."""
+        from unittest.mock import MagicMock
+
+        from reflexio.server.services.storage.error import StorageError
+
+        local_config = StorageConfigLocal(dir_path=temp_dir)
+        configurator.create_storage = MagicMock(
+            side_effect=StorageError("Connection refused")
+        )
+
+        success, msg = configurator.test_and_init_storage_config(local_config)
+
+        assert success is False
+        assert msg == "Connection refused"
+
+    def test_generic_exception_returns_str(self, configurator, temp_dir):
+        """Test that a generic Exception during init returns its string."""
+        from unittest.mock import MagicMock
+
+        local_config = StorageConfigLocal(dir_path=temp_dir)
+        configurator.create_storage = MagicMock(
+            side_effect=RuntimeError("Unexpected failure")
+        )
+
+        success, msg = configurator.test_and_init_storage_config(local_config)
+
+        assert success is False
+        assert msg == "Unexpected failure"
+
+    def test_create_storage_returns_none(self, configurator, temp_dir):
+        """Test that when create_storage returns None, we get failure."""
+        from unittest.mock import MagicMock
+
+        local_config = StorageConfigLocal(dir_path=temp_dir)
+        configurator.create_storage = MagicMock(return_value=None)
+
+        success, msg = configurator.test_and_init_storage_config(local_config)
+
+        assert success is False
+        assert msg == "Failed to create storage"
 
 
 if __name__ == "__main__":

@@ -373,3 +373,183 @@ class TestBuildDeduplicatedResults:
 
         # Index 0 via unique_ids + index 1 and 2 via safety fallback
         assert len(result) == 3
+
+
+# ===============================
+# Tests for deduplicate happy path and advanced scenarios
+# ===============================
+
+
+class TestDeduplicateHappyPath:
+    """Tests for the full deduplicate() flow with LLM mocks returning FeedbackDeduplicationOutput."""
+
+    def test_happy_path_with_duplicates(self, mock_deduplicator):
+        """Full happy path: LLM returns a merge group and unique feedbacks."""
+        fb0 = _make_raw_feedback(0, content="do X when Y", source_interaction_ids=[10])
+        fb1 = _make_raw_feedback(
+            1, content="do X when Y again", source_interaction_ids=[20]
+        )
+        fb2 = _make_raw_feedback(2, content="do Z when W", source_interaction_ids=[30])
+
+        # No existing feedbacks found via search
+        mock_deduplicator.client.get_embeddings.return_value = [
+            [0.1],
+            [0.2],
+            [0.3],
+        ]
+        mock_deduplicator.request_context.storage.search_raw_feedbacks.return_value = []
+
+        # LLM merges fb0 and fb1, keeps fb2 as unique
+        mock_deduplicator.client.generate_chat_response.return_value = (
+            FeedbackDeduplicationOutput(
+                duplicate_groups=[
+                    FeedbackDeduplicationDuplicateGroup(
+                        item_ids=["NEW-0", "NEW-1"],
+                        merged_content=StructuredFeedbackContent(
+                            do_action="do X",
+                            when_condition="when Y",
+                        ),
+                        reasoning="Same instruction",
+                    )
+                ],
+                unique_ids=["NEW-2"],
+            )
+        )
+
+        with patch.dict("os.environ", {"MOCK_LLM_RESPONSE": "false"}):
+            result, delete_ids = mock_deduplicator.deduplicate(
+                results=[[fb0, fb1], [fb2]],
+                request_id="req_test",
+                agent_version="v1",
+            )
+
+        # 1 merged + 1 unique = 2 feedbacks
+        assert len(result) == 2
+        assert delete_ids == []
+
+        # Merged feedback should have combined source_interaction_ids
+        merged = result[0]
+        assert set(merged.source_interaction_ids) == {10, 20}
+
+        # Unique feedback should be fb2
+        assert result[1].feedback_content == "do Z when W"
+
+    def test_multiple_extractor_results_nested_lists(self, mock_deduplicator):
+        """Multiple extractor results (nested list of lists) are flattened correctly."""
+        fb0 = _make_raw_feedback(0, content="feedback from extractor 1")
+        fb1 = _make_raw_feedback(1, content="feedback from extractor 2")
+        fb2 = _make_raw_feedback(2, content="feedback from extractor 3")
+
+        mock_deduplicator.client.get_embeddings.return_value = [
+            [0.1],
+            [0.2],
+            [0.3],
+        ]
+        mock_deduplicator.request_context.storage.search_raw_feedbacks.return_value = []
+
+        # LLM says all are unique
+        mock_deduplicator.client.generate_chat_response.return_value = (
+            FeedbackDeduplicationOutput(
+                duplicate_groups=[],
+                unique_ids=["NEW-0", "NEW-1", "NEW-2"],
+            )
+        )
+
+        with patch.dict("os.environ", {"MOCK_LLM_RESPONSE": "false"}):
+            result, delete_ids = mock_deduplicator.deduplicate(
+                results=[[fb0], [fb1], [fb2]],
+                request_id="req_test",
+                agent_version="v1",
+            )
+
+        assert len(result) == 3
+        assert delete_ids == []
+
+    def test_all_feedbacks_are_duplicates_of_existing(self, mock_deduplicator):
+        """All new feedbacks are duplicates of existing feedbacks in the DB."""
+        fb0 = _make_raw_feedback(0, content="do X when Y", source_interaction_ids=[10])
+        existing_fb = _make_raw_feedback(
+            99,
+            raw_feedback_id=500,
+            content="do X when Y (existing)",
+            source_interaction_ids=[5],
+        )
+
+        mock_deduplicator.client.get_embeddings.return_value = [[0.1]]
+        mock_deduplicator.request_context.storage.search_raw_feedbacks.return_value = [
+            existing_fb
+        ]
+
+        # LLM merges NEW-0 with EXISTING-0
+        mock_deduplicator.client.generate_chat_response.return_value = (
+            FeedbackDeduplicationOutput(
+                duplicate_groups=[
+                    FeedbackDeduplicationDuplicateGroup(
+                        item_ids=["NEW-0", "EXISTING-0"],
+                        merged_content=StructuredFeedbackContent(
+                            do_action="do X",
+                            when_condition="when Y",
+                        ),
+                        reasoning="Same instruction as existing",
+                    )
+                ],
+                unique_ids=[],
+            )
+        )
+
+        with patch.dict("os.environ", {"MOCK_LLM_RESPONSE": "false"}):
+            result, delete_ids = mock_deduplicator.deduplicate(
+                results=[[fb0]],
+                request_id="req_test",
+                agent_version="v1",
+            )
+
+        # 1 merged feedback replaces both
+        assert len(result) == 1
+        # Existing feedback should be marked for deletion
+        assert 500 in delete_ids
+        # Merged feedback should combine source_interaction_ids from both
+        assert set(result[0].source_interaction_ids) == {5, 10}
+
+
+# ===============================
+# Tests for _retrieve_existing_feedbacks with user_id filter
+# ===============================
+
+
+class TestRetrieveExistingFeedbacksWithUserId:
+    """Tests for _retrieve_existing_feedbacks with user_id filter."""
+
+    def test_user_id_passed_to_search(self, mock_deduplicator):
+        """Test that user_id is passed through to the search request."""
+        new_fb = _make_raw_feedback(0, when_condition="user asks about billing")
+        existing_fb = _make_raw_feedback(1, raw_feedback_id=100)
+
+        mock_deduplicator.client.get_embeddings.return_value = [[0.1]]
+        mock_deduplicator.request_context.storage.search_raw_feedbacks.return_value = [
+            existing_fb
+        ]
+
+        mock_deduplicator._retrieve_existing_feedbacks([new_fb], user_id="user_abc")
+
+        # Verify search was called with user_id
+        call_args = (
+            mock_deduplicator.request_context.storage.search_raw_feedbacks.call_args
+        )
+        search_request = call_args[0][0]
+        assert search_request.user_id == "user_abc"
+
+    def test_none_user_id_passed_to_search(self, mock_deduplicator):
+        """Test that None user_id is passed through correctly."""
+        new_fb = _make_raw_feedback(0, when_condition="some condition")
+
+        mock_deduplicator.client.get_embeddings.return_value = [[0.1]]
+        mock_deduplicator.request_context.storage.search_raw_feedbacks.return_value = []
+
+        mock_deduplicator._retrieve_existing_feedbacks([new_fb], user_id=None)
+
+        call_args = (
+            mock_deduplicator.request_context.storage.search_raw_feedbacks.call_args
+        )
+        search_request = call_args[0][0]
+        assert search_request.user_id is None

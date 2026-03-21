@@ -28,8 +28,7 @@ def _write_prompt_md(
     if description:
         lines.append(f'description: "{description}"')
     lines.append("variables:")
-    for v in variables:
-        lines.append(f"  - {v}")
+    lines.extend(f"  - {v}" for v in variables)
     lines.append("---")
     lines.append("")
     (directory / f"v{version}.prompt.md").write_text("\n".join(lines) + content)
@@ -50,7 +49,9 @@ class TestParseFrontmatter:
             _parse_frontmatter("No frontmatter here")
 
     def test_description_field(self):
-        raw = '---\nactive: false\ndescription: "Some desc"\nvariables:\n  - x\n---\nBody'
+        raw = (
+            '---\nactive: false\ndescription: "Some desc"\nvariables:\n  - x\n---\nBody'
+        )
         meta, _ = _parse_frontmatter(raw)
         assert meta["description"] == "Some desc"
         assert meta["active"] is False
@@ -97,7 +98,9 @@ class TestPromptManager:
         result = prompt_manager._get_prompt("test_prompt")
         assert result is not None
         assert isinstance(result, Prompt)
-        assert result.content == "This is a test prompt with {variable1} and {variable2}"
+        assert (
+            result.content == "This is a test prompt with {variable1} and {variable2}"
+        )
         assert result.active is True
 
     def test_get_prompt_specific_version(self, prompt_manager):
@@ -216,7 +219,9 @@ class TestPromptManager:
                 continue
 
             if "variables" not in meta:
-                errors.append(f"{md_file.relative_to(prompt_bank_path)}: missing 'variables'")
+                errors.append(
+                    f"{md_file.relative_to(prompt_bank_path)}: missing 'variables'"
+                )
             elif not isinstance(meta["variables"], list):
                 errors.append(
                     f"{md_file.relative_to(prompt_bank_path)}: 'variables' must be a list"
@@ -228,7 +233,7 @@ class TestPromptManager:
                 )
 
         if errors:
-            pytest.fail(f"Validation errors:\n" + "\n".join(errors))
+            pytest.fail("Validation errors:\n" + "\n".join(errors))
 
     def test_exactly_one_active_per_prompt(self):
         """Test that each prompt directory has exactly one active version."""
@@ -257,7 +262,116 @@ class TestPromptManager:
                     pass
 
             if active_count != 1:
-                errors.append(f"{prompt_dir.name}: {active_count} active versions (expected 1)")
+                errors.append(
+                    f"{prompt_dir.name}: {active_count} active versions (expected 1)"
+                )
 
         if errors:
             pytest.fail("Active version errors:\n" + "\n".join(errors))
+
+
+class TestParseFrontmatterExtended:
+    """Extended tests for _parse_frontmatter covering edge cases."""
+
+    def test_block_style_list(self):
+        """Test parsing block-style YAML lists (- item per line)."""
+        raw = "---\nactive: true\nvariables:\n  - foo\n  - bar\n  - baz\n---\nBody"
+        meta, body = _parse_frontmatter(raw)
+        assert meta["variables"] == ["foo", "bar", "baz"]
+        assert body == "Body"
+
+    def test_null_value(self):
+        """Test that 'null' values are parsed as None."""
+        raw = "---\nactive: false\ndescription: null\nvariables:\n  - x\n---\nBody"
+        meta, _ = _parse_frontmatter(raw)
+        assert meta["description"] is None
+
+    def test_empty_value(self):
+        """Test that empty values are parsed as None."""
+        raw = "---\nactive: false\ndescription:\nvariables:\n  - x\n---\nBody"
+        meta, _ = _parse_frontmatter(raw)
+        assert meta["description"] is None
+
+    def test_malformed_no_closing_delimiter(self):
+        """Test that missing closing --- raises ValueError."""
+        raw = "---\nactive: true\nvariables:\n  - x\nBody without closing"
+        with pytest.raises(ValueError, match="Missing or malformed"):
+            _parse_frontmatter(raw)
+
+    def test_malformed_no_opening_delimiter(self):
+        """Test that missing opening --- raises ValueError."""
+        raw = "active: true\nvariables:\n  - x\n---\nBody"
+        with pytest.raises(ValueError, match="Missing or malformed"):
+            _parse_frontmatter(raw)
+
+    def test_inline_list_syntax(self):
+        """Test parsing inline list [a, b, c] syntax."""
+        raw = "---\nactive: true\nvariables: [a, b, c]\n---\nBody"
+        meta, _ = _parse_frontmatter(raw)
+        assert meta["variables"] == ["a", "b", "c"]
+
+    def test_changelog_field(self):
+        """Test parsing a changelog field as a string."""
+        raw = '---\nactive: true\nchangelog: "Added new feature"\nvariables:\n  - x\n---\nBody'
+        meta, _ = _parse_frontmatter(raw)
+        assert meta["changelog"] == "Added new feature"
+
+
+class TestFindActiveVersionWithException:
+    """Tests for _find_active_version when a prompt file has invalid content."""
+
+    def test_exception_in_one_file_continues(self):
+        """Test that an exception in one prompt file skips it and finds active in another."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            prompt_bank_path = Path(temp_dir) / "prompt_bank"
+            prompt_bank_path.mkdir()
+            prompt_dir = prompt_bank_path / "flaky_prompt"
+            prompt_dir.mkdir()
+
+            # Write a bad file (no frontmatter)
+            (prompt_dir / "v1.0.0.prompt.md").write_text("No frontmatter here at all")
+
+            # Write a good active file
+            _write_prompt_md(prompt_dir, "2.0.0", "Good content", ["x"], active=True)
+
+            pm = PromptManager(str(prompt_bank_path))
+            version = pm._find_active_version("flaky_prompt")
+            assert version == "2.0.0"
+
+    def test_all_files_invalid_returns_none(self):
+        """Test that when all prompt files are invalid, None is returned."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            prompt_bank_path = Path(temp_dir) / "prompt_bank"
+            prompt_bank_path.mkdir()
+            prompt_dir = prompt_bank_path / "bad_prompt"
+            prompt_dir.mkdir()
+
+            (prompt_dir / "v1.0.0.prompt.md").write_text("No frontmatter")
+            (prompt_dir / "v2.0.0.prompt.md").write_text("Also no frontmatter")
+
+            pm = PromptManager(str(prompt_bank_path))
+            assert pm._find_active_version("bad_prompt") is None
+
+
+class TestConstructorNonExistentPath:
+    """Tests for PromptManager constructor with non-existent path."""
+
+    def test_non_existent_path_no_raise(self):
+        """Test that constructor with non-existent path does not raise."""
+        pm = PromptManager("/this/path/does/not/exist")
+        assert pm._cache == {}
+
+    def test_non_existent_path_empty_prompts(self):
+        """Test that non-existent path results in empty prompt IDs."""
+        pm = PromptManager("/this/path/does/not/exist")
+        assert pm.get_all_prompt_ids() == []
+
+    def test_non_existent_path_list_versions_empty(self):
+        """Test that list_versions returns empty for non-existent path."""
+        pm = PromptManager("/this/path/does/not/exist")
+        assert pm.list_versions("any_prompt") == []
+
+    def test_non_existent_path_find_active_version_none(self):
+        """Test that _find_active_version returns None for non-existent path."""
+        pm = PromptManager("/this/path/does/not/exist")
+        assert pm._find_active_version("any_prompt") is None

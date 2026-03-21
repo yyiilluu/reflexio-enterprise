@@ -850,5 +850,622 @@ def test_collect_scoped_interactions_for_precheck_uses_extractor_scope():
         assert kwargs["sources"] == ["api"]
 
 
+# ===============================
+# Tests for _build_should_run_prompt
+# ===============================
+
+
+class TestBuildShouldRunPrompt:
+    """Tests for _build_should_run_prompt method."""
+
+    def _create_service(self, temp_dir: str) -> FeedbackGenerationService:
+        """Helper to create a FeedbackGenerationService for testing."""
+        llm_config = LiteLLMConfig(model="gpt-4o-mini")
+        llm_client = LiteLLMClient(llm_config)
+        return FeedbackGenerationService(
+            llm_client=llm_client,
+            request_context=RequestContext(org_id="0", storage_base_dir=temp_dir),
+        )
+
+    def test_with_feedback_definition_prompt_present(self):
+        """Test _build_should_run_prompt when feedback_definition_prompt is present."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            service = self._create_service(temp_dir)
+
+            configs = [
+                AgentFeedbackConfig(
+                    feedback_name="fb1",
+                    feedback_definition_prompt="Check for helpfulness",
+                    feedback_aggregator_config=FeedbackAggregatorConfig(
+                        min_feedback_threshold=2,
+                    ),
+                ),
+                AgentFeedbackConfig(
+                    feedback_name="fb2",
+                    feedback_definition_prompt="Check for accuracy",
+                    feedback_aggregator_config=FeedbackAggregatorConfig(
+                        min_feedback_threshold=2,
+                    ),
+                ),
+            ]
+
+            interaction = Interaction(
+                interaction_id=1,
+                user_id="user1",
+                request_id="req1",
+                content="Hello",
+                role="user",
+                created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+            )
+            session_data = create_request_interaction_data_model(
+                user_id="user1",
+                request_id="req1",
+                interactions=[interaction],
+            )
+
+            mock_prompt = "rendered prompt"
+            with patch.object(
+                service.request_context.prompt_manager,
+                "render_prompt",
+                return_value=mock_prompt,
+            ) as mock_render:
+                result = service._build_should_run_prompt(configs, [session_data])
+
+            assert result == mock_prompt
+            mock_render.assert_called_once()
+            call_args = mock_render.call_args
+            variables = call_args[0][1]
+            assert "Check for helpfulness" in variables["feedback_definition_prompt"]
+            assert "Check for accuracy" in variables["feedback_definition_prompt"]
+
+    def test_with_feedback_definition_prompt_absent(self):
+        """Test _build_should_run_prompt returns None when no definitions are present."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            service = self._create_service(temp_dir)
+
+            # Use MagicMock configs with feedback_definition_prompt=None
+            mock_config = MagicMock(spec=AgentFeedbackConfig)
+            mock_config.feedback_definition_prompt = None
+
+            interaction = Interaction(
+                interaction_id=1,
+                user_id="user1",
+                request_id="req1",
+                content="Hello",
+                role="user",
+                created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+            )
+            session_data = create_request_interaction_data_model(
+                user_id="user1",
+                request_id="req1",
+                interactions=[interaction],
+            )
+
+            result = service._build_should_run_prompt([mock_config], [session_data])
+            assert result is None
+
+    def test_with_tool_can_use_present(self):
+        """Test _build_should_run_prompt includes tool_can_use when present in root config."""
+        from reflexio_commons.config_schema import ToolUseConfig
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            service = self._create_service(temp_dir)
+
+            # Set tool_can_use on root config
+            service.configurator.set_config_by_name(
+                "tool_can_use",
+                [
+                    ToolUseConfig(
+                        tool_name="search", tool_description="Search the web"
+                    ),
+                    ToolUseConfig(tool_name="calculator", tool_description="Do math"),
+                ],
+            )
+
+            configs = [
+                AgentFeedbackConfig(
+                    feedback_name="fb1",
+                    feedback_definition_prompt="Check feedback",
+                    feedback_aggregator_config=FeedbackAggregatorConfig(
+                        min_feedback_threshold=2,
+                    ),
+                ),
+            ]
+
+            interaction = Interaction(
+                interaction_id=1,
+                user_id="user1",
+                request_id="req1",
+                content="Hello",
+                role="user",
+                created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+            )
+            session_data = create_request_interaction_data_model(
+                user_id="user1",
+                request_id="req1",
+                interactions=[interaction],
+            )
+
+            mock_prompt = "rendered with tools"
+            with patch.object(
+                service.request_context.prompt_manager,
+                "render_prompt",
+                return_value=mock_prompt,
+            ) as mock_render:
+                result = service._build_should_run_prompt(configs, [session_data])
+
+            assert result == mock_prompt
+            call_args = mock_render.call_args
+            variables = call_args[0][1]
+            assert "search: Search the web" in variables["tool_can_use"]
+            assert "calculator: Do math" in variables["tool_can_use"]
+
+    def test_with_tool_can_use_absent(self):
+        """Test _build_should_run_prompt passes empty tool_can_use when not configured."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            service = self._create_service(temp_dir)
+
+            # Ensure tool_can_use is None (default)
+            configs = [
+                AgentFeedbackConfig(
+                    feedback_name="fb1",
+                    feedback_definition_prompt="Check feedback",
+                    feedback_aggregator_config=FeedbackAggregatorConfig(
+                        min_feedback_threshold=2,
+                    ),
+                ),
+            ]
+
+            interaction = Interaction(
+                interaction_id=1,
+                user_id="user1",
+                request_id="req1",
+                content="Hello",
+                role="user",
+                created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+            )
+            session_data = create_request_interaction_data_model(
+                user_id="user1",
+                request_id="req1",
+                interactions=[interaction],
+            )
+
+            mock_prompt = "rendered without tools"
+            with patch.object(
+                service.request_context.prompt_manager,
+                "render_prompt",
+                return_value=mock_prompt,
+            ) as mock_render:
+                result = service._build_should_run_prompt(configs, [session_data])
+
+            assert result == mock_prompt
+            call_args = mock_render.call_args
+            variables = call_args[0][1]
+            assert variables["tool_can_use"] == ""
+
+
+# ===============================
+# Tests for _process_results
+# ===============================
+
+
+class TestProcessResults:
+    """Tests for _process_results method."""
+
+    def _create_service_with_config(
+        self, temp_dir: str, output_pending_status: bool = False
+    ) -> FeedbackGenerationService:
+        """Helper to create a service with service_config initialized."""
+        llm_config = LiteLLMConfig(model="gpt-4o-mini")
+        llm_client = LiteLLMClient(llm_config)
+        service = FeedbackGenerationService(
+            llm_client=llm_client,
+            request_context=RequestContext(org_id="0", storage_base_dir=temp_dir),
+            output_pending_status=output_pending_status,
+        )
+        # Set up feedback config
+        feedback_config = AgentFeedbackConfig(
+            feedback_name="test_feedback",
+            feedback_definition_prompt="test",
+            feedback_aggregator_config=FeedbackAggregatorConfig(
+                min_feedback_threshold=2,
+            ),
+        )
+        service.configurator.set_config_by_name(
+            "agent_feedback_configs", [feedback_config]
+        )
+        # Initialize service_config
+        service.service_config = service._load_generation_service_config(
+            FeedbackGenerationRequest(
+                request_id="test_request",
+                agent_version="1.0",
+                user_id="user1",
+                source="test",
+                auto_run=False,
+            )
+        )
+        return service
+
+    def test_deduplicator_enabled_path(self):
+        """Test _process_results with deduplicator enabled."""
+        from reflexio_commons.api_schema.service_schemas import RawFeedback
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            service = self._create_service_with_config(temp_dir)
+
+            feedback1 = RawFeedback(
+                request_id="test_request",
+                agent_version="1.0",
+                feedback_name="test_feedback",
+                feedback_content="feedback 1",
+            )
+            feedback2 = RawFeedback(
+                request_id="test_request",
+                agent_version="1.0",
+                feedback_name="test_feedback",
+                feedback_content="feedback 2",
+            )
+            results = [[feedback1, feedback2]]
+
+            deduplicated = [feedback1]
+            ids_to_delete = [99]
+
+            with (
+                patch(
+                    "reflexio.server.site_var.feature_flags.is_deduplicator_enabled",
+                    return_value=True,
+                ),
+                patch(
+                    "reflexio.server.services.feedback.feedback_deduplicator.FeedbackDeduplicator",
+                ) as mock_dedup_cls,
+                patch.object(service.storage, "save_raw_feedbacks") as mock_save,
+                patch.object(
+                    service.storage, "delete_raw_feedbacks_by_ids"
+                ) as mock_delete,
+                patch.object(service, "_trigger_feedback_aggregation"),
+            ):
+                mock_dedup_instance = MagicMock()
+                mock_dedup_instance.deduplicate.return_value = (
+                    deduplicated,
+                    ids_to_delete,
+                )
+                mock_dedup_cls.return_value = mock_dedup_instance
+
+                service._process_results(results)
+
+                mock_dedup_instance.deduplicate.assert_called_once_with(
+                    results,
+                    "test_request",
+                    "1.0",
+                    user_id="user1",
+                )
+                mock_save.assert_called_once()
+                saved_feedbacks = mock_save.call_args[0][0]
+                assert len(saved_feedbacks) == 1
+                assert saved_feedbacks[0].feedback_content == "feedback 1"
+                mock_delete.assert_called_once_with([99])
+
+    def test_save_then_delete_fails(self):
+        """Test _process_results when save succeeds but delete_raw_feedbacks_by_ids raises."""
+        from reflexio_commons.api_schema.service_schemas import RawFeedback
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            service = self._create_service_with_config(temp_dir)
+
+            feedback1 = RawFeedback(
+                request_id="test_request",
+                agent_version="1.0",
+                feedback_name="test_feedback",
+                feedback_content="feedback 1",
+            )
+            results = [[feedback1]]
+
+            with (
+                patch(
+                    "reflexio.server.site_var.feature_flags.is_deduplicator_enabled",
+                    return_value=True,
+                ),
+                patch(
+                    "reflexio.server.services.feedback.feedback_deduplicator.FeedbackDeduplicator",
+                ) as mock_dedup_cls,
+                patch.object(service.storage, "save_raw_feedbacks") as mock_save,
+                patch.object(
+                    service.storage,
+                    "delete_raw_feedbacks_by_ids",
+                    side_effect=Exception("Delete failed"),
+                ) as mock_delete,
+                patch.object(service, "_trigger_feedback_aggregation"),
+            ):
+                mock_dedup_instance = MagicMock()
+                mock_dedup_instance.deduplicate.return_value = (
+                    [feedback1],
+                    [42],
+                )
+                mock_dedup_cls.return_value = mock_dedup_instance
+
+                # Should not raise - error is caught and logged
+                service._process_results(results)
+
+                mock_save.assert_called_once()
+                mock_delete.assert_called_once_with([42])
+
+    def test_save_fails(self):
+        """Test _process_results when save_raw_feedbacks raises an exception."""
+        from reflexio_commons.api_schema.service_schemas import RawFeedback
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            service = self._create_service_with_config(temp_dir)
+
+            feedback1 = RawFeedback(
+                request_id="test_request",
+                agent_version="1.0",
+                feedback_name="test_feedback",
+                feedback_content="feedback 1",
+            )
+            results = [[feedback1]]
+
+            with (
+                patch(
+                    "reflexio.server.site_var.feature_flags.is_deduplicator_enabled",
+                    return_value=False,
+                ),
+                patch.object(
+                    service.storage,
+                    "save_raw_feedbacks",
+                    side_effect=Exception("Storage error"),
+                ) as mock_save,
+            ):
+                # Should not raise - error is caught and logged
+                service._process_results(results)
+
+                mock_save.assert_called_once()
+
+
+# ===============================
+# Tests for _trigger_feedback_aggregation
+# ===============================
+
+
+class TestTriggerFeedbackAggregation:
+    """Tests for _trigger_feedback_aggregation method."""
+
+    def _create_service_with_config(
+        self,
+        temp_dir: str,
+        agent_feedback_configs: list[AgentFeedbackConfig] | None = None,
+    ) -> FeedbackGenerationService:
+        """Helper to create a service with service_config initialized."""
+        llm_config = LiteLLMConfig(model="gpt-4o-mini")
+        llm_client = LiteLLMClient(llm_config)
+        service = FeedbackGenerationService(
+            llm_client=llm_client,
+            request_context=RequestContext(org_id="0", storage_base_dir=temp_dir),
+        )
+        if agent_feedback_configs is not None:
+            service.configurator.set_config_by_name(
+                "agent_feedback_configs", agent_feedback_configs
+            )
+        # Initialize service_config
+        service.service_config = service._load_generation_service_config(
+            FeedbackGenerationRequest(
+                request_id="test_request",
+                agent_version="1.0",
+                auto_run=False,
+            )
+        )
+        return service
+
+    def test_aggregation_trigger_with_aggregator_config(self):
+        """Test _trigger_feedback_aggregation triggers aggregation for configs with aggregator_config."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            configs = [
+                AgentFeedbackConfig(
+                    feedback_name="fb_with_agg",
+                    feedback_definition_prompt="test definition",
+                    feedback_aggregator_config=FeedbackAggregatorConfig(
+                        min_feedback_threshold=2,
+                    ),
+                ),
+                AgentFeedbackConfig(
+                    feedback_name="fb_without_agg",
+                    feedback_definition_prompt="test definition 2",
+                    feedback_aggregator_config=None,
+                ),
+            ]
+            service = self._create_service_with_config(temp_dir, configs)
+
+            with patch(
+                "reflexio.server.services.feedback.feedback_generation_service.FeedbackAggregator"
+            ) as mock_agg_cls:
+                mock_agg_instance = MagicMock()
+                mock_agg_cls.return_value = mock_agg_instance
+
+                service._trigger_feedback_aggregation()
+
+                # Only config with aggregator_config should trigger aggregation
+                mock_agg_cls.assert_called_once_with(
+                    llm_client=service.client,
+                    request_context=service.request_context,
+                    agent_version="1.0",
+                )
+                mock_agg_instance.run.assert_called_once()
+                agg_request = mock_agg_instance.run.call_args[0][0]
+                assert agg_request.agent_version == "1.0"
+                assert agg_request.feedback_name == "fb_with_agg"
+
+    def test_skill_generation_auto_trigger(self):
+        """Test skill generation is triggered when auto_generate_on_aggregation=True."""
+        from reflexio_commons.config_schema import SkillGeneratorConfig
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            configs = [
+                AgentFeedbackConfig(
+                    feedback_name="fb_with_skill",
+                    feedback_definition_prompt="test definition",
+                    feedback_aggregator_config=FeedbackAggregatorConfig(
+                        min_feedback_threshold=2,
+                    ),
+                    skill_generator_config=SkillGeneratorConfig(
+                        enabled=True,
+                        auto_generate_on_aggregation=True,
+                    ),
+                ),
+            ]
+            service = self._create_service_with_config(temp_dir, configs)
+
+            with (
+                patch(
+                    "reflexio.server.services.feedback.feedback_generation_service.FeedbackAggregator"
+                ) as mock_agg_cls,
+                patch(
+                    "reflexio.server.services.feedback.skill_generator.SkillGenerator",
+                ) as mock_skill_cls,
+            ):
+                mock_agg_instance = MagicMock()
+                mock_agg_cls.return_value = mock_agg_instance
+                mock_skill_instance = MagicMock()
+                mock_skill_cls.return_value = mock_skill_instance
+
+                service._trigger_feedback_aggregation()
+
+                # Aggregator should be called
+                mock_agg_instance.run.assert_called_once()
+
+                # Skill generator should also be triggered
+                mock_skill_cls.assert_called_once_with(
+                    llm_client=service.client,
+                    request_context=service.request_context,
+                    agent_version="1.0",
+                )
+                mock_skill_instance.run.assert_called_once()
+                skill_request = mock_skill_instance.run.call_args[0][0]
+                assert skill_request.agent_version == "1.0"
+                assert skill_request.feedback_name == "fb_with_skill"
+
+    def test_skill_generation_exception_caught(self):
+        """Test that exceptions during skill generation are caught and logged."""
+        from reflexio_commons.config_schema import SkillGeneratorConfig
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            configs = [
+                AgentFeedbackConfig(
+                    feedback_name="fb_with_skill",
+                    feedback_definition_prompt="test definition",
+                    feedback_aggregator_config=FeedbackAggregatorConfig(
+                        min_feedback_threshold=2,
+                    ),
+                    skill_generator_config=SkillGeneratorConfig(
+                        enabled=True,
+                        auto_generate_on_aggregation=True,
+                    ),
+                ),
+            ]
+            service = self._create_service_with_config(temp_dir, configs)
+
+            with (
+                patch(
+                    "reflexio.server.services.feedback.feedback_generation_service.FeedbackAggregator"
+                ) as mock_agg_cls,
+                patch(
+                    "reflexio.server.services.feedback.skill_generator.SkillGenerator",
+                ) as mock_skill_cls,
+            ):
+                mock_agg_instance = MagicMock()
+                mock_agg_cls.return_value = mock_agg_instance
+                mock_skill_instance = MagicMock()
+                mock_skill_instance.run.side_effect = Exception(
+                    "Skill generation exploded"
+                )
+                mock_skill_cls.return_value = mock_skill_instance
+
+                # Should not raise - exception is caught and logged
+                service._trigger_feedback_aggregation()
+
+                mock_agg_instance.run.assert_called_once()
+                mock_skill_instance.run.assert_called_once()
+
+
+# ===============================
+# Tests for _update_config_for_incremental
+# ===============================
+
+
+class TestUpdateConfigForIncremental:
+    """Tests for _update_config_for_incremental method."""
+
+    def test_sets_incremental_flag_and_previously_extracted(self):
+        """Test that is_incremental is set to True and previously_extracted is populated."""
+        from reflexio_commons.api_schema.service_schemas import RawFeedback
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            llm_config = LiteLLMConfig(model="gpt-4o-mini")
+            llm_client = LiteLLMClient(llm_config)
+            service = FeedbackGenerationService(
+                llm_client=llm_client,
+                request_context=RequestContext(org_id="0", storage_base_dir=temp_dir),
+            )
+            # Initialize service_config
+            service.service_config = service._load_generation_service_config(
+                FeedbackGenerationRequest(
+                    request_id="test_request",
+                    agent_version="1.0",
+                    auto_run=False,
+                )
+            )
+
+            assert service.service_config.is_incremental is False
+            assert service.service_config.previously_extracted == []
+
+            prev_feedback = RawFeedback(
+                request_id="old_request",
+                agent_version="1.0",
+                feedback_name="test_feedback",
+                feedback_content="old feedback",
+            )
+            previously_extracted = [[prev_feedback]]
+
+            service._update_config_for_incremental(previously_extracted)
+
+            assert service.service_config.is_incremental is True
+            assert len(service.service_config.previously_extracted) == 1
+            assert (
+                service.service_config.previously_extracted[0][0].feedback_content
+                == "old feedback"
+            )
+
+    def test_previously_extracted_is_copied(self):
+        """Test that previously_extracted list is copied, not referenced."""
+        from reflexio_commons.api_schema.service_schemas import RawFeedback
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            llm_config = LiteLLMConfig(model="gpt-4o-mini")
+            llm_client = LiteLLMClient(llm_config)
+            service = FeedbackGenerationService(
+                llm_client=llm_client,
+                request_context=RequestContext(org_id="0", storage_base_dir=temp_dir),
+            )
+            service.service_config = service._load_generation_service_config(
+                FeedbackGenerationRequest(
+                    request_id="test_request",
+                    agent_version="1.0",
+                    auto_run=False,
+                )
+            )
+
+            prev_feedback = RawFeedback(
+                request_id="old_request",
+                agent_version="1.0",
+                feedback_name="test_feedback",
+                feedback_content="old feedback",
+            )
+            original_list = [[prev_feedback]]
+
+            service._update_config_for_incremental(original_list)
+
+            # Mutating original should not affect service_config
+            original_list.append([])
+            assert len(service.service_config.previously_extracted) == 1
+
+
 if __name__ == "__main__":
     pytest.main([__file__])

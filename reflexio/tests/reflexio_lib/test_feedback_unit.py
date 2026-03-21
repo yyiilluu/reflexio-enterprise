@@ -16,6 +16,7 @@ from reflexio_commons.api_schema.retriever_schema import (
 from reflexio_commons.api_schema.service_schemas import (
     AddFeedbackRequest,
     DeleteFeedbackRequest,
+    DeleteFeedbacksByIdsRequest,
     Feedback,
     FeedbackStatus,
 )
@@ -323,3 +324,177 @@ class TestUpdateFeedbackStatus:
         response = mixin.update_feedback_status(request)
 
         assert response.success is False
+
+
+# ---------------------------------------------------------------------------
+# delete_feedbacks_by_ids_bulk - dict input (lines 93-96)
+# ---------------------------------------------------------------------------
+
+
+class TestDeleteFeedbacksByIdsBulk:
+    def test_deletes_by_ids(self):
+        """Deletes feedbacks by IDs and returns count."""
+        mixin = _make_mixin()
+
+        request = DeleteFeedbacksByIdsRequest(feedback_ids=[1, 2, 3])
+        response = mixin.delete_feedbacks_by_ids_bulk(request)
+
+        assert response.success is True
+        assert response.deleted_count == 3
+        _get_storage(mixin).delete_feedbacks_by_ids.assert_called_once_with([1, 2, 3])
+
+    def test_dict_input(self):
+        """Accepts dict input and auto-converts (lines 93-94)."""
+        mixin = _make_mixin()
+
+        response = mixin.delete_feedbacks_by_ids_bulk({"feedback_ids": [10, 20]})
+
+        assert response.success is True
+        assert response.deleted_count == 2
+        _get_storage(mixin).delete_feedbacks_by_ids.assert_called_once_with([10, 20])
+
+    def test_storage_not_configured(self):
+        """Fails when storage is not configured."""
+        mixin = _make_mixin(storage_configured=False)
+
+        request = DeleteFeedbacksByIdsRequest(feedback_ids=[1])
+        response = mixin.delete_feedbacks_by_ids_bulk(request)
+
+        assert response.success is False
+
+
+# ---------------------------------------------------------------------------
+# add_feedback - dict input (line 115)
+# ---------------------------------------------------------------------------
+
+
+class TestAddFeedbackDict:
+    def test_dict_input(self):
+        """Accepts dict input and auto-converts (line 115)."""
+        mixin = _make_mixin()
+        fb = _sample_feedback()
+
+        response = mixin.add_feedback({"feedbacks": [fb.model_dump()]})
+
+        assert response.success is True
+        assert response.added_count == 1
+
+
+# ---------------------------------------------------------------------------
+# get_feedbacks - error path (lines 166-167)
+# ---------------------------------------------------------------------------
+
+
+class TestGetFeedbacksError:
+    def test_storage_exception(self):
+        """Returns failure on storage exception (lines 166-167)."""
+        mixin = _make_mixin()
+        _get_storage(mixin).get_feedbacks.side_effect = RuntimeError("db error")
+
+        request = GetFeedbacksRequest(limit=10)
+        response = mixin.get_feedbacks(request)
+
+        assert response.success is False
+        assert "db error" in (response.msg or "")
+
+    def test_with_feedback_status_filter(self):
+        """Passes feedback_status_filter when provided."""
+        mixin = _make_mixin()
+        _get_storage(mixin).get_feedbacks.return_value = []
+
+        request = GetFeedbacksRequest(
+            limit=10,
+            feedback_status_filter=FeedbackStatus.APPROVED,
+        )
+        response = mixin.get_feedbacks(request)
+
+        assert response.success is True
+        _get_storage(mixin).get_feedbacks.assert_called_once_with(
+            limit=10,
+            feedback_name=None,
+            status_filter=None,
+            feedback_status_filter=[FeedbackStatus.APPROVED],
+        )
+
+
+# ---------------------------------------------------------------------------
+# search_feedbacks - dict input, error path, query rewrite (lines 186, 193, 196-197)
+# ---------------------------------------------------------------------------
+
+
+class TestSearchFeedbacksDictAndError:
+    def test_dict_input(self):
+        """Accepts dict input and auto-converts (line 186)."""
+        mixin = _make_mixin()
+        _get_storage(mixin).search_feedbacks.return_value = []
+
+        response = mixin.search_feedbacks({"query": "test"})
+
+        assert response.success is True
+
+    def test_storage_exception(self):
+        """Returns failure on storage exception (lines 196-197)."""
+        mixin = _make_mixin()
+        _get_storage(mixin).search_feedbacks.side_effect = RuntimeError("search error")
+
+        request = SearchFeedbackRequest(query="test")
+        response = mixin.search_feedbacks(request)
+
+        assert response.success is False
+        assert "search error" in (response.msg or "")
+
+    def test_query_rewrite_applied(self):
+        """Query rewrite modifies the request when enabled (line 193)."""
+        mixin = _make_mixin()
+        _get_storage(mixin).search_feedbacks.return_value = []
+
+        # Mock the _rewrite_query to return a rewritten query
+        mixin._rewrite_query = MagicMock(return_value="rewritten query")
+
+        request = SearchFeedbackRequest(query="original", query_rewrite=True)
+        response = mixin.search_feedbacks(request)
+
+        assert response.success is True
+        # Verify the rewritten query was passed to storage
+        call_arg = _get_storage(mixin).search_feedbacks.call_args[0][0]
+        assert call_arg.query == "rewritten query"
+
+
+# ---------------------------------------------------------------------------
+# delete_feedback - dict edge case
+# ---------------------------------------------------------------------------
+
+
+class TestDeleteFeedbackDict:
+    def test_dict_input_via_require_storage(self):
+        """dict input through _require_storage decorator with error handling."""
+        mixin = _make_mixin()
+        _get_storage(mixin).delete_feedback.side_effect = RuntimeError("not found")
+
+        response = mixin.delete_feedback({"feedback_id": 999})
+
+        # _require_storage catches exception and returns failure
+        assert response.success is False
+        assert "not found" in (response.message or "")
+
+
+# ---------------------------------------------------------------------------
+# update_feedback_status - error path via _require_storage
+# ---------------------------------------------------------------------------
+
+
+class TestUpdateFeedbackStatusError:
+    def test_storage_exception(self):
+        """_require_storage catches storage exception and returns failure."""
+        mixin = _make_mixin()
+        _get_storage(mixin).update_feedback_status.side_effect = RuntimeError(
+            "update error"
+        )
+
+        request = UpdateFeedbackStatusRequest(
+            feedback_id=10, feedback_status=FeedbackStatus.APPROVED
+        )
+        response = mixin.update_feedback_status(request)
+
+        assert response.success is False
+        assert "update error" in (response.msg or "")

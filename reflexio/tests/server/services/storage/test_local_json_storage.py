@@ -40,6 +40,7 @@ from reflexio.server.services.storage.local_json_storage import LocalJsonStorage
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _now_ts() -> int:
     return int(datetime.now(UTC).timestamp())
 
@@ -165,6 +166,7 @@ def _make_skill(
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture()
 def storage(tmp_path):
     """Create a fresh LocalJsonStorage backed by a temporary directory."""
@@ -174,6 +176,7 @@ def storage(tmp_path):
 # ===========================================================================
 # Constructor / initialisation
 # ===========================================================================
+
 
 class TestInit:
     def test_creates_json_file(self, tmp_path):
@@ -202,6 +205,7 @@ class TestInit:
 # Profile CRUD
 # ===========================================================================
 
+
 class TestProfileCRUD:
     def test_add_and_get_user_profile(self, storage):
         p = _make_profile()
@@ -216,7 +220,9 @@ class TestProfileCRUD:
 
     def test_get_all_profiles(self, storage):
         storage.add_user_profile("u1", [_make_profile(user_id="u1", profile_id="p1")])
-        storage.add_user_profile("u2", [_make_profile(user_id="u2", profile_id="p2", content="likes pizza")])
+        storage.add_user_profile(
+            "u2", [_make_profile(user_id="u2", profile_id="p2", content="likes pizza")]
+        )
         profiles = storage.get_all_profiles()
         assert len(profiles) == 2
 
@@ -230,12 +236,16 @@ class TestProfileCRUD:
 
     def test_delete_user_profile(self, storage):
         storage.add_user_profile("user1", [_make_profile()])
-        storage.delete_user_profile(DeleteUserProfileRequest(user_id="user1", profile_id="p1"))
+        storage.delete_user_profile(
+            DeleteUserProfileRequest(user_id="user1", profile_id="p1")
+        )
         assert storage.get_user_profile("user1") == []
 
     def test_delete_user_profile_missing_user(self, storage):
         # Should not raise
-        storage.delete_user_profile(DeleteUserProfileRequest(user_id="nope", profile_id="p1"))
+        storage.delete_user_profile(
+            DeleteUserProfileRequest(user_id="nope", profile_id="p1")
+        )
 
     def test_update_user_profile_by_id(self, storage):
         storage.add_user_profile("user1", [_make_profile()])
@@ -249,7 +259,9 @@ class TestProfileCRUD:
         storage.update_user_profile_by_id("nope", "p1", _make_profile())
 
     def test_delete_all_profiles_for_user(self, storage):
-        storage.add_user_profile("user1", [_make_profile(), _make_profile(profile_id="p2")])
+        storage.add_user_profile(
+            "user1", [_make_profile(), _make_profile(profile_id="p2")]
+        )
         storage.delete_all_profiles_for_user("user1")
         assert storage.get_user_profile("user1") == []
 
@@ -279,12 +291,16 @@ class TestProfileCRUD:
 # Profile status management
 # ===========================================================================
 
+
 class TestProfileStatus:
     def test_get_profiles_with_status_filter(self, storage):
         storage.add_user_profile("u1", [_make_profile(status=None)])
-        storage.add_user_profile("u1", [
-            _make_profile(profile_id="p2", status=Status.PENDING),
-        ])
+        storage.add_user_profile(
+            "u1",
+            [
+                _make_profile(profile_id="p2", status=Status.PENDING),
+            ],
+        )
         current = storage.get_user_profile("u1", status_filter=[None])
         assert len(current) == 1
         pending = storage.get_user_profile("u1", status_filter=[Status.PENDING])
@@ -293,7 +309,9 @@ class TestProfileStatus:
     def test_update_all_profiles_status(self, storage):
         storage.add_user_profile("u1", [_make_profile()])
         storage.add_user_profile("u2", [_make_profile(user_id="u2", profile_id="p2")])
-        count = storage.update_all_profiles_status(old_status=None, new_status=Status.PENDING)
+        count = storage.update_all_profiles_status(
+            old_status=None, new_status=Status.PENDING
+        )
         assert count == 2
         pending = storage.get_all_profiles(status_filter=[Status.PENDING])
         assert len(pending) == 2
@@ -302,7 +320,9 @@ class TestProfileStatus:
         storage.add_user_profile("u1", [_make_profile(user_id="u1")])
         storage.add_user_profile("u2", [_make_profile(user_id="u2", profile_id="p2")])
         count = storage.update_all_profiles_status(
-            old_status=None, new_status=Status.PENDING, user_ids=["u1"],
+            old_status=None,
+            new_status=Status.PENDING,
+            user_ids=["u1"],
         )
         assert count == 1
         # u2 unchanged
@@ -318,7 +338,9 @@ class TestProfileStatus:
 
     def test_get_user_ids_with_status(self, storage):
         storage.add_user_profile("u1", [_make_profile(user_id="u1")])
-        storage.add_user_profile("u2", [_make_profile(user_id="u2", profile_id="p2", status=Status.PENDING)])
+        storage.add_user_profile(
+            "u2", [_make_profile(user_id="u2", profile_id="p2", status=Status.PENDING)]
+        )
         ids_current = storage.get_user_ids_with_status(None)
         assert "u1" in ids_current
         assert "u2" not in ids_current
@@ -327,8 +349,12 @@ class TestProfileStatus:
 
     def test_get_profile_statistics(self, storage):
         storage.add_user_profile("u1", [_make_profile(status=None)])
-        storage.add_user_profile("u1", [_make_profile(profile_id="p2", status=Status.PENDING)])
-        storage.add_user_profile("u1", [_make_profile(profile_id="p3", status=Status.ARCHIVED)])
+        storage.add_user_profile(
+            "u1", [_make_profile(profile_id="p2", status=Status.PENDING)]
+        )
+        storage.add_user_profile(
+            "u1", [_make_profile(profile_id="p3", status=Status.ARCHIVED)]
+        )
         stats = storage.get_profile_statistics()
         assert stats["current_count"] == 1
         assert stats["pending_count"] == 1
@@ -338,6 +364,7 @@ class TestProfileStatus:
 # ===========================================================================
 # Interaction CRUD
 # ===========================================================================
+
 
 class TestInteractionCRUD:
     def test_add_and_get_user_interaction(self, storage):
@@ -356,8 +383,12 @@ class TestInteractionCRUD:
         assert interactions[0].interaction_id == 1
 
     def test_get_all_interactions(self, storage):
-        storage.add_user_interaction("u1", _make_interaction(user_id="u1", interaction_id=1))
-        storage.add_user_interaction("u2", _make_interaction(user_id="u2", interaction_id=2))
+        storage.add_user_interaction(
+            "u1", _make_interaction(user_id="u1", interaction_id=1)
+        )
+        storage.add_user_interaction(
+            "u2", _make_interaction(user_id="u2", interaction_id=2)
+        )
         assert len(storage.get_all_interactions()) == 2
 
     def test_get_all_interactions_limit(self, storage):
@@ -400,27 +431,36 @@ class TestInteractionCRUD:
         storage.delete_all_interactions_for_user("nope")
 
     def test_delete_all_interactions(self, storage):
-        storage.add_user_interaction("u1", _make_interaction(user_id="u1", interaction_id=1))
-        storage.add_user_interaction("u2", _make_interaction(user_id="u2", interaction_id=2))
+        storage.add_user_interaction(
+            "u1", _make_interaction(user_id="u1", interaction_id=1)
+        )
+        storage.add_user_interaction(
+            "u2", _make_interaction(user_id="u2", interaction_id=2)
+        )
         storage.delete_all_interactions()
         assert storage.get_all_interactions() == []
 
     def test_count_all_interactions(self, storage):
         assert storage.count_all_interactions() == 0
         storage.add_user_interaction("u1", _make_interaction(interaction_id=1))
-        storage.add_user_interaction("u2", _make_interaction(user_id="u2", interaction_id=2))
+        storage.add_user_interaction(
+            "u2", _make_interaction(user_id="u2", interaction_id=2)
+        )
         assert storage.count_all_interactions() == 2
 
     def test_delete_oldest_interactions(self, storage):
         now = _now_ts()
         storage.add_user_interaction(
-            "u1", _make_interaction(interaction_id=1, created_at=now - 100),
+            "u1",
+            _make_interaction(interaction_id=1, created_at=now - 100),
         )
         storage.add_user_interaction(
-            "u1", _make_interaction(interaction_id=2, created_at=now - 50),
+            "u1",
+            _make_interaction(interaction_id=2, created_at=now - 50),
         )
         storage.add_user_interaction(
-            "u1", _make_interaction(interaction_id=3, created_at=now),
+            "u1",
+            _make_interaction(interaction_id=3, created_at=now),
         )
         deleted = storage.delete_oldest_interactions(2)
         assert deleted == 2
@@ -436,8 +476,12 @@ class TestInteractionCRUD:
         assert storage.delete_oldest_interactions(5) == 0
 
     def test_get_interactions_by_request_ids(self, storage):
-        storage.add_user_interaction("u1", _make_interaction(request_id="r1", interaction_id=1))
-        storage.add_user_interaction("u1", _make_interaction(request_id="r2", interaction_id=2))
+        storage.add_user_interaction(
+            "u1", _make_interaction(request_id="r1", interaction_id=1)
+        )
+        storage.add_user_interaction(
+            "u1", _make_interaction(request_id="r2", interaction_id=2)
+        )
         result = storage.get_interactions_by_request_ids(["r1"])
         assert len(result) == 1
         assert result[0].request_id == "r1"
@@ -449,6 +493,7 @@ class TestInteractionCRUD:
 # ===========================================================================
 # Request CRUD
 # ===========================================================================
+
 
 class TestRequestCRUD:
     def test_add_and_get_request(self, storage):
@@ -470,7 +515,9 @@ class TestRequestCRUD:
 
     def test_delete_request(self, storage):
         storage.add_request(_make_request())
-        storage.add_user_interaction("user1", _make_interaction(request_id="req1", interaction_id=1))
+        storage.add_user_interaction(
+            "user1", _make_interaction(request_id="req1", interaction_id=1)
+        )
         storage.delete_request("req1")
         assert storage.get_request("req1") is None
         # Associated interactions also deleted
@@ -480,8 +527,12 @@ class TestRequestCRUD:
         storage.add_request(_make_request(request_id="r1", session_id="s1"))
         storage.add_request(_make_request(request_id="r2", session_id="s1"))
         storage.add_request(_make_request(request_id="r3", session_id="s2"))
-        storage.add_user_interaction("user1", _make_interaction(request_id="r1", interaction_id=1))
-        storage.add_user_interaction("user1", _make_interaction(request_id="r2", interaction_id=2))
+        storage.add_user_interaction(
+            "user1", _make_interaction(request_id="r1", interaction_id=1)
+        )
+        storage.add_user_interaction(
+            "user1", _make_interaction(request_id="r2", interaction_id=2)
+        )
         deleted = storage.delete_session("s1")
         assert deleted == 2
         assert storage.get_request("r1") is None
@@ -503,7 +554,9 @@ class TestRequestCRUD:
     def test_delete_requests_by_ids(self, storage):
         storage.add_request(_make_request(request_id="r1"))
         storage.add_request(_make_request(request_id="r2"))
-        storage.add_user_interaction("user1", _make_interaction(request_id="r1", interaction_id=1))
+        storage.add_user_interaction(
+            "user1", _make_interaction(request_id="r1", interaction_id=1)
+        )
         deleted = storage.delete_requests_by_ids(["r1"])
         assert deleted == 1
         assert storage.get_request("r1") is None
@@ -524,18 +577,29 @@ class TestRequestCRUD:
 
     def test_get_sessions(self, storage):
         now = _now_ts()
-        storage.add_request(_make_request(request_id="r1", session_id="s1", created_at=now))
-        storage.add_user_interaction("user1", _make_interaction(request_id="r1", interaction_id=1))
+        storage.add_request(
+            _make_request(request_id="r1", session_id="s1", created_at=now)
+        )
+        storage.add_user_interaction(
+            "user1", _make_interaction(request_id="r1", interaction_id=1)
+        )
         sessions = storage.get_sessions(user_id="user1")
         assert "s1" in sessions
         assert len(sessions["s1"]) == 1
 
     def test_get_sessions_with_filters(self, storage):
         now = _now_ts()
-        storage.add_request(_make_request(request_id="r1", session_id="s1", created_at=now - 100))
-        storage.add_request(_make_request(request_id="r2", session_id="s1", created_at=now))
+        storage.add_request(
+            _make_request(request_id="r1", session_id="s1", created_at=now - 100)
+        )
+        storage.add_request(
+            _make_request(request_id="r2", session_id="s1", created_at=now)
+        )
         sessions = storage.get_sessions(
-            user_id="user1", session_id="s1", start_time=now - 50, end_time=now + 50,
+            user_id="user1",
+            session_id="s1",
+            start_time=now - 50,
+            end_time=now + 50,
         )
         assert "s1" in sessions
         assert len(sessions["s1"]) == 1
@@ -546,8 +610,12 @@ class TestRequestCRUD:
 
     def test_get_rerun_user_ids(self, storage):
         now = _now_ts()
-        storage.add_request(_make_request(request_id="r1", user_id="u1", source="api", created_at=now))
-        storage.add_request(_make_request(request_id="r2", user_id="u2", source="web", created_at=now))
+        storage.add_request(
+            _make_request(request_id="r1", user_id="u1", source="api", created_at=now)
+        )
+        storage.add_request(
+            _make_request(request_id="r2", user_id="u2", source="web", created_at=now)
+        )
         result = storage.get_rerun_user_ids(source="api")
         assert result == ["u1"]
 
@@ -558,6 +626,7 @@ class TestRequestCRUD:
 # ===========================================================================
 # Raw Feedback CRUD
 # ===========================================================================
+
 
 class TestRawFeedbackCRUD:
     def test_save_and_get_raw_feedbacks(self, storage):
@@ -574,10 +643,22 @@ class TestRawFeedbackCRUD:
 
     def test_get_raw_feedbacks_with_filters(self, storage):
         now = _now_ts()
-        storage.save_raw_feedbacks([
-            _make_raw_feedback(feedback_name="fb1", agent_version="v1", user_id="u1", created_at=now - 100),
-            _make_raw_feedback(feedback_name="fb2", agent_version="v2", user_id="u2", created_at=now),
-        ])
+        storage.save_raw_feedbacks(
+            [
+                _make_raw_feedback(
+                    feedback_name="fb1",
+                    agent_version="v1",
+                    user_id="u1",
+                    created_at=now - 100,
+                ),
+                _make_raw_feedback(
+                    feedback_name="fb2",
+                    agent_version="v2",
+                    user_id="u2",
+                    created_at=now,
+                ),
+            ]
+        )
         # Filter by user_id
         result = storage.get_raw_feedbacks(user_id="u1")
         assert len(result) == 1
@@ -602,10 +683,12 @@ class TestRawFeedbackCRUD:
         assert storage.get_raw_feedbacks() == []
 
     def test_get_raw_feedbacks_status_filter(self, storage):
-        storage.save_raw_feedbacks([
-            _make_raw_feedback(content="current", status=None),
-            _make_raw_feedback(content="pending", status=Status.PENDING),
-        ])
+        storage.save_raw_feedbacks(
+            [
+                _make_raw_feedback(content="current", status=None),
+                _make_raw_feedback(content="pending", status=Status.PENDING),
+            ]
+        )
         result = storage.get_raw_feedbacks(status_filter=[None])
         assert len(result) == 1
         assert result[0].feedback_content == "current"
@@ -626,20 +709,24 @@ class TestRawFeedbackCRUD:
         assert storage.get_raw_feedbacks() == []
 
     def test_delete_all_raw_feedbacks_by_feedback_name(self, storage):
-        storage.save_raw_feedbacks([
-            _make_raw_feedback(feedback_name="fb1"),
-            _make_raw_feedback(feedback_name="fb2"),
-        ])
+        storage.save_raw_feedbacks(
+            [
+                _make_raw_feedback(feedback_name="fb1"),
+                _make_raw_feedback(feedback_name="fb2"),
+            ]
+        )
         storage.delete_all_raw_feedbacks_by_feedback_name("fb1")
         result = storage.get_raw_feedbacks()
         assert len(result) == 1
         assert result[0].feedback_name == "fb2"
 
     def test_delete_all_raw_feedbacks_by_feedback_name_with_version(self, storage):
-        storage.save_raw_feedbacks([
-            _make_raw_feedback(feedback_name="fb1", agent_version="v1"),
-            _make_raw_feedback(feedback_name="fb1", agent_version="v2"),
-        ])
+        storage.save_raw_feedbacks(
+            [
+                _make_raw_feedback(feedback_name="fb1", agent_version="v1"),
+                _make_raw_feedback(feedback_name="fb1", agent_version="v2"),
+            ]
+        )
         storage.delete_all_raw_feedbacks_by_feedback_name("fb1", agent_version="v1")
         result = storage.get_raw_feedbacks()
         assert len(result) == 1
@@ -651,10 +738,16 @@ class TestRawFeedbackCRUD:
         assert storage.count_raw_feedbacks() == 2
 
     def test_count_raw_feedbacks_with_filters(self, storage):
-        storage.save_raw_feedbacks([
-            _make_raw_feedback(feedback_name="fb1", agent_version="v1", user_id="u1"),
-            _make_raw_feedback(feedback_name="fb2", agent_version="v2", user_id="u2"),
-        ])
+        storage.save_raw_feedbacks(
+            [
+                _make_raw_feedback(
+                    feedback_name="fb1", agent_version="v1", user_id="u1"
+                ),
+                _make_raw_feedback(
+                    feedback_name="fb2", agent_version="v2", user_id="u2"
+                ),
+            ]
+        )
         assert storage.count_raw_feedbacks(user_id="u1") == 1
         assert storage.count_raw_feedbacks(feedback_name="fb1") == 1
         assert storage.count_raw_feedbacks(agent_version="v1") == 1
@@ -681,41 +774,53 @@ class TestRawFeedbackCRUD:
 # Raw Feedback status management
 # ===========================================================================
 
+
 class TestRawFeedbackStatus:
     def test_update_all_raw_feedbacks_status(self, storage):
         storage.save_raw_feedbacks([_make_raw_feedback(), _make_raw_feedback()])
-        count = storage.update_all_raw_feedbacks_status(old_status=None, new_status=Status.PENDING)
+        count = storage.update_all_raw_feedbacks_status(
+            old_status=None, new_status=Status.PENDING
+        )
         assert count == 2
         result = storage.get_raw_feedbacks(status_filter=[Status.PENDING])
         assert len(result) == 2
 
     def test_update_all_raw_feedbacks_status_with_filters(self, storage):
-        storage.save_raw_feedbacks([
-            _make_raw_feedback(feedback_name="fb1", agent_version="v1"),
-            _make_raw_feedback(feedback_name="fb2", agent_version="v2"),
-        ])
+        storage.save_raw_feedbacks(
+            [
+                _make_raw_feedback(feedback_name="fb1", agent_version="v1"),
+                _make_raw_feedback(feedback_name="fb2", agent_version="v2"),
+            ]
+        )
         count = storage.update_all_raw_feedbacks_status(
-            old_status=None, new_status=Status.PENDING,
-            agent_version="v1", feedback_name="fb1",
+            old_status=None,
+            new_status=Status.PENDING,
+            agent_version="v1",
+            feedback_name="fb1",
         )
         assert count == 1
 
     def test_delete_all_raw_feedbacks_by_status(self, storage):
-        storage.save_raw_feedbacks([
-            _make_raw_feedback(status=Status.PENDING),
-            _make_raw_feedback(status=None),
-        ])
+        storage.save_raw_feedbacks(
+            [
+                _make_raw_feedback(status=Status.PENDING),
+                _make_raw_feedback(status=None),
+            ]
+        )
         deleted = storage.delete_all_raw_feedbacks_by_status(Status.PENDING)
         assert deleted == 1
         assert len(storage.get_raw_feedbacks()) == 1
 
     def test_delete_all_raw_feedbacks_by_status_with_filters(self, storage):
-        storage.save_raw_feedbacks([
-            _make_raw_feedback(status=Status.PENDING, agent_version="v1"),
-            _make_raw_feedback(status=Status.PENDING, agent_version="v2"),
-        ])
+        storage.save_raw_feedbacks(
+            [
+                _make_raw_feedback(status=Status.PENDING, agent_version="v1"),
+                _make_raw_feedback(status=Status.PENDING, agent_version="v2"),
+            ]
+        )
         deleted = storage.delete_all_raw_feedbacks_by_status(
-            Status.PENDING, agent_version="v1",
+            Status.PENDING,
+            agent_version="v1",
         )
         assert deleted == 1
         assert len(storage.get_raw_feedbacks()) == 1
@@ -727,18 +832,23 @@ class TestRawFeedbackStatus:
         assert storage.has_raw_feedbacks_with_status(Status.PENDING) is False
 
     def test_has_raw_feedbacks_with_status_filters(self, storage):
-        storage.save_raw_feedbacks([
-            _make_raw_feedback(agent_version="v1", feedback_name="fb1"),
-        ])
+        storage.save_raw_feedbacks(
+            [
+                _make_raw_feedback(agent_version="v1", feedback_name="fb1"),
+            ]
+        )
         assert storage.has_raw_feedbacks_with_status(None, agent_version="v1") is True
         assert storage.has_raw_feedbacks_with_status(None, agent_version="v2") is False
         assert storage.has_raw_feedbacks_with_status(None, feedback_name="fb1") is True
-        assert storage.has_raw_feedbacks_with_status(None, feedback_name="other") is False
+        assert (
+            storage.has_raw_feedbacks_with_status(None, feedback_name="other") is False
+        )
 
 
 # ===========================================================================
 # Feedback CRUD
 # ===========================================================================
+
 
 class TestFeedbackCRUD:
     def test_save_and_get_feedbacks(self, storage):
@@ -767,7 +877,9 @@ class TestFeedbackCRUD:
 
     def test_get_feedbacks_with_feedback_status_filter(self, storage):
         storage.save_feedbacks([_make_feedback(feedback_status=FeedbackStatus.PENDING)])
-        storage.save_feedbacks([_make_feedback(feedback_status=FeedbackStatus.APPROVED)])
+        storage.save_feedbacks(
+            [_make_feedback(feedback_status=FeedbackStatus.APPROVED)]
+        )
         result = storage.get_feedbacks(feedback_status_filter=[FeedbackStatus.APPROVED])
         assert len(result) == 1
 
@@ -832,6 +944,7 @@ class TestFeedbackCRUD:
 # Feedback archive/restore
 # ===========================================================================
 
+
 class TestFeedbackArchive:
     def test_archive_feedbacks_by_feedback_name(self, storage):
         storage.save_feedbacks([_make_feedback(feedback_name="fb1")])
@@ -842,9 +955,13 @@ class TestFeedbackArchive:
         assert len(archived) == 1
 
     def test_archive_skips_approved(self, storage):
-        storage.save_feedbacks([
-            _make_feedback(feedback_name="fb1", feedback_status=FeedbackStatus.APPROVED),
-        ])
+        storage.save_feedbacks(
+            [
+                _make_feedback(
+                    feedback_name="fb1", feedback_status=FeedbackStatus.APPROVED
+                ),
+            ]
+        )
         storage.archive_feedbacks_by_feedback_name("fb1")
         # Approved feedback should still appear
         result = storage.get_feedbacks()
@@ -862,7 +979,10 @@ class TestFeedbackArchive:
         storage.archive_feedbacks_by_feedback_name("fb1")
         storage.delete_archived_feedbacks_by_feedback_name("fb1")
         # Gone entirely
-        assert storage.get_feedbacks(status_filter=[Status.ARCHIVED, "archived", None]) == []
+        assert (
+            storage.get_feedbacks(status_filter=[Status.ARCHIVED, "archived", None])
+            == []
+        )
 
     def test_archive_feedbacks_by_ids(self, storage):
         storage.save_feedbacks([_make_feedback(), _make_feedback()])
@@ -898,10 +1018,15 @@ class TestFeedbackArchive:
 # Search operations
 # ===========================================================================
 
+
 class TestSearchOperations:
     def test_search_interaction_by_query(self, storage):
-        storage.add_user_interaction("u1", _make_interaction(content="I like sushi", interaction_id=1))
-        storage.add_user_interaction("u1", _make_interaction(content="I like pizza", interaction_id=2))
+        storage.add_user_interaction(
+            "u1", _make_interaction(content="I like sushi", interaction_id=1)
+        )
+        storage.add_user_interaction(
+            "u1", _make_interaction(content="I like pizza", interaction_id=2)
+        )
         results = storage.search_interaction(
             SearchInteractionRequest(user_id="u1", query="sushi"),
         )
@@ -909,8 +1034,12 @@ class TestSearchOperations:
         assert "sushi" in results[0].content
 
     def test_search_interaction_by_request_id(self, storage):
-        storage.add_user_interaction("u1", _make_interaction(request_id="r1", interaction_id=1))
-        storage.add_user_interaction("u1", _make_interaction(request_id="r2", interaction_id=2))
+        storage.add_user_interaction(
+            "u1", _make_interaction(request_id="r1", interaction_id=1)
+        )
+        storage.add_user_interaction(
+            "u1", _make_interaction(request_id="r2", interaction_id=2)
+        )
         results = storage.search_interaction(
             SearchInteractionRequest(user_id="u1", request_id="r1"),
         )
@@ -920,10 +1049,12 @@ class TestSearchOperations:
         now = datetime.now(UTC)
         ts = int(now.timestamp())
         storage.add_user_interaction(
-            "u1", _make_interaction(interaction_id=1, created_at=ts - 200),
+            "u1",
+            _make_interaction(interaction_id=1, created_at=ts - 200),
         )
         storage.add_user_interaction(
-            "u1", _make_interaction(interaction_id=2, created_at=ts),
+            "u1",
+            _make_interaction(interaction_id=2, created_at=ts),
         )
         results = storage.search_interaction(
             SearchInteractionRequest(
@@ -936,7 +1067,9 @@ class TestSearchOperations:
 
     def test_search_user_profile_by_query(self, storage):
         storage.add_user_profile("u1", [_make_profile(content="likes sushi")])
-        storage.add_user_profile("u1", [_make_profile(profile_id="p2", content="likes pizza")])
+        storage.add_user_profile(
+            "u1", [_make_profile(profile_id="p2", content="likes pizza")]
+        )
         results = storage.search_user_profile(
             SearchUserProfileRequest(user_id="u1", query="sushi"),
         )
@@ -966,7 +1099,8 @@ class TestSearchOperations:
     def test_search_user_profile_top_k(self, storage):
         for i in range(5):
             storage.add_user_profile(
-                "u1", [_make_profile(profile_id=f"p{i}", content=f"likes item {i}")],
+                "u1",
+                [_make_profile(profile_id=f"p{i}", content=f"likes item {i}")],
             )
         results = storage.search_user_profile(
             SearchUserProfileRequest(user_id="u1", top_k=3),
@@ -974,10 +1108,12 @@ class TestSearchOperations:
         assert len(results) == 3
 
     def test_search_raw_feedbacks_by_query(self, storage):
-        storage.save_raw_feedbacks([
-            _make_raw_feedback(content="user likes sushi"),
-            _make_raw_feedback(content="user likes pizza"),
-        ])
+        storage.save_raw_feedbacks(
+            [
+                _make_raw_feedback(content="user likes sushi"),
+                _make_raw_feedback(content="user likes pizza"),
+            ]
+        )
         results = storage.search_raw_feedbacks(
             SearchRawFeedbackRequest(query="sushi"),
         )
@@ -987,10 +1123,16 @@ class TestSearchOperations:
     def test_search_raw_feedbacks_with_filters(self, storage):
         now = datetime.now(UTC)
         ts = int(now.timestamp())
-        storage.save_raw_feedbacks([
-            _make_raw_feedback(agent_version="v1", feedback_name="fb1", created_at=ts),
-            _make_raw_feedback(agent_version="v2", feedback_name="fb2", created_at=ts),
-        ])
+        storage.save_raw_feedbacks(
+            [
+                _make_raw_feedback(
+                    agent_version="v1", feedback_name="fb1", created_at=ts
+                ),
+                _make_raw_feedback(
+                    agent_version="v2", feedback_name="fb2", created_at=ts
+                ),
+            ]
+        )
         results = storage.search_raw_feedbacks(
             SearchRawFeedbackRequest(agent_version="v1"),
         )
@@ -1000,20 +1142,24 @@ class TestSearchOperations:
         assert storage.search_raw_feedbacks(SearchRawFeedbackRequest()) == []
 
     def test_search_feedbacks_by_query(self, storage):
-        storage.save_feedbacks([
-            _make_feedback(content="always greet the user"),
-            _make_feedback(content="never skip validation"),
-        ])
+        storage.save_feedbacks(
+            [
+                _make_feedback(content="always greet the user"),
+                _make_feedback(content="never skip validation"),
+            ]
+        )
         results = storage.search_feedbacks(
             SearchFeedbackRequest(query="greet"),
         )
         assert len(results) == 1
 
     def test_search_feedbacks_with_filters(self, storage):
-        storage.save_feedbacks([
-            _make_feedback(agent_version="v1", feedback_name="fb1"),
-            _make_feedback(agent_version="v2", feedback_name="fb2"),
-        ])
+        storage.save_feedbacks(
+            [
+                _make_feedback(agent_version="v1", feedback_name="fb1"),
+                _make_feedback(agent_version="v2", feedback_name="fb2"),
+            ]
+        )
         results = storage.search_feedbacks(
             SearchFeedbackRequest(agent_version="v1"),
         )
@@ -1023,10 +1169,12 @@ class TestSearchOperations:
         assert storage.search_feedbacks(SearchFeedbackRequest()) == []
 
     def test_search_feedbacks_with_status_filter(self, storage):
-        storage.save_feedbacks([
-            _make_feedback(status=None),
-            _make_feedback(status=Status.ARCHIVED),
-        ])
+        storage.save_feedbacks(
+            [
+                _make_feedback(status=None),
+                _make_feedback(status=Status.ARCHIVED),
+            ]
+        )
         results = storage.search_feedbacks(
             SearchFeedbackRequest(status_filter=[None]),
         )
@@ -1036,6 +1184,7 @@ class TestSearchOperations:
 # ===========================================================================
 # Skill CRUD
 # ===========================================================================
+
 
 class TestSkillCRUD:
     def test_save_and_get_skills(self, storage):
@@ -1049,18 +1198,22 @@ class TestSkillCRUD:
         assert storage.get_skills() == []
 
     def test_get_skills_with_filters(self, storage):
-        storage.save_skills([
-            _make_skill(skill_name="s1", feedback_name="fb1", agent_version="v1"),
-            _make_skill(skill_name="s2", feedback_name="fb2", agent_version="v2"),
-        ])
+        storage.save_skills(
+            [
+                _make_skill(skill_name="s1", feedback_name="fb1", agent_version="v1"),
+                _make_skill(skill_name="s2", feedback_name="fb2", agent_version="v2"),
+            ]
+        )
         assert len(storage.get_skills(feedback_name="fb1")) == 1
         assert len(storage.get_skills(agent_version="v2")) == 1
 
     def test_get_skills_with_status_filter(self, storage):
-        storage.save_skills([
-            _make_skill(skill_name="s1", skill_status=SkillStatus.DRAFT),
-            _make_skill(skill_name="s2", skill_status=SkillStatus.PUBLISHED),
-        ])
+        storage.save_skills(
+            [
+                _make_skill(skill_name="s1", skill_status=SkillStatus.DRAFT),
+                _make_skill(skill_name="s2", skill_status=SkillStatus.PUBLISHED),
+            ]
+        )
         assert len(storage.get_skills(skill_status=SkillStatus.DRAFT)) == 1
 
     def test_get_skills_limit(self, storage):
@@ -1077,19 +1230,25 @@ class TestSkillCRUD:
         assert updated[0].instructions == "Updated instructions"
 
     def test_search_skills_by_query(self, storage):
-        storage.save_skills([
-            _make_skill(skill_name="greet", instructions="Say hello to the user"),
-            _make_skill(skill_name="farewell", instructions="Say goodbye to the user"),
-        ])
+        storage.save_skills(
+            [
+                _make_skill(skill_name="greet", instructions="Say hello to the user"),
+                _make_skill(
+                    skill_name="farewell", instructions="Say goodbye to the user"
+                ),
+            ]
+        )
         results = storage.search_skills(SearchSkillsRequest(query="hello"))
         assert len(results) == 1
         assert results[0].skill_name == "greet"
 
     def test_search_skills_with_filters(self, storage):
-        storage.save_skills([
-            _make_skill(skill_name="s1", feedback_name="fb1", agent_version="v1"),
-            _make_skill(skill_name="s2", feedback_name="fb2", agent_version="v2"),
-        ])
+        storage.save_skills(
+            [
+                _make_skill(skill_name="s1", feedback_name="fb1", agent_version="v1"),
+                _make_skill(skill_name="s2", feedback_name="fb2", agent_version="v2"),
+            ]
+        )
         results = storage.search_skills(
             SearchSkillsRequest(feedback_name="fb1", agent_version="v1"),
         )
@@ -1127,6 +1286,7 @@ class TestSkillCRUD:
 # Profile Change Log
 # ===========================================================================
 
+
 class TestProfileChangeLog:
     def test_add_and_get_profile_change_logs(self, storage):
         log = ProfileChangeLog(
@@ -1148,8 +1308,12 @@ class TestProfileChangeLog:
 
     def test_delete_profile_change_log_for_user(self, storage):
         log = ProfileChangeLog(
-            id=1, user_id="u1", request_id="req1",
-            added_profiles=[], removed_profiles=[], mentioned_profiles=[],
+            id=1,
+            user_id="u1",
+            request_id="req1",
+            added_profiles=[],
+            removed_profiles=[],
+            mentioned_profiles=[],
         )
         storage.add_profile_change_log(log)
         storage.delete_profile_change_log_for_user("u1")
@@ -1160,8 +1324,12 @@ class TestProfileChangeLog:
 
     def test_delete_all_profile_change_logs(self, storage):
         log = ProfileChangeLog(
-            id=1, user_id="u1", request_id="req1",
-            added_profiles=[], removed_profiles=[], mentioned_profiles=[],
+            id=1,
+            user_id="u1",
+            request_id="req1",
+            added_profiles=[],
+            removed_profiles=[],
+            mentioned_profiles=[],
         )
         storage.add_profile_change_log(log)
         storage.delete_all_profile_change_logs()
@@ -1171,6 +1339,7 @@ class TestProfileChangeLog:
 # ===========================================================================
 # Feedback Aggregation Change Log
 # ===========================================================================
+
 
 class TestFeedbackAggregationChangeLog:
     def test_add_and_get(self, storage):
@@ -1191,13 +1360,17 @@ class TestFeedbackAggregationChangeLog:
     def test_get_filters_by_name_and_version(self, storage):
         storage.add_feedback_aggregation_change_log(
             FeedbackAggregationChangeLog(
-                id=1, feedback_name="fb1", agent_version="v1",
+                id=1,
+                feedback_name="fb1",
+                agent_version="v1",
                 run_mode="incremental",
             ),
         )
         storage.add_feedback_aggregation_change_log(
             FeedbackAggregationChangeLog(
-                id=2, feedback_name="fb2", agent_version="v1",
+                id=2,
+                feedback_name="fb2",
+                agent_version="v1",
                 run_mode="full_archive",
             ),
         )
@@ -1208,7 +1381,9 @@ class TestFeedbackAggregationChangeLog:
     def test_delete_all(self, storage):
         storage.add_feedback_aggregation_change_log(
             FeedbackAggregationChangeLog(
-                id=1, feedback_name="fb", agent_version="v1",
+                id=1,
+                feedback_name="fb",
+                agent_version="v1",
                 run_mode="incremental",
             ),
         )
@@ -1220,10 +1395,13 @@ class TestFeedbackAggregationChangeLog:
 # Agent Success Evaluation Results
 # ===========================================================================
 
+
 class TestAgentSuccessEvaluation:
     def test_save_and_get(self, storage):
         result = AgentSuccessEvaluationResult(
-            agent_version="v1", session_id="s1", is_success=True,
+            agent_version="v1",
+            session_id="s1",
+            is_success=True,
         )
         storage.save_agent_success_evaluation_results([result])
         results = storage.get_agent_success_evaluation_results()
@@ -1234,24 +1412,38 @@ class TestAgentSuccessEvaluation:
         assert storage.get_agent_success_evaluation_results() == []
 
     def test_get_with_agent_version_filter(self, storage):
-        storage.save_agent_success_evaluation_results([
-            AgentSuccessEvaluationResult(agent_version="v1", session_id="s1", is_success=True),
-            AgentSuccessEvaluationResult(agent_version="v2", session_id="s2", is_success=False),
-        ])
+        storage.save_agent_success_evaluation_results(
+            [
+                AgentSuccessEvaluationResult(
+                    agent_version="v1", session_id="s1", is_success=True
+                ),
+                AgentSuccessEvaluationResult(
+                    agent_version="v2", session_id="s2", is_success=False
+                ),
+            ]
+        )
         results = storage.get_agent_success_evaluation_results(agent_version="v1")
         assert len(results) == 1
 
     def test_get_with_limit(self, storage):
-        storage.save_agent_success_evaluation_results([
-            AgentSuccessEvaluationResult(agent_version="v1", session_id=f"s{i}", is_success=True)
-            for i in range(5)
-        ])
+        storage.save_agent_success_evaluation_results(
+            [
+                AgentSuccessEvaluationResult(
+                    agent_version="v1", session_id=f"s{i}", is_success=True
+                )
+                for i in range(5)
+            ]
+        )
         assert len(storage.get_agent_success_evaluation_results(limit=3)) == 3
 
     def test_delete_all(self, storage):
-        storage.save_agent_success_evaluation_results([
-            AgentSuccessEvaluationResult(agent_version="v1", session_id="s1", is_success=True),
-        ])
+        storage.save_agent_success_evaluation_results(
+            [
+                AgentSuccessEvaluationResult(
+                    agent_version="v1", session_id="s1", is_success=True
+                ),
+            ]
+        )
         storage.delete_all_agent_success_evaluation_results()
         assert storage.get_agent_success_evaluation_results() == []
 
@@ -1259,6 +1451,7 @@ class TestAgentSuccessEvaluation:
 # ===========================================================================
 # Operation State
 # ===========================================================================
+
 
 class TestOperationState:
     def test_create_and_get(self, storage):
@@ -1331,13 +1524,16 @@ class TestOperationState:
 
     def test_try_acquire_lock_stale(self, storage):
         storage.try_acquire_in_progress_lock("key", "req1", stale_lock_seconds=0)
-        result = storage.try_acquire_in_progress_lock("key", "req2", stale_lock_seconds=0)
+        result = storage.try_acquire_in_progress_lock(
+            "key", "req2", stale_lock_seconds=0
+        )
         assert result["acquired"] is True
 
 
 # ===========================================================================
 # Dashboard stats
 # ===========================================================================
+
 
 class TestDashboardStats:
     def test_get_dashboard_stats_empty(self, storage):
@@ -1348,13 +1544,19 @@ class TestDashboardStats:
 
     def test_get_dashboard_stats_with_data(self, storage):
         now = _now_ts()
-        storage.add_user_interaction("u1", _make_interaction(interaction_id=1, created_at=now))
+        storage.add_user_interaction(
+            "u1", _make_interaction(interaction_id=1, created_at=now)
+        )
         storage.add_user_profile("u1", [_make_profile(timestamp=now)])
         storage.save_raw_feedbacks([_make_raw_feedback(created_at=now)])
         storage.save_feedbacks([_make_feedback(created_at=now)])
-        storage.save_agent_success_evaluation_results([
-            AgentSuccessEvaluationResult(agent_version="v1", session_id="s1", is_success=True, created_at=now),
-        ])
+        storage.save_agent_success_evaluation_results(
+            [
+                AgentSuccessEvaluationResult(
+                    agent_version="v1", session_id="s1", is_success=True, created_at=now
+                ),
+            ]
+        )
         stats = storage.get_dashboard_stats()
         assert stats["current_period"]["total_interactions"] == 1
         assert stats["current_period"]["total_profiles"] == 1
@@ -1366,22 +1568,35 @@ class TestDashboardStats:
 # get_last_k_interactions_grouped
 # ===========================================================================
 
+
 class TestGetLastKInteractionsGrouped:
     def test_basic(self, storage):
         now = _now_ts()
         storage.add_request(_make_request(request_id="r1"))
-        storage.add_user_interaction("u1", _make_interaction(request_id="r1", interaction_id=1, created_at=now))
-        storage.add_user_interaction("u1", _make_interaction(request_id="r1", interaction_id=2, created_at=now + 1))
+        storage.add_user_interaction(
+            "u1", _make_interaction(request_id="r1", interaction_id=1, created_at=now)
+        )
+        storage.add_user_interaction(
+            "u1",
+            _make_interaction(request_id="r1", interaction_id=2, created_at=now + 1),
+        )
         sessions, flat = storage.get_last_k_interactions_grouped(user_id="u1", k=10)
         assert len(flat) == 2
         assert len(sessions) == 1
 
     def test_with_time_range(self, storage):
         now = _now_ts()
-        storage.add_user_interaction("u1", _make_interaction(interaction_id=1, created_at=now - 200))
-        storage.add_user_interaction("u1", _make_interaction(interaction_id=2, created_at=now))
+        storage.add_user_interaction(
+            "u1", _make_interaction(interaction_id=1, created_at=now - 200)
+        )
+        storage.add_user_interaction(
+            "u1", _make_interaction(interaction_id=2, created_at=now)
+        )
         _, flat = storage.get_last_k_interactions_grouped(
-            user_id="u1", k=10, start_time=now - 100, end_time=now + 100,
+            user_id="u1",
+            k=10,
+            start_time=now - 100,
+            end_time=now + 100,
         )
         assert len(flat) == 1
 
@@ -1389,17 +1604,27 @@ class TestGetLastKInteractionsGrouped:
         now = _now_ts()
         storage.add_request(_make_request(request_id="r1", source="api"))
         storage.add_request(_make_request(request_id="r2", source="web"))
-        storage.add_user_interaction("u1", _make_interaction(request_id="r1", interaction_id=1, created_at=now))
-        storage.add_user_interaction("u1", _make_interaction(request_id="r2", interaction_id=2, created_at=now))
+        storage.add_user_interaction(
+            "u1", _make_interaction(request_id="r1", interaction_id=1, created_at=now)
+        )
+        storage.add_user_interaction(
+            "u1", _make_interaction(request_id="r2", interaction_id=2, created_at=now)
+        )
         _, flat = storage.get_last_k_interactions_grouped(
-            user_id="u1", k=10, sources=["api"],
+            user_id="u1",
+            k=10,
+            sources=["api"],
         )
         assert len(flat) == 1
 
     def test_all_users(self, storage):
         now = _now_ts()
-        storage.add_user_interaction("u1", _make_interaction(user_id="u1", interaction_id=1, created_at=now))
-        storage.add_user_interaction("u2", _make_interaction(user_id="u2", interaction_id=2, created_at=now))
+        storage.add_user_interaction(
+            "u1", _make_interaction(user_id="u1", interaction_id=1, created_at=now)
+        )
+        storage.add_user_interaction(
+            "u2", _make_interaction(user_id="u2", interaction_id=2, created_at=now)
+        )
         _, flat = storage.get_last_k_interactions_grouped(user_id=None, k=10)
         assert len(flat) == 2
 
@@ -1408,28 +1633,41 @@ class TestGetLastKInteractionsGrouped:
 # get_operation_state_with_new_request_interaction
 # ===========================================================================
 
+
 class TestGetOperationStateWithNewInteractions:
     def test_no_state_returns_all_interactions(self, storage):
         now = _now_ts()
-        storage.add_user_interaction("u1", _make_interaction(interaction_id=1, created_at=now))
+        storage.add_user_interaction(
+            "u1", _make_interaction(interaction_id=1, created_at=now)
+        )
         state, sessions = storage.get_operation_state_with_new_request_interaction(
-            "svc1", "u1",
+            "svc1",
+            "u1",
         )
         assert len(sessions) == 1
 
     def test_with_state_returns_only_new(self, storage):
         now = _now_ts()
-        storage.add_user_interaction("u1", _make_interaction(interaction_id=1, created_at=now - 100))
-        storage.add_user_interaction("u1", _make_interaction(interaction_id=2, created_at=now))
-        storage.upsert_operation_state("svc1", {
-            "service_name": "svc1",
-            "operation_state": {
-                "last_processed_interaction_ids": ["1"],
-                "last_processed_timestamp": now - 100,
+        storage.add_user_interaction(
+            "u1", _make_interaction(interaction_id=1, created_at=now - 100)
+        )
+        storage.add_user_interaction(
+            "u1", _make_interaction(interaction_id=2, created_at=now)
+        )
+        storage.upsert_operation_state(
+            "svc1",
+            {
+                "service_name": "svc1",
+                "operation_state": {
+                    "last_processed_interaction_ids": ["1"],
+                    "last_processed_timestamp": now - 100,
+                },
+                "updated_at": str(now),
             },
-            "updated_at": str(now),
-        })
-        _, sessions = storage.get_operation_state_with_new_request_interaction("svc1", "u1")
+        )
+        _, sessions = storage.get_operation_state_with_new_request_interaction(
+            "svc1", "u1"
+        )
         # Should get the newer interaction
         assert len(sessions) >= 1
 
@@ -1437,6 +1675,7 @@ class TestGetOperationStateWithNewInteractions:
 # ===========================================================================
 # Edge cases
 # ===========================================================================
+
 
 class TestEdgeCases:
     def test_empty_storage_operations(self, storage):
@@ -1473,20 +1712,29 @@ class TestEdgeCases:
         assert storage.get_skills() == []
 
     def test_multiple_profiles_per_user(self, storage):
-        storage.add_user_profile("u1", [
-            _make_profile(profile_id="p1", content="a"),
-            _make_profile(profile_id="p2", content="b"),
-        ])
+        storage.add_user_profile(
+            "u1",
+            [
+                _make_profile(profile_id="p1", content="a"),
+                _make_profile(profile_id="p2", content="b"),
+            ],
+        )
         profiles = storage.get_user_profile("u1")
         assert len(profiles) == 2
 
     def test_search_on_empty_storage(self, storage):
-        assert storage.search_interaction(
-            SearchInteractionRequest(user_id="u1"),
-        ) == []
-        assert storage.search_user_profile(
-            SearchUserProfileRequest(user_id="u1"),
-        ) == []
+        assert (
+            storage.search_interaction(
+                SearchInteractionRequest(user_id="u1"),
+            )
+            == []
+        )
+        assert (
+            storage.search_user_profile(
+                SearchUserProfileRequest(user_id="u1"),
+            )
+            == []
+        )
         assert storage.search_raw_feedbacks(SearchRawFeedbackRequest()) == []
         assert storage.search_feedbacks(SearchFeedbackRequest()) == []
         assert storage.search_skills(SearchSkillsRequest()) == []
@@ -1496,3 +1744,743 @@ class TestEdgeCases:
 
     def test_check_migration_needed_returns_false(self, storage):
         assert storage.check_migration_needed() is False
+
+
+# ===========================================================================
+# Init validation edge cases (lines 68-87)
+# ===========================================================================
+
+
+class TestInitValidation:
+    def test_config_with_nonexistent_absolute_dir_creates_it(self, tmp_path):
+        new_dir = tmp_path / "new_sub" / "deep"
+        cfg = StorageConfigLocal(dir_path=str(new_dir))
+        s = LocalJsonStorage(org_id="org1", config=cfg)
+        assert s.base_dir == str(new_dir)
+        assert new_dir.is_dir()
+
+    def test_config_mkdir_os_error_raises(self, tmp_path):
+        """Covers lines 74-77: OSError during mkdir with config."""
+        # Create a file where the directory would be
+        blocker = tmp_path / "blocker"
+        blocker.write_text("x")
+        # Try to create a dir *inside* the file, which will OSError
+        bad_path = str(blocker / "subdir")
+        cfg = StorageConfigLocal(dir_path=bad_path)
+        with pytest.raises(StorageError, match="cannot create directory"):
+            LocalJsonStorage(org_id="org1", config=cfg)
+
+    def test_base_dir_none_uses_default(self, tmp_path, monkeypatch):
+        """Covers line 80: base_dir is None falls back to LOCAL_STORAGE_PATH."""
+        monkeypatch.setattr(
+            "reflexio.server.services.storage.local_json_storage.LOCAL_STORAGE_PATH",
+            str(tmp_path),
+        )
+        s = LocalJsonStorage(org_id="org1")
+        assert s.base_dir == str(tmp_path)
+
+    def test_base_dir_mkdir_os_error_raises(self, tmp_path):
+        """Covers lines 84-87: OSError during mkdir without config."""
+        blocker = tmp_path / "blocker"
+        blocker.write_text("x")
+        bad_path = str(blocker / "subdir")
+        with pytest.raises(StorageError, match="cannot create directory"):
+            LocalJsonStorage(org_id="org1", base_dir=bad_path)
+
+
+# ===========================================================================
+# Legacy string status filter (lines 158-165, 225-232)
+# ===========================================================================
+
+
+class TestLegacyStringStatusFilter:
+    def test_get_all_profiles_legacy_string_filter(self, storage):
+        """Covers lines 158-165: legacy string comparison in get_all_profiles."""
+        storage.add_user_profile("u1", [_make_profile(status=Status.PENDING)])
+        # Pass a raw string that matches the enum's value
+        profiles = storage.get_all_profiles(status_filter=["pending"])
+        assert len(profiles) == 1
+
+    def test_get_user_profile_legacy_string_filter(self, storage):
+        """Covers lines 225-232: legacy string comparison in get_user_profile."""
+        storage.add_user_profile("u1", [_make_profile(status=Status.PENDING)])
+        profiles = storage.get_user_profile("u1", status_filter=["pending"])
+        assert len(profiles) == 1
+
+
+# ===========================================================================
+# _get_next_interaction_id edge cases (lines 282, 293-294)
+# ===========================================================================
+
+
+class TestGetNextInteractionId:
+    def test_skips_internal_keys_starting_with_underscore(self, storage):
+        """Covers line 282: keys starting with _ are skipped."""
+        import json
+        from pathlib import Path
+
+        all_memories = json.loads(Path(storage.file_path).read_text())
+        all_memories["_internal"] = {"interactions": ["invalid_json"]}
+        all_memories["user1"] = {"interactions": []}
+        Path(storage.file_path).write_text(json.dumps(all_memories))
+        # Should work without error (skips _internal)
+        storage.add_user_interaction("user1", _make_interaction(interaction_id=0))
+        interactions = storage.get_user_interaction("user1")
+        assert len(interactions) == 1
+        assert interactions[0].interaction_id == 1
+
+    def test_skips_non_dict_entries(self, storage):
+        """Covers lines 283-286: non-dict entries (e.g. list) are skipped."""
+        import json
+        from pathlib import Path
+
+        all_memories = json.loads(Path(storage.file_path).read_text())
+        all_memories["requests"] = ["some_request_json"]
+        Path(storage.file_path).write_text(json.dumps(all_memories))
+        storage.add_user_interaction("user1", _make_interaction(interaction_id=0))
+        interactions = storage.get_user_interaction("user1")
+        assert interactions[0].interaction_id == 1
+
+    def test_skips_invalid_interaction_json(self, storage):
+        """Covers lines 293-294: exception during interaction parsing is caught."""
+        import json
+        from pathlib import Path
+
+        all_memories = json.loads(Path(storage.file_path).read_text())
+        all_memories["user_bad"] = {"interactions": ["not_valid_json{{"]}
+        Path(storage.file_path).write_text(json.dumps(all_memories))
+        storage.add_user_interaction("user1", _make_interaction(interaction_id=0))
+        interactions = storage.get_user_interaction("user1")
+        assert interactions[0].interaction_id == 1
+
+
+# ===========================================================================
+# delete_request edge case (line 736)
+# ===========================================================================
+
+
+class TestDeleteRequestEdgeCases:
+    def test_delete_request_no_requests_key(self, storage):
+        """Covers line 736: early return when 'requests' key missing."""
+        storage.add_user_interaction("u1", _make_interaction(interaction_id=1))
+        # No requests stored yet, calling delete_request should not raise
+        storage.delete_request("req_nonexistent")
+
+
+# ===========================================================================
+# delete_session edge case (line 769)
+# ===========================================================================
+
+
+class TestDeleteSessionEdgeCases:
+    def test_delete_session_no_matching_requests(self, storage):
+        """Covers line 769: request_ids is empty after filtering."""
+        storage.add_request(_make_request(request_id="r1", session_id="s1"))
+        deleted = storage.delete_session("s_nonexistent")
+        assert deleted == 0
+
+
+# ===========================================================================
+# get_sessions filter paths (lines 923, 927, 931, 939)
+# ===========================================================================
+
+
+class TestGetSessionsFilters:
+    def test_get_sessions_filter_by_request_id(self, storage):
+        """Covers line 927: filter by request_id."""
+        now = _now_ts()
+        storage.add_request(
+            _make_request(request_id="r1", session_id="s1", created_at=now)
+        )
+        storage.add_request(
+            _make_request(request_id="r2", session_id="s1", created_at=now)
+        )
+        sessions = storage.get_sessions(request_id="r1")
+        assert "s1" in sessions
+        assert len(sessions["s1"]) == 1
+        assert sessions["s1"][0].request.request_id == "r1"
+
+    def test_get_sessions_filter_by_end_time(self, storage):
+        """Covers line 939: end_time filter applied."""
+        now = _now_ts()
+        storage.add_request(_make_request(request_id="r1", created_at=now - 200))
+        storage.add_request(_make_request(request_id="r2", created_at=now))
+        sessions = storage.get_sessions(user_id="user1", end_time=now - 100)
+        total = sum(len(v) for v in sessions.values())
+        assert total == 1
+
+    def test_get_sessions_no_user_id_collects_all_interactions(self, storage):
+        """Covers lines 965-973: interaction collection when user_id is None."""
+        now = _now_ts()
+        storage.add_request(
+            _make_request(request_id="r1", user_id="u1", created_at=now)
+        )
+        storage.add_user_interaction(
+            "u1",
+            _make_interaction(
+                user_id="u1", request_id="r1", interaction_id=1, created_at=now
+            ),
+        )
+        sessions = storage.get_sessions()
+        total = sum(len(v) for v in sessions.values())
+        assert total >= 1
+
+
+# ===========================================================================
+# get_rerun_user_ids filter paths (lines 1039, 1041, 1045)
+# ===========================================================================
+
+
+class TestGetRerunUserIdsFilters:
+    def test_rerun_user_ids_filter_by_time_range(self, storage):
+        """Covers lines 1039, 1041: start_time and end_time filters."""
+        now = _now_ts()
+        storage.add_request(
+            _make_request(request_id="r1", user_id="u1", created_at=now - 200)
+        )
+        storage.add_request(
+            _make_request(request_id="r2", user_id="u2", created_at=now)
+        )
+        result = storage.get_rerun_user_ids(start_time=now - 100, end_time=now + 100)
+        assert "u2" in result
+        assert "u1" not in result
+
+    def test_rerun_user_ids_filter_by_agent_version(self, storage):
+        """Covers line 1045: agent_version filter."""
+        now = _now_ts()
+        storage.add_request(
+            _make_request(
+                request_id="r1", user_id="u1", agent_version="v1", created_at=now
+            )
+        )
+        storage.add_request(
+            _make_request(
+                request_id="r2", user_id="u2", agent_version="v2", created_at=now
+            )
+        )
+        result = storage.get_rerun_user_ids(agent_version="v1")
+        assert result == ["u1"]
+
+
+# ===========================================================================
+# save_raw_feedbacks auto-id from existing (lines 1251-1253)
+# ===========================================================================
+
+
+class TestSaveRawFeedbacksAutoId:
+    def test_auto_id_continues_from_existing(self, storage):
+        """Covers lines 1251-1253: finds max existing raw_feedback_id."""
+        storage.save_raw_feedbacks([_make_raw_feedback()])
+        # First one gets id=1
+        storage.save_raw_feedbacks([_make_raw_feedback()])
+        # Second one should get id=2
+        all_fbs = storage.get_raw_feedbacks()
+        assert len(all_fbs) == 2
+        ids = {fb.raw_feedback_id for fb in all_fbs}
+        assert ids == {1, 2}
+
+
+# ===========================================================================
+# get_raw_feedbacks end_time filter (line 1318)
+# ===========================================================================
+
+
+class TestGetRawFeedbacksEndTime:
+    def test_end_time_filter(self, storage):
+        """Covers line 1318: end_time filter excludes later feedbacks."""
+        now = _now_ts()
+        storage.save_raw_feedbacks(
+            [
+                _make_raw_feedback(content="old", created_at=now - 200),
+                _make_raw_feedback(content="new", created_at=now),
+            ]
+        )
+        result = storage.get_raw_feedbacks(end_time=now - 100)
+        assert len(result) == 1
+        assert result[0].feedback_content == "old"
+
+
+# ===========================================================================
+# count_raw_feedbacks with status_filter (line 1376)
+# ===========================================================================
+
+
+class TestCountRawFeedbacksStatusFilter:
+    def test_count_with_status_filter(self, storage):
+        """Covers line 1376: status_filter in count_raw_feedbacks."""
+        storage.save_raw_feedbacks(
+            [
+                _make_raw_feedback(content="a", status=None),
+                _make_raw_feedback(content="b", status=Status.PENDING),
+            ]
+        )
+        assert storage.count_raw_feedbacks(status_filter=[None]) == 1
+        assert storage.count_raw_feedbacks(status_filter=[Status.PENDING]) == 1
+
+
+# ===========================================================================
+# update_feedback_status not found (line 1634)
+# ===========================================================================
+
+
+class TestUpdateFeedbackStatusNotFound:
+    def test_feedback_id_not_found_in_existing_feedbacks(self, storage):
+        """Covers line 1634: feedback exists but target ID not among them."""
+        storage.save_feedbacks([_make_feedback()])
+        with pytest.raises(ValueError, match="not found"):
+            storage.update_feedback_status(999, FeedbackStatus.APPROVED)
+
+
+# ===========================================================================
+# Feedback archive/restore with no feedbacks key (lines 1736, 1764, 1792)
+# ===========================================================================
+
+
+class TestFeedbackArchiveEdgeCases:
+    def test_archive_by_ids_no_feedbacks_key(self, storage):
+        """Covers line 1736: archive_feedbacks_by_ids when no feedbacks stored."""
+        storage.archive_feedbacks_by_ids([1, 2])
+
+    def test_restore_by_ids_no_feedbacks_key(self, storage):
+        """Covers line 1764: restore_archived_feedbacks_by_ids when no feedbacks stored."""
+        storage.restore_archived_feedbacks_by_ids([1, 2])
+
+    def test_delete_by_ids_no_feedbacks_key(self, storage):
+        """Covers line 1792: delete_feedbacks_by_ids when no feedbacks stored."""
+        storage.delete_feedbacks_by_ids([1, 2])
+
+
+# ===========================================================================
+# update_all_raw_feedbacks_status with filters (lines 1842-1843, 1863)
+# ===========================================================================
+
+
+class TestUpdateRawFeedbacksStatusFilters:
+    def test_update_skips_non_matching_feedback_name(self, storage):
+        """Covers lines 1842-1843: feedback_name filter skip."""
+        storage.save_raw_feedbacks(
+            [
+                _make_raw_feedback(feedback_name="fb1"),
+                _make_raw_feedback(feedback_name="fb2"),
+            ]
+        )
+        count = storage.update_all_raw_feedbacks_status(
+            old_status=None,
+            new_status=Status.PENDING,
+            feedback_name="fb1",
+        )
+        assert count == 1
+        # fb2 should still be current
+        remaining = storage.get_raw_feedbacks(status_filter=[None])
+        assert len(remaining) == 1
+        assert remaining[0].feedback_name == "fb2"
+
+    def test_update_no_raw_feedbacks_key(self, storage):
+        """Covers line 1823: early return when no raw_feedbacks key."""
+        result = storage.update_all_raw_feedbacks_status(
+            old_status=None,
+            new_status=Status.PENDING,
+        )
+        assert result == 0
+
+    def test_update_non_matching_status_kept(self, storage):
+        """Covers line 1863: non-matching status feedbacks are preserved as-is."""
+        storage.save_raw_feedbacks([_make_raw_feedback(status=Status.PENDING)])
+        count = storage.update_all_raw_feedbacks_status(
+            old_status=None,
+            new_status=Status.ARCHIVED,
+        )
+        assert count == 0
+        # Feedback unchanged
+        remaining = storage.get_raw_feedbacks(status_filter=[Status.PENDING])
+        assert len(remaining) == 1
+
+
+# ===========================================================================
+# delete_all_raw_feedbacks_by_status (line 1894)
+# ===========================================================================
+
+
+class TestDeleteRawFeedbacksByStatus:
+    def test_delete_by_status_no_raw_feedbacks_key(self, storage):
+        """Covers line 1894: early return when no raw_feedbacks key."""
+        result = storage.delete_all_raw_feedbacks_by_status(Status.PENDING)
+        assert result == 0
+
+
+# ===========================================================================
+# has_raw_feedbacks_with_status Status enum match (line 1978)
+# ===========================================================================
+
+
+class TestHasRawFeedbacksStatusEnum:
+    def test_has_status_enum_match(self, storage):
+        """Covers line 1978: Status enum comparison returns True."""
+        storage.save_raw_feedbacks([_make_raw_feedback(status=Status.PENDING)])
+        assert storage.has_raw_feedbacks_with_status(Status.PENDING) is True
+        assert storage.has_raw_feedbacks_with_status(Status.ARCHIVED) is False
+
+
+# ===========================================================================
+# search_raw_feedbacks filter paths (lines 2016-2019, 2027-2029, 2041, 2045, 2049, 2055, 2059)
+# ===========================================================================
+
+
+class TestSearchRawFeedbacksFilters:
+    def test_search_raw_feedbacks_filter_by_feedback_name(self, storage):
+        """Covers line 2041: feedback_name filter."""
+        storage.save_raw_feedbacks(
+            [
+                _make_raw_feedback(content="a", feedback_name="fb1"),
+                _make_raw_feedback(content="b", feedback_name="fb2"),
+            ]
+        )
+        results = storage.search_raw_feedbacks(
+            SearchRawFeedbackRequest(feedback_name="fb1"),
+        )
+        assert len(results) == 1
+        assert results[0].feedback_content == "a"
+
+    def test_search_raw_feedbacks_filter_by_time_range(self, storage):
+        """Covers lines 2045, 2049: start_time and end_time filters."""
+        now = datetime.now(UTC)
+        ts = int(now.timestamp())
+        storage.save_raw_feedbacks(
+            [
+                _make_raw_feedback(content="old", created_at=ts - 200),
+                _make_raw_feedback(content="mid", created_at=ts),
+                _make_raw_feedback(content="new", created_at=ts + 200),
+            ]
+        )
+        results = storage.search_raw_feedbacks(
+            SearchRawFeedbackRequest(
+                start_time=now - timedelta(seconds=100),
+                end_time=now + timedelta(seconds=100),
+            ),
+        )
+        assert len(results) == 1
+        assert results[0].feedback_content == "mid"
+
+    def test_search_raw_feedbacks_filter_by_status(self, storage):
+        """Covers line 2055: status_filter."""
+        storage.save_raw_feedbacks(
+            [
+                _make_raw_feedback(content="current", status=None),
+                _make_raw_feedback(content="pending", status=Status.PENDING),
+            ]
+        )
+        results = storage.search_raw_feedbacks(
+            SearchRawFeedbackRequest(status_filter=[Status.PENDING]),
+        )
+        assert len(results) == 1
+        assert results[0].feedback_content == "pending"
+
+    def test_search_raw_feedbacks_top_k_limit(self, storage):
+        """Covers line 2059: match_count limit."""
+        storage.save_raw_feedbacks([_make_raw_feedback() for _ in range(5)])
+        results = storage.search_raw_feedbacks(
+            SearchRawFeedbackRequest(top_k=2),
+        )
+        assert len(results) == 2
+
+
+# ===========================================================================
+# search_feedbacks filter paths (lines 2105, 2109, 2113, 2117-2123, 2133)
+# ===========================================================================
+
+
+class TestSearchFeedbacksFilters:
+    def test_search_feedbacks_filter_by_feedback_name(self, storage):
+        """Covers line 2105: feedback_name filter."""
+        storage.save_feedbacks(
+            [
+                _make_feedback(content="a", feedback_name="fb1"),
+                _make_feedback(content="b", feedback_name="fb2"),
+            ]
+        )
+        results = storage.search_feedbacks(
+            SearchFeedbackRequest(feedback_name="fb1"),
+        )
+        assert len(results) == 1
+
+    def test_search_feedbacks_filter_by_time_range(self, storage):
+        """Covers lines 2109, 2113: start_time and end_time filters."""
+        now = datetime.now(UTC)
+        ts = int(now.timestamp())
+        storage.save_feedbacks(
+            [
+                _make_feedback(content="old", created_at=ts - 200),
+                _make_feedback(content="new", created_at=ts + 200),
+            ]
+        )
+        results = storage.search_feedbacks(
+            SearchFeedbackRequest(
+                start_time=now - timedelta(seconds=100),
+                end_time=now + timedelta(seconds=100),
+            ),
+        )
+        assert len(results) == 0
+
+    def test_search_feedbacks_filter_by_feedback_status(self, storage):
+        """Covers lines 2117-2123: feedback_status_filter."""
+        storage.save_feedbacks(
+            [
+                _make_feedback(
+                    content="approved", feedback_status=FeedbackStatus.APPROVED
+                ),
+                _make_feedback(
+                    content="pending", feedback_status=FeedbackStatus.PENDING
+                ),
+            ]
+        )
+        results = storage.search_feedbacks(
+            SearchFeedbackRequest(feedback_status_filter=FeedbackStatus.APPROVED),
+        )
+        assert len(results) == 1
+        assert results[0].feedback_content == "approved"
+
+    def test_search_feedbacks_top_k_limit(self, storage):
+        """Covers line 2133: match_count limit."""
+        storage.save_feedbacks([_make_feedback() for _ in range(5)])
+        results = storage.search_feedbacks(
+            SearchFeedbackRequest(top_k=2),
+        )
+        assert len(results) == 2
+
+
+# ===========================================================================
+# Dashboard stats with previous period data (lines 2248-2249, 2263-2264, 2278-2279, 2290-2291, 2322-2325)
+# ===========================================================================
+
+
+class TestDashboardStatsPreviousPeriod:
+    def test_previous_period_counts(self, storage):
+        """Covers lines 2248-2249, 2263-2264, 2278-2279, 2290-2291, 2322-2325."""
+        now = _now_ts()
+        days_back = 30
+        seconds = days_back * 24 * 60 * 60
+        prev_ts = now - seconds - 100  # In previous period
+
+        storage.add_user_interaction(
+            "u1",
+            _make_interaction(interaction_id=1, created_at=prev_ts),
+        )
+        storage.add_user_profile("u1", [_make_profile(timestamp=prev_ts)])
+        storage.save_raw_feedbacks([_make_raw_feedback(created_at=prev_ts)])
+        storage.save_feedbacks([_make_feedback(created_at=prev_ts)])
+        storage.save_agent_success_evaluation_results(
+            [
+                AgentSuccessEvaluationResult(
+                    agent_version="v1",
+                    session_id="s1",
+                    is_success=True,
+                    created_at=prev_ts,
+                ),
+            ]
+        )
+
+        stats = storage.get_dashboard_stats(days_back=days_back)
+        assert stats["previous_period"]["total_interactions"] == 1
+        assert stats["previous_period"]["total_profiles"] == 1
+        assert stats["previous_period"]["total_feedbacks"] == 2
+        assert stats["previous_period"]["success_rate"] == 100.0
+
+
+# ===========================================================================
+# _get_time_bucket (lines 2370-2386)
+# ===========================================================================
+
+
+class TestGetTimeBucket:
+    def test_daily_bucket(self, storage):
+        """Covers line 2373: daily granularity."""
+        ts = int(datetime(2025, 6, 15, 14, 30, tzinfo=UTC).timestamp())
+        bucket = storage._get_time_bucket(ts, 0, "daily")
+        expected = int(datetime(2025, 6, 15, 0, 0, tzinfo=UTC).timestamp())
+        assert bucket == expected
+
+    def test_weekly_bucket(self, storage):
+        """Covers lines 2374-2379: weekly granularity (start of week = Monday)."""
+        # June 15, 2025 is a Sunday
+        ts = int(datetime(2025, 6, 15, 14, 30, tzinfo=UTC).timestamp())
+        bucket = storage._get_time_bucket(ts, 0, "weekly")
+        # Monday before June 15 is June 9
+        expected = int(datetime(2025, 6, 9, 0, 0, tzinfo=UTC).timestamp())
+        assert bucket == expected
+
+    def test_monthly_bucket(self, storage):
+        """Covers lines 2380-2381: monthly granularity."""
+        ts = int(datetime(2025, 6, 15, 14, 30, tzinfo=UTC).timestamp())
+        bucket = storage._get_time_bucket(ts, 0, "monthly")
+        expected = int(datetime(2025, 6, 1, 0, 0, tzinfo=UTC).timestamp())
+        assert bucket == expected
+
+    def test_unknown_granularity_defaults_to_daily(self, storage):
+        """Covers lines 2383-2384: unknown granularity defaults to daily."""
+        ts = int(datetime(2025, 6, 15, 14, 30, tzinfo=UTC).timestamp())
+        bucket = storage._get_time_bucket(ts, 0, "quarterly")
+        expected = int(datetime(2025, 6, 15, 0, 0, tzinfo=UTC).timestamp())
+        assert bucket == expected
+
+
+# ===========================================================================
+# get_operation_state_with_new_request_interaction edge cases (lines 2502, 2522-2523, 2534-2542, 2574)
+# ===========================================================================
+
+
+class TestOpStateWithNewInteractionsEdgeCases:
+    def test_all_users_interaction_collection(self, storage):
+        """Covers lines 2522-2523: user_id=None collects from all users."""
+        now = _now_ts()
+        storage.add_user_interaction(
+            "u1", _make_interaction(user_id="u1", interaction_id=1, created_at=now)
+        )
+        storage.add_user_interaction(
+            "u2", _make_interaction(user_id="u2", interaction_id=2, created_at=now)
+        )
+        state, sessions = storage.get_operation_state_with_new_request_interaction(
+            "svc1", None
+        )
+        total_interactions = sum(len(s.interactions) for s in sessions)
+        assert total_interactions == 2
+
+    def test_timestamp_equal_but_different_id(self, storage):
+        """Covers lines 2537-2542: same timestamp but different interaction_id."""
+        now = _now_ts()
+        storage.add_user_interaction(
+            "u1", _make_interaction(interaction_id=1, created_at=now)
+        )
+        storage.add_user_interaction(
+            "u1", _make_interaction(interaction_id=2, created_at=now)
+        )
+        storage.upsert_operation_state(
+            "svc1",
+            {
+                "service_name": "svc1",
+                "operation_state": {
+                    "last_processed_interaction_ids": ["1"],
+                    "last_processed_timestamp": now,
+                },
+            },
+        )
+        _, sessions = storage.get_operation_state_with_new_request_interaction(
+            "svc1", "u1"
+        )
+        # interaction_id=2 has same timestamp but was not processed
+        all_ids = [i.interaction_id for s in sessions for i in s.interactions]
+        assert 2 in all_ids
+
+    def test_source_filter_excludes_non_matching(self, storage):
+        """Covers line 2574: sources filter skips non-matching requests."""
+        now = _now_ts()
+        storage.add_request(_make_request(request_id="r1", source="api"))
+        storage.add_request(_make_request(request_id="r2", source="web"))
+        storage.add_user_interaction(
+            "u1", _make_interaction(request_id="r1", interaction_id=1, created_at=now)
+        )
+        storage.add_user_interaction(
+            "u1", _make_interaction(request_id="r2", interaction_id=2, created_at=now)
+        )
+        _, sessions = storage.get_operation_state_with_new_request_interaction(
+            "svc1",
+            "u1",
+            sources=["api"],
+        )
+        all_request_ids = [s.request.request_id for s in sessions]
+        assert "r1" in all_request_ids
+        assert "r2" not in all_request_ids
+
+
+# ===========================================================================
+# get_last_k_interactions_grouped edge cases (lines 2650, 2659)
+# ===========================================================================
+
+
+class TestGetLastKInteractionsGroupedEdgeCases:
+    def test_k_limit_applied(self, storage):
+        """Covers line 2650: k limit stops early."""
+        now = _now_ts()
+        for i in range(5):
+            storage.add_user_interaction(
+                "u1",
+                _make_interaction(interaction_id=i + 1, created_at=now + i),
+            )
+        _, flat = storage.get_last_k_interactions_grouped(user_id="u1", k=2)
+        assert len(flat) == 2
+
+    def test_end_time_filter(self, storage):
+        """Covers line 2659: end_time filter excludes newer interactions."""
+        now = _now_ts()
+        storage.add_user_interaction(
+            "u1", _make_interaction(interaction_id=1, created_at=now - 200)
+        )
+        storage.add_user_interaction(
+            "u1", _make_interaction(interaction_id=2, created_at=now + 200)
+        )
+        _, flat = storage.get_last_k_interactions_grouped(
+            user_id="u1",
+            k=10,
+            end_time=now,
+        )
+        assert len(flat) == 1
+        assert flat[0].interaction_id == 1
+
+
+# ===========================================================================
+# get_profile_statistics expiring_soon (line 2875)
+# ===========================================================================
+
+
+class TestProfileStatisticsExpiringSoon:
+    def test_expiring_soon_count(self, storage):
+        """Covers line 2875: profiles expiring within 7 days counted."""
+        now = _now_ts()
+        three_days = 3 * 24 * 60 * 60
+        profile = _make_profile(timestamp=now)
+        profile.expiration_timestamp = now + three_days  # Expires in 3 days
+        storage.add_user_profile("u1", [profile])
+        stats = storage.get_profile_statistics()
+        assert stats["expiring_soon_count"] == 1
+
+
+# ===========================================================================
+# search_skills filter paths (lines 2963, 2965, 2968)
+# ===========================================================================
+
+
+class TestSearchSkillsFilters:
+    def test_search_skills_filter_by_agent_version(self, storage):
+        """Covers line 2963: agent_version filter."""
+        storage.save_skills(
+            [
+                _make_skill(skill_name="s1", agent_version="v1"),
+                _make_skill(skill_name="s2", agent_version="v2"),
+            ]
+        )
+        results = storage.search_skills(
+            SearchSkillsRequest(agent_version="v1"),
+        )
+        assert len(results) == 1
+        assert results[0].skill_name == "s1"
+
+    def test_search_skills_filter_by_skill_status(self, storage):
+        """Covers line 2965: skill_status filter."""
+        storage.save_skills(
+            [
+                _make_skill(skill_name="s1", skill_status=SkillStatus.DRAFT),
+                _make_skill(skill_name="s2", skill_status=SkillStatus.PUBLISHED),
+            ]
+        )
+        results = storage.search_skills(
+            SearchSkillsRequest(skill_status=SkillStatus.PUBLISHED),
+        )
+        assert len(results) == 1
+        assert results[0].skill_name == "s2"
+
+    def test_search_skills_top_k_limit(self, storage):
+        """Covers line 2968: match_count limit."""
+        storage.save_skills([_make_skill(skill_name=f"s{i}") for i in range(5)])
+        results = storage.search_skills(
+            SearchSkillsRequest(top_k=2),
+        )
+        assert len(results) == 2

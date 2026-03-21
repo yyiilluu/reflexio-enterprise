@@ -7,6 +7,9 @@ Tests the extractor's new responsibilities for:
 - Source filtering
 - Operation state updates
 - Integration of run() method
+- LLM-based profile extraction (_generate_raw_updates_from_sessions)
+- Mock profile generation
+- Init validation
 """
 
 import os
@@ -28,6 +31,7 @@ from reflexio.server.services.profile.profile_generation_service import (
     ProfileGenerationServiceConfig,
 )
 from reflexio.server.services.profile.profile_generation_service_utils import (
+    ProfileAddItem,
     StructuredProfilesOutput,
 )
 
@@ -607,3 +611,628 @@ class TestConvertRawToUserProfiles:
 
         assert len(result) == 1
         assert result[0].custom_features == {"metadata": "pizza"}
+
+
+# ===============================
+# Test: Init Validation (line 88)
+# ===============================
+
+
+class TestInitValidation:
+    """Tests for __init__ validation of llm_model_setting."""
+
+    def test_raises_when_model_setting_not_dict(
+        self, request_context, mock_llm_client, extractor_config, service_config
+    ):
+        """Test that ValueError is raised when llm_model_setting is not a dict (line 88)."""
+        with patch(
+            "reflexio.server.services.profile.profile_extractor.SiteVarManager"
+        ) as mock_svm_cls:
+            mock_svm_cls.return_value.get_site_var.return_value = "not_a_dict"
+            with pytest.raises(ValueError, match="llm_model_setting must be a dict"):
+                ProfileExtractor(
+                    request_context=request_context,
+                    llm_client=mock_llm_client,
+                    extractor_config=extractor_config,
+                    service_config=service_config,
+                    agent_context="Test agent",
+                )
+
+
+# ===============================
+# Test: Generate Raw Updates From Sessions (lines 317-450)
+# ===============================
+
+
+class TestGenerateRawUpdatesFromSessions:
+    """Tests for _generate_raw_updates_from_sessions covering the LLM extraction path."""
+
+    def _make_extractor(
+        self,
+        request_context,
+        mock_llm_client,
+        service_config,
+        extractor_config=None,
+    ):
+        """Helper to build an extractor with optional config override."""
+        config = extractor_config or ProfileExtractorConfig(
+            extractor_name="test_extractor",
+            profile_content_definition_prompt="Extract user preferences",
+        )
+        return ProfileExtractor(
+            request_context=request_context,
+            llm_client=mock_llm_client,
+            extractor_config=config,
+            service_config=service_config,
+            agent_context="Test agent",
+        )
+
+    def test_non_incremental_calls_construct_messages(
+        self,
+        request_context,
+        mock_llm_client,
+        service_config,
+        sample_request_interaction_models,
+    ):
+        """Test that non-incremental mode uses construct_profile_extraction_messages_from_sessions."""
+        extractor = self._make_extractor(
+            request_context, mock_llm_client, service_config
+        )
+
+        with (
+            patch.dict(os.environ, {"MOCK_LLM_RESPONSE": "false"}),
+            patch(
+                "reflexio.server.services.profile.profile_extractor.construct_profile_extraction_messages_from_sessions"
+            ) as mock_construct,
+        ):
+            mock_construct.return_value = [{"role": "system", "content": "test"}]
+            mock_llm_client.generate_chat_response.return_value = (
+                StructuredProfilesOutput(profiles=None)
+            )
+
+            result = extractor._generate_raw_updates_from_sessions(
+                request_interaction_data_models=sample_request_interaction_models,
+                existing_profiles=[],
+            )
+
+            mock_construct.assert_called_once()
+            assert result == []
+
+    def test_incremental_calls_incremental_construct(
+        self,
+        request_context,
+        mock_llm_client,
+        sample_request_interaction_models,
+    ):
+        """Test that incremental mode uses construct_incremental_profile_extraction_messages."""
+        inc_service_config = ProfileGenerationServiceConfig(
+            user_id="test_user",
+            request_id="test_request",
+            source="api",
+            is_incremental=True,
+        )
+        extractor = self._make_extractor(
+            request_context, mock_llm_client, inc_service_config
+        )
+
+        with (
+            patch.dict(os.environ, {"MOCK_LLM_RESPONSE": "false"}),
+            patch(
+                "reflexio.server.services.profile.profile_generation_service_utils.construct_incremental_profile_extraction_messages"
+            ) as mock_inc_construct,
+        ):
+            mock_inc_construct.return_value = [{"role": "system", "content": "test"}]
+            mock_llm_client.generate_chat_response.return_value = (
+                StructuredProfilesOutput(profiles=None)
+            )
+
+            result = extractor._generate_raw_updates_from_sessions(
+                request_interaction_data_models=sample_request_interaction_models,
+                existing_profiles=[],
+            )
+
+            mock_inc_construct.assert_called_once()
+            assert result == []
+
+    def test_llm_exception_is_propagated(
+        self,
+        request_context,
+        mock_llm_client,
+        service_config,
+        sample_request_interaction_models,
+    ):
+        """Test that LLM call exceptions propagate from _generate_raw_updates_from_sessions."""
+        extractor = self._make_extractor(
+            request_context, mock_llm_client, service_config
+        )
+
+        with (
+            patch.dict(os.environ, {"MOCK_LLM_RESPONSE": "false"}),
+            patch(
+                "reflexio.server.services.profile.profile_extractor.construct_profile_extraction_messages_from_sessions"
+            ) as mock_construct,
+        ):
+            mock_construct.return_value = [{"role": "system", "content": "test"}]
+            mock_llm_client.generate_chat_response.side_effect = RuntimeError(
+                "LLM API timeout"
+            )
+
+            with pytest.raises(RuntimeError, match="LLM API timeout"):
+                extractor._generate_raw_updates_from_sessions(
+                    request_interaction_data_models=sample_request_interaction_models,
+                    existing_profiles=[],
+                )
+
+    def test_returns_empty_when_response_not_structured_output(
+        self,
+        request_context,
+        mock_llm_client,
+        service_config,
+        sample_request_interaction_models,
+    ):
+        """Test that a non-StructuredProfilesOutput response returns empty list."""
+        extractor = self._make_extractor(
+            request_context, mock_llm_client, service_config
+        )
+
+        with (
+            patch.dict(os.environ, {"MOCK_LLM_RESPONSE": "false"}),
+            patch(
+                "reflexio.server.services.profile.profile_extractor.construct_profile_extraction_messages_from_sessions"
+            ) as mock_construct,
+        ):
+            mock_construct.return_value = [{"role": "system", "content": "test"}]
+            # Return a plain string instead of StructuredProfilesOutput
+            mock_llm_client.generate_chat_response.return_value = (
+                "unexpected string response"
+            )
+
+            result = extractor._generate_raw_updates_from_sessions(
+                request_interaction_data_models=sample_request_interaction_models,
+                existing_profiles=[],
+            )
+
+            assert result == []
+
+    def test_returns_empty_when_response_is_none(
+        self,
+        request_context,
+        mock_llm_client,
+        service_config,
+        sample_request_interaction_models,
+    ):
+        """Test that a None response from LLM returns empty list."""
+        extractor = self._make_extractor(
+            request_context, mock_llm_client, service_config
+        )
+
+        with (
+            patch.dict(os.environ, {"MOCK_LLM_RESPONSE": "false"}),
+            patch(
+                "reflexio.server.services.profile.profile_extractor.construct_profile_extraction_messages_from_sessions"
+            ) as mock_construct,
+        ):
+            mock_construct.return_value = [{"role": "system", "content": "test"}]
+            mock_llm_client.generate_chat_response.return_value = None
+
+            result = extractor._generate_raw_updates_from_sessions(
+                request_interaction_data_models=sample_request_interaction_models,
+                existing_profiles=[],
+            )
+
+            assert result == []
+
+    def test_returns_profile_dicts_on_success(
+        self,
+        request_context,
+        mock_llm_client,
+        service_config,
+        sample_request_interaction_models,
+    ):
+        """Test that valid StructuredProfilesOutput is converted to list of dicts."""
+        extractor = self._make_extractor(
+            request_context, mock_llm_client, service_config
+        )
+
+        profiles_output = StructuredProfilesOutput(
+            profiles=[
+                ProfileAddItem(
+                    content="User prefers dark mode", time_to_live="one_month"
+                ),
+                ProfileAddItem(content="User likes Python", time_to_live="infinity"),
+            ]
+        )
+
+        with (
+            patch.dict(os.environ, {"MOCK_LLM_RESPONSE": "false"}),
+            patch(
+                "reflexio.server.services.profile.profile_extractor.construct_profile_extraction_messages_from_sessions"
+            ) as mock_construct,
+        ):
+            mock_construct.return_value = [{"role": "system", "content": "test"}]
+            mock_llm_client.generate_chat_response.return_value = profiles_output
+
+            result = extractor._generate_raw_updates_from_sessions(
+                request_interaction_data_models=sample_request_interaction_models,
+                existing_profiles=[],
+            )
+
+            assert len(result) == 2
+            assert result[0]["content"] == "User prefers dark mode"
+            assert result[0]["time_to_live"] == "one_month"
+            assert result[1]["content"] == "User likes Python"
+
+    def test_returns_empty_when_profiles_list_is_empty(
+        self,
+        request_context,
+        mock_llm_client,
+        service_config,
+        sample_request_interaction_models,
+    ):
+        """Test that empty profiles list in StructuredProfilesOutput returns empty list."""
+        extractor = self._make_extractor(
+            request_context, mock_llm_client, service_config
+        )
+
+        with (
+            patch.dict(os.environ, {"MOCK_LLM_RESPONSE": "false"}),
+            patch(
+                "reflexio.server.services.profile.profile_extractor.construct_profile_extraction_messages_from_sessions"
+            ) as mock_construct,
+        ):
+            mock_construct.return_value = [{"role": "system", "content": "test"}]
+            mock_llm_client.generate_chat_response.return_value = (
+                StructuredProfilesOutput(profiles=[])
+            )
+
+            result = extractor._generate_raw_updates_from_sessions(
+                request_interaction_data_models=sample_request_interaction_models,
+                existing_profiles=[],
+            )
+
+            assert result == []
+
+    def test_context_prompt_stripped(
+        self,
+        request_context,
+        mock_llm_client,
+        service_config,
+        sample_request_interaction_models,
+    ):
+        """Test that context_prompt is stripped before passing to message construction."""
+        config = ProfileExtractorConfig(
+            extractor_name="test_extractor",
+            profile_content_definition_prompt="  Extract prefs  ",
+            context_prompt="  Some context  ",
+        )
+        extractor = self._make_extractor(
+            request_context, mock_llm_client, service_config, extractor_config=config
+        )
+
+        with (
+            patch.dict(os.environ, {"MOCK_LLM_RESPONSE": "false"}),
+            patch(
+                "reflexio.server.services.profile.profile_extractor.construct_profile_extraction_messages_from_sessions"
+            ) as mock_construct,
+        ):
+            mock_construct.return_value = [{"role": "system", "content": "test"}]
+            mock_llm_client.generate_chat_response.return_value = (
+                StructuredProfilesOutput(profiles=None)
+            )
+
+            extractor._generate_raw_updates_from_sessions(
+                request_interaction_data_models=sample_request_interaction_models,
+                existing_profiles=[],
+            )
+
+            call_kwargs = mock_construct.call_args[1]
+            assert call_kwargs["context_prompt"] == "Some context"
+            assert call_kwargs["profile_content_definition_prompt"] == "Extract prefs"
+
+
+# ===============================
+# Test: Run Returns None for Empty Raw Profiles (line 241)
+# ===============================
+
+
+class TestRunReturnsNoneForEmptyRawProfiles:
+    """Tests for run() returning None when raw_profiles is empty (line 241)."""
+
+    def test_run_returns_none_when_raw_profiles_empty(
+        self,
+        request_context,
+        mock_llm_client,
+        service_config,
+        sample_request_interaction_models,
+    ):
+        """Test that run() returns None when extraction produces empty raw profiles."""
+        config = ProfileExtractorConfig(
+            extractor_name="test_extractor",
+            profile_content_definition_prompt="Extract user preferences",
+        )
+
+        request_context.storage.get_last_k_interactions_grouped.return_value = (
+            sample_request_interaction_models,
+            [],
+        )
+
+        extractor = ProfileExtractor(
+            request_context=request_context,
+            llm_client=mock_llm_client,
+            extractor_config=config,
+            service_config=service_config,
+            agent_context="Test agent",
+        )
+        # Mock _generate_raw_updates_from_sessions to return empty list
+        extractor._generate_raw_updates_from_sessions = MagicMock(return_value=[])
+
+        result = extractor.run()
+
+        assert result is None
+        # Operation state should not be updated when no profiles extracted
+        request_context.storage.upsert_operation_state.assert_not_called()
+
+
+# ===============================
+# Test: Mock Profile Generation (lines 470, 501)
+# ===============================
+
+
+class TestGenerateMockProfiles:
+    """Tests for _generate_mock_profiles covering edge cases."""
+
+    def _make_extractor(
+        self, request_context, mock_llm_client, service_config, extractor_config=None
+    ):
+        """Helper to build an extractor with optional config override."""
+        config = extractor_config or ProfileExtractorConfig(
+            extractor_name="test_extractor",
+            profile_content_definition_prompt="Extract user preferences",
+        )
+        return ProfileExtractor(
+            request_context=request_context,
+            llm_client=mock_llm_client,
+            extractor_config=config,
+            service_config=service_config,
+            agent_context="Test agent",
+        )
+
+    def test_returns_empty_when_no_interactions(
+        self,
+        request_context,
+        mock_llm_client,
+        service_config,
+    ):
+        """Test that _generate_mock_profiles returns [] when interactions are empty (line 470)."""
+        extractor = self._make_extractor(
+            request_context, mock_llm_client, service_config
+        )
+
+        request_model = RequestInteractionDataModel(
+            session_id="req1",
+            request=Request(
+                request_id="req1",
+                user_id="test_user",
+                created_at=1000,
+                source="api",
+            ),
+            interactions=[],
+        )
+
+        result = extractor._generate_mock_profiles(
+            request_interaction_data_models=[request_model],
+        )
+
+        assert result == []
+
+    def test_appends_highlight_snippet_when_keyword_found(
+        self,
+        request_context,
+        mock_llm_client,
+        service_config,
+    ):
+        """Test that highlight snippet is appended when keyword matches (line 501)."""
+        extractor = self._make_extractor(
+            request_context, mock_llm_client, service_config
+        )
+
+        interactions = [
+            Interaction(
+                interaction_id=1,
+                user_id="test_user",
+                content="I need help with my account",
+                request_id="req1",
+                created_at=1000,
+                role="user",
+            ),
+            Interaction(
+                interaction_id=2,
+                user_id="test_user",
+                content="Our company uses this software product extensively for service automation",
+                request_id="req1",
+                created_at=1001,
+                role="user",
+            ),
+        ]
+        request_model = RequestInteractionDataModel(
+            session_id="req1",
+            request=Request(
+                request_id="req1",
+                user_id="test_user",
+                created_at=1000,
+                source="api",
+            ),
+            interactions=interactions,
+        )
+
+        result = extractor._generate_mock_profiles(
+            request_interaction_data_models=[request_model],
+        )
+
+        assert len(result) == 1
+        # The last interaction's first 50 chars as sample_content
+        assert "User mentioned:" in result[0]["content"]
+        # The keyword "company"/"software"/"product"/"service" should trigger highlight
+        assert "Key context:" in result[0]["content"]
+
+    def test_no_highlight_when_no_keyword_match(
+        self,
+        request_context,
+        mock_llm_client,
+        service_config,
+    ):
+        """Test that no highlight snippet when no keyword matches."""
+        extractor = self._make_extractor(
+            request_context, mock_llm_client, service_config
+        )
+
+        interactions = [
+            Interaction(
+                interaction_id=1,
+                user_id="test_user",
+                content="Hello there, how are you?",
+                request_id="req1",
+                created_at=1000,
+                role="user",
+            ),
+        ]
+        request_model = RequestInteractionDataModel(
+            session_id="req1",
+            request=Request(
+                request_id="req1",
+                user_id="test_user",
+                created_at=1000,
+                source="api",
+            ),
+            interactions=interactions,
+        )
+
+        result = extractor._generate_mock_profiles(
+            request_interaction_data_models=[request_model],
+        )
+
+        assert len(result) == 1
+        assert "Key context:" not in result[0]["content"]
+        assert "User mentioned:" in result[0]["content"]
+
+    def test_metadata_added_when_metadata_definition_exists(
+        self,
+        request_context,
+        mock_llm_client,
+        service_config,
+    ):
+        """Test that mock metadata is added when metadata_definition_prompt is set."""
+        config = ProfileExtractorConfig(
+            extractor_name="test_extractor",
+            profile_content_definition_prompt="Extract user preferences",
+            metadata_definition_prompt="Extract category",
+        )
+        extractor = self._make_extractor(
+            request_context, mock_llm_client, service_config, extractor_config=config
+        )
+
+        interactions = [
+            Interaction(
+                interaction_id=1,
+                user_id="test_user",
+                content="I like pizza",
+                request_id="req1",
+                created_at=1000,
+                role="user",
+            ),
+        ]
+        request_model = RequestInteractionDataModel(
+            session_id="req1",
+            request=Request(
+                request_id="req1",
+                user_id="test_user",
+                created_at=1000,
+                source="api",
+            ),
+            interactions=interactions,
+        )
+
+        result = extractor._generate_mock_profiles(
+            request_interaction_data_models=[request_model],
+        )
+
+        assert len(result) == 1
+        assert result[0].get("metadata") == "mock_metadata_value"
+
+    def test_no_metadata_when_no_metadata_definition(
+        self,
+        request_context,
+        mock_llm_client,
+        service_config,
+    ):
+        """Test that no metadata key when metadata_definition_prompt is not set."""
+        extractor = self._make_extractor(
+            request_context, mock_llm_client, service_config
+        )
+
+        interactions = [
+            Interaction(
+                interaction_id=1,
+                user_id="test_user",
+                content="I like pizza",
+                request_id="req1",
+                created_at=1000,
+                role="user",
+            ),
+        ]
+        request_model = RequestInteractionDataModel(
+            session_id="req1",
+            request=Request(
+                request_id="req1",
+                user_id="test_user",
+                created_at=1000,
+                source="api",
+            ),
+            interactions=interactions,
+        )
+
+        result = extractor._generate_mock_profiles(
+            request_interaction_data_models=[request_model],
+        )
+
+        assert len(result) == 1
+        assert "metadata" not in result[0]
+
+    def test_sample_content_fallback_when_content_is_empty(
+        self,
+        request_context,
+        mock_llm_client,
+        service_config,
+    ):
+        """Test fallback to 'sample interaction' when last interaction content is empty string."""
+        extractor = self._make_extractor(
+            request_context, mock_llm_client, service_config
+        )
+
+        interactions = [
+            Interaction(
+                interaction_id=1,
+                user_id="test_user",
+                content="",
+                request_id="req1",
+                created_at=1000,
+                role="user",
+            ),
+        ]
+        request_model = RequestInteractionDataModel(
+            session_id="req1",
+            request=Request(
+                request_id="req1",
+                user_id="test_user",
+                created_at=1000,
+                source="api",
+            ),
+            interactions=interactions,
+        )
+
+        result = extractor._generate_mock_profiles(
+            request_interaction_data_models=[request_model],
+        )
+
+        assert len(result) == 1
+        assert "sample interaction" in result[0]["content"]
