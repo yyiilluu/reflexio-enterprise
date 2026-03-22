@@ -72,6 +72,12 @@ omit = [
     "reflexio_ext/tests/*",
     "reflexio_ext/data/*",
     "*/conftest.py",
+    "reflexio_ext/server/scripts/*",
+    "reflexio_ext/server/api.py",
+    "reflexio_ext/server/api_endpoints/*",
+    "reflexio_ext/commons/*",
+    "reflexio_ext/server/services/email/templates/*",
+    "reflexio_ext/hooks/*",
 ]
 
 [tool.coverage.report]

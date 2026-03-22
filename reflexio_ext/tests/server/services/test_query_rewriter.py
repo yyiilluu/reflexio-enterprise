@@ -5,7 +5,7 @@ successful rewrite propagation, and conversation-aware rewriting.
 """
 
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from reflexio.server.services.query_rewriter import QueryRewriter
 from reflexio_commons.api_schema.retriever_schema import (
@@ -14,25 +14,17 @@ from reflexio_commons.api_schema.retriever_schema import (
 )
 
 
-def _make_rewriter(**overrides):
+def _make_rewriter(query_rewrite_model_name: str | None = None):
     """Create a QueryRewriter with mocked dependencies."""
-    api_key_config = MagicMock()
+    llm_client = MagicMock()
     prompt_manager = MagicMock()
     prompt_manager.render_prompt.return_value = "rendered prompt"
 
-    with (
-        patch("reflexio.server.services.query_rewriter.LiteLLMClient"),
-        patch("reflexio.server.services.query_rewriter.SiteVarManager") as mock_svm,
-    ):
-        mock_svm.return_value.get_site_var.return_value = {
-            "query_rewrite_model_name": "gpt-5-nano"
-        }
-        rewriter = QueryRewriter(
-            api_key_config=api_key_config,
-            prompt_manager=prompt_manager,
-            **overrides,
-        )
-    return rewriter  # noqa: RET504
+    return QueryRewriter(
+        llm_client=llm_client,
+        prompt_manager=prompt_manager,
+        query_rewrite_model_name=query_rewrite_model_name,
+    )
 
 
 class TestQueryRewriter(unittest.TestCase):
@@ -195,66 +187,27 @@ class TestQueryRewriter(unittest.TestCase):
 
 
 class TestQueryRewriterInit(unittest.TestCase):
-    """Tests for QueryRewriter.__init__ model resolution branches."""
+    """Tests for QueryRewriter.__init__ parameter handling."""
 
-    def test_model_none_with_non_dict_site_var(self):
-        """When model is None and site var is not a dict, should default to gpt-5-nano."""
-        api_key_config = MagicMock()
-        prompt_manager = MagicMock()
+    def test_default_model_name_is_none(self):
+        """When no model name is provided, query_rewrite_model_name should be None."""
+        rewriter = _make_rewriter()
+        self.assertIsNone(rewriter.query_rewrite_model_name)
 
-        with (
-            patch("reflexio.server.services.query_rewriter.LiteLLMClient") as mock_llm,
-            patch("reflexio.server.services.query_rewriter.SiteVarManager") as mock_svm,
-        ):
-            # Return a non-dict value (e.g. None or a string)
-            mock_svm.return_value.get_site_var.return_value = None
-            rewriter = QueryRewriter(
-                api_key_config=api_key_config,
-                prompt_manager=prompt_manager,
-            )
+    def test_explicit_model_name_is_stored(self):
+        """When a model name is provided, it should be stored on the instance."""
+        rewriter = _make_rewriter(query_rewrite_model_name="custom-model")
+        self.assertEqual(rewriter.query_rewrite_model_name, "custom-model")
 
-        # The LiteLLMConfig should have been created with "gpt-5-nano"
-        config_arg = mock_llm.call_args[0][0]
-        self.assertEqual(config_arg.model, "gpt-5-nano")
-        self.assertIsNotNone(rewriter)
+    def test_no_model_name_omits_model_kwarg(self):
+        """When no model name is set, generate_response should not receive a model kwarg."""
+        rewriter = _make_rewriter()
+        rewriter.llm_client.generate_response.return_value = "expanded"
 
-    def test_model_none_with_dict_site_var_having_model_name(self):
-        """When model is None and site var dict has query_rewrite_model_name, should use it."""
-        api_key_config = MagicMock()
-        prompt_manager = MagicMock()
+        rewriter.rewrite("test", enabled=True)
 
-        with (
-            patch("reflexio.server.services.query_rewriter.LiteLLMClient") as mock_llm,
-            patch("reflexio.server.services.query_rewriter.SiteVarManager") as mock_svm,
-        ):
-            mock_svm.return_value.get_site_var.return_value = {
-                "query_rewrite_model_name": "custom-model"
-            }
-            QueryRewriter(
-                api_key_config=api_key_config,
-                prompt_manager=prompt_manager,
-            )
-
-        config_arg = mock_llm.call_args[0][0]
-        self.assertEqual(config_arg.model, "custom-model")
-
-    def test_model_none_with_dict_site_var_missing_model_name(self):
-        """When model is None and site var dict lacks key, should default to gpt-5-nano."""
-        api_key_config = MagicMock()
-        prompt_manager = MagicMock()
-
-        with (
-            patch("reflexio.server.services.query_rewriter.LiteLLMClient") as mock_llm,
-            patch("reflexio.server.services.query_rewriter.SiteVarManager") as mock_svm,
-        ):
-            mock_svm.return_value.get_site_var.return_value = {"other_key": "value"}
-            QueryRewriter(
-                api_key_config=api_key_config,
-                prompt_manager=prompt_manager,
-            )
-
-        config_arg = mock_llm.call_args[0][0]
-        self.assertEqual(config_arg.model, "gpt-5-nano")
+        call_kwargs = rewriter.llm_client.generate_response.call_args[1]
+        self.assertNotIn("model", call_kwargs)
 
 
 class TestLlmRewriteBranches(unittest.TestCase):
@@ -279,14 +232,17 @@ class TestLlmRewriteBranches(unittest.TestCase):
 
         self.assertEqual(result.fts_query, "test query")
 
-    def test_explicit_model_skips_site_var_lookup(self):
-        """When model is explicitly provided, should skip SiteVarManager lookup."""
-        rewriter = _make_rewriter(model="explicit-model")
+    def test_explicit_model_passed_to_generate_response(self):
+        """When model is explicitly provided, it should be passed to generate_response."""
+        rewriter = _make_rewriter(query_rewrite_model_name="explicit-model")
         rewriter.llm_client.generate_response.return_value = "expanded query"
 
         result = rewriter.rewrite("test query", enabled=True)
 
         self.assertEqual(result.fts_query, "expanded query")
+        # Verify model kwarg was passed to generate_response
+        call_kwargs = rewriter.llm_client.generate_response.call_args[1]
+        self.assertEqual(call_kwargs["model"], "explicit-model")
 
 
 class TestExtractCandidateQuery(unittest.TestCase):

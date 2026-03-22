@@ -86,7 +86,7 @@ def test_refresh_profiles_for_user(mock_chat_completion):
     org_id = "0"
     interaction_request = InteractionData(
         content="remember i like sushi",
-        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
     )
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -159,7 +159,7 @@ def test_test_refresh_profiles_for_user_with_image_encoding(mock_chat_completion
     image_fp = os.path.join(os.path.dirname(test_data.__file__), "sushi.png")
     interaction_request = InteractionData(
         content="remember i like sushi",
-        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
         image_encoding=encode_image_to_base64(image_fp),
     )
 
@@ -241,11 +241,11 @@ def test_profile_extraction_message_construction():
         # Create interactions with both content and actions
         interaction1 = InteractionData(
             content="I love Italian food",
-            created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+            created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
         )
         interaction2 = InteractionData(
             content="I also enjoy sushi",
-            created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+            created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
             user_action="click",
             user_action_description="restaurant menu",
         )
@@ -410,11 +410,11 @@ def test_refresh_profiles_with_output_pending_status(mock_chat_completion):
     # Create two interactions for profile generation
     interaction1 = InteractionData(
         content="remember i like sushi",
-        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
     )
     interaction2 = InteractionData(
         content="also remember i enjoy ramen",
-        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
     )
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -587,7 +587,7 @@ def test_run_manual_regular_no_window_size(mock_chat_completion):
             request_id="request_1",
             content="Test content",
             role="user",
-            created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+            created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
         )
         request_obj = Request(
             request_id="request_1",
@@ -685,7 +685,7 @@ def test_run_manual_regular_with_interactions(mock_chat_completion):
         # First, add some interactions to storage
         interaction = InteractionData(
             content="remember i like sushi",
-            created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+            created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
         )
         publish_request = PublishUserInteractionRequest(
             user_id=user_id,
@@ -761,7 +761,7 @@ def test_run_manual_regular_with_source_filter(mock_chat_completion):
         # Add interactions with source_a
         interaction_a = InteractionData(
             content="remember i like sushi",
-            created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+            created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
         )
         publish_request_a = PublishUserInteractionRequest(
             user_id=user_id,
@@ -788,7 +788,7 @@ def test_run_manual_regular_with_source_filter(mock_chat_completion):
         # Add interactions with source_b
         interaction_b = InteractionData(
             content="I prefer pizza",
-            created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+            created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
         )
         publish_request_b = PublishUserInteractionRequest(
             user_id=user_id,
@@ -856,7 +856,7 @@ class TestGetRerunItems:
                     request_id=request_id,
                     content=f"Test content {i}",
                     role="user",
-                    created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+                    created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
                 )
                 request_obj = Request(
                     request_id=request_id,
@@ -875,7 +875,7 @@ class TestGetRerunItems:
                 request_id=request_id,
                 content="Test content user2",
                 role="user",
-                created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+                created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
             )
             request_obj = Request(
                 request_id=request_id,
@@ -920,7 +920,7 @@ class TestGetRerunItems:
                 request_id="request_1",
                 content="Test content user1",
                 role="user",
-                created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+                created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
             )
             request1 = Request(
                 request_id="request_1",
@@ -938,7 +938,7 @@ class TestGetRerunItems:
                 request_id="request_2",
                 content="Test content user2",
                 role="user",
-                created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+                created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
             )
             request2 = Request(
                 request_id="request_2",
@@ -985,7 +985,7 @@ class TestGetRerunItems:
                 request_id="request_a",
                 content="Test content A",
                 role="user",
-                created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+                created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
             )
             request_a = Request(
                 request_id="request_a",
@@ -1003,7 +1003,7 @@ class TestGetRerunItems:
                 request_id="request_b",
                 content="Test content B",
                 role="user",
-                created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+                created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
             )
             request_b = Request(
                 request_id="request_b",
@@ -1076,7 +1076,7 @@ def test_collect_scoped_interactions_for_precheck_uses_extractor_scope():
             request_id="request-1",
             content="I prefer concise summaries",
             role="user",
-            created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+            created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
         )
         request_obj = Request(
             request_id="request-1",
@@ -1148,7 +1148,7 @@ def test_should_run_before_extraction_combines_all_extractor_criteria():
             request_id="request-1",
             content="I am leading a migration project and prefer concise updates.",
             role="user",
-            created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+            created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
         )
         request_obj = Request(
             request_id="request-1",

@@ -1,5 +1,5 @@
 """
-Tests for EncryptManager in reflexio.utils.encrypt_manager.
+Tests for EncryptManager in reflexio_ext.utils.encrypt_manager.
 
 Covers:
 1. Encrypt/decrypt roundtrip with valid Fernet keys
@@ -15,7 +15,7 @@ from unittest.mock import patch
 
 import pytest
 from cryptography.fernet import Fernet
-from reflexio.utils.encrypt_manager import EncryptManager
+from reflexio_ext.utils.encrypt_manager import EncryptManager
 
 # =============================================================================
 # Fixtures
@@ -229,9 +229,9 @@ class TestTTLDecryption:
         """Decrypting after TTL expiration returns None (InvalidToken path)."""
         encrypted = manager.encrypt("expired")
         assert encrypted is not None
-        # Sleep long enough to guarantee the 1-second TTL has elapsed
-        time.sleep(2)
-        result = manager.decrypt(encrypted, ttl=1)
+        # Mock time to simulate TTL expiration without real sleep
+        with patch("time.time", return_value=time.time() + 10):
+            result = manager.decrypt(encrypted, ttl=1)
         assert result is None
 
 

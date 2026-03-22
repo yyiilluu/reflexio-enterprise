@@ -12,7 +12,7 @@ from reflexio.server.services.feedback.feedback_aggregator import FeedbackAggreg
 from reflexio.server.services.feedback.feedback_service_utils import (
     FeedbackAggregatorRequest,
 )
-from reflexio.server.services.storage.supabase_storage import SupabaseStorage
+from reflexio_ext.server.services.storage.supabase_storage import SupabaseStorage
 from reflexio.tests.server.test_utils import skip_in_precommit, skip_low_priority
 from reflexio_commons.api_schema.service_schemas import (
     Feedback,
@@ -113,8 +113,13 @@ def setup_mock_feedbacks(supabase_storage, cleanup_after_test):
     # Save feedbacks to storage
     supabase_storage.save_raw_feedbacks(raw_feedbacks)
 
-    # Verify feedbacks were saved
-    loaded_feedbacks = supabase_storage.get_raw_feedbacks()
+    # Verify feedbacks were saved by filtering on the specific feedback_name
+    # (get_raw_feedbacks without filter returns ALL raw feedbacks in the shared DB)
+    # include_embedding=True so clustering can use embeddings
+    loaded_feedbacks = supabase_storage.get_raw_feedbacks(
+        feedback_name=TEST_FEEDBACK_NAME,
+        include_embedding=True,
+    )
     assert len(loaded_feedbacks) == 20
 
     return loaded_feedbacks
@@ -133,33 +138,23 @@ def test_feedback_aggregator_get_clusters(
     # Get the loaded feedbacks from the fixture
     loaded_feedbacks = setup_mock_feedbacks
 
-    # Initialize feedback aggregator with proper credentials from environment
-    supabase_url = os.environ.get("TEST_SUPABASE_URL", "")
-    supabase_key = os.environ.get("TEST_SUPABASE_KEY", "")
-    supabase_db_url = os.environ.get("TEST_SUPABASE_DB_URL", "")
+    # get_clusters only operates on the raw_feedbacks list in memory,
+    # so we use a temp dir for the RequestContext (no Supabase storage needed)
+    with tempfile.TemporaryDirectory() as temp_dir:
+        request_context = RequestContext(org_id="test", storage_base_dir=temp_dir)
+        feedback_aggregator = FeedbackAggregator(
+            llm_client=llm_client,
+            request_context=request_context,
+            agent_version="1.0.0",
+        )
 
-    request_context = RequestContext(org_id="test")
-    request_context.configurator.set_config_by_name(
-        "storage_config",
-        StorageConfigSupabase(
-            url=supabase_url,
-            key=supabase_key,
-            db_url=supabase_db_url,
-        ),
-    )
-    feedback_aggregator = FeedbackAggregator(
-        llm_client=llm_client,
-        request_context=request_context,
-        agent_version="1.0.0",
-    )
-
-    # Run aggregation
-    clusters = feedback_aggregator.get_clusters(
-        raw_feedbacks=loaded_feedbacks,
-        feedback_aggregator_config=FeedbackAggregatorConfig(
-            min_feedback_threshold=2,  # Set to 2 since we expect clusters of 5
-        ),
-    )
+        # Run aggregation
+        clusters = feedback_aggregator.get_clusters(
+            raw_feedbacks=loaded_feedbacks,
+            feedback_aggregator_config=FeedbackAggregatorConfig(
+                min_feedback_threshold=2,  # Set to 2 since we expect clusters of 5
+            ),
+        )
 
     assert len(clusters) > 1, "Expected at least 2 clusters"
 
@@ -185,21 +180,13 @@ def test_feedback_aggregator_run(
 
     with tempfile.TemporaryDirectory() as temp_dir:
         request_context = RequestContext(org_id=org_id, storage_base_dir=temp_dir)
-        request_context.configurator.set_config_by_name(
-            "storage_config",
-            StorageConfigSupabase(
-                url="",
-                key="",
-                db_url="",
-            ),
-        )
 
         request_context.configurator.set_config_by_name(
             "agent_feedback_configs",
             [
                 AgentFeedbackConfig(
                     feedback_name="test_feedback",
-                    feedback_definition_prompt="",
+                    feedback_definition_prompt="Test feedback definition",
                     feedback_aggregator_config=FeedbackAggregatorConfig(
                         min_feedback_threshold=2,
                     ),
@@ -207,6 +194,7 @@ def test_feedback_aggregator_run(
             ],
         )
 
+        # Override storage with actual supabase_storage for this integration test
         request_context.storage = supabase_storage
         feedback_aggregator = FeedbackAggregator(
             llm_client=llm_client,
@@ -249,19 +237,11 @@ def test_feedback_aggregator_run_with_insufficient_feedback(
     with tempfile.TemporaryDirectory() as temp_dir:
         request_context = RequestContext(org_id=org_id, storage_base_dir=temp_dir)
         request_context.configurator.set_config_by_name(
-            "storage_config",
-            StorageConfigSupabase(
-                url="",
-                key="",
-                db_url="",
-            ),
-        )
-        request_context.configurator.set_config_by_name(
             "agent_feedback_configs",
             [
                 AgentFeedbackConfig(
                     feedback_name="test_feedback",
-                    feedback_definition_prompt="",
+                    feedback_definition_prompt="Test feedback definition",
                     feedback_aggregator_config=FeedbackAggregatorConfig(
                         min_feedback_threshold=2,
                     ),
@@ -269,6 +249,7 @@ def test_feedback_aggregator_run_with_insufficient_feedback(
             ],
         )
 
+        # Override storage with actual supabase_storage for this integration test
         request_context.storage = supabase_storage
         supabase_storage.save_raw_feedbacks(raw_feedbacks)
         feedback_aggregator = FeedbackAggregator(
@@ -295,19 +276,11 @@ def test_feedback_aggregator_run_with_empty_feedback(
     with tempfile.TemporaryDirectory() as temp_dir:
         request_context = RequestContext(org_id=org_id, storage_base_dir=temp_dir)
         request_context.configurator.set_config_by_name(
-            "storage_config",
-            StorageConfigSupabase(
-                url="",
-                key="",
-                db_url="",
-            ),
-        )
-        request_context.configurator.set_config_by_name(
             "agent_feedback_configs",
             [
                 AgentFeedbackConfig(
                     feedback_name="test_feedback",
-                    feedback_definition_prompt="",
+                    feedback_definition_prompt="Test feedback definition",
                     feedback_aggregator_config=FeedbackAggregatorConfig(
                         min_feedback_threshold=2,
                     ),
@@ -315,6 +288,7 @@ def test_feedback_aggregator_run_with_empty_feedback(
             ],
         )
 
+        # Override storage with actual supabase_storage for this integration test
         request_context.storage = supabase_storage
         # Save no feedbacks to storage
         feedback_aggregator = FeedbackAggregator(

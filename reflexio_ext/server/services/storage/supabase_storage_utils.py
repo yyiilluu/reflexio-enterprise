@@ -608,7 +608,7 @@ def is_localhost_url(db_url: str) -> bool:
         parsed = urlparse(db_url)
         host = parsed.hostname or ""
         return host in ("localhost", "127.0.0.1", "::1")
-    except ValueError, AttributeError:
+    except (ValueError, AttributeError):
         return False
 
 

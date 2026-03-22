@@ -29,7 +29,7 @@ from reflexio_commons.config_schema import StorageConfigSupabase
 @pytest.fixture
 def mock_supabase_client():
     with patch(
-        "reflexio.server.services.storage.supabase_storage.create_client"
+        "reflexio_ext.server.services.storage.supabase_storage.create_client"
     ) as mock_create_client:
         mock_client = Mock()
         mock_create_client.return_value = mock_client
@@ -39,7 +39,7 @@ def mock_supabase_client():
 @pytest.fixture
 def mock_openai():
     with patch(
-        "reflexio.server.services.storage.supabase_storage.LiteLLMClient"
+        "reflexio_ext.server.services.storage.supabase_storage.LiteLLMClient"
     ) as mock_llm:
         mock_client = Mock()
         mock_client.get_embedding.return_value = [0.1] * 512  # Mock embedding vector
@@ -50,7 +50,7 @@ def mock_openai():
 @pytest.fixture
 def supabase_storage(mock_supabase_client, mock_openai):
     with patch("reflexio.server.OPENAI_API_KEY", "test-openai-key"):
-        from reflexio.server.services.storage.supabase_storage import SupabaseStorage
+        from reflexio_ext.server.services.storage.supabase_storage import SupabaseStorage
 
         config = StorageConfigSupabase(
             url="https://test.supabase.co",

@@ -16,7 +16,7 @@ from reflexio.server.services.feedback.feedback_aggregator import FeedbackAggreg
 from reflexio.server.services.feedback.feedback_service_utils import (
     FeedbackAggregatorRequest,
 )
-from reflexio.server.services.storage.supabase_storage import SupabaseStorage
+from reflexio_ext.server.services.storage.supabase_storage import SupabaseStorage
 from reflexio.tests.server.test_utils import skip_in_precommit
 from reflexio_commons.api_schema.service_schemas import (
     Feedback,

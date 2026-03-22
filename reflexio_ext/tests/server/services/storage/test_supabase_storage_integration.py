@@ -6,8 +6,8 @@ from datetime import UTC, datetime
 
 import pytest
 from reflexio.server import OPENAI_API_KEY
-from reflexio.server.llm.openai_client import OpenAIClient
-from reflexio.server.services.storage.supabase_storage import SupabaseStorage
+from reflexio_ext.server.llm.openai_client import OpenAIClient
+from reflexio_ext.server.services.storage.supabase_storage import SupabaseStorage
 from reflexio.tests.server.test_utils import skip_in_precommit
 from reflexio_commons.api_schema.retriever_schema import (
     SearchFeedbackRequest,
@@ -39,7 +39,7 @@ def openai_client():
     """Create an OpenAIClient instance with real API key."""
     if not OPENAI_API_KEY:
         pytest.skip("OPENAI_API_KEY environment variable must be set")
-    from reflexio.server.llm.openai_client import OpenAIConfig
+    from reflexio_ext.server.llm.openai_client import OpenAIConfig
 
     config = OpenAIConfig(api_key=OPENAI_API_KEY)
     return OpenAIClient(config=config)
@@ -422,16 +422,18 @@ def test_save_raw_feedbacks(supabase_storage, test_data, cleanup_after_test):
     raw_feedbacks = test_data["raw_feedbacks"]
     storage.save_raw_feedbacks(raw_feedbacks)
 
-    # Verify feedbacks were saved
-    saved_raw_feedbacks = storage.get_raw_feedbacks()
+    # Verify feedbacks were saved by filtering on the specific feedback_name
+    # (get_raw_feedbacks without filter returns ALL raw feedbacks in the shared DB)
+    feedback_name = raw_feedbacks[0].feedback_name
+    saved_raw_feedbacks = storage.get_raw_feedbacks(feedback_name=feedback_name)
     assert len(saved_raw_feedbacks) == len(raw_feedbacks)
     assert all(
         saved_raw_feedback.feedback_content == raw_feedback.feedback_content
-        for saved_raw_feedback, raw_feedback in zip(saved_raw_feedbacks, raw_feedbacks)  # noqa: B905
+        for saved_raw_feedback, raw_feedback in zip(saved_raw_feedbacks, raw_feedbacks, strict=False)
     )
     assert all(
         saved_raw_feedback.feedback_name == raw_feedback.feedback_name
-        for saved_raw_feedback, raw_feedback in zip(saved_raw_feedbacks, raw_feedbacks)  # noqa: B905
+        for saved_raw_feedback, raw_feedback in zip(saved_raw_feedbacks, raw_feedbacks, strict=False)
     )
 
 
@@ -1876,7 +1878,10 @@ def test_count_raw_feedbacks_by_session(supabase_storage):
     2. count_raw_feedbacks_by_session returns correct count for session with feedbacks
     """
     storage = supabase_storage
-    session_id = "test_count_session"
+    # Use unique IDs based on timestamp to avoid stale data from previous runs
+    ts = int(datetime.now(UTC).timestamp())
+    session_id = f"test_count_session_{ts}"
+    req_ids = [f"count_test_req_{ts}_{i}" for i in range(2)]
 
     # Test 1: Unknown session returns 0
     count = storage.count_raw_feedbacks_by_session(session_id="nonexistent_session")
@@ -1884,11 +1889,11 @@ def test_count_raw_feedbacks_by_session(supabase_storage):
 
     # Test 2: Session with feedbacks returns correct count
     # Create requests linked to the session
-    test_user_id = "count_test_user"
+    test_user_id = f"count_test_user_{ts}"
     test_agent_version = "count_test_agent"
     requests = [
         Request(
-            request_id=f"count_test_req_{i}",
+            request_id=req_ids[i],
             user_id=test_user_id,
             session_id=session_id,
         )
@@ -1902,19 +1907,19 @@ def test_count_raw_feedbacks_by_session(supabase_storage):
         RawFeedback(
             user_id=test_user_id,
             agent_version=test_agent_version,
-            request_id="count_test_req_0",
+            request_id=req_ids[0],
             feedback_content="feedback 1",
         ),
         RawFeedback(
             user_id=test_user_id,
             agent_version=test_agent_version,
-            request_id="count_test_req_0",
+            request_id=req_ids[0],
             feedback_content="feedback 2",
         ),
         RawFeedback(
             user_id=test_user_id,
             agent_version=test_agent_version,
-            request_id="count_test_req_1",
+            request_id=req_ids[1],
             feedback_content="feedback 3",
         ),
     ]

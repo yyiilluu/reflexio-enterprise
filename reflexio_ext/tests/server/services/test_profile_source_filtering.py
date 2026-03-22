@@ -53,7 +53,7 @@ def test_profile_extractor_filters_by_source_api(mock_chat_completion):
     org_id = "0"
     interaction_request = InteractionData(
         content="test content",
-        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
     )
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -130,7 +130,7 @@ def test_profile_extractor_filters_by_source_webhook(mock_chat_completion):
     org_id = "0"
     interaction_request = InteractionData(
         content="test content",
-        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
     )
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -198,7 +198,7 @@ def test_profile_extractor_none_enables_all_sources(mock_chat_completion):
     org_id = "0"
     interaction_request = InteractionData(
         content="test content",
-        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
     )
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -266,7 +266,7 @@ def test_profile_extractor_empty_list_enables_all_sources(mock_chat_completion):
     org_id = "0"
     interaction_request = InteractionData(
         content="test content",
-        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
     )
 
     with tempfile.TemporaryDirectory() as temp_dir:

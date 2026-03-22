@@ -4,7 +4,7 @@ import boto3
 import pytest
 from botocore.exceptions import ClientError
 from moto import mock_aws
-from reflexio.utils.s3_utils import S3Utils
+from reflexio_ext.utils.s3_utils import S3Utils
 
 TEST_BUCKET = "test-bucket"
 TEST_REGION = "us-east-1"

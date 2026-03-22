@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from pydantic import BaseModel
-from reflexio.server.llm.openai_client import (
+from reflexio_ext.server.llm.openai_client import (
     OpenAIClient,
     OpenAIClientError,
     OpenAIConfig,
@@ -96,8 +96,8 @@ def _build_client(
             config = OpenAIConfig(api_key="sk-test-key")
 
     with (
-        patch("reflexio.server.llm.openai_client.OpenAI") as mock_openai,
-        patch("reflexio.server.llm.openai_client.AzureOpenAI") as mock_azure,
+        patch("reflexio_ext.server.llm.openai_client.OpenAI") as mock_openai,
+        patch("reflexio_ext.server.llm.openai_client.AzureOpenAI") as mock_azure,
     ):
         mock_openai.return_value = MagicMock()
         mock_azure.return_value = MagicMock()
@@ -112,7 +112,7 @@ def _build_client(
 class TestInit:
     """Initialization of OpenAIClient (OpenAI and Azure paths)."""
 
-    @patch("reflexio.server.llm.openai_client.OpenAI")
+    @patch("reflexio_ext.server.llm.openai_client.OpenAI")
     def test_standard_openai_init(self, mock_openai_cls):
         mock_openai_cls.return_value = MagicMock()
         config = OpenAIConfig(api_key="sk-test")
@@ -124,7 +124,7 @@ class TestInit:
         assert client.is_azure is False
         assert client.azure_deployment is None
 
-    @patch("reflexio.server.llm.openai_client.AzureOpenAI")
+    @patch("reflexio_ext.server.llm.openai_client.AzureOpenAI")
     def test_azure_init(self, mock_azure_cls):
         mock_azure_cls.return_value = MagicMock()
         config = OpenAIConfig(
@@ -264,7 +264,7 @@ class TestMakeRequestWithRetry:
         assert result == "ok"
         assert client.client.chat.completions.create.call_count == 1
 
-    @patch("reflexio.server.llm.openai_client.time.sleep")
+    @patch("reflexio_ext.server.llm.openai_client.time.sleep")
     def test_success_on_retry(self, mock_sleep):
         client = _build_client(OpenAIConfig(api_key="sk-test", max_retries=2))
         client.client.chat.completions.create.side_effect = [
@@ -280,7 +280,7 @@ class TestMakeRequestWithRetry:
         assert client.client.chat.completions.create.call_count == 2
         mock_sleep.assert_called_once()
 
-    @patch("reflexio.server.llm.openai_client.time.sleep")
+    @patch("reflexio_ext.server.llm.openai_client.time.sleep")
     def test_all_retries_fail(self, mock_sleep):
         client = _build_client(OpenAIConfig(api_key="sk-test", max_retries=1))
         client.client.chat.completions.create.side_effect = RuntimeError("boom")
@@ -504,7 +504,7 @@ class TestConfigManagement:
 class TestInitEdgeCases:
     """Edge cases for client initialization failures."""
 
-    @patch("reflexio.server.llm.openai_client.AzureOpenAI")
+    @patch("reflexio_ext.server.llm.openai_client.AzureOpenAI")
     def test_azure_init_exception_wraps_error(self, mock_azure_cls):
         """Lines 103-104: AzureOpenAI constructor raises -> wrapped in OpenAIClientError."""
         mock_azure_cls.side_effect = RuntimeError("Azure SDK init failed")
@@ -517,7 +517,7 @@ class TestInitEdgeCases:
         ):
             OpenAIClient(config)
 
-    @patch("reflexio.server.llm.openai_client.OpenAI")
+    @patch("reflexio_ext.server.llm.openai_client.OpenAI")
     def test_openai_init_exception_wraps_error(self, mock_openai_cls):
         """Lines 124-125: OpenAI constructor raises -> wrapped in OpenAIClientError."""
         mock_openai_cls.side_effect = RuntimeError("OpenAI SDK init failed")
@@ -789,7 +789,7 @@ class TestParseAPIEdgeCases:
 class TestErrorMessageFormatting:
     """Edge case: all retries fail with last_exception included in message."""
 
-    @patch("reflexio.server.llm.openai_client.time.sleep")
+    @patch("reflexio_ext.server.llm.openai_client.time.sleep")
     def test_error_message_includes_last_exception(self, mock_sleep):
         """Lines 381-384: Verify the error message includes the last exception."""
         client = _build_client(OpenAIConfig(api_key="sk-test", max_retries=1))
@@ -822,7 +822,7 @@ class TestEmbeddingRetryAndErrors:
         with pytest.raises(OpenAIClientError, match="No embedding data returned"):
             client.get_embedding("some text")
 
-    @patch("reflexio.server.llm.openai_client.time.sleep")
+    @patch("reflexio_ext.server.llm.openai_client.time.sleep")
     def test_embedding_retry_then_success(self, mock_sleep):
         """Lines 469-484: Embedding retries on transient error then succeeds."""
         client = _build_client(OpenAIConfig(api_key="sk-test", max_retries=2))
@@ -837,7 +837,7 @@ class TestEmbeddingRetryAndErrors:
         assert client.client.embeddings.create.call_count == 2
         mock_sleep.assert_called_once()
 
-    @patch("reflexio.server.llm.openai_client.time.sleep")
+    @patch("reflexio_ext.server.llm.openai_client.time.sleep")
     def test_embedding_all_retries_fail(self, mock_sleep):
         """Lines 487-490: Embedding fails after all retries."""
         client = _build_client(OpenAIConfig(api_key="sk-test", max_retries=1))
@@ -872,9 +872,9 @@ class TestEmbeddingRetryAndErrors:
 class TestCreateOpenAIClient:
     """Tests for the create_openai_client factory function."""
 
-    @patch("reflexio.server.llm.openai_client.OpenAI")
+    @patch("reflexio_ext.server.llm.openai_client.OpenAI")
     def test_basic_creation(self, mock_openai_cls):
-        from reflexio.server.llm.openai_client import create_openai_client
+        from reflexio_ext.server.llm.openai_client import create_openai_client
 
         mock_openai_cls.return_value = MagicMock()
         client = create_openai_client(
@@ -885,9 +885,9 @@ class TestCreateOpenAIClient:
         assert client.config.model == "gpt-4o"
         assert client.config.temperature == 0.5
 
-    @patch("reflexio.server.llm.openai_client.OpenAI")
+    @patch("reflexio_ext.server.llm.openai_client.OpenAI")
     def test_creation_with_extra_kwargs(self, mock_openai_cls):
-        from reflexio.server.llm.openai_client import create_openai_client
+        from reflexio_ext.server.llm.openai_client import create_openai_client
 
         mock_openai_cls.return_value = MagicMock()
         client = create_openai_client(

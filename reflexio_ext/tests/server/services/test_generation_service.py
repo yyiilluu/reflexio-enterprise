@@ -58,7 +58,7 @@ def test_publish_request_with_session_id(mock_llm_responses):
 
         interaction = InteractionData(
             content="test interaction",
-            created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+            created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
         )
 
         request = PublishUserInteractionRequest(
@@ -88,7 +88,7 @@ def test_empty_session_id_allows_multiple_requests(mock_llm_responses):
 
         interaction = InteractionData(
             content="interaction without session",
-            created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+            created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
         )
 
         # Request without session_id (empty string)
@@ -104,7 +104,7 @@ def test_empty_session_id_allows_multiple_requests(mock_llm_responses):
         # Try another request with empty session_id - should also succeed
         another_interaction = InteractionData(
             content="another interaction without session",
-            created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+            created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
         )
 
         another_request = PublishUserInteractionRequest(
@@ -165,7 +165,7 @@ def _make_request(
     """Helper to build a minimal PublishUserInteractionRequest."""
     interaction = InteractionData(
         content=content,
-        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
     )
     return PublishUserInteractionRequest(
         user_id=user_id,

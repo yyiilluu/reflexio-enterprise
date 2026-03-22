@@ -2,11 +2,15 @@ import json
 import os
 
 import pytest
-from reflexio.server.services.configurator.configurator import SimpleConfigurator
+from reflexio_ext.server.services.configurator.configurator import (
+    SimpleConfigurator,
+    is_s3_config_storage_ready,
+)
 from reflexio_commons.config_schema import (
     Config,
     ProfileExtractorConfig,
     StorageConfigLocal,
+    StorageConfigSQLite,
     StorageConfigSupabase,
     StorageConfigTest,
 )
@@ -35,8 +39,8 @@ def test_init_creates_config_file(temp_dir, test_org_id):
     assert os.path.exists(config_file)
     with open(config_file, encoding="utf-8") as f:
         loaded_config = Config.model_validate(json.load(f))
-        assert isinstance(loaded_config.storage_config, StorageConfigLocal)
-        assert not loaded_config.profile_extractor_configs
+        assert isinstance(loaded_config.storage_config, StorageConfigSQLite)
+        assert loaded_config.profile_extractor_configs is not None
 
 
 def test_get_config_with_default(configurator):
@@ -45,7 +49,7 @@ def test_get_config_with_default(configurator):
     # Since get_config() returns the full Config object, we can check if a field exists
     # or has a default value by accessing it directly
     assert hasattr(config, "storage_config")
-    assert isinstance(config.storage_config, StorageConfigLocal)
+    assert isinstance(config.storage_config, StorageConfigSQLite)
 
 
 def test_set_and_get_config_by_name(configurator):
@@ -176,8 +180,9 @@ class TestDeleteAllConfigs:
 
         config = configurator.get_config()
         assert config.agent_context_prompt is None
-        assert config.profile_extractor_configs is None
-        assert isinstance(config.storage_config, StorageConfigLocal)
+        # Default config includes a default profile extractor
+        assert config.profile_extractor_configs is not None
+        assert isinstance(config.storage_config, StorageConfigSQLite)
 
 
 # ===============================
@@ -246,6 +251,10 @@ class TestStorageConfigReadiness:
 
     def test_is_storage_configured_with_succeeded_test(self, configurator):
         """Test that is_storage_configured returns True when test status is SUCCEEDED."""
+        # Set a storage config type recognized by the enterprise readiness checks
+        configurator.set_config_by_name(
+            "storage_config", StorageConfigLocal(dir_path="/some/path")
+        )
         configurator.set_config_by_name(
             "storage_config_test", StorageConfigTest.SUCCEEDED
         )
@@ -274,7 +283,7 @@ class TestCreateStorage:
 
     def test_supabase_type_creates_supabase_storage(self, configurator):
         """Test that StorageConfigSupabase creates a SupabaseStorage instance."""
-        from reflexio.server.services.storage.supabase_storage import SupabaseStorage
+        from reflexio_ext.server.services.storage.supabase_storage import SupabaseStorage
 
         supabase_config = StorageConfigSupabase(
             url="https://test.supabase.co",
@@ -296,30 +305,21 @@ class TestIsS3ConfigStorageReady:
     def test_all_vars_set_returns_true(self):
         """Test returns True when all S3 env vars are set."""
         with pytest.MonkeyPatch.context() as mp:
-            mp.setattr("reflexio.server.CONFIG_S3_PATH", "s3://bucket/path")
-            mp.setattr("reflexio.server.CONFIG_S3_REGION", "us-east-1")
-            mp.setattr("reflexio.server.CONFIG_S3_ACCESS_KEY", "AKIAEXAMPLE")
-            mp.setattr("reflexio.server.CONFIG_S3_SECRET_KEY", "secret123")
-            # The function reads from reflexio.server.services.configurator.configurator
-            # which imports these at top level, so we patch the references there too
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.CONFIG_S3_PATH",
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_PATH",
                 "s3://bucket/path",
             )
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.CONFIG_S3_REGION",
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_REGION",
                 "us-east-1",
             )
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.CONFIG_S3_ACCESS_KEY",
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_ACCESS_KEY",
                 "AKIAEXAMPLE",
             )
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.CONFIG_S3_SECRET_KEY",
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_SECRET_KEY",
                 "secret123",
-            )
-            from reflexio.server.services.configurator.configurator import (
-                is_s3_config_storage_ready,
             )
 
             assert is_s3_config_storage_ready() is True
@@ -328,23 +328,20 @@ class TestIsS3ConfigStorageReady:
         """Test returns False when only some S3 env vars are set."""
         with pytest.MonkeyPatch.context() as mp:
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.CONFIG_S3_PATH",
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_PATH",
                 "s3://bucket/path",
             )
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.CONFIG_S3_REGION",
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_REGION",
                 "us-east-1",
             )
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.CONFIG_S3_ACCESS_KEY",
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_ACCESS_KEY",
                 "",
             )
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.CONFIG_S3_SECRET_KEY",
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_SECRET_KEY",
                 "",
-            )
-            from reflexio.server.services.configurator.configurator import (
-                is_s3_config_storage_ready,
             )
 
             assert is_s3_config_storage_ready() is False
@@ -353,24 +350,20 @@ class TestIsS3ConfigStorageReady:
         """Test returns False when no S3 env vars are set."""
         with pytest.MonkeyPatch.context() as mp:
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.CONFIG_S3_PATH", ""
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_PATH", ""
             )
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.CONFIG_S3_REGION",
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_REGION",
                 "",
             )
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.CONFIG_S3_ACCESS_KEY",
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_ACCESS_KEY",
                 "",
             )
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.CONFIG_S3_SECRET_KEY",
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_SECRET_KEY",
                 "",
             )
-            from reflexio.server.services.configurator.configurator import (
-                is_s3_config_storage_ready,
-            )
-
             assert is_s3_config_storage_ready() is False
 
 
@@ -386,22 +379,22 @@ class TestSelfHostMode:
         """Test that SELF_HOST_MODE=True with no S3 vars raises ValueError."""
         with pytest.MonkeyPatch.context() as mp:
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.SELF_HOST_MODE",
+                "reflexio_ext.server.services.configurator.configurator.SELF_HOST_MODE",
                 True,
             )
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.CONFIG_S3_PATH", ""
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_PATH", ""
             )
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.CONFIG_S3_REGION",
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_REGION",
                 "",
             )
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.CONFIG_S3_ACCESS_KEY",
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_ACCESS_KEY",
                 "",
             )
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.CONFIG_S3_SECRET_KEY",
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_SECRET_KEY",
                 "",
             )
             with pytest.raises(ValueError, match="SELF_HOST=true requires S3"):
@@ -494,19 +487,19 @@ class TestInitWithS3AndBaseDir:
         """When base_dir is provided, local config storage is used even if S3 is ready."""
         with pytest.MonkeyPatch.context() as mp:
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.CONFIG_S3_PATH",
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_PATH",
                 "s3://bucket/path",
             )
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.CONFIG_S3_REGION",
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_REGION",
                 "us-east-1",
             )
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.CONFIG_S3_ACCESS_KEY",
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_ACCESS_KEY",
                 "AKIAEXAMPLE",
             )
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.CONFIG_S3_SECRET_KEY",
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_SECRET_KEY",
                 "secret123",
             )
 
@@ -530,28 +523,28 @@ class TestInitWithRdsFallback:
         """When no base_dir, no S3, and not self-host, RDS storage is used."""
         with pytest.MonkeyPatch.context() as mp:
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.SELF_HOST_MODE",
+                "reflexio_ext.server.services.configurator.configurator.SELF_HOST_MODE",
                 False,
             )
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.CONFIG_S3_PATH", ""
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_PATH", ""
             )
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.CONFIG_S3_REGION",
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_REGION",
                 "",
             )
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.CONFIG_S3_ACCESS_KEY",
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_ACCESS_KEY",
                 "",
             )
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.CONFIG_S3_SECRET_KEY",
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_SECRET_KEY",
                 "",
             )
 
             from unittest.mock import patch
 
-            from reflexio.server.services.configurator.rds_config_storage import (
+            from reflexio_ext.server.services.configurator.rds_config_storage import (
                 RdsConfigStorage,
             )
 
@@ -583,28 +576,28 @@ class TestInitWithRdsFallback:
         """When load_config returns None, ValueError is raised."""
         with pytest.MonkeyPatch.context() as mp:
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.SELF_HOST_MODE",
+                "reflexio_ext.server.services.configurator.configurator.SELF_HOST_MODE",
                 False,
             )
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.CONFIG_S3_PATH", ""
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_PATH", ""
             )
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.CONFIG_S3_REGION",
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_REGION",
                 "",
             )
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.CONFIG_S3_ACCESS_KEY",
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_ACCESS_KEY",
                 "",
             )
             mp.setattr(
-                "reflexio.server.services.configurator.configurator.CONFIG_S3_SECRET_KEY",
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_SECRET_KEY",
                 "",
             )
 
             from unittest.mock import patch
 
-            from reflexio.server.services.configurator.rds_config_storage import (
+            from reflexio_ext.server.services.configurator.rds_config_storage import (
                 RdsConfigStorage,
             )
 
@@ -671,6 +664,10 @@ class TestIsStorageConfiguredPartial:
 
     def test_is_storage_configured_returns_true_when_test_succeeded(self, configurator):
         """Test is_storage_configured returns True when test status is SUCCEEDED."""
+        # Set a storage config type recognized by the enterprise readiness checks
+        configurator.set_config_by_name(
+            "storage_config", StorageConfigLocal(dir_path="/some/path")
+        )
         configurator.set_config_by_name(
             "storage_config_test", StorageConfigTest.SUCCEEDED
         )

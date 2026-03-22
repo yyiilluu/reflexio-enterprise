@@ -221,7 +221,7 @@ class TestCalculateExpirationTimestamp:
         # on platforms where it overflows, it returns sys.maxsize.
         try:
             expected = int(datetime.max.timestamp())
-        except OverflowError, OSError, ValueError:
+        except (OverflowError, OSError, ValueError):
             expected = sys.maxsize
         assert result == expected
 

@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import psycopg2
 import pytest
-from reflexio.server.services.storage.supabase_storage_utils import (
+from reflexio_ext.server.services.storage.supabase_storage_utils import (
     _parse_iso_timestamp,
     agent_success_evaluation_result_to_data,
     check_migration_needed,
@@ -1217,9 +1217,22 @@ class TestExtractDbUrlFromConfigJson:
 class TestGetLatestMigrationVersion:
     """Tests for get_latest_migration_version utility."""
 
-    def test_returns_version_string(self):
+    def test_returns_version_string(self, tmp_path):
         """Test returning a numeric version prefix from actual migration files."""
-        result = get_latest_migration_version()
+        # Create fake migration directory structure:
+        # tmp_path/reflexio/__init__.py  (reflexio.__file__)
+        # tmp_path/supabase/data/supabase/migrations/20240601120000_initial.sql
+        pkg_dir = tmp_path / "reflexio"
+        pkg_dir.mkdir()
+        init_file = pkg_dir / "__init__.py"
+        init_file.write_text("")
+
+        migration_dir = tmp_path / "supabase" / "data" / "supabase" / "migrations"
+        migration_dir.mkdir(parents=True)
+        (migration_dir / "20240601120000_initial.sql").write_text("SELECT 1;")
+
+        with patch("reflexio.__file__", str(init_file)):
+            result = get_latest_migration_version()
 
         # Migration files exist in the repo, so we should get a version string
         assert result is not None
@@ -1237,16 +1250,16 @@ class TestCheckMigrationNeeded:
     """Tests for check_migration_needed utility."""
 
     @patch(
-        "reflexio.server.services.storage.supabase_storage_utils.get_latest_migration_version"
+        "reflexio_ext.server.services.storage.supabase_storage_utils.get_latest_migration_version"
     )
     def test_returns_false_when_no_latest_version(self, mock_get_version):
         """Test returning False when there is no latest migration version."""
         mock_get_version.return_value = None
         assert check_migration_needed("postgresql://localhost/db") is False
 
-    @patch("reflexio.server.services.storage.supabase_storage_utils.psycopg2")
+    @patch("reflexio_ext.server.services.storage.supabase_storage_utils.psycopg2")
     @patch(
-        "reflexio.server.services.storage.supabase_storage_utils.get_latest_migration_version"
+        "reflexio_ext.server.services.storage.supabase_storage_utils.get_latest_migration_version"
     )
     def test_returns_true_when_migration_not_applied(
         self, mock_get_version, mock_psycopg2
@@ -1264,9 +1277,9 @@ class TestCheckMigrationNeeded:
         assert result is True
         mock_conn.close.assert_called_once()
 
-    @patch("reflexio.server.services.storage.supabase_storage_utils.psycopg2")
+    @patch("reflexio_ext.server.services.storage.supabase_storage_utils.psycopg2")
     @patch(
-        "reflexio.server.services.storage.supabase_storage_utils.get_latest_migration_version"
+        "reflexio_ext.server.services.storage.supabase_storage_utils.get_latest_migration_version"
     )
     def test_returns_false_when_migration_applied(
         self, mock_get_version, mock_psycopg2
@@ -1284,9 +1297,9 @@ class TestCheckMigrationNeeded:
         assert result is False
         mock_conn.close.assert_called_once()
 
-    @patch("reflexio.server.services.storage.supabase_storage_utils.psycopg2")
+    @patch("reflexio_ext.server.services.storage.supabase_storage_utils.psycopg2")
     @patch(
-        "reflexio.server.services.storage.supabase_storage_utils.get_latest_migration_version"
+        "reflexio_ext.server.services.storage.supabase_storage_utils.get_latest_migration_version"
     )
     def test_returns_false_on_connection_error(self, mock_get_version, mock_psycopg2):
         """Test returning False when DB connection fails (fail-safe)."""
@@ -1311,8 +1324,8 @@ class TestExecuteSqlFileDirect:
         with pytest.raises(ValueError, match="Database URL is required"):
             execute_sql_file_direct("", "/path/to/file.sql")
 
-    @patch("reflexio.server.services.storage.supabase_storage_utils.Path")
-    @patch("reflexio.server.services.storage.supabase_storage_utils.psycopg2")
+    @patch("reflexio_ext.server.services.storage.supabase_storage_utils.Path")
+    @patch("reflexio_ext.server.services.storage.supabase_storage_utils.psycopg2")
     def test_executes_select_statements(self, mock_psycopg2, mock_path_cls):
         """Test executing SQL file with SELECT statements that return results."""
         mock_conn = MagicMock()
@@ -1339,8 +1352,8 @@ class TestExecuteSqlFileDirect:
         mock_cursor.close.assert_called_once()
         mock_conn.close.assert_called_once()
 
-    @patch("reflexio.server.services.storage.supabase_storage_utils.Path")
-    @patch("reflexio.server.services.storage.supabase_storage_utils.psycopg2")
+    @patch("reflexio_ext.server.services.storage.supabase_storage_utils.Path")
+    @patch("reflexio_ext.server.services.storage.supabase_storage_utils.psycopg2")
     def test_handles_non_select_statements(self, mock_psycopg2, mock_path_cls):
         """Test executing SQL file with INSERT/UPDATE statements that have no results."""
         mock_conn = MagicMock()
@@ -1368,8 +1381,8 @@ class TestExecuteSqlFileDirect:
         assert len(results) == 1
         assert "Executed:" in results[0]
 
-    @patch("reflexio.server.services.storage.supabase_storage_utils.Path")
-    @patch("reflexio.server.services.storage.supabase_storage_utils.psycopg2")
+    @patch("reflexio_ext.server.services.storage.supabase_storage_utils.Path")
+    @patch("reflexio_ext.server.services.storage.supabase_storage_utils.psycopg2")
     def test_raises_and_rolls_back_on_error(self, mock_psycopg2, mock_path_cls):
         """Test that errors cause rollback and re-raise."""
         mock_conn = MagicMock()
@@ -1399,9 +1412,22 @@ class TestExecuteSqlFileDirect:
 class TestExecuteMigration:
     """Tests for execute_migration utility."""
 
-    @patch("reflexio.server.services.storage.supabase_storage_utils.psycopg2")
-    def test_skips_already_applied_migrations(self, mock_psycopg2):
+    @staticmethod
+    def _setup_migration_dir(tmp_path):
+        """Create a fake migration directory with a single .sql file and return the init file path."""
+        pkg_dir = tmp_path / "reflexio"
+        pkg_dir.mkdir()
+        init_file = pkg_dir / "__init__.py"
+        init_file.write_text("")
+        migration_dir = tmp_path / "supabase" / "data" / "supabase" / "migrations"
+        migration_dir.mkdir(parents=True)
+        (migration_dir / "20240601120000_initial.sql").write_text("CREATE TABLE t (id int);")
+        return str(init_file)
+
+    @patch("reflexio_ext.server.services.storage.supabase_storage_utils.psycopg2")
+    def test_skips_already_applied_migrations(self, mock_psycopg2, tmp_path):
         """Test that already-applied migrations are skipped, returning success."""
+        init_file = self._setup_migration_dir(tmp_path)
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         # Every fetchone returns a row -> all migrations already applied
@@ -1409,15 +1435,17 @@ class TestExecuteMigration:
         mock_conn.cursor.return_value = mock_cursor
         mock_psycopg2.connect.return_value = mock_conn
 
-        success, msg = execute_migration("postgresql://localhost/db")
+        with patch("reflexio.__file__", init_file):
+            success, msg = execute_migration("postgresql://localhost/db")
 
         assert success is True
         assert "All migrations already applied" in msg
         mock_conn.commit.assert_called_once()
 
-    @patch("reflexio.server.services.storage.supabase_storage_utils.psycopg2")
-    def test_executes_pending_migrations(self, mock_psycopg2):
+    @patch("reflexio_ext.server.services.storage.supabase_storage_utils.psycopg2")
+    def test_executes_pending_migrations(self, mock_psycopg2, tmp_path):
         """Test executing pending migrations (not yet applied)."""
+        init_file = self._setup_migration_dir(tmp_path)
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         # fetchone returns None -> migration not applied, needs execution
@@ -1425,65 +1453,75 @@ class TestExecuteMigration:
         mock_conn.cursor.return_value = mock_cursor
         mock_psycopg2.connect.return_value = mock_conn
 
-        success, msg = execute_migration("postgresql://localhost/db")
+        with patch("reflexio.__file__", init_file):
+            success, msg = execute_migration("postgresql://localhost/db")
 
         assert success is True
         assert "Executed migrations:" in msg
         mock_conn.commit.assert_called_once()
 
-    @patch("reflexio.server.services.storage.supabase_storage_utils.psycopg2")
-    def test_handles_dns_resolution_error(self, mock_psycopg2):
+    @patch("reflexio_ext.server.services.storage.supabase_storage_utils.psycopg2")
+    def test_handles_dns_resolution_error(self, mock_psycopg2, tmp_path):
         """Test handling DNS resolution failure."""
+        init_file = self._setup_migration_dir(tmp_path)
         mock_psycopg2.connect.side_effect = psycopg2.OperationalError(
             "could not translate host name"
         )
         mock_psycopg2.OperationalError = psycopg2.OperationalError
 
-        success, msg = execute_migration("postgresql://bad-host/db")
+        with patch("reflexio.__file__", init_file):
+            success, msg = execute_migration("postgresql://bad-host/db")
 
         assert success is False
         assert "DNS resolution failed" in msg
 
-    @patch("reflexio.server.services.storage.supabase_storage_utils.psycopg2")
-    def test_handles_connection_refused_error(self, mock_psycopg2):
+    @patch("reflexio_ext.server.services.storage.supabase_storage_utils.psycopg2")
+    def test_handles_connection_refused_error(self, mock_psycopg2, tmp_path):
         """Test handling connection refused error."""
+        init_file = self._setup_migration_dir(tmp_path)
         mock_psycopg2.connect.side_effect = psycopg2.OperationalError(
             "Connection refused"
         )
         mock_psycopg2.OperationalError = psycopg2.OperationalError
 
-        success, msg = execute_migration("postgresql://localhost/db")
+        with patch("reflexio.__file__", init_file):
+            success, msg = execute_migration("postgresql://localhost/db")
 
         assert success is False
         assert "Connection refused" in msg
 
-    @patch("reflexio.server.services.storage.supabase_storage_utils.psycopg2")
-    def test_handles_generic_operational_error(self, mock_psycopg2):
+    @patch("reflexio_ext.server.services.storage.supabase_storage_utils.psycopg2")
+    def test_handles_generic_operational_error(self, mock_psycopg2, tmp_path):
         """Test handling a generic OperationalError."""
+        init_file = self._setup_migration_dir(tmp_path)
         mock_psycopg2.connect.side_effect = psycopg2.OperationalError(
             "some other error"
         )
         mock_psycopg2.OperationalError = psycopg2.OperationalError
 
-        success, msg = execute_migration("postgresql://localhost/db")
+        with patch("reflexio.__file__", init_file):
+            success, msg = execute_migration("postgresql://localhost/db")
 
         assert success is False
         assert "Database connection error" in msg
 
-    @patch("reflexio.server.services.storage.supabase_storage_utils.psycopg2")
-    def test_handles_generic_exception(self, mock_psycopg2):
+    @patch("reflexio_ext.server.services.storage.supabase_storage_utils.psycopg2")
+    def test_handles_generic_exception(self, mock_psycopg2, tmp_path):
         """Test handling a generic Exception during migration."""
+        init_file = self._setup_migration_dir(tmp_path)
         mock_psycopg2.connect.side_effect = RuntimeError("unexpected")
         mock_psycopg2.OperationalError = psycopg2.OperationalError
 
-        success, msg = execute_migration("postgresql://localhost/db")
+        with patch("reflexio.__file__", init_file):
+            success, msg = execute_migration("postgresql://localhost/db")
 
         assert success is False
         assert "unexpected" in msg
 
-    @patch("reflexio.server.services.storage.supabase_storage_utils.psycopg2")
-    def test_handles_migration_execution_failure(self, mock_psycopg2):
+    @patch("reflexio_ext.server.services.storage.supabase_storage_utils.psycopg2")
+    def test_handles_migration_execution_failure(self, mock_psycopg2, tmp_path):
         """Test handling a failure during migration SQL execution."""
+        init_file = self._setup_migration_dir(tmp_path)
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         # fetchone returns None -> migration not yet applied
@@ -1503,7 +1541,8 @@ class TestExecuteMigration:
         mock_conn.cursor.return_value = mock_cursor
         mock_psycopg2.connect.return_value = mock_conn
 
-        success, msg = execute_migration("postgresql://localhost/db")
+        with patch("reflexio.__file__", init_file):
+            success, msg = execute_migration("postgresql://localhost/db")
 
         assert success is False
         assert "Failed to execute" in msg
