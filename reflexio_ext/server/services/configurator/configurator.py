@@ -25,13 +25,49 @@ from reflexio_ext.server import (
     CONFIG_S3_REGION,
     CONFIG_S3_SECRET_KEY,
 )
-from reflexio_ext.server.services.configurator.rds_config_storage import (
-    RdsConfigStorage,
-)
+from reflexio_ext.server.db.database import SessionLocal
 from reflexio_ext.server.services.configurator.s3_config_storage import S3ConfigStorage
+from reflexio_ext.server.services.configurator.sqlite_config_storage import (
+    SqliteConfigStorage,
+)
+from reflexio_ext.server.services.configurator.supabase_config_storage import (
+    SupabaseConfigStorage,
+)
 from reflexio_ext.server.services.storage.supabase_storage import SupabaseStorage
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Storage factory functions — one per StorageConfig type
+# ---------------------------------------------------------------------------
+
+
+def _create_local_json_storage(
+    configurator: SimpleConfigurator, config: StorageConfigLocal
+) -> BaseStorage:
+    logger.info("Using local storage for org %s", configurator.org_id)
+    return LocalJsonStorage(
+        org_id=configurator.org_id,
+        base_dir=configurator.base_dir,
+        config=config,
+    )
+
+
+def _create_supabase_storage(
+    configurator: SimpleConfigurator, config: StorageConfigSupabase
+) -> BaseStorage:
+    logger.info("Using Supabase storage for org %s", configurator.org_id)
+    full_config = configurator.get_config()
+    api_key_config = full_config.api_key_config if full_config else None
+    llm_config = full_config.llm_config if full_config else None
+    return SupabaseStorage(
+        org_id=configurator.org_id,
+        config=config,
+        api_key_config=api_key_config,
+        llm_config=llm_config,
+    )
+
 
 # Check if in self-host mode
 SELF_HOST_MODE = os.getenv("SELF_HOST", "false").lower() == "true"
@@ -60,7 +96,8 @@ class SimpleConfigurator:
             # Choose the appropriate config storage based on priority:
             # 1. Local (if base_dir is explicitly provided - used for testing)
             # 2. S3 (if all CONFIG_S3_* env vars are set, required in self-host mode)
-            # 3. RDS (default, not available in self-host mode)
+            # 3. Supabase (if SessionLocal is None - cloud mode)
+            # 4. SQLite (local fallback)
             if base_dir:
                 self.config_storage = LocalJsonConfigStorage(
                     org_id=org_id, base_dir=base_dir
@@ -73,9 +110,12 @@ class SimpleConfigurator:
                     "SELF_HOST=true requires S3 config storage. "
                     "Set CONFIG_S3_PATH, CONFIG_S3_REGION, CONFIG_S3_ACCESS_KEY, CONFIG_S3_SECRET_KEY"
                 )
+            elif SessionLocal is None:
+                # Cloud Supabase mode (no local database)
+                self.config_storage = SupabaseConfigStorage(org_id=org_id)
             else:
-                # location of the user login info and user configuration
-                self.config_storage = RdsConfigStorage(org_id=org_id)
+                # Local SQLite fallback
+                self.config_storage = SqliteConfigStorage(org_id=org_id)
 
             self.config = self.config_storage.load_config()
         else:
@@ -155,36 +195,27 @@ class SimpleConfigurator:
         md5_hasher.update(encoded_data)
         return md5_hasher.hexdigest()
 
-    def create_storage(self, storage_config: StorageConfig) -> BaseStorage | None:
-        """
-        This routine creates a storage based on the given storage config type.
-        """
-        storage: BaseStorage
-        if isinstance(storage_config, StorageConfigLocal):
-            logger.info("Using local storage for org %s", self.org_id)
-            storage = LocalJsonStorage(
-                org_id=self.org_id,
-                base_dir=self.base_dir,
-                config=storage_config,
-            )
-        elif isinstance(storage_config, StorageConfigSupabase):
-            logger.info("Using Supabase storage for org %s", self.org_id)
-            # Get API key config and LLM config from current config
-            config = self.get_config()
-            api_key_config = config.api_key_config if config else None
-            llm_config = config.llm_config if config else None
-            storage = SupabaseStorage(
-                org_id=self.org_id,
-                config=storage_config,
-                api_key_config=api_key_config,
-                llm_config=llm_config,
-            )
-        elif storage_config is None:
-            return None
-        else:
-            raise ValueError(f"Invalid storage config type: {type(storage_config)}")
+    # Registry: StorageConfig type → factory(configurator, config) → BaseStorage
+    _STORAGE_FACTORIES: dict[type[StorageConfig], Callable[..., BaseStorage]] = {
+        StorageConfigLocal: _create_local_json_storage,
+        StorageConfigSupabase: _create_supabase_storage,
+    }
 
-        return storage
+    def create_storage(self, storage_config: StorageConfig) -> BaseStorage | None:
+        """Create a storage based on the given storage config type.
+
+        Uses the ``_STORAGE_FACTORIES`` registry to dispatch to the correct
+        factory function. New backends can be added by registering entries
+        in the dict without modifying this method.
+        """
+        if storage_config is None:
+            return None
+        factory = self._STORAGE_FACTORIES.get(type(storage_config))
+        if factory is None:
+            raise ValueError(
+                f"No storage factory registered for {type(storage_config).__name__}"
+            )
+        return factory(self, storage_config)
 
     def is_storage_configured(self) -> bool:
         """

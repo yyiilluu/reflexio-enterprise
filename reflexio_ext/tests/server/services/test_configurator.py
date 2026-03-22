@@ -1,11 +1,8 @@
 import json
 import os
+from unittest.mock import MagicMock
 
 import pytest
-from reflexio_ext.server.services.configurator.configurator import (
-    SimpleConfigurator,
-    is_s3_config_storage_ready,
-)
 from reflexio_commons.config_schema import (
     Config,
     ProfileExtractorConfig,
@@ -13,6 +10,11 @@ from reflexio_commons.config_schema import (
     StorageConfigSQLite,
     StorageConfigSupabase,
     StorageConfigTest,
+)
+
+from reflexio_ext.server.services.configurator.configurator import (
+    SimpleConfigurator,
+    is_s3_config_storage_ready,
 )
 
 
@@ -283,7 +285,9 @@ class TestCreateStorage:
 
     def test_supabase_type_creates_supabase_storage(self, configurator):
         """Test that StorageConfigSupabase creates a SupabaseStorage instance."""
-        from reflexio_ext.server.services.storage.supabase_storage import SupabaseStorage
+        from reflexio_ext.server.services.storage.supabase_storage import (
+            SupabaseStorage,
+        )
 
         supabase_config = StorageConfigSupabase(
             url="https://test.supabase.co",
@@ -350,7 +354,8 @@ class TestIsS3ConfigStorageReady:
         """Test returns False when no S3 env vars are set."""
         with pytest.MonkeyPatch.context() as mp:
             mp.setattr(
-                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_PATH", ""
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_PATH",
+                "",
             )
             mp.setattr(
                 "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_REGION",
@@ -383,7 +388,8 @@ class TestSelfHostMode:
                 True,
             )
             mp.setattr(
-                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_PATH", ""
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_PATH",
+                "",
             )
             mp.setattr(
                 "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_REGION",
@@ -516,18 +522,19 @@ class TestInitWithS3AndBaseDir:
 # ===============================
 
 
-class TestInitWithRdsFallback:
-    """Tests for SimpleConfigurator init with RDS fallback path."""
+class TestInitWithDbFallback:
+    """Tests for SimpleConfigurator init with database fallback paths."""
 
-    def test_rds_fallback_when_no_s3_and_not_self_host(self):
-        """When no base_dir, no S3, and not self-host, RDS storage is used."""
+    def test_sqlite_fallback_when_no_s3_and_not_self_host(self):
+        """When no base_dir, no S3, not self-host, and SessionLocal exists, SQLite storage is used."""
         with pytest.MonkeyPatch.context() as mp:
             mp.setattr(
                 "reflexio_ext.server.services.configurator.configurator.SELF_HOST_MODE",
                 False,
             )
             mp.setattr(
-                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_PATH", ""
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_PATH",
+                "",
             )
             mp.setattr(
                 "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_REGION",
@@ -541,29 +548,90 @@ class TestInitWithRdsFallback:
                 "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_SECRET_KEY",
                 "",
             )
+            # SessionLocal is not None → SQLite path
+            mp.setattr(
+                "reflexio_ext.server.services.configurator.configurator.SessionLocal",
+                MagicMock(),
+            )
 
             from unittest.mock import patch
 
-            from reflexio_ext.server.services.configurator.rds_config_storage import (
-                RdsConfigStorage,
+            from reflexio_ext.server.services.configurator.sqlite_config_storage import (
+                SqliteConfigStorage,
             )
 
             with (
                 patch.object(
-                    RdsConfigStorage,
+                    SqliteConfigStorage,
                     "__init__",
                     lambda self, org_id: setattr(self, "org_id", org_id) or None,
                 ),
                 patch.object(
-                    RdsConfigStorage,
+                    SqliteConfigStorage,
                     "load_config",
                     return_value=Config(
-                        storage_config=StorageConfigLocal(dir_path="/test/rds_config")
+                        storage_config=StorageConfigLocal(
+                            dir_path="/test/sqlite_config"
+                        )
                     ),
                 ),
             ):
                 configurator = SimpleConfigurator(org_id="test_org")
-                assert isinstance(configurator.config_storage, RdsConfigStorage)
+                assert isinstance(configurator.config_storage, SqliteConfigStorage)
+
+    def test_supabase_fallback_when_session_local_is_none(self):
+        """When SessionLocal is None (cloud mode), Supabase storage is used."""
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                "reflexio_ext.server.services.configurator.configurator.SELF_HOST_MODE",
+                False,
+            )
+            mp.setattr(
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_PATH",
+                "",
+            )
+            mp.setattr(
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_REGION",
+                "",
+            )
+            mp.setattr(
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_ACCESS_KEY",
+                "",
+            )
+            mp.setattr(
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_SECRET_KEY",
+                "",
+            )
+            # SessionLocal is None → Supabase path
+            mp.setattr(
+                "reflexio_ext.server.services.configurator.configurator.SessionLocal",
+                None,
+            )
+
+            from unittest.mock import patch
+
+            from reflexio_ext.server.services.configurator.supabase_config_storage import (
+                SupabaseConfigStorage,
+            )
+
+            with (
+                patch.object(
+                    SupabaseConfigStorage,
+                    "__init__",
+                    lambda self, org_id: setattr(self, "org_id", org_id) or None,
+                ),
+                patch.object(
+                    SupabaseConfigStorage,
+                    "load_config",
+                    return_value=Config(
+                        storage_config=StorageConfigLocal(
+                            dir_path="/test/supabase_config"
+                        )
+                    ),
+                ),
+            ):
+                configurator = SimpleConfigurator(org_id="test_org")
+                assert isinstance(configurator.config_storage, SupabaseConfigStorage)
 
     def test_init_with_config_object_skips_storage(self):
         """When config object is provided directly, no storage is initialized."""
@@ -580,7 +648,8 @@ class TestInitWithRdsFallback:
                 False,
             )
             mp.setattr(
-                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_PATH", ""
+                "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_PATH",
+                "",
             )
             mp.setattr(
                 "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_REGION",
@@ -594,21 +663,25 @@ class TestInitWithRdsFallback:
                 "reflexio_ext.server.services.configurator.configurator.CONFIG_S3_SECRET_KEY",
                 "",
             )
+            mp.setattr(
+                "reflexio_ext.server.services.configurator.configurator.SessionLocal",
+                MagicMock(),
+            )
 
             from unittest.mock import patch
 
-            from reflexio_ext.server.services.configurator.rds_config_storage import (
-                RdsConfigStorage,
+            from reflexio_ext.server.services.configurator.sqlite_config_storage import (
+                SqliteConfigStorage,
             )
 
             with (
                 patch.object(
-                    RdsConfigStorage,
+                    SqliteConfigStorage,
                     "__init__",
                     lambda self, org_id: setattr(self, "org_id", org_id) or None,
                 ),
                 patch.object(
-                    RdsConfigStorage,
+                    SqliteConfigStorage,
                     "load_config",
                     return_value=None,
                 ),
@@ -641,7 +714,7 @@ class TestCreateStorageEdgeCases:
 
     def test_invalid_storage_config_type_raises(self, configurator):
         """Test that an unknown storage config type raises ValueError."""
-        with pytest.raises(ValueError, match="Invalid storage config type"):
+        with pytest.raises(ValueError, match="No storage factory registered for"):
             configurator.create_storage("not_a_config_object")
 
 
