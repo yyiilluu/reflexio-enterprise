@@ -190,9 +190,6 @@ The body should follow this structure — but when updating, work within the exi
 - Provide context and background with links to relevant issues/docs
 - Include Mermaid diagrams when they simplify explanation of workflows or architecture
 - Keep PRs focused on a single concern — suggest splitting if the PR is too large
-- Do NOT include any "Generated with Claude Code" footer or bot attribution lines
-- Do NOT include `Co-Authored-By` lines
-
 ### Step 5: Apply Updates
 
 Write the body to a temp file and use `--body-file` to avoid shell argument length limits:
@@ -211,10 +208,7 @@ EOF
 gh pr edit --title "the pr title" --body-file /tmp/pr_body.md
 ```
 
-**Do NOT add:**
-- `--author` flag
-- Any `Co-Authored-By` trailer
-- Any "Generated with Claude Code" footer
+**Note:** Do not pass the `--author` flag — `gh` uses the authenticated user automatically.
 
 **Draft/Ready handling:** If the user wants to mark a draft PR as ready for review, run `gh pr ready`. If the user wants to convert to draft, run `gh pr ready --undo`.
 

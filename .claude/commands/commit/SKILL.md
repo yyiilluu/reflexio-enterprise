@@ -145,8 +145,6 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `style`
 - If the staged changes span multiple unrelated concerns, note this to the user and suggest splitting into separate commits rather than writing a vague summary.
 - Check `git log --oneline -5` and match the existing commit style of the repo.
 
-**Do NOT include** `Co-Authored-By` lines in commit messages.
-
 ## Precommit Hook Retry Logic
 
 When precommit hooks fail due to file modifications:
