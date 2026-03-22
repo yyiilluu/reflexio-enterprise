@@ -159,7 +159,6 @@ Guidelines:
 - Distinguish primary changes from intermediate steps. Intermediate commits (reverts of earlier mistakes, temporary scaffolding, cleanup) should be folded into the section they support, not given their own top-level section. The Summary bullets should reflect the PR's purpose, not mirror the commit list.
 - For WIP PRs, use the `--draft` flag instead of `[WIP]` prefix
 - Include Mermaid diagrams when they clarify workflows or architecture
-- Do NOT include any "Generated with Claude Code" footer or bot attribution
 
 ### Step 7: Create the PR
 
@@ -186,9 +185,7 @@ gh pr create --title "the pr title" --base $BASE_BRANCH --body-file /tmp/pr_body
 - Reviewers: add `--reviewer <handle>`
 - Assignees: add `--assignee <handle>`
 
-**Do NOT add:**
-- `--author` flag (gh uses the authenticated user automatically)
-- Any "Generated with Claude Code" footer
+**Note:** Do not pass the `--author` flag — `gh` uses the authenticated user automatically.
 
 ### Step 7.1: Cross-link Submodule PR (if submodule has changes)
 
