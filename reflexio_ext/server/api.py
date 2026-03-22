@@ -7,7 +7,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from reflexio.server.api import create_app
 
 from reflexio_ext.server.api_endpoints.login import get_current_active_org
-from reflexio_ext.server.db.database import get_db_session
+from reflexio_ext.server.db.db_operations import get_db_session
 
 # Self-host mode configuration
 SELF_HOST_MODE = os.getenv("SELF_HOST", "false").lower() == "true"
@@ -17,7 +17,7 @@ DEFAULT_ORG_ID = "self-host-org"
 optional_oauth2_scheme = HTTPBearer(auto_error=False)
 
 
-def get_optional_db_session():
+def get_optional_db_session() -> object | None:
     """Get database session only if not in self-host mode."""
     if SELF_HOST_MODE:
         return None
@@ -63,15 +63,15 @@ def _build_enterprise_routers() -> list[APIRouter]:
 
     # Register login endpoints
     if hasattr(login, "register_routes"):
-        login.register_routes(enterprise_router)
+        login.register_routes(enterprise_router)  # type: ignore[reportAttributeAccessIssue]
 
     # Register oauth endpoints
     if hasattr(oauth, "register_routes"):
-        oauth.register_routes(enterprise_router)
+        oauth.register_routes(enterprise_router)  # type: ignore[reportAttributeAccessIssue]
 
     # Register self-managed migration endpoints
     if hasattr(self_managed_migration, "register_routes"):
-        self_managed_migration.register_routes(enterprise_router)
+        self_managed_migration.register_routes(enterprise_router)  # type: ignore[reportAttributeAccessIssue]
 
     return [enterprise_router]
 
