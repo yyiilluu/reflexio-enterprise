@@ -37,6 +37,38 @@ from reflexio_ext.server.services.storage.supabase_storage import SupabaseStorag
 
 logger = logging.getLogger(__name__)
 
+
+# ---------------------------------------------------------------------------
+# Storage factory functions — one per StorageConfig type
+# ---------------------------------------------------------------------------
+
+
+def _create_local_json_storage(
+    configurator: SimpleConfigurator, config: StorageConfigLocal
+) -> BaseStorage:
+    logger.info("Using local storage for org %s", configurator.org_id)
+    return LocalJsonStorage(
+        org_id=configurator.org_id,
+        base_dir=configurator.base_dir,
+        config=config,
+    )
+
+
+def _create_supabase_storage(
+    configurator: SimpleConfigurator, config: StorageConfigSupabase
+) -> BaseStorage:
+    logger.info("Using Supabase storage for org %s", configurator.org_id)
+    full_config = configurator.get_config()
+    api_key_config = full_config.api_key_config if full_config else None
+    llm_config = full_config.llm_config if full_config else None
+    return SupabaseStorage(
+        org_id=configurator.org_id,
+        config=config,
+        api_key_config=api_key_config,
+        llm_config=llm_config,
+    )
+
+
 # Check if in self-host mode
 SELF_HOST_MODE = os.getenv("SELF_HOST", "false").lower() == "true"
 
@@ -163,36 +195,27 @@ class SimpleConfigurator:
         md5_hasher.update(encoded_data)
         return md5_hasher.hexdigest()
 
-    def create_storage(self, storage_config: StorageConfig) -> BaseStorage | None:
-        """
-        This routine creates a storage based on the given storage config type.
-        """
-        storage: BaseStorage
-        if isinstance(storage_config, StorageConfigLocal):
-            logger.info("Using local storage for org %s", self.org_id)
-            storage = LocalJsonStorage(
-                org_id=self.org_id,
-                base_dir=self.base_dir,
-                config=storage_config,
-            )
-        elif isinstance(storage_config, StorageConfigSupabase):
-            logger.info("Using Supabase storage for org %s", self.org_id)
-            # Get API key config and LLM config from current config
-            config = self.get_config()
-            api_key_config = config.api_key_config if config else None
-            llm_config = config.llm_config if config else None
-            storage = SupabaseStorage(
-                org_id=self.org_id,
-                config=storage_config,
-                api_key_config=api_key_config,
-                llm_config=llm_config,
-            )
-        elif storage_config is None:
-            return None
-        else:
-            raise ValueError(f"Invalid storage config type: {type(storage_config)}")
+    # Registry: StorageConfig type → factory(configurator, config) → BaseStorage
+    _STORAGE_FACTORIES: dict[type[StorageConfig], Callable[..., BaseStorage]] = {
+        StorageConfigLocal: _create_local_json_storage,
+        StorageConfigSupabase: _create_supabase_storage,
+    }
 
-        return storage
+    def create_storage(self, storage_config: StorageConfig) -> BaseStorage | None:
+        """Create a storage based on the given storage config type.
+
+        Uses the ``_STORAGE_FACTORIES`` registry to dispatch to the correct
+        factory function. New backends can be added by registering entries
+        in the dict without modifying this method.
+        """
+        if storage_config is None:
+            return None
+        factory = self._STORAGE_FACTORIES.get(type(storage_config))
+        if factory is None:
+            raise ValueError(
+                f"No storage factory registered for {type(storage_config).__name__}"
+            )
+        return factory(self, storage_config)
 
     def is_storage_configured(self) -> bool:
         """

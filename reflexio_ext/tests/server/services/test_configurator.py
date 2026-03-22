@@ -714,7 +714,7 @@ class TestCreateStorageEdgeCases:
 
     def test_invalid_storage_config_type_raises(self, configurator):
         """Test that an unknown storage config type raises ValueError."""
-        with pytest.raises(ValueError, match="Invalid storage config type"):
+        with pytest.raises(ValueError, match="No storage factory registered for"):
             configurator.create_storage("not_a_config_object")
 
 
