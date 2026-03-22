@@ -20,6 +20,7 @@ _MOD = "reflexio_ext.server.db.db_operations"
 _IS_S3 = f"{_MOD}._is_self_host_s3_mode"
 _GET_S3 = f"{_MOD}.get_s3_org_storage"
 _GET_SB = f"{_MOD}.get_login_supabase_client"
+_SESSION_LOCAL = f"{_MOD}.SessionLocal"
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -169,7 +170,9 @@ class TestRowToInvitationCode:
     def test_full_row(self):
         from reflexio_ext.server.db.db_operations import _row_to_invitation_code
 
-        row = _make_invitation_row(code="INV-123", is_used=True, used_by_email="u@e.com")
+        row = _make_invitation_row(
+            code="INV-123", is_used=True, used_by_email="u@e.com"
+        )
         inv = _row_to_invitation_code(row)
         assert inv.code == "INV-123"
         assert inv.is_used is True
@@ -276,14 +279,15 @@ class TestGetOrganizationByEmail:
         result = get_organization_by_email(session, "nobody@example.com")
         assert result is None
 
-    # --- Session is None, no supabase ---
+    # --- Session is None, no supabase, no SessionLocal ---
+    @patch(_SESSION_LOCAL, None)
     @patch(_IS_S3, return_value=False)
     @patch(_GET_SB, return_value=None)
     def test_no_session_no_supabase(self, _sb, _is_s3):
         from reflexio_ext.server.db.db_operations import get_organization_by_email
 
-        result = get_organization_by_email(None, "test@example.com")  # type: ignore[arg-type]
-        assert result is None
+        with pytest.raises(RuntimeError, match="requires a sessionmaker or session"):
+            get_organization_by_email(None, "test@example.com")  # type: ignore[arg-type]
 
 
 # ===================================================================
@@ -333,11 +337,12 @@ class TestGetOrganizations:
 
     @patch(_IS_S3, return_value=False)
     @patch(_GET_SB, return_value=None)
+    @patch(_SESSION_LOCAL, None)
     def test_no_session_returns_empty(self, _sb, _is_s3):
         from reflexio_ext.server.db.db_operations import get_organizations
 
-        result = get_organizations(None, skip=0, limit=10)  # type: ignore[arg-type]
-        assert result == []
+        with pytest.raises(RuntimeError, match="requires a sessionmaker or session"):
+            get_organizations(None, skip=0, limit=10)  # type: ignore[arg-type]
 
 
 # ===================================================================
@@ -401,10 +406,11 @@ class TestCreateOrganization:
 
     @patch(_IS_S3, return_value=False)
     @patch(_GET_SB, return_value=None)
+    @patch(_SESSION_LOCAL, None)
     def test_no_session_raises(self, _sb, _is_s3):
         from reflexio_ext.server.db.db_operations import create_organization
 
-        with pytest.raises(Exception, match="No session available"):
+        with pytest.raises(RuntimeError, match="requires a sessionmaker or session"):
             create_organization(None, _make_org())  # type: ignore[arg-type]
 
     @patch(_IS_S3, return_value=False)
@@ -492,10 +498,11 @@ class TestUpdateOrganization:
 
     @patch(_IS_S3, return_value=False)
     @patch(_GET_SB, return_value=None)
+    @patch(_SESSION_LOCAL, None)
     def test_no_session_raises(self, _sb, _is_s3):
         from reflexio_ext.server.db.db_operations import update_organization
 
-        with pytest.raises(Exception, match="No session available"):
+        with pytest.raises(RuntimeError, match="requires a sessionmaker or session"):
             update_organization(None, _make_org())  # type: ignore[arg-type]
 
 
@@ -637,9 +644,7 @@ class TestClaimInvitationCode:
         inv = MagicMock()
         inv.is_used = False
         inv.expires_at = None
-        session.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = (
-            inv
-        )
+        session.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = inv
 
         result = claim_invitation_code(session, "INV-1", "user@e.com")
         assert result is inv
@@ -653,9 +658,7 @@ class TestClaimInvitationCode:
         from reflexio_ext.server.db.db_operations import claim_invitation_code
 
         session = MagicMock()
-        session.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = (
-            None
-        )
+        session.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = None
 
         result = claim_invitation_code(session, "NOPE", "user@e.com")
         assert result is None
@@ -668,9 +671,7 @@ class TestClaimInvitationCode:
         session = MagicMock()
         inv = MagicMock()
         inv.is_used = True
-        session.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = (
-            inv
-        )
+        session.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = inv
 
         result = claim_invitation_code(session, "USED", "user@e.com")
         assert result is None
@@ -684,9 +685,7 @@ class TestClaimInvitationCode:
         inv = MagicMock()
         inv.is_used = False
         inv.expires_at = 1  # Very old timestamp = expired
-        session.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = (
-            inv
-        )
+        session.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = inv
 
         result = claim_invitation_code(session, "EXPIRED", "user@e.com")
         assert result is None
@@ -700,9 +699,7 @@ class TestClaimInvitationCode:
         inv = MagicMock()
         inv.is_used = False
         inv.expires_at = 99999999999  # Far future
-        session.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = (
-            inv
-        )
+        session.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = inv
 
         result = claim_invitation_code(session, "VALID", "user@e.com")
         assert result is inv
@@ -782,9 +779,7 @@ class TestCreateInvitationCode:
         from reflexio_ext.server.db.db_operations import create_invitation_code
 
         client = MagicMock()
-        table_chain = _chain_mock(
-            _sb_response([_make_invitation_row(code="NEW-CODE")])
-        )
+        table_chain = _chain_mock(_sb_response([_make_invitation_row(code="NEW-CODE")]))
         client.table.return_value = table_chain
         mock_sb.return_value = client
 
@@ -837,10 +832,11 @@ class TestCreateInvitationCode:
 
     @patch(_IS_S3, return_value=False)
     @patch(_GET_SB, return_value=None)
+    @patch(_SESSION_LOCAL, None)
     def test_no_session_raises(self, _sb, _is_s3):
         from reflexio_ext.server.db.db_operations import create_invitation_code
 
-        with pytest.raises(Exception, match="No session available"):
+        with pytest.raises(RuntimeError, match="requires a sessionmaker or session"):
             create_invitation_code(None, "FAIL")  # type: ignore[arg-type]
 
 
@@ -868,9 +864,7 @@ class TestCreateApiToken:
         from reflexio_ext.server.db.db_operations import create_api_token
 
         client = MagicMock()
-        table_chain = _chain_mock(
-            _sb_response([_make_token_row(token="rflx-new")])
-        )
+        table_chain = _chain_mock(_sb_response([_make_token_row(token="rflx-new")]))
         client.table.return_value = table_chain
         mock_sb.return_value = client
 
@@ -906,10 +900,11 @@ class TestCreateApiToken:
 
     @patch(_IS_S3, return_value=False)
     @patch(_GET_SB, return_value=None)
+    @patch(_SESSION_LOCAL, None)
     def test_no_session_raises(self, _sb, _is_s3):
         from reflexio_ext.server.db.db_operations import create_api_token
 
-        with pytest.raises(Exception, match="No session available"):
+        with pytest.raises(RuntimeError, match="requires a sessionmaker or session"):
             create_api_token(None, 1, "rflx-x")  # type: ignore[arg-type]
 
 
@@ -959,11 +954,12 @@ class TestGetApiTokensByOrgId:
 
     @patch(_IS_S3, return_value=False)
     @patch(_GET_SB, return_value=None)
+    @patch(_SESSION_LOCAL, None)
     def test_no_session_returns_empty(self, _sb, _is_s3):
         from reflexio_ext.server.db.db_operations import get_api_tokens_by_org_id
 
-        result = get_api_tokens_by_org_id(None, 1)  # type: ignore[arg-type]
-        assert result == []
+        with pytest.raises(RuntimeError, match="requires a sessionmaker or session"):
+            get_api_tokens_by_org_id(None, 1)  # type: ignore[arg-type]
 
 
 # ===================================================================
@@ -1062,11 +1058,12 @@ class TestGetOrgByApiToken:
 
     @patch(_IS_S3, return_value=False)
     @patch(_GET_SB, return_value=None)
+    @patch(_SESSION_LOCAL, None)
     def test_no_session(self, _sb, _is_s3):
         from reflexio_ext.server.db.db_operations import get_org_by_api_token
 
-        result = get_org_by_api_token(None, "rflx-x")  # type: ignore[arg-type]
-        assert result is None
+        with pytest.raises(RuntimeError, match="requires a sessionmaker or session"):
+            get_org_by_api_token(None, "rflx-x")  # type: ignore[arg-type]
 
 
 # ===================================================================
@@ -1134,10 +1131,12 @@ class TestDeleteApiToken:
 
     @patch(_IS_S3, return_value=False)
     @patch(_GET_SB, return_value=None)
+    @patch(_SESSION_LOCAL, None)
     def test_no_session(self, _sb, _is_s3):
         from reflexio_ext.server.db.db_operations import delete_api_token
 
-        assert delete_api_token(None, 1, 1) is False  # type: ignore[arg-type]
+        with pytest.raises(RuntimeError, match="requires a sessionmaker or session"):
+            delete_api_token(None, 1, 1)  # type: ignore[arg-type]
 
 
 # ===================================================================
@@ -1182,10 +1181,12 @@ class TestDeleteAllApiTokensForOrg:
 
     @patch(_IS_S3, return_value=False)
     @patch(_GET_SB, return_value=None)
+    @patch(_SESSION_LOCAL, None)
     def test_no_session(self, _sb, _is_s3):
         from reflexio_ext.server.db.db_operations import delete_all_api_tokens_for_org
 
-        assert delete_all_api_tokens_for_org(None, 1) == 0  # type: ignore[arg-type]
+        with pytest.raises(RuntimeError, match="requires a sessionmaker or session"):
+            delete_all_api_tokens_for_org(None, 1)  # type: ignore[arg-type]
 
 
 # ===================================================================
@@ -1252,10 +1253,12 @@ class TestDeleteOrganization:
 
     @patch(_IS_S3, return_value=False)
     @patch(_GET_SB, return_value=None)
+    @patch(_SESSION_LOCAL, None)
     def test_no_session(self, _sb, _is_s3):
         from reflexio_ext.server.db.db_operations import delete_organization
 
-        assert delete_organization(None, 1) is False  # type: ignore[arg-type]
+        with pytest.raises(RuntimeError, match="requires a sessionmaker or session"):
+            delete_organization(None, 1)  # type: ignore[arg-type]
 
 
 # ===================================================================
@@ -1309,9 +1312,8 @@ class TestDbSessionContext:
         mock_db = MagicMock()
         mock_session_local.return_value = mock_db
 
-        with pytest.raises(ValueError):
-            with db_session_context() as _s:
-                raise ValueError("boom")
+        with pytest.raises(ValueError), db_session_context() as _s:
+            raise ValueError("boom")
         mock_db.close.assert_called_once()
 
 
