@@ -14,11 +14,8 @@ This page covers all aspects of authentication with Reflexio, including API key 
 ```python
 import reflexio
 
-# Initialize client with API key and endpoint
-client = reflexio.ReflexioClient(
-    api_key="your-api-key",
-    url_endpoint="http://127.0.0.1:8081/"
-)
+# Initialize client with API key
+client = reflexio.ReflexioClient(api_key="your-api-key")
 
 # Ready to use immediately
 response = client.get_config()
@@ -27,14 +24,13 @@ print("Client ready with API key authentication")
 
 ### Environment Variable Authentication
 
-The client automatically reads `REFLEXIO_API_KEY` and `REFLEXIO_API_URL` environment variables:
+The client automatically reads the `REFLEXIO_API_KEY` environment variable:
 
 ```python
 import reflexio
 
-# Set environment variables before running:
+# Set environment variable before running:
 # export REFLEXIO_API_KEY="your-api-key"
-# export REFLEXIO_API_URL="http://127.0.0.1:8081/"
 
 # No arguments needed - auto-reads from environment
 client = reflexio.ReflexioClient()
@@ -45,33 +41,40 @@ print("Client ready with environment variable authentication")
 
 ## Environment-Specific Configuration
 
-### Local Development
+### Default (Hosted)
 
 ```python
 import reflexio
 
-# Local development setup with explicit API key
+# Just provide your API key — the default endpoint is used automatically
+client = reflexio.ReflexioClient(api_key="your-api-key")
+```
+
+### Self-Hosted Deployment
+
+```python
+import reflexio
+
+# Point to your self-hosted Reflexio server
 client = reflexio.ReflexioClient(
-    api_key="your-dev-api-key",
-    url_endpoint="http://127.0.0.1:8081/"  # Local development server
+    api_key="your-api-key",
+    url_endpoint="http://your-server:8081/"
 )
 ```
 
-### Production Environment
+### Production with Secrets Manager
 
 ```python
 import os
 import reflexio
 
-# Option 1: Environment variables (recommended for production)
+# Environment variables (recommended for production)
 # export REFLEXIO_API_KEY="your-production-api-key"
-# export REFLEXIO_API_URL="https://api.reflexio.com"
 client = reflexio.ReflexioClient()
 
-# Option 2: Explicit API key from secrets manager
+# Or from a secrets manager
 client = reflexio.ReflexioClient(
-    api_key=os.getenv("REFLEXIO_API_KEY"),
-    url_endpoint=os.getenv("REFLEXIO_API_URL", "https://api.reflexio.com")
+    api_key=os.getenv("REFLEXIO_API_KEY")
 )
 ```
 
@@ -88,8 +91,7 @@ import reflexio
 class ReflexioAuthManager:
     """Manages authentication with API key persistence."""
 
-    def __init__(self, endpoint: str, token_file: str = ".reflexio_token"):
-        self.endpoint = endpoint
+    def __init__(self, token_file: str = ".reflexio_token"):
         self.token_file = Path(token_file)
         self.client = None
 
@@ -108,10 +110,7 @@ class ReflexioAuthManager:
         if api_key is None:
             raise ValueError("No API key provided and none found in file or environment")
 
-        self.client = reflexio.ReflexioClient(
-            api_key=api_key,
-            url_endpoint=self.endpoint
-        )
+        self.client = reflexio.ReflexioClient(api_key=api_key)
 
         # Validate the key works
         if not self._validate_key():
@@ -149,7 +148,7 @@ class ReflexioAuthManager:
             return False
 
 # Usage
-auth_manager = ReflexioAuthManager("http://127.0.0.1:8081/")
+auth_manager = ReflexioAuthManager()
 auth_manager.authenticate(api_key="your-api-key")
 
 # Client is now ready to use

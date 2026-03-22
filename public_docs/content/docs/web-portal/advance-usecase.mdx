@@ -82,7 +82,7 @@ Limit results to profiles extracted from specific sources. This enables multi-te
 ```python
 from reflexio import ReflexioClient
 
-client = ReflexioClient(api_key="your_api_key", url_endpoint="http://127.0.0.1:8081/")
+client = ReflexioClient(api_key="your_api_key")
 
 # search top 5 profile from only "restaurant_booking" source, for the last 14 days, similarity score > 0.75
 response = client.search_profiles(
@@ -126,7 +126,7 @@ For short-term context continuity, Reflexio can function as a **working memory l
 ```python
 from reflexio import ReflexioClient
 
-client = ReflexioClient(api_key="your_api_key", url_endpoint="http://127.0.0.1:8081/")
+client = ReflexioClient(api_key="your_api_key")
 
 # Trigger manual profile generation for a specific user
 # Uses window-sized interactions from config, outputs CURRENT status directly

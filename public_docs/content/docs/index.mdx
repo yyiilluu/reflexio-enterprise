@@ -30,11 +30,10 @@ import reflexio
 from reflexio_commons.api_schema.service_schemas import InteractionData, UserActionType
 
 # Option 1: Direct API key
-client = reflexio.ReflexioClient(api_key="your-api-key", url_endpoint="http://127.0.0.1:8081/")
+client = reflexio.ReflexioClient(api_key="your-api-key")
 
 # Option 2: Environment variable
 # export REFLEXIO_API_KEY="your-api-key"
-# export REFLEXIO_API_URL="http://127.0.0.1:8081/"
 # client = reflexio.ReflexioClient()
 
 # Publish interaction (fire-and-forget by default)

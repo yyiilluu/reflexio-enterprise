@@ -23,7 +23,7 @@ It is recommended to configure Reflexio using the web portal under the Settings 
 ```python
 from reflexio import ReflexioClient
 
-client = ReflexioClient(url_endpoint="http://127.0.0.1:8081/")
+client = ReflexioClient(api_key="your-api-key")
 
 # Get current configuration
 config = client.get_config()
@@ -350,7 +350,7 @@ from reflexio_commons.config_schema import (
     ToolUseConfig
 )
 
-client = ReflexioClient(url_endpoint="http://127.0.0.1:8081/")
+client = ReflexioClient(api_key="your-api-key")
 
 # Get current config
 config = client.get_config()

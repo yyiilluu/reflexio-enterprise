@@ -14,26 +14,22 @@ The main client class for interacting with the Reflexio API.
 ```python
 from reflexio import ReflexioClient
 
-client = ReflexioClient(api_key="your-api-key", url_endpoint="http://127.0.0.1:8081/")
+client = ReflexioClient(api_key="your-api-key")
 ```
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `api_key` | str | No | `""` | API key for authentication. Auto-reads from `REFLEXIO_API_KEY` env var if not provided |
-| `url_endpoint` | str | No | `""` | API endpoint URL. Auto-reads from `REFLEXIO_API_URL` env var if not provided |
+| `url_endpoint` | str | No | `""` | API endpoint URL. Auto-reads from `REFLEXIO_API_URL` env var if not provided. Only needed for self-hosted deployments |
 
 **Examples:**
 
 ```python
 # Option 1: Direct API key
-client = ReflexioClient(
-    api_key="your-api-key",
-    url_endpoint="http://127.0.0.1:8081/"
-)
+client = ReflexioClient(api_key="your-api-key")
 
 # Option 2: Environment variables (recommended)
 # export REFLEXIO_API_KEY="your-api-key"
-# export REFLEXIO_API_URL="http://127.0.0.1:8081/"
 client = ReflexioClient()
 ```
 
@@ -48,14 +44,13 @@ The client automatically reads the following environment variables when no argum
 | Variable | Description |
 |----------|-------------|
 | `REFLEXIO_API_KEY` | API key for authentication |
-| `REFLEXIO_API_URL` | API endpoint URL |
+| `REFLEXIO_API_URL` | API endpoint URL (only needed for self-hosted deployments) |
 
 **Example:**
 
 ```bash
 # Set environment variables
 export REFLEXIO_API_KEY="your-api-key"
-export REFLEXIO_API_URL="http://127.0.0.1:8081/"
 ```
 
 ```python
@@ -69,3 +64,22 @@ response = client.get_config()
 ```
 
 **Note:** Explicit parameters take precedence over environment variables. The API key **never expires**.
+
+---
+
+## Self-Hosted Deployments
+
+If you are running Reflexio on your own infrastructure, provide the `url_endpoint` parameter to point the client to your server:
+
+```python
+# Self-hosted: specify your server URL
+client = ReflexioClient(
+    api_key="your-api-key",
+    url_endpoint="http://your-server:8081/"
+)
+
+# Or via environment variables
+# export REFLEXIO_API_KEY="your-api-key"
+# export REFLEXIO_API_URL="http://your-server:8081/"
+client = ReflexioClient()
+```

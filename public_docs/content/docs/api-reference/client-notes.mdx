@@ -160,7 +160,7 @@ All client methods are synchronous - no `await` needed. The client handles async
 
 ```python
 # All methods are synchronous
-client = ReflexioClient(api_key="your-api-key", url_endpoint="http://127.0.0.1:8081/")
+client = ReflexioClient(api_key="your-api-key")
 profiles = client.get_profiles(user_id="user_123")
 # No async/await required
 ```

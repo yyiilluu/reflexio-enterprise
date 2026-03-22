@@ -25,21 +25,17 @@ Authenticate using an API key:
 from reflexio import ReflexioClient
 
 # Option 1: Direct API key
-client = ReflexioClient(
-    api_key="your-api-key",
-    url_endpoint="http://127.0.0.1:8081/"
-)
+client = ReflexioClient(api_key="your-api-key")
 
 # Option 2: Environment variable (recommended)
 # export REFLEXIO_API_KEY="your-api-key"
-# export REFLEXIO_API_URL="http://127.0.0.1:8081/"
 client = ReflexioClient()
 ```
 </Tab>
 <Tab value="cURL">
 ```bash
 # Use your API key in requests via Authorization header
-curl -X POST "http://127.0.0.1:8081/api/get_config" \
+curl -X POST "https://api.reflexio.ai/api/get_config" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json"
 ```
@@ -63,8 +59,8 @@ This example shows the complete workflow: retrieving user context, building an L
 from reflexio import ReflexioClient, InteractionData, UserActionType
 
 # Step 1: Initialize client with API key
-client = ReflexioClient(api_key="your-api-key", url_endpoint="http://127.0.0.1:8081/")
-# Or use environment variables: REFLEXIO_API_KEY and REFLEXIO_API_URL
+client = ReflexioClient(api_key="your-api-key")
+# Or use environment variable: REFLEXIO_API_KEY
 
 # Step 2: Retrieve user context
 user_id = "user_123"
@@ -146,7 +142,7 @@ print("Interaction published! Profiles will be extracted automatically.")
 # YOUR_API_KEY is your Reflexio API key
 
 # Step 2a: Search user profiles
-curl -X POST "http://127.0.0.1:8081/api/search_profiles" \
+curl -X POST "https://api.reflexio.ai/api/search_profiles" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -156,7 +152,7 @@ curl -X POST "http://127.0.0.1:8081/api/search_profiles" \
   }'
 
 # Step 2b: Get agent feedbacks
-curl -X POST "http://127.0.0.1:8081/api/get_feedbacks" \
+curl -X POST "https://api.reflexio.ai/api/get_feedbacks" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"limit": 5}'
@@ -164,7 +160,7 @@ curl -X POST "http://127.0.0.1:8081/api/get_feedbacks" \
 # Step 3 & 4: Build prompt and call your LLM (done in your application code)
 
 # Step 5: Publish the interaction
-curl -X POST "http://127.0.0.1:8081/api/publish_interaction" \
+curl -X POST "https://api.reflexio.ai/api/publish_interaction" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
