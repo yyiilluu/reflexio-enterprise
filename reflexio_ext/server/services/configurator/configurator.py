@@ -25,10 +25,14 @@ from reflexio_ext.server import (
     CONFIG_S3_REGION,
     CONFIG_S3_SECRET_KEY,
 )
-from reflexio_ext.server.services.configurator.rds_config_storage import (
-    RdsConfigStorage,
-)
+from reflexio_ext.server.db.database import SessionLocal
 from reflexio_ext.server.services.configurator.s3_config_storage import S3ConfigStorage
+from reflexio_ext.server.services.configurator.sqlite_config_storage import (
+    SqliteConfigStorage,
+)
+from reflexio_ext.server.services.configurator.supabase_config_storage import (
+    SupabaseConfigStorage,
+)
 from reflexio_ext.server.services.storage.supabase_storage import SupabaseStorage
 
 logger = logging.getLogger(__name__)
@@ -60,7 +64,8 @@ class SimpleConfigurator:
             # Choose the appropriate config storage based on priority:
             # 1. Local (if base_dir is explicitly provided - used for testing)
             # 2. S3 (if all CONFIG_S3_* env vars are set, required in self-host mode)
-            # 3. RDS (default, not available in self-host mode)
+            # 3. Supabase (if SessionLocal is None - cloud mode)
+            # 4. SQLite (local fallback)
             if base_dir:
                 self.config_storage = LocalJsonConfigStorage(
                     org_id=org_id, base_dir=base_dir
@@ -73,9 +78,12 @@ class SimpleConfigurator:
                     "SELF_HOST=true requires S3 config storage. "
                     "Set CONFIG_S3_PATH, CONFIG_S3_REGION, CONFIG_S3_ACCESS_KEY, CONFIG_S3_SECRET_KEY"
                 )
+            elif SessionLocal is None:
+                # Cloud Supabase mode (no local database)
+                self.config_storage = SupabaseConfigStorage(org_id=org_id)
             else:
-                # location of the user login info and user configuration
-                self.config_storage = RdsConfigStorage(org_id=org_id)
+                # Local SQLite fallback
+                self.config_storage = SqliteConfigStorage(org_id=org_id)
 
             self.config = self.config_storage.load_config()
         else:
