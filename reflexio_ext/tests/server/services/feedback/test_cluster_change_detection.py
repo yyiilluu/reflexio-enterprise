@@ -941,7 +941,7 @@ def _resolve_supabase_config():
             for line in result.stdout.splitlines():
                 if "Database URL" in line and not supabase_db_url:
                     supabase_db_url = line.split(":", 1)[-1].strip()
-        except subprocess.TimeoutExpired, FileNotFoundError:
+        except (subprocess.TimeoutExpired, FileNotFoundError):
             pass
 
     if not supabase_url or not supabase_key:
@@ -956,7 +956,7 @@ def _resolve_supabase_config():
 @pytest.fixture
 def supabase_storage():
     """Create a SupabaseStorage instance for e2e tests."""
-    from reflexio.server.services.storage.supabase_storage import SupabaseStorage
+    from reflexio_ext.server.services.storage.supabase_storage import SupabaseStorage
     from reflexio_commons.config_schema import StorageConfigSupabase
 
     url, key, db_url = _resolve_supabase_config()
@@ -1061,7 +1061,7 @@ def _insert_raw_feedbacks_directly(supabase_storage, feedbacks: list[RawFeedback
         supabase_storage: SupabaseStorage instance
         feedbacks: Feedbacks with pre-computed embeddings
     """
-    from reflexio.server.services.storage.supabase_storage_utils import (
+    from reflexio_ext.server.services.storage.supabase_storage_utils import (
         raw_feedback_to_data,
     )
 

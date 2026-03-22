@@ -1363,12 +1363,9 @@ class TestRetrieveExistingProfiles:
 
         # Even with embedding failure, search should proceed with None embeddings
         assert mock_request_context.storage.search_user_profile.called
-        # Verify None embeddings were passed in the SearchOptions
+        # Verify None embeddings were passed as query_embedding kwarg
         call_args = mock_request_context.storage.search_user_profile.call_args
-        options = (
-            call_args[1]["options"] if "options" in call_args[1] else call_args[0][2]
-        )
-        assert options.query_embedding is None
+        assert call_args[1]["query_embedding"] is None
         assert len(result) == 1
 
     def test_retrieve_empty_profile_content_skipped(
@@ -1416,9 +1413,7 @@ class TestRetrieveExistingProfiles:
         mock_llm_client,
         mock_site_var_manager,
     ):
-        """Test that status_filter is passed through to search_user_profile."""
-        from reflexio_commons.api_schema.service_schemas import Status
-
+        """Test that status_filter=[None] (current profiles only) is passed to search_user_profile."""
         timestamp = int(datetime.now(UTC).timestamp())
         new_profiles = [
             UserProfile(
@@ -1439,12 +1434,11 @@ class TestRetrieveExistingProfiles:
         deduplicator._retrieve_existing_profiles(
             new_profiles=new_profiles,
             user_id="user",
-            status_filter=[Status.ARCHIVED],
         )
 
-        # Verify status_filter was passed to search_user_profile
+        # Verify status_filter=[None] (current profiles only) was passed to search_user_profile
         call_args = mock_request_context.storage.search_user_profile.call_args
-        assert call_args[1]["status_filter"] == [Status.ARCHIVED]
+        assert call_args[1]["status_filter"] == [None]
 
     def test_retrieve_search_failure_for_individual_query(
         self,

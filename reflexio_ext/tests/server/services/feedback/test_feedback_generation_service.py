@@ -68,7 +68,7 @@ def mock_chat_completion():
 
     # Mock the OpenAI client's generate_chat_response method
     with patch(
-        "reflexio.server.llm.openai_client.OpenAIClient.generate_chat_response",
+        "reflexio_ext.server.llm.openai_client.OpenAIClient.generate_chat_response",
         side_effect=mock_generate_chat_response_side_effect,
     ):
         yield
@@ -83,7 +83,7 @@ def test_generate_feedback(mock_chat_completion):
         request_id="test_request_id",
         content="The agent was very helpful in explaining the process",
         role="user",
-        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
     )
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -183,7 +183,7 @@ def test_missing_configs(mock_chat_completion):
         request_id="test_request_id",
         content="The agent was very helpful in explaining the process",
         role="user",
-        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
     )
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -224,7 +224,7 @@ def test_error_handling(mock_chat_completion):
         request_id="test_request_id",
         content="The agent was very helpful in explaining the process",
         role="user",
-        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
     )
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -316,7 +316,7 @@ def test_run_manual_regular_no_window_size(mock_chat_completion):
             request_id="request_1",
             content="Test content",
             role="user",
-            created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+            created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
         )
         request_obj = Request(
             request_id="request_1",
@@ -420,7 +420,7 @@ def test_run_manual_regular_with_interactions(mock_chat_completion):
             request_id="test_request_id",
             content="The agent was very helpful",
             role="user",
-            created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+            created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
         )
         request_obj = Request(
             request_id="test_request_id",
@@ -483,7 +483,7 @@ def test_run_manual_regular_with_source_filter(mock_chat_completion):
             request_id="request_a",
             content="The agent was helpful",
             role="user",
-            created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+            created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
         )
         request_a = Request(
             request_id="request_a",
@@ -501,7 +501,7 @@ def test_run_manual_regular_with_source_filter(mock_chat_completion):
             request_id="request_b",
             content="The agent was not helpful",
             role="user",
-            created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+            created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
         )
         request_b = Request(
             request_id="request_b",
@@ -568,7 +568,7 @@ def test_run_manual_regular_output_pending_status_false(mock_chat_completion):
             request_id="test_request_id",
             content="The agent was very helpful",
             role="user",
-            created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+            created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
         )
         request_obj = Request(
             request_id="test_request_id",
@@ -636,7 +636,7 @@ class TestGetRerunItems:
                     request_id=request_id,
                     content=f"Test content {i}",
                     role="user",
-                    created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+                    created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
                 )
                 request_obj = Request(
                     request_id=request_id,
@@ -657,7 +657,7 @@ class TestGetRerunItems:
                 request_id=request_id,
                 content="Test content user 2",
                 role="user",
-                created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+                created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
             )
             request_obj = Request(
                 request_id=request_id,
@@ -705,7 +705,7 @@ class TestGetRerunItems:
                 request_id="request_a",
                 content="Test content A",
                 role="user",
-                created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+                created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
             )
             request_a = Request(
                 request_id="request_a",
@@ -725,7 +725,7 @@ class TestGetRerunItems:
                 request_id="request_b",
                 content="Test content B",
                 role="user",
-                created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+                created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
             )
             request_b = Request(
                 request_id="request_b",
@@ -803,7 +803,7 @@ def test_collect_scoped_interactions_for_precheck_uses_extractor_scope():
             request_id="request-1",
             content="user corrected the agent behavior",
             role="user",
-            created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+            created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
         )
         session_id = create_request_interaction_data_model(
             user_id=user_id,
@@ -894,7 +894,7 @@ class TestBuildShouldRunPrompt:
                 request_id="req1",
                 content="Hello",
                 role="user",
-                created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+                created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
             )
             session_data = create_request_interaction_data_model(
                 user_id="user1",
@@ -932,7 +932,7 @@ class TestBuildShouldRunPrompt:
                 request_id="req1",
                 content="Hello",
                 role="user",
-                created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+                created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
             )
             session_data = create_request_interaction_data_model(
                 user_id="user1",
@@ -977,7 +977,7 @@ class TestBuildShouldRunPrompt:
                 request_id="req1",
                 content="Hello",
                 role="user",
-                created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+                created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
             )
             session_data = create_request_interaction_data_model(
                 user_id="user1",
@@ -1021,7 +1021,7 @@ class TestBuildShouldRunPrompt:
                 request_id="req1",
                 content="Hello",
                 role="user",
-                created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+                created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
             )
             session_data = create_request_interaction_data_model(
                 user_id="user1",
@@ -1512,7 +1512,7 @@ class TestRunManualRegularUnit:
                     request_id=req_id,
                     content=f"Content from {uid}",
                     role="user",
-                    created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+                    created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
                 )
                 request_obj = Request(
                     request_id=req_id,
@@ -1544,7 +1544,7 @@ class TestRunManualRegularUnit:
                 request_id="req_prog",
                 content="progress test",
                 role="user",
-                created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+                created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
             )
             request_obj = Request(
                 request_id="req_prog",
@@ -1701,8 +1701,8 @@ class TestCreateRunRequestForItem:
         with tempfile.TemporaryDirectory() as temp_dir:
             svc = self._create_service(temp_dir)
 
-            start = datetime.datetime(2024, 1, 1, tzinfo=datetime.UTC)
-            end = datetime.datetime(2024, 6, 1, tzinfo=datetime.UTC)
+            start = datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc)
+            end = datetime.datetime(2024, 6, 1, tzinfo=datetime.timezone.utc)
             rerun_req = RerunFeedbackGenerationRequest(
                 agent_version="1.5",
                 start_time=start,

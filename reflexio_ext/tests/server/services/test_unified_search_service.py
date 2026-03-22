@@ -72,7 +72,7 @@ class TestRunUnifiedSearch(unittest.TestCase):
             request=request,
             org_id="test-org",
             storage=storage,
-            api_key_config=MagicMock(),
+            llm_client=MagicMock(),
             prompt_manager=MagicMock(),
         )
 
@@ -98,7 +98,7 @@ class TestRunUnifiedSearch(unittest.TestCase):
             request=request,
             org_id="test-org",
             storage=storage,
-            api_key_config=MagicMock(),
+            llm_client=MagicMock(),
             prompt_manager=MagicMock(),
         )
 
@@ -123,7 +123,7 @@ class TestRunUnifiedSearch(unittest.TestCase):
             request=request,
             org_id="test-org",
             storage=storage,
-            api_key_config=MagicMock(),
+            llm_client=MagicMock(),
             prompt_manager=MagicMock(),
         )
 
@@ -150,7 +150,7 @@ class TestRunUnifiedSearch(unittest.TestCase):
             request=request,
             org_id="test-org",
             storage=storage,
-            api_key_config=MagicMock(),
+            llm_client=MagicMock(),
             prompt_manager=MagicMock(),
         )
 
@@ -231,7 +231,7 @@ class TestRunUnifiedSearchEdgeCases(unittest.TestCase):
                 request=request,
                 org_id="test-org",
                 storage=storage,
-                api_key_config=MagicMock(),
+                llm_client=MagicMock(),
                 prompt_manager=MagicMock(),
             )
 
@@ -255,7 +255,7 @@ class TestRunUnifiedSearchEdgeCases(unittest.TestCase):
             request=request,
             org_id="test-org",
             storage=storage,
-            api_key_config=MagicMock(),
+            llm_client=MagicMock(),
             prompt_manager=MagicMock(),
         )
 
@@ -268,7 +268,7 @@ class TestPhaseAErrors(unittest.TestCase):
     def test_query_rewrite_failure_falls_back_to_original(self):
         """Test that query rewrite failure returns the original query (lines 159-161)."""
         storage = _mock_storage()
-        api_key_config = MagicMock()
+        llm_client = MagicMock()
         prompt_manager = MagicMock()
 
         with patch(
@@ -282,7 +282,7 @@ class TestPhaseAErrors(unittest.TestCase):
                 query="original query",
                 org_id="test-org",
                 storage=storage,
-                api_key_config=api_key_config,
+                llm_client=llm_client,
                 prompt_manager=prompt_manager,
                 supports_embedding=True,
                 query_rewrite=True,
@@ -296,7 +296,7 @@ class TestPhaseAErrors(unittest.TestCase):
     def test_embedding_skipped_when_not_supported(self):
         """Test that embedding is None when supports_embedding=False."""
         storage = _mock_storage()
-        api_key_config = MagicMock()
+        llm_client = MagicMock()
         prompt_manager = MagicMock()
 
         with patch(
@@ -310,7 +310,7 @@ class TestPhaseAErrors(unittest.TestCase):
                 query="test query",
                 org_id="test-org",
                 storage=storage,
-                api_key_config=api_key_config,
+                llm_client=llm_client,
                 prompt_manager=prompt_manager,
                 supports_embedding=False,
                 query_rewrite=False,
@@ -380,14 +380,13 @@ class TestSearchProfilesViaStorage(unittest.TestCase):
     def test_returns_empty_when_no_user_id(self):
         """Test that missing user_id returns empty list (line 294)."""
         storage = _mock_storage()
-        request = UnifiedSearchRequest(query="test")  # no user_id
 
         result = _search_profiles_via_storage(
             storage=storage,
-            request=request,
             query="test",
             top_k=5,
             threshold=0.3,
+            user_id=None,
             embedding=[0.1] * 1536,
         )
 
@@ -400,14 +399,12 @@ class TestSearchProfilesViaStorage(unittest.TestCase):
         mock_profile = MagicMock(spec=UserProfile)
         storage.search_user_profile.return_value = [mock_profile]
 
-        request = UnifiedSearchRequest(query="test", user_id="user1")
-
         result = _search_profiles_via_storage(
             storage=storage,
-            request=request,
             query="test",
             top_k=5,
             threshold=0.3,
+            user_id="user1",
             embedding=[0.1] * 1536,
         )
 
@@ -419,57 +416,48 @@ class TestSearchProfilesViaStorage(unittest.TestCase):
         storage = _mock_storage()
         storage.search_user_profile.side_effect = RuntimeError("DB connection failed")
 
-        request = UnifiedSearchRequest(query="test", user_id="user1")
-
         result = _search_profiles_via_storage(
             storage=storage,
-            request=request,
             query="test",
             top_k=5,
             threshold=0.3,
+            user_id="user1",
             embedding=[0.1] * 1536,
         )
 
         self.assertEqual(result, [])
 
     def test_passes_embedding_to_search_options(self):
-        """Test that embedding is passed through SearchOptions to storage."""
+        """Test that embedding is passed through to storage."""
         storage = _mock_storage()
         storage.search_user_profile.return_value = []
 
-        request = UnifiedSearchRequest(query="test", user_id="user1")
         embedding = [0.2] * 1536
 
         _search_profiles_via_storage(
             storage=storage,
-            request=request,
             query="test",
             top_k=5,
             threshold=0.3,
+            user_id="user1",
             embedding=embedding,
         )
 
         call_args = storage.search_user_profile.call_args
-        options = (
-            call_args[1].get("options") or call_args[0][2]
-            if len(call_args[0]) > 2
-            else call_args[1].get("options")
-        )
-        self.assertIsNotNone(options)
+        # The embedding is passed as query_embedding kwarg
+        self.assertEqual(call_args[1].get("query_embedding"), embedding)
 
     def test_passes_none_embedding_for_text_only(self):
         """Test that None embedding works for text-only search."""
         storage = _mock_storage()
         storage.search_user_profile.return_value = []
 
-        request = UnifiedSearchRequest(query="test", user_id="user1")
-
         result = _search_profiles_via_storage(
             storage=storage,
-            request=request,
             query="test",
             top_k=5,
             threshold=0.3,
+            user_id="user1",
             embedding=None,
         )
 

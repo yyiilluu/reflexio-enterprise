@@ -48,7 +48,7 @@ def create_request_interaction_data_model(
         source="test",
         agent_version=agent_version,
         session_id=session_id,
-        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
     )
     return RequestInteractionDataModel(
         request=test_request,
@@ -65,7 +65,7 @@ def mock_chat_completion():
 
     # Mock the OpenAI client's generate_chat_response method
     with patch(
-        "reflexio.server.llm.openai_client.OpenAIClient.generate_chat_response",
+        "reflexio_ext.server.llm.openai_client.OpenAIClient.generate_chat_response",
         return_value=mock_response,
     ):
         yield
@@ -81,7 +81,7 @@ def test_evaluate_agent_success(mock_chat_completion):
         request_id="test_request_id",
         content="The agent helped me complete my task successfully",
         role="user",
-        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
     )
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -177,7 +177,7 @@ def test_missing_configs(mock_chat_completion):
         request_id="test_request_id",
         content="The agent helped me complete my task successfully",
         role="user",
-        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
     )
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -218,7 +218,7 @@ def test_error_handling(mock_chat_completion):
         request_id="test_request_id",
         content="The agent helped me complete my task successfully",
         role="user",
-        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
     )
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -254,7 +254,7 @@ def test_error_handling(mock_chat_completion):
 
         # Mock generate_chat_response to raise an exception
         with patch(
-            "reflexio.server.llm.openai_client.OpenAIClient.generate_chat_response",
+            "reflexio_ext.server.llm.openai_client.OpenAIClient.generate_chat_response",
             side_effect=Exception("LLM error"),
         ):
             # The service should handle the error gracefully
@@ -273,7 +273,7 @@ def test_multiple_configs(mock_chat_completion):
         request_id="test_request_id",
         content="The agent helped me complete my task successfully",
         role="user",
-        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
     )
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -328,7 +328,7 @@ def test_with_tool_configs(mock_chat_completion):
         request_id="test_request_id",
         content="The agent used the search tool effectively",
         role="user",
-        created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+        created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
     )
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -424,7 +424,7 @@ def test_agent_success_message_construction_with_interactions():
             request_id="test_request_id",
             content="The agent helped me complete my task successfully",
             role="user",
-            created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+            created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
         ),
         Interaction(
             interaction_id=2,
@@ -432,7 +432,7 @@ def test_agent_success_message_construction_with_interactions():
             request_id="test_request_id",
             content="I used the search tool",
             role="assistant",
-            created_at=int(datetime.datetime.now(datetime.UTC).timestamp()),
+            created_at=int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
             user_action="click",
             user_action_description="search button",
         ),

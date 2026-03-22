@@ -14,7 +14,7 @@ import os
 from datetime import UTC, datetime
 
 import pytest
-from reflexio.server.services.storage.supabase_storage import SupabaseStorage
+from reflexio_ext.server.services.storage.supabase_storage import SupabaseStorage
 from reflexio.tests.server.test_utils import skip_in_precommit
 from reflexio_commons.api_schema.retriever_schema import (
     SearchFeedbackRequest,
@@ -154,6 +154,7 @@ def hybrid_test_data():
             agent_version="test_hybrid_v1",
             request_id=f"test_request_{current_time}",
             feedback_content=f"Agent handled the {unique_keyword} query incorrectly. Need better error handling.",
+            indexed_content=f"Agent handled the {unique_keyword} query incorrectly. Need better error handling.",
             created_at=current_time,
         ),
         "raw_feedback_semantic": RawFeedback(
@@ -161,6 +162,7 @@ def hybrid_test_data():
             agent_version="test_hybrid_v1",
             request_id=f"test_request_{current_time}",
             feedback_content="Agent provided excellent explanations about machine learning concepts and was very thorough.",
+            indexed_content="Agent provided excellent explanations about machine learning concepts and was very thorough.",
             created_at=current_time,
         ),
         "feedback_with_keyword": Feedback(

@@ -110,7 +110,7 @@ class RdsConfigStorage(ConfigStorage):
                         encrypted_value=str(config_raw_encrypted)
                     )
                 return Config(**json.loads(str(config_raw_decrypted)))
-            except json.JSONDecodeError, TypeError, KeyError, ValueError:
+            except (json.JSONDecodeError, TypeError, KeyError, ValueError):
                 return self.get_default_config()
 
     def save_config(self, config: Config) -> None:

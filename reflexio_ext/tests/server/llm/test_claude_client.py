@@ -15,7 +15,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from pydantic import BaseModel
-from reflexio.server.llm.claude_client import (
+from reflexio_ext.server.llm.claude_client import (
     ClaudeClient,
     ClaudeClientError,
     ClaudeConfig,
@@ -84,7 +84,7 @@ def claude_config() -> ClaudeConfig:
 @pytest.fixture
 def mock_anthropic():
     """Patch the Anthropic constructor and yield (mock_class, mock_instance)."""
-    with patch("reflexio.server.llm.claude_client.Anthropic") as mock_cls:
+    with patch("reflexio_ext.server.llm.claude_client.Anthropic") as mock_cls:
         mock_instance = MagicMock()
         mock_cls.return_value = mock_instance
         yield mock_cls, mock_instance
@@ -170,7 +170,7 @@ class TestGenerateResponse:
         img_path.write_bytes(b"\x89PNG fake image data")
 
         with patch(
-            "reflexio.server.llm.claude_client.create_image_content_block"
+            "reflexio_ext.server.llm.claude_client.create_image_content_block"
         ) as mock_create:
             mock_create.return_value = {
                 "type": "image",
@@ -194,7 +194,7 @@ class TestGenerateResponse:
         raw = b"\x89PNG fake"
 
         with patch(
-            "reflexio.server.llm.claude_client.create_image_content_block"
+            "reflexio_ext.server.llm.claude_client.create_image_content_block"
         ) as mock_create:
             mock_create.return_value = {
                 "type": "image",
@@ -590,7 +590,7 @@ class TestGetEmbedding:
         mock_module.OpenAIClientError = _OpenAIClientErrorStub
 
         with patch.dict(
-            "sys.modules", {"reflexio.server.llm.openai_client": mock_module}
+            "sys.modules", {"reflexio_ext.server.llm.openai_client": mock_module}
         ):
             result = client.get_embedding("test text", model="text-embedding-3-small")
 
@@ -612,7 +612,7 @@ class TestGetEmbedding:
 
         with (
             patch.dict(
-                "sys.modules", {"reflexio.server.llm.openai_client": mock_module}
+                "sys.modules", {"reflexio_ext.server.llm.openai_client": mock_module}
             ),
             pytest.raises(ClaudeClientError, match="OpenAI fallback"),
         ):
@@ -661,7 +661,7 @@ class TestInitInvalidApiKey:
         """When Anthropic() raises, ClaudeClientError should wrap the original error."""
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-bad-key")
 
-        with patch("reflexio.server.llm.claude_client.Anthropic") as mock_cls:
+        with patch("reflexio_ext.server.llm.claude_client.Anthropic") as mock_cls:
             mock_cls.side_effect = ValueError("invalid key format")
 
             with pytest.raises(
@@ -671,7 +671,7 @@ class TestInitInvalidApiKey:
 
     def test_init_anthropic_constructor_raises_preserves_cause(self, monkeypatch):
         """The wrapped error should chain the original exception via __cause__."""
-        with patch("reflexio.server.llm.claude_client.Anthropic") as mock_cls:
+        with patch("reflexio_ext.server.llm.claude_client.Anthropic") as mock_cls:
             original = TypeError("bad timeout type")
             mock_cls.side_effect = original
 
@@ -952,7 +952,7 @@ class TestEmbeddingFallbackOnGenericError:
 
         with (
             patch.dict(
-                "sys.modules", {"reflexio.server.llm.openai_client": mock_module}
+                "sys.modules", {"reflexio_ext.server.llm.openai_client": mock_module}
             ),
             pytest.raises(
                 ClaudeClientError, match="Failed to get embedding: unexpected crash"
@@ -972,7 +972,7 @@ class TestEmbeddingFallbackOnGenericError:
 
         with (
             patch.dict(
-                "sys.modules", {"reflexio.server.llm.openai_client": mock_module}
+                "sys.modules", {"reflexio_ext.server.llm.openai_client": mock_module}
             ),
             pytest.raises(ClaudeClientError) as exc_info,
         ):

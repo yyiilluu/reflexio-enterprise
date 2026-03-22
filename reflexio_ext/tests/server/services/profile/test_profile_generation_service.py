@@ -400,7 +400,7 @@ class TestProcessResults:
     def test_dedup_with_pending_status_filter(
         self, service_pending, request_context, sample_profile
     ):
-        """Deduplicator uses PENDING status filter in rerun mode."""
+        """Deduplicator is called with correct args in rerun mode and sets PENDING status on profiles."""
         service_pending.service_config = ProfileGenerationServiceConfig(
             user_id="user_1",
             request_id="req_1",
@@ -422,8 +422,13 @@ class TestProcessResults:
         ):
             service_pending._process_results([[sample_profile]])
 
-        call_kwargs = dedup_mock.deduplicate.call_args
-        assert call_kwargs[1]["existing_status_filter"] == [Status.PENDING]
+        # Verify deduplicate was called with correct positional args
+        dedup_mock.deduplicate.assert_called_once()
+        call_args = dedup_mock.deduplicate.call_args
+        assert call_args[0][1] == "user_1"  # user_id
+        assert call_args[0][2] == "req_1"  # request_id
+        # Verify profiles get PENDING status when output_pending_status is True
+        assert sample_profile.status == Status.PENDING
 
     def test_save_failure_returns_early(self, service, request_context, sample_profile):
         """When add_user_profile raises, the method returns without deleting."""
