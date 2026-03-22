@@ -40,7 +40,6 @@ use supabase cli `supabase migration up` to apply migrations locally instead of 
 - Ensure consistent UI style across the entire project
 - Use `uv` to add and manage python packages
 - Suggest better architecture patterns and ask for clarification before writing if needed
-- Do NOT include `Co-Authored-By` or `Authored-By` lines in git commit messages, PR descriptions, or PR bodies
 
 # Code Quality Tools
 - **Python**: Ruff (lint + format), Pyright (type check)

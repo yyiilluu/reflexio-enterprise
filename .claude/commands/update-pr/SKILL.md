@@ -58,7 +58,7 @@ Skip this step if `$SUBMODULE_HAS_CHANGES` is false.
    cd open_source/reflexio
    ```
 
-2. **Commit any uncommitted changes** — run `git status`. If there are uncommitted changes, stage and commit them (use ruff check/format for Python files, write a conventional commit message). **Do NOT include `Co-Authored-By` or any bot attribution lines.**
+2. **Commit any uncommitted changes** — run `git status`. If there are uncommitted changes, stage and commit them (use ruff check/format for Python files, write a conventional commit message).
 
 3. **Ensure feature branch** — check current branch with `git branch --show-current`. If on `main`, create a feature branch matching the enterprise branch name.
 
@@ -97,7 +97,6 @@ Skip this step if `$SUBMODULE_HAS_CHANGES` is false.
     ```bash
     git commit -m "chore: update open_source/reflexio submodule reference"
     ```
-    **Do NOT add `Co-Authored-By` or any bot attribution trailers to this commit.**
 
 ### Step 3: Analyze Changes (New + Full)
 
@@ -192,7 +191,6 @@ The body should follow this structure — but when updating, work within the exi
 - Include Mermaid diagrams when they simplify explanation of workflows or architecture
 - Keep PRs focused on a single concern — suggest splitting if the PR is too large
 - Do NOT include any "Generated with Claude Code" footer or bot attribution lines
-- Do NOT include `Co-Authored-By` lines
 
 ### Step 5: Apply Updates
 
@@ -214,7 +212,6 @@ gh pr edit --title "the pr title" --body-file /tmp/pr_body.md
 
 **Do NOT add:**
 - `--author` flag
-- Any `Co-Authored-By` trailer
 - Any "Generated with Claude Code" footer
 
 **Draft/Ready handling:** If the user wants to mark a draft PR as ready for review, run `gh pr ready`. If the user wants to convert to draft, run `gh pr ready --undo`.

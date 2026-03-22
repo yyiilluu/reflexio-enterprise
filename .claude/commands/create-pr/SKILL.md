@@ -53,7 +53,6 @@ Process the submodule as a mini create-pr workflow:
    ```
    Run `git status`. If there are uncommitted changes, stage and commit them
    (use ruff check/format for Python files, write a conventional commit message).
-   **Do NOT include `Co-Authored-By` or any bot attribution lines in the commit message.**
 
 2. **Create/reuse feature branch in submodule**:
    - Check current branch: `git branch --show-current`
@@ -93,7 +92,6 @@ Process the submodule as a mini create-pr workflow:
    ```bash
    git commit -m "chore: update open_source/reflexio submodule reference"
    ```
-   **Do NOT add `Co-Authored-By` or any bot attribution trailers to this commit.**
 
 ### Step 3: Ensure Feature Branch
 
@@ -162,7 +160,6 @@ Guidelines:
 - For WIP PRs, use the `--draft` flag instead of `[WIP]` prefix
 - Include Mermaid diagrams when they clarify workflows or architecture
 - Do NOT include any "Generated with Claude Code" footer or bot attribution
-- Do NOT include `Co-Authored-By` lines
 
 ### Step 7: Create the PR
 
@@ -191,7 +188,6 @@ gh pr create --title "the pr title" --base $BASE_BRANCH --body-file /tmp/pr_body
 
 **Do NOT add:**
 - `--author` flag (gh uses the authenticated user automatically)
-- Any `Co-Authored-By` trailer
 - Any "Generated with Claude Code" footer
 
 ### Step 7.1: Cross-link Submodule PR (if submodule has changes)
